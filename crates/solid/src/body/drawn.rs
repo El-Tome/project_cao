@@ -46,20 +46,11 @@ impl Drawn {
 
     /// The nearest triangle a ray crosses names the face; the face's own
     /// surface, not the triangle, says which way it faces there.
-    pub fn ray_hit(
-        &self,
-        body: &brep::Body,
-        (origin, direction): (DVec3, DVec3),
-        kept: &dyn Fn(usize) -> bool,
-    ) -> Option<FaceHit> {
+    pub fn ray_hit(&self, body: &brep::Body, origin: DVec3, direction: DVec3) -> Option<FaceHit> {
         let (distance, id) = self
             .triangles
             .iter()
             .zip(&self.faces)
-            .filter(|(_, id)| {
-                let numbers = body.numbers(**id);
-                numbers.iter().any(|&number| kept(number as usize))
-            })
             .filter_map(|(triangle, id)| Some((ray_triangle(origin, direction, *triangle)?, *id)))
             .min_by(|(near, _), (far, _)| near.total_cmp(far))?;
         let face = body.face(id);

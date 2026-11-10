@@ -287,45 +287,49 @@ fn a_see_through_cut_is_applied_and_the_block_it_removes_is_a_ghost() {
     );
 }
 
-/// The face of `shown` a ray straight down at (x, y) meets, and whether the
-/// part's own face of that number is met at the same place: a face of the
-/// part may answer to several numbers, and the shown face's need only be one.
-fn met_under_the_same_number(
-    document: &PartDocument,
-    shown: &Body,
-    (x, y): (f64, f64),
-) -> (usize, Option<f64>, f64) {
-    let (origin, down) = (DVec3::new(x, y, 50.0), DVec3::NEG_Z);
+/// Whether the part's own face numbered `face` holds `point`: a triangle it
+/// is drawn with lies through the point and holds it within its outline. A
+/// face of the part may answer to several numbers, and asking by one of them
+/// finds it.
+fn the_part_s_face_holds(document: &PartDocument, face: usize, point: DVec3) -> bool {
+    document.body().triangles_of(face).any(|[a, b, c]| {
+        let normal = (b - a).cross(c - a);
+        let on_the_plane = normal.dot(point - a).abs() <= 1e-9 * normal.length();
+        let inside = [(a, b), (b, c), (c, a)]
+            .iter()
+            .all(|(from, to)| (*to - *from).cross(point - *from).dot(normal) >= -1e-9);
+        on_the_plane && inside
+    })
+}
+
+/// The face of `shown` a ray meets, and where.
+fn met(shown: &Body, origin: DVec3, direction: DVec3) -> (usize, DVec3) {
     let hit = shown
-        .ray_hit(origin, down)
-        .unwrap_or_else(|| panic!("nothing of the part shown under ({x}, {y})"));
-    let in_the_part = document
-        .body()
-        .ray_hit_among(origin, down, &|face| face == hit.face)
-        .map(|met| met.distance);
-    (hit.face, in_the_part, hit.distance)
+        .ray_hit(origin, direction)
+        .unwrap_or_else(|| panic!("nothing shown along {direction} from {origin}"));
+    (hit.face, origin + direction * hit.distance)
 }
 
 #[test]
 fn a_face_of_the_part_shown_answers_to_the_number_it_has_in_the_part() {
+    let down = DVec3::NEG_Z;
+
     let (document, _, notch) = a_block_with_a_notch();
     let shown = shown_with(&document, &[(notch, VolumeState::Invisible)]);
-    let (face, in_the_part, distance) =
-        met_under_the_same_number(&document, &shown.body, (2.0, 2.0));
+    let (face, at) = met(&shown.body, DVec3::new(2.0, 2.0, 50.0), down);
     assert!(
-        in_the_part.is_some_and(|met| (met - distance).abs() < 1e-9),
-        "the block's top, its cut invisible, answers to {face}, which in the part is met at \
-         {in_the_part:?} along rather than {distance}",
+        the_part_s_face_holds(&document, face, at),
+        "the block's top, its cut invisible, answers to {face}, and the part's face {face} \
+         does not lie at {at}",
     );
 
     let (document, first, _) = two_overlapping_additions();
     let shown = shown_with(&document, &[(first, VolumeState::Invisible)]);
-    let (face, in_the_part, distance) =
-        met_under_the_same_number(&document, &shown.body, (12.0, 5.0));
+    let (face, at) = met(&shown.body, DVec3::new(12.0, 5.0, 50.0), down);
     assert!(
-        in_the_part.is_some_and(|met| (met - distance).abs() < 1e-9),
-        "the second block's top, the first invisible, answers to {face}, which in the part is \
-         met at {in_the_part:?} along rather than {distance}",
+        the_part_s_face_holds(&document, face, at),
+        "the second block's top, the first invisible, answers to {face}, and the part's face \
+         {face} does not lie at {at}",
     );
 }
 
@@ -340,20 +344,10 @@ fn a_face_of_a_ghost_answers_to_the_number_it_has_in_the_part() {
         .expect("the second block's ghost")
         .body;
 
-    let (origin, along) = (DVec3::new(50.0, 5.0, 2.0), DVec3::NEG_X);
-    let hit = ghost
-        .ray_hit(origin, along)
-        .expect("the ghost's far wall, at x = 15");
-    let in_the_part = document
-        .body()
-        .ray_hit_among(origin, along, &|face| face == hit.face)
-        .map(|met| met.distance);
+    let (face, at) = met(ghost, DVec3::new(50.0, 5.0, 2.0), DVec3::NEG_X);
 
     assert!(
-        in_the_part.is_some_and(|met| (met - hit.distance).abs() < 1e-9),
-        "the ghost's far wall answers to {}, which in the part is met at {in_the_part:?} along \
-         rather than {}",
-        hit.face,
-        hit.distance,
+        the_part_s_face_holds(&document, face, at),
+        "the ghost's far wall answers to {face}, and the part's face {face} does not lie at {at}",
     );
 }

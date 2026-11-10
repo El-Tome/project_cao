@@ -4,7 +4,6 @@ mod caught;
 pub(crate) mod chamfer;
 mod drawn;
 mod exact;
-mod faces;
 pub(crate) mod fillet;
 mod names;
 mod section;
@@ -199,7 +198,17 @@ impl Body {
 
     /// The face a ray meets first, if any.
     pub fn ray_hit(&self, origin: DVec3, direction: DVec3) -> Option<FaceHit> {
-        self.ray_hit_among(origin, direction, &|_| true)
+        match &self.matter {
+            Matter::Exact(exact) => exact.ray_hit(origin, direction),
+            Matter::Flats(flats) => {
+                let hit = flats.mesh.ray_hit(origin, direction)?;
+                Some(FaceHit {
+                    distance: hit.distance,
+                    face: hit.polygon.face,
+                    normal: hit.polygon.normal(),
+                })
+            }
+        }
     }
 
     /// Where the steps' numbers end, which only the flats move to part a face:

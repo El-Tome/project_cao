@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use super::caught::{caught, quietly};
 use super::drawn::Drawn;
-use super::{FaceHit, FacePlane};
+use super::{Body, FaceHit, FacePlane, Flats, Matter};
 use crate::brep::{self, Declined, EdgeName, FaceId, Lost, Surface, Unstable, VertexName};
 use crate::mesh::Mesh;
 use crate::profile::{Contour, Frame};
@@ -308,13 +308,8 @@ impl Exact {
         (cut.uncut.is_empty() && !cut.capped).then_some(cut.triangles)
     }
 
-    pub fn ray_hit(
-        &self,
-        origin: DVec3,
-        direction: DVec3,
-        kept: &dyn Fn(usize) -> bool,
-    ) -> Option<FaceHit> {
-        quietly(|| self.drawn().ray_hit(&self.brep, (origin, direction), kept)).flatten()
+    pub fn ray_hit(&self, origin: DVec3, direction: DVec3) -> Option<FaceHit> {
+        quietly(|| self.drawn().ray_hit(&self.brep, origin, direction)).flatten()
     }
 
     pub fn triangles_of(&self, face: usize) -> impl Iterator<Item = [DVec3; 3]> + '_ {
@@ -329,6 +324,22 @@ impl Exact {
         self.brep
             .face_ids()
             .filter(move |&id| self.brep.numbers(id).iter().any(|&n| n as usize == face))
+    }
+}
+
+impl Body {
+    /// This tool with its faces numbered as joining it to `part` or cutting
+    /// it from `part` would number them, and nothing of `part`: a tool shown
+    /// apart from the part then answers to the numbers its faces have there.
+    pub fn numbered_after(&self, part: &Body) -> Result<Body, Declined> {
+        let emptied = match &part.matter {
+            Matter::Exact(exact) => Matter::Exact(Box::new(exact.emptied())),
+            Matter::Flats(flats) => Matter::Flats(Flats {
+                mesh: Mesh::default(),
+                next: flats.next,
+            }),
+        };
+        Body { matter: emptied }.union(self)
     }
 }
 

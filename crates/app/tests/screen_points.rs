@@ -72,6 +72,12 @@ const WINDOW_POSITIONS: &[WindowPosition] = &[
               the height its fixtures were tuned on: nothing is aimed from it",
     },
     WindowPosition {
+        file: "crates/app/tests/ribbon_groups.rs",
+        written: "driver::canvas(&app)",
+        why: "the view read only for where it starts, to check that the ribbon is the \
+              same height on every tab: nothing is aimed from it",
+    },
+    WindowPosition {
         file: "crates/app/tests/sketch_pill.rs",
         written: "driver::canvas(&app)",
         why: "the view read only to check that the sketch's pill stands at its top \

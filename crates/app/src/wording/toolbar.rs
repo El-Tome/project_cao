@@ -36,6 +36,7 @@ pub fn group(lang: &Catalogue, name: &str) -> String {
         "matter" => lang.t("toolbar.group.matter"),
         "shape" => lang.t("toolbar.group.shape"),
         "export" => lang.t("toolbar.group.export"),
+        "formats" => lang.t("toolbar.group.formats"),
         "stl" => lang.t("toolbar.group.stl"),
         theirs => theirs.to_string(),
     }

@@ -172,6 +172,13 @@
 //!   `the_export_tab_draws_one_stl_split_with_its_three_levels_and_the_step_export`;
 //!   the tree in `crates/prefs/src/toolbar/tests.rs` by
 //!   `the_default_export_tab_holds_one_stl_split_and_the_step_export`
+//! - added on request on pull request #819, as screen `04` draws it: the Export
+//!   tab writes « EXPORTER » under its two buttons —
+//!   `the_export_tab_writes_its_group_under_its_buttons`, its wording in
+//!   `crates/app/src/wording/toolbar/tests.rs` by
+//!   `the_group_of_the_export_tab_reads_exporter_and_the_tab_keeps_its_name`
+//! - added on request on pull request #819: the ribbon is the same height on
+//!   every tab — `the_ribbon_is_the_same_height_on_every_tab`
 //! - Moved out: « Recadrer », « Vue en coupe », « Matière devant » and
 //!   « Terminer » are no longer in the default ribbon. They stay commands, with
 //!   their keys, and can be put back from the preferences —
@@ -1371,6 +1378,38 @@ fn the_extrusion_tab_writes_its_three_groups_in_order_each_under_its_buttons() {
             &format!("« {name} », in a group small on 2 rows,"),
         );
     }
+}
+
+#[test]
+fn the_export_tab_writes_its_group_under_its_buttons() {
+    let mut app = opened("the_export_tab_writes_its_group", WIDE, Settings::default());
+    driver::click_the_button(&mut app, "Export");
+
+    assert_groups_read_in_order_each_under_its_buttons(
+        &app,
+        &[("EXPORTER", &["Exporter en STL…", "Exporter en STEP…"])],
+    );
+}
+
+#[test]
+fn the_ribbon_is_the_same_height_on_every_tab() {
+    let mut app = opened(
+        "the_ribbon_is_the_same_height_on_every_tab",
+        egui::vec2(1440.0, 900.0),
+        Settings::default(),
+    );
+
+    let view_starts = ["Esquisse", "Extrusion", "Export"].map(|tab| {
+        driver::click_the_button(&mut app, tab);
+        (tab, driver::canvas(&app).top())
+    });
+
+    assert!(
+        view_starts
+            .iter()
+            .all(|(_, top)| (top - view_starts[0].1).abs() <= ALIGNED_WITHIN),
+        "the view does not start at one height from tab to tab: {view_starts:?}",
+    );
 }
 
 #[test]

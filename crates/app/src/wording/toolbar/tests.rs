@@ -94,6 +94,14 @@ fn the_three_groups_of_the_extrusion_tab_read_as_the_design_names_them() {
     }
 }
 
+#[test]
+fn the_group_of_the_export_tab_reads_exporter_and_the_tab_keeps_its_name() {
+    let lang = Catalogue::french();
+
+    assert_eq!(group(&lang, "formats"), "Exporter");
+    assert_eq!(group(&lang, "export"), "Export");
+}
+
 /// A group the user made, or renamed, carries their own words: the
 /// interface has nothing to say about it.
 #[test]

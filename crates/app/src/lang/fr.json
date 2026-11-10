@@ -536,6 +536,7 @@
   "toolbar.group.matter": "Matière",
   "toolbar.group.shape": "Forme",
   "toolbar.group.export": "Export",
+  "toolbar.group.formats": "Exporter",
   "toolbar.group.stl": "Exporter en STL…",
   "toolbar.stl_level.coarse": "rapide",
   "toolbar.stl_level.normal": "par défaut",

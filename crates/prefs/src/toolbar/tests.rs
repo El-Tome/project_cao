@@ -302,14 +302,14 @@ fn the_default_export_tab_holds_one_stl_split_and_the_step_export() {
     let layout = ToolbarLayout::default();
     let export = tab(&layout, "export");
 
-    assert_eq!(groups_of(export), [("stl", GroupSize::Menu)]);
+    assert_eq!(groups_of(export), [("formats", GroupSize::Large)]);
     assert_eq!(
         places(export, ""),
         [
-            "/stl/ExportStlCoarse",
-            "/stl/ExportStlNormal",
-            "/stl/ExportStlFine",
-            "/ExportStep",
+            "/formats/stl/ExportStlCoarse",
+            "/formats/stl/ExportStlNormal",
+            "/formats/stl/ExportStlFine",
+            "/formats/ExportStep",
         ],
     );
 }

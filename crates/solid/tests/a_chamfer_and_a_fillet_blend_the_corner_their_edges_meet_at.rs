@@ -268,7 +268,15 @@
 //!   an angle, seen from above. The same mitre, exact, closed, uncrossed and
 //!   drawn, its volume held by arithmetic or by the booleans, in either
 //!   order —
-//!   `a_fillet_on_a_full_round_pair_and_an_end_edge_cut_at_an_angle_seen_from_above_mitres_the_end_edge_s_round_against_the_full_round_in_either_order`
+//!   `a_fillet_on_a_full_round_pair_and_an_end_edge_cut_at_an_angle_seen_from_above_mitres_the_end_edge_s_round_against_the_full_round_in_either_order`,
+//!   in every order, on a plate whose front is 30 long and its back 27, the
+//!   end wall meeting them at 63.4 and 116.6 degrees; its volume held both
+//!   ways, the two agreeing to the last digits, and the rest as on the square
+//!   block, through the same check, the two arcs on the planes that halve the
+//!   angle the slant makes. Green as soon as it was written, answered by the
+//!   changes the first three criteria made: the guard of the first lets the
+//!   slanted end edge in as it lets in the square one, its faces the top and
+//!   the end wall at convex corners
 //! - The faces are numbered as #698 and #699 number them: the full round
 //!   answers to the earlier edge of the pair, the end edge to its own rank in
 //!   the list, and nothing is numbered at the corner. Read as #698 lays a
@@ -492,6 +500,26 @@
 //! halve the angles between them; on the body each is a quarter, from a top
 //! corner of the end face, the end of its long axis, up to the crown, the end
 //! of its short one, where the two planes cross and the two cylinders touch.
+//!
+//! An end wall standing at an angle seen from above, meeting the long edges
+//! at θ, on a plate whose outline holds the area `A`: the end edge's round's
+//! axis, a radius in from the wall and under the top, crosses the full
+//! round's at `X` along it. Short of the plane through that crossing
+//! parallel to the wall the full round alone cuts, keeping over its axis its
+//! half-disc, `πr²/2`, along a length that runs to `X` at the middle of the
+//! top and a little more or less either side of it, by as much one way as the
+//! other, so that `πr²/2 · X` is what it keeps. Past that plane the body keeps
+//! what lies inside both cylinders, the same quarter bicylinder as at a square
+//! end, measured by the distance out square to the wall and the distance
+//! across the top; an area of the top holds `1/sin θ` times what those two
+//! measure, so the quarter bicylinder holds `4r³/(3 sin θ)`. The plate keeps
+//! `(H − r)A + πr²X/2 + 4r³/(3 sin θ)`, and at θ = 90° that is the square
+//! end's count, 3477.70. On the plate whose front is 30 long and back 27,
+//! `A` is 171, `sin θ` is `2/√5` and `X` is `28.5 − 1.5√5`, 25.146: it keeps
+//! 3302.74, which the booleans give to the last digits. The two cylinders
+//! still meet on two planes through the vertical at the crossing, halving the
+//! angles between the two axes, each arc a quarter of an ellipse from a top
+//! corner of the end wall up to the crown.
 //!
 //! The chamfer on the same three edges at `d = r`: the two flats meet in a
 //! ridge along the middle of the top, taking `d²` of the section along the
@@ -3519,16 +3547,32 @@ const PAIR: [([usize; 2], &str); 2] = [
 /// reach.
 const CLEAR_OF_THE_MITRE: f64 = 0.1;
 
-/// What the block [`NARROW`] wide keeps once its top's front and back edges
-/// are rounded at [`FULL_ROUND`] into one full round, and the top's edge at
-/// `ends` of its two ends rounded at the same radius and mitred against it,
-/// as the module's documentation derives it.
-fn mitred_against_a_full_round(ends: u32) -> f64 {
-    let ends = f64::from(ends);
+/// What a plate keeps once its top's front and back edges are rounded at
+/// [`FULL_ROUND`] into one full round, and the top's edges at the ends
+/// `named` rounded at the same radius and mitred against it, as the module's
+/// documentation derives it: the whole outline up to the full round's axis;
+/// over it, the full round's half-disc along its axis from one end to the
+/// other — to where the two axes cross at an end named, to the middle of the
+/// wall at one not — and at each end named, what lies inside both cylinders
+/// past that crossing, `4r³/3` stretched across the slant by one over the
+/// sine of the angle the end wall meets the long edges at.
+fn mitred_against_a_full_round(plate: &Plate, named: &[&End]) -> f64 {
     let r = FULL_ROUND;
-    LENGTH * NARROW * HEIGHT
-        - 2.0 * r * r * (1.0 - PI / 4.0) * (LENGTH - ends * r)
-        - ends * 2.0 * r.powi(3) / 3.0
+    let reach = |end: &End| {
+        if named.iter().any(|one| one.wall == end.wall) {
+            end.crossing().x
+        } else {
+            (end.corners[0].x + end.corners[1].x) / 2.0
+        }
+    };
+    let [right, left] = &plate.ends;
+    let past_the_crossings: f64 = named
+        .iter()
+        .map(|end| 4.0 * r.powi(3) / (3.0 * end.outward.x.abs()))
+        .sum();
+    (HEIGHT - r) * plate.area()
+        + PI * r * r / 2.0 * (reach(right) - reach(left))
+        + past_the_crossings
 }
 
 /// The prism the full round on the top's front and back edges of the block
@@ -3563,87 +3607,144 @@ fn full_round_tool(part: &Body) -> Body {
     .expect("the tool raises")
 }
 
-/// An end of the block [`NARROW`] wide whose top edge a list may name with
-/// the full round's pair: the wall there and where it stands along X, the
-/// top's edge on it, and that edge's round, whole.
+/// A plate [`NARROW`] wide and [`HEIGHT`] high whose top's front and back
+/// edges, rounded at [`FULL_ROUND`], meet across the top in one full round:
+/// the part, and its two ends, the right then the left. Its left end is
+/// square, at the origin; its right end's wall may stand at an angle, seen
+/// from above. Raised as `cao_part` raises a step, its floor is numbered
+/// nought, its top one, then its front, its right end, its back and its left
+/// end, two to five, as the block's are.
+struct Plate {
+    part: Body,
+    ends: [End; 2],
+}
+
+impl Plate {
+    /// The plate whose right end's wall runs from `front`, on the front, to
+    /// `back`, on the back, seen from above.
+    fn with_right_end([front, back]: [DVec2; 2]) -> Plate {
+        let left = [DVec2::ZERO, DVec2::new(0.0, NARROW)];
+        Plate {
+            part: raised(
+                Contour::straight(vec![left[0], front, back, left[1]]),
+                HEIGHT,
+            ),
+            ends: [
+                End::between(RIGHT, "the top's right edge", [front, back]),
+                End::between(LEFT, "the top's left edge", left),
+            ],
+        }
+    }
+
+    /// The area of its outline, between its two ends.
+    fn area(&self) -> f64 {
+        let [right, left] = &self.ends;
+        let along = |end: &End| end.corners[0].x + end.corners[1].x;
+        NARROW * (along(right) - along(left)) / 2.0
+    }
+}
+
+/// The block 30 by [`NARROW`] by 20, both its ends square.
+fn narrow_block() -> Plate {
+    Plate::with_right_end([DVec2::new(LENGTH, 0.0), DVec2::new(LENGTH, NARROW)])
+}
+
+/// How long the back of [`slanted_plate`] is, its front being [`LENGTH`]:
+/// its right end's wall leans back by half the plate's breadth across it, its
+/// two corners at 63.4 and 116.6 degrees, both convex.
+const SLANTED_BACK: f64 = LENGTH - NARROW / 2.0;
+
+/// The plate [`NARROW`] wide whose right end is cut at an angle seen from
+/// above: its front [`LENGTH`] long and its back [`SLANTED_BACK`].
+fn slanted_plate() -> Plate {
+    Plate::with_right_end([DVec2::new(LENGTH, 0.0), DVec2::new(SLANTED_BACK, NARROW)])
+}
+
+/// An end of a [`Plate`] whose top edge a list may name with the full round's
+/// pair: the wall there, its two corners seen from above, front then back,
+/// the way out of the plate square to it, the top's edge on it, and that
+/// edge's round, whole.
 struct End {
     wall: usize,
-    x: f64,
+    corners: [DVec2; 2],
+    outward: DVec3,
     edge: EdgeAt,
     round: Round,
 }
 
-/// The two ends of the block [`NARROW`] wide, the right then the left: the
-/// top's edge on each across the whole breadth, its prism reaching past the
-/// front and the back, and its round a quarter round about the line
-/// [`FULL_ROUND`] in from that end and under the top, from the top's way to
-/// the wall's.
-fn ends() -> [End; 2] {
-    let r = FULL_ROUND;
-    [
-        End {
-            wall: RIGHT,
-            x: LENGTH,
-            edge: EdgeAt {
-                called: "the top's right edge",
-                at: DVec3::new(LENGTH, 0.0, HEIGHT),
-                faces: [TOP, RIGHT],
-                along: DVec3::Y,
-                into: [-DVec3::X, -DVec3::Z],
-                outward: [DVec3::Z, DVec3::X],
-                reach: [-2.0, NARROW + 2.0],
-            },
-            round: Round {
-                start: DVec3::new(LENGTH - r, 0.0, HEIGHT - r),
-                along: DVec3::Y,
-                length: NARROW,
-                radius: r,
-                facing: [DVec3::Z, DVec3::X],
-            },
-        },
-        End {
-            wall: LEFT,
-            x: 0.0,
-            edge: EdgeAt {
-                called: "the top's left edge",
-                at: DVec3::new(0.0, NARROW, HEIGHT),
-                faces: [TOP, LEFT],
-                along: -DVec3::Y,
-                into: [DVec3::X, -DVec3::Z],
-                outward: [DVec3::Z, -DVec3::X],
-                reach: [-2.0, NARROW + 2.0],
-            },
-            round: Round {
-                start: DVec3::new(r, NARROW, HEIGHT - r),
-                along: -DVec3::Y,
-                length: NARROW,
-                radius: r,
-                facing: [DVec3::Z, -DVec3::X],
-            },
-        },
-    ]
-}
-
 impl End {
-    /// How far a point of the block stands past the mitre at this end, on the
-    /// side of the end edge's round: [`FULL_ROUND`] less its distance in from
-    /// the end wall, less its distance from the middle of the top across it.
-    /// Nought on the two planes the two rounds meet on, through the line
-    /// square to both axes where they cross, halving the angles between them.
+    /// The end whose wall `wall` runs from `front` to `back`, seen from above:
+    /// the top's edge on it, `called`, from its front corner to its back one,
+    /// its prism reaching past the front and the back; and its round, a
+    /// quarter round about the line [`FULL_ROUND`] in from the wall and under
+    /// the top, from the top's way to the wall's.
+    fn between(wall: usize, called: &'static str, [front, back]: [DVec2; 2]) -> End {
+        let r = FULL_ROUND;
+        let at = front.extend(HEIGHT);
+        let run = (back - front).extend(0.0);
+        let along = run.normalize();
+        let middle = DVec3::new(LENGTH / 2.0, NARROW / 2.0, HEIGHT);
+        let mut outward = along.cross(DVec3::Z);
+        if outward.dot(at - middle) < 0.0 {
+            outward = -outward;
+        }
+        End {
+            wall,
+            corners: [front, back],
+            outward,
+            edge: EdgeAt {
+                called,
+                at,
+                faces: [TOP, wall],
+                along,
+                into: [-outward, -DVec3::Z],
+                outward: [DVec3::Z, outward],
+                reach: [-2.0 - r, run.length() + 2.0 + r],
+            },
+            round: Round {
+                start: at - (outward + DVec3::Z) * r,
+                along,
+                length: run.length(),
+                radius: r,
+                facing: [DVec3::Z, outward],
+            },
+        }
+    }
+
+    /// Where the end edge's round's axis crosses the full round's, under the
+    /// middle of the top.
+    fn crossing(&self) -> DVec3 {
+        let start = self.round.start;
+        start + self.round.along * ((FULL_ROUND - start.y) / self.round.along.y)
+    }
+
+    /// How far a point stands past the mitre at this end, on the side of the
+    /// end edge's round: how far it stands out past the crossing, square to
+    /// the end wall, less its distance from the middle of the top across it —
+    /// at the crossing, the two distances from the two axes in the plane of
+    /// the top. Nought on the two planes the two rounds meet on, through the
+    /// line square to both axes where they cross, halving the angles between
+    /// them.
     fn past_the_mitre(&self, point: DVec3) -> f64 {
-        FULL_ROUND - (point.x - self.x).abs() - (point.y - FULL_ROUND).abs()
+        (point - self.crossing()).dot(self.outward) - (point.y - FULL_ROUND).abs()
     }
 
     /// The crown, where the two arcs of the mitre meet: on the top's middle
-    /// line, over the line where the two axes cross.
+    /// line, over the crossing.
     fn crown(&self) -> DVec3 {
-        DVec3::new(self.round.start.x, FULL_ROUND, HEIGHT)
+        self.crossing() + DVec3::Z * FULL_ROUND
     }
 
     /// The end wall's two top corners, front then back, one radius under the
     /// top, where the two arcs of the mitre start.
     fn top_corners(&self) -> [DVec3; 2] {
-        [0.0, NARROW].map(|y| DVec3::new(self.x, y, HEIGHT - FULL_ROUND))
+        self.corners
+            .map(|corner| corner.extend(HEIGHT - FULL_ROUND))
+    }
+
+    /// The end wall's two corners on the floor, front then back.
+    fn foot_corners(&self) -> [DVec3; 2] {
+        self.corners.map(|corner| corner.extend(0.0))
     }
 }
 
@@ -3753,28 +3854,29 @@ fn every_order(count: usize) -> Vec<Vec<usize>> {
         .collect()
 }
 
-/// Holds that the fillet asked `asked` on the full round's pair of the block
-/// [`NARROW`] wide and on the top's edges at `ends`, in every order the list
-/// can name them in, reports what `reported` holds of the value asked and the
-/// value taken, and mitres each end edge's round against the full round, both
-/// at [`FULL_ROUND`]: the body exact, closed, uncrossed and drawn, holding
-/// what the arithmetic and the booleans promise; the full round answering to
-/// both its edges' numbers and each end edge's round to its own, the top gone
-/// and nothing laid at a corner; each round drawn on its own cylinder and on
-/// its own side of the mitre, the two meeting by two edges, from the end
-/// wall's top corners up to the crown; and the walls set back by the radius,
-/// their uprights sharp.
+/// Holds that the fillet asked `asked` on the full round's pair of `plate`
+/// and on the top's edges at its `ends`, in every order the list can name
+/// them in, reports what `reported` holds of the value asked and the value
+/// taken, and mitres each end edge's round against the full round, both at
+/// [`FULL_ROUND`]: the body exact, closed, uncrossed and drawn, holding what
+/// the arithmetic and the booleans promise; the full round answering to both
+/// its edges' numbers and each end edge's round to its own, the top gone and
+/// nothing laid at a corner; each round drawn on its own cylinder and on its
+/// own side of the mitre, the two meeting by two edges, from the end wall's
+/// top corners up to the crown; and the walls set back by the radius, their
+/// uprights sharp.
 fn mitres_each_end_against_the_full_round_whatever_the_order(
+    plate: &Plate,
     ends: &[&End],
     asked: f64,
     reported: impl Fn(f64, f64, &str),
 ) {
     let r = FULL_ROUND;
-    let narrow = block([LENGTH, NARROW, HEIGHT]);
+    let narrow = &plate.part;
     let start = narrow.faces_end();
     let count = PAIR.len() + ends.len();
-    let promised = mitred_against_a_full_round(ends.len() as u32);
-    let by_booleans = mitred_against_a_full_round_by_booleans(&narrow, ends);
+    let promised = mitred_against_a_full_round(plate, ends);
+    let by_booleans = mitred_against_a_full_round_by_booleans(narrow, ends);
     assert!(
         (by_booleans - promised).abs() <= EXACT * promised,
         "the full round's prism and the end edges' rounds', cut from the block by the \
@@ -3782,10 +3884,10 @@ fn mitres_each_end_against_the_full_round_whatever_the_order(
     );
     let named: Vec<(EdgeName, &str)> = PAIR
         .iter()
-        .map(|&([one, other], called)| (edge_between(&narrow, one, other), called))
+        .map(|&([one, other], called)| (edge_between(narrow, one, other), called))
         .chain(
             ends.iter()
-                .map(|end| (end.edge.name(&narrow), end.edge.called)),
+                .map(|end| (end.edge.name(narrow), end.edge.called)),
         )
         .collect();
     let orders = every_order(count);
@@ -3816,7 +3918,7 @@ fn mitres_each_end_against_the_full_round_whatever_the_order(
         .collect();
     assert!(
         declined.is_empty(),
-        "the fillet asked {asked} on the top's front and back edges of a block {NARROW} wide, a \
+        "the fillet asked {asked} on the top's front and back edges of a plate {NARROW} wide, a \
          full round, and on the top's edge at {} of its ends mitres each end edge's round \
          against the full round, whichever edge the list names first; declined:\n{}",
         ends.len(),
@@ -3830,7 +3932,7 @@ fn mitres_each_end_against_the_full_round_whatever_the_order(
         let filleted = laid.expect("declines are held above");
         reported(filleted.asked, filleted.taken, &what);
         let body = &filleted.body;
-        sound_drawn_within(body, promised, DRAWN * reach_of(&narrow) * area, &what);
+        sound_drawn_within(body, promised, DRAWN * reach_of(narrow) * area, &what);
         let rank_of = |edge: usize| {
             start
                 + order
@@ -3845,7 +3947,7 @@ fn mitres_each_end_against_the_full_round_whatever_the_order(
             !body.has_face(TOP),
             "{what}: the top is gone, the full round over it"
         );
-        let mut kept_and_laid = numbers(&narrow);
+        let mut kept_and_laid = numbers(narrow);
         kept_and_laid.remove(&TOP);
         kept_and_laid.extend(start..start + count);
         assert_eq!(
@@ -3953,15 +4055,11 @@ fn mitres_each_end_against_the_full_round_whatever_the_order(
                 "{what}: {which} meets the end wall along its foot and the full round along the \
                  two arcs of the mitre, and no other face"
             );
+            let [front_foot, back_foot] = end.foot_corners();
             corners_are(
                 body,
                 end.wall,
-                &[
-                    DVec3::new(end.x, 0.0, 0.0),
-                    DVec3::new(end.x, NARROW, 0.0),
-                    back_corner,
-                    front_corner,
-                ],
+                &[front_foot, back_foot, back_corner, front_corner],
                 &format!(
                     "{what}: the end wall under {which}, set back by the radius from the top, \
                      its two top corners where the arcs of the mitre start"
@@ -3974,16 +4072,14 @@ fn mitres_each_end_against_the_full_round_whatever_the_order(
                  along its uprights, and that round"
             );
         }
-        for (wall, y, which) in [(FRONT, 0.0, "the front"), (BACK, NARROW, "the back")] {
+        for (wall, side, which) in [(FRONT, 0, "the front"), (BACK, 1, "the back")] {
+            let [right, left] = &plate.ends;
+            let [right_foot, left_foot] = [right, left].map(|end| end.foot_corners()[side]);
+            let [right_top, left_top] = [right, left].map(|end| end.top_corners()[side]);
             corners_are(
                 body,
                 wall,
-                &[
-                    DVec3::new(0.0, y, 0.0),
-                    DVec3::new(LENGTH, y, 0.0),
-                    DVec3::new(LENGTH, y, HEIGHT - r),
-                    DVec3::new(0.0, y, HEIGHT - r),
-                ],
+                &[left_foot, right_foot, right_top, left_top],
                 &format!("{what}: {which}, up to where the full round takes over"),
             );
             assert_eq!(
@@ -4008,9 +4104,11 @@ fn mitres_each_end_against_the_full_round_whatever_the_order(
 #[test]
 fn a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_mitres_that_edge_s_round_against_the_full_round_whatever_the_order()
  {
-    let [right, _] = ends();
+    let plate = narrow_block();
+    let [right, _] = &plate.ends;
     mitres_each_end_against_the_full_round_whatever_the_order(
-        &[&right],
+        &plate,
+        &[right],
         FULL_ROUND,
         |asked, taken, what| taken_as_asked(asked, taken, FULL_ROUND, what),
     );
@@ -4019,9 +4117,11 @@ fn a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_mitres_that_
 #[test]
 fn a_fillet_on_the_four_top_edges_of_a_block_6_wide_mitres_its_full_round_against_both_end_edges_whatever_the_order()
  {
-    let [right, left] = ends();
+    let plate = narrow_block();
+    let [right, left] = &plate.ends;
     mitres_each_end_against_the_full_round_whatever_the_order(
-        &[&right, &left],
+        &plate,
+        &[right, left],
         FULL_ROUND,
         |asked, taken, what| taken_as_asked(asked, taken, FULL_ROUND, what),
     );
@@ -4035,10 +4135,11 @@ const MORE_THAN_FITS: f64 = 4.0;
 #[test]
 fn a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_asked_more_than_fits_lays_both_at_the_full_round_s_radius_and_reports_both()
  {
-    let [right, _] = ends();
-    let narrow = block([LENGTH, NARROW, HEIGHT]);
-    let alone = narrow
-        .fillet(&right.edge.name(&narrow), MORE_THAN_FITS)
+    let plate = narrow_block();
+    let [right, _] = &plate.ends;
+    let alone = plate
+        .part
+        .fillet(&right.edge.name(&plate.part), MORE_THAN_FITS)
         .unwrap_or_else(|declined| panic!("the top's right edge alone: declined, {declined:?}"));
     taken_as_asked(
         alone.asked,
@@ -4049,7 +4150,8 @@ fn a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_asked_more_t
     );
 
     mitres_each_end_against_the_full_round_whatever_the_order(
-        &[&right],
+        &plate,
+        &[right],
         MORE_THAN_FITS,
         |asked, taken, what| {
             assert!(
@@ -4077,7 +4179,8 @@ const MEETING_HAIR: f64 = 4.0 * ONE_HAIR;
 #[test]
 fn a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_asked_a_hair_under_the_full_round_s_radius_lays_both_at_that_radius_meeting_at_the_crown()
  {
-    let [right, _] = ends();
+    let plate = narrow_block();
+    let [right, _] = &plate.ends;
 
     for (under, past_one_hair) in [(1e-6, true), (1e-7, false)] {
         let asked = FULL_ROUND - under;
@@ -4090,7 +4193,8 @@ fn a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_asked_a_hair
         );
 
         mitres_each_end_against_the_full_round_whatever_the_order(
-            &[&right],
+            &plate,
+            &[right],
             asked,
             |reported, taken, what| {
                 assert!(
@@ -4101,6 +4205,19 @@ fn a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_asked_a_hair
             },
         );
     }
+}
+
+#[test]
+fn a_fillet_on_a_full_round_pair_and_an_end_edge_cut_at_an_angle_seen_from_above_mitres_the_end_edge_s_round_against_the_full_round_in_either_order()
+ {
+    let plate = slanted_plate();
+    let [right, _] = &plate.ends;
+    mitres_each_end_against_the_full_round_whatever_the_order(
+        &plate,
+        &[right],
+        FULL_ROUND,
+        |asked, taken, what| taken_as_asked(asked, taken, FULL_ROUND, what),
+    );
 }
 
 /// A block 30 by 10 by 20 with a pocket 20 long, [`NARROW`] wide and
@@ -4217,13 +4334,14 @@ fn ridge_mitred_against_the_end_flat() -> f64 {
 fn a_chamfer_on_a_full_round_pair_s_edges_and_an_edge_meeting_them_at_a_corner_mitres_their_ridge_against_that_edge_s_flat_whatever_the_order()
  {
     let d = FULL_ROUND;
-    let narrow = block([LENGTH, NARROW, HEIGHT]);
+    let plate = narrow_block();
+    let narrow = &plate.part;
     let start = narrow.faces_end();
-    let [right, _] = ends();
+    let [right, _] = &plate.ends;
     let named: Vec<(EdgeName, &str)> = PAIR
         .iter()
-        .map(|&([one, other], called)| (edge_between(&narrow, one, other), called))
-        .chain([(right.edge.name(&narrow), right.edge.called)])
+        .map(|&([one, other], called)| (edge_between(narrow, one, other), called))
+        .chain([(right.edge.name(narrow), right.edge.called)])
         .collect();
     let promised = ridge_mitred_against_the_end_flat();
     let ridge_s_end = DVec3::new(LENGTH - d, d, HEIGHT);
@@ -4253,7 +4371,7 @@ fn a_chamfer_on_a_full_round_pair_s_edges_and_an_edge_meeting_them_at_a_corner_m
             !body.has_face(TOP),
             "{what}: the top is gone, the ridge along its middle"
         );
-        let mut kept_and_laid = numbers(&narrow);
+        let mut kept_and_laid = numbers(narrow);
         kept_and_laid.remove(&TOP);
         kept_and_laid.extend(start..start + 3);
         assert_eq!(

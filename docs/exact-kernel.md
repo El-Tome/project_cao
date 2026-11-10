@@ -221,7 +221,16 @@ It can:
   corner, hold beyond both faces they stop on (`wedge/overlap.rs`): the two
   flats or rounds run on into a mitre, a line among flats and an ellipse
   among rounds, down to the concave edge, left sharp and one value short of
-  the corner, and no face is laid there. A round leaving
+  the corner, and no face is laid there. An edge between two such corners
+  shorter than its set-backs reach along it — the chamfer's foot round a
+  chamfered upright, the fill's top edge at a filled inner corner — has the
+  two overlaps at its ends meet across it, and alone it ends in a point on
+  both faces it stops on, off its own two. Laid before an edge it meets, its
+  face may end on the plane it stops on there, and an overlap laid before
+  the other leaves a face standing on one end plane past the other until
+  that one is laid: an overlap's faces are numbered apart, from `OVERLAPS`,
+  so that the check of each edge passes over them, and the step is declined
+  should one still stand once every edge is laid. A round leaving
   the edge's end at a few degrees inwards trims the chamfer like any other
   end face; one leaving it outwards dips outside the edge's face past the
   end corner, and is covered only while the prism's side, a margin out,

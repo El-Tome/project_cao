@@ -41,6 +41,33 @@ impl Stop {
     pub fn crossing(&self, from: DVec3, along: DVec3) -> DVec3 {
         from + along * (self.away.dot(self.corner - from) / self.away.dot(along))
     }
+
+    /// Whether a point lies on the stop's plane, within `eps`.
+    pub fn holds(&self, point: DVec3, eps: f64) -> bool {
+        self.away.dot(point - self.corner).abs() <= eps
+    }
+}
+
+/// The stops of the edge of rank `rank` in `edges`, each edge of the step
+/// with its wedge on `given`, the body as given, at each of `corners` where it
+/// is the earlier of the two edges: there the later edge's overlap completes
+/// its face, which stops flush on the plane until then — and, where the edge
+/// is shorter than its set-backs reach along it, ends on it in a point off
+/// its two faces.
+pub(super) fn open(
+    given: &brep::Body,
+    rank: usize,
+    edges: &[(EdgeId, &Wedge)],
+    corners: &[Beside],
+) -> Vec<Stop> {
+    let (edge, wedge) = edges[rank];
+    let shared: Vec<VertexId> = (corners.iter())
+        .filter(|&&(_, [earlier, _])| earlier == rank)
+        .map(|&(corner, _)| corner)
+        .collect();
+    (stops(given, edge, wedge).into_iter())
+        .filter(|stop| shared.contains(&stop.end))
+        .collect()
 }
 
 /// Where the ends of an edge a step lays are read: `on`, the body it is laid

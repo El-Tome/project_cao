@@ -29,7 +29,8 @@ use crate::brep::{self, Declined, EdgeId, EdgeName, FaceId, Scale, VertexId};
 use crate::profile::{Contour, Frame};
 
 pub(super) use closing::Closing;
-use flush::Flush;
+use flush::{Flush, Stop};
+use overlap::OVERLAPS;
 pub(super) use pairs::Together;
 pub(super) use section::Side;
 pub(super) use sphere::rounded_across;
@@ -109,10 +110,11 @@ impl Exact {
     /// beside an edge of the other left out of the list, more than three edges
     /// meeting at a corner, or three where another edge ends too, where
     /// `meeting` lays two together an edge meeting two others, or one of two
-    /// laid together that meets another edge of the list at a corner, and a cut
-    /// or a fill that left something else than its one face, as
-    /// [`Exact::cut_along`] reads it, are declined `Unsupported`; a prism the
-    /// tool cannot raise, as the tool says.
+    /// laid together that meets another edge of the list at a corner, a cut or
+    /// a fill that left something else than its one face, as
+    /// [`Exact::cut_along`] reads it, and a face of an overlap no edge
+    /// covered, are declined `Unsupported`; a prism the tool cannot raise, as
+    /// the tool says.
     pub(super) fn cut_off(
         &self,
         names: &[EdgeName],
@@ -195,17 +197,19 @@ impl Exact {
                             })
                             .map(|earlier| start + earlier as u32)
                             .collect();
+                        let open = flush::open(&self.brep, rank, &given, &beside);
                         if mitred.is_empty() {
-                            cut.laid(&names[rank], taken, &tool, &mitred)?
+                            cut.laid(&names[rank], taken, &tool, &mitred, &open)?
                         } else {
                             let flush = Flush::beside(
                                 &self.brep, rank, &given, &beside, taken, &set_back, &tool,
                             )?;
-                            cut.laid_as(&flush, &wedges[rank], taken, &tool, &mitred)?
+                            cut.laid_as(&flush, &wedges[rank], taken, &tool, &mitred, &open)?
                         }
                     }
                 };
             }
+            cut.overlaps_covered()?;
             cut.next = start + names.len() as u32;
             Ok((cut.closed(&closes, start)?, taken, pairs))
         })
@@ -232,16 +236,20 @@ impl Exact {
     /// The wedge is read again on the body the edges before it were laid on,
     /// as [`Wedge::read`] reads it: whether the edge is on a tangent chain was
     /// read on the body as given. `mitred` numbers the faces laid before it at
-    /// a corner it shares, which its own face meets in a mitre.
+    /// a corner it shares, which its own face meets in a mitre, and `open`
+    /// holds where it stops at a corner an edge laid after it completes, as
+    /// [`flush::open`] reads them.
     fn laid(
         &self,
         name: &EdgeName,
         taken: f64,
         tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
         mitred: &[u32],
+        open: &[Stop],
     ) -> Result<Exact, Declined> {
         let (edge, wedge) = self.wedge(name, Wedge::read)?;
-        self.laid_as(&Flush::at(&self.brep, edge), &wedge, taken, tool, mitred)
+        let flush = Flush::at(&self.brep, edge);
+        self.laid_as(&flush, &wedge, taken, tool, mitred, open)
     }
 
     /// The body with the edge of `wedge` cut off, or filled in, as
@@ -257,9 +265,10 @@ impl Exact {
         taken: f64,
         tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
         mitred: &[u32],
+        open: &[Stop],
     ) -> Result<Exact, Declined> {
         let cut = self.cut_or_filled(flush, wedge, taken, tool)?;
-        if cut.cut_along(&[wedge], self, 1, mitred) {
+        if cut.cut_along(&[wedge], self, 1, mitred, open) {
             Ok(cut)
         } else {
             Err(Declined::Unsupported)
@@ -298,9 +307,19 @@ impl Exact {
     /// — where the faces met at the edges' ends trim it — or a corner of a
     /// face numbered in `mitred`, where a mitre with it ends — at a corner
     /// that is not square, on a face of the other edge, short of the third —
-    /// and every face `before` held but the edges' still there: no face, nor
-    /// piece of a face, of the prism but that one.
-    fn cut_along(&self, wedges: &[&Wedge], before: &Exact, laid: u32, mitred: &[u32]) -> bool {
+    /// or on the plane of one of `open`, where an edge laid after it completes
+    /// it, and every face `before` held but the edges' still there: no face,
+    /// nor piece of a face, of the prism but that one — but an overlap's,
+    /// numbered from [`OVERLAPS`], which an edge laid after it may cover, and
+    /// [`Exact::overlaps_covered`] holds once every edge is laid.
+    fn cut_along(
+        &self,
+        wedges: &[&Wedge],
+        before: &Exact,
+        laid: u32,
+        mitred: &[u32],
+        open: &[Stop],
+    ) -> bool {
         let made = before.next;
         let eps = self.brep.scale().eps();
         let numbers = |body: &brep::Body, face: FaceId| body.numbers(face).to_vec();
@@ -308,7 +327,7 @@ impl Exact {
             .brep
             .face_ids()
             .flat_map(|face| numbers(&self.brep, face))
-            .any(|number| number >= made + laid && number < PIECES);
+            .any(|number| number >= made + laid && number < OVERLAPS);
         let parted = self
             .roots
             .values()
@@ -323,6 +342,7 @@ impl Exact {
         let on_a_side = corners(made).all(|corner| {
             let point = self.brep.vertex(corner).point;
             mitres.contains(&corner)
+                || open.iter().any(|stop| stop.holds(point, eps))
                 || wedges.iter().any(|wedge| {
                     let at = point - wedge.point;
                     wedge.outward.iter().any(|side| side.dot(at).abs() <= eps)
@@ -335,7 +355,7 @@ impl Exact {
             .brep
             .face_ids()
             .flat_map(|face| numbers(&before.brep, face))
-            .filter(|number| !consumable.contains(number))
+            .filter(|number| !consumable.contains(number) && *number < OVERLAPS)
             .all(|number| self.has_face(number as usize));
         !stray && !parted && self.has_face(made as usize) && on_a_side && kept
     }

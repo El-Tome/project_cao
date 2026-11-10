@@ -164,7 +164,7 @@ impl Exact {
         wedges: [&Wedge; 2],
         number: u32,
     ) -> Result<Exact, Declined> {
-        if !self.cut_along(&wedges, before, 2, &[]) {
+        if !self.cut_along(&wedges, before, 2, &[], &[]) {
             return Err(Declined::Unsupported);
         }
         let Exact {

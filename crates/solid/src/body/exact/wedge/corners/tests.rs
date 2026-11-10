@@ -1,11 +1,11 @@
 //! Which corners a step on several edges takes (#801), read on [`admit`]
 //! itself: two edges of one sense beside a third of the other, the inner
 //! corner of an L or the corner two feet of a standing block meet at, and no
-//! other corner but a convex one. A list it lets through by mistake is
-//! declined further on all the same — a fill and a cut meeting at a corner by
-//! the fill's reading, three concave edges by the overlap's — so a step on the
-//! whole body cannot tell which reading declined it; here the corner's own
-//! answer is held.
+//! other corner but a convex one. It is the one guard for a corner where a
+//! cut and a fill meet, which nothing further on declines; three concave
+//! edges it lets through by mistake are declined further on all the same, by
+//! the overlap's reading, so a step on the whole body cannot tell which
+//! reading declined them. Here the corner's own answer is held.
 
 use glam::{DVec2, DVec3};
 

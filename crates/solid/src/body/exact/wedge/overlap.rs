@@ -13,13 +13,23 @@ use glam::DVec3;
 
 use super::flush::stops;
 use super::{Prism, Wedge};
-use crate::body::exact::Exact;
+use crate::body::exact::{Exact, PIECES};
 use crate::brep::{self, Declined, EdgeId, Scale, VertexId};
 
+/// Where the numbers of an overlap's faces start: above any a step gives and
+/// below the pieces', so that a face of it left standing a while — on the
+/// plane an edge stops on at one end, past where it stops at its other end,
+/// until the edge laid after it there takes the overlap beyond and covers it
+/// — is told apart from a face of a prism, and the step declined should one
+/// stand once every edge is laid.
+pub(super) const OVERLAPS: u32 = 1 << 30;
+
 /// What two prisms carried past a corner both hold past the faces their edges
-/// stop flush on there, every face of it numbered nought, and the points
-/// where each edge's set-back lines cross the face it stops on, where an edge
-/// it runs on along meets one laid before.
+/// stop flush on there, every face of it numbered [`OVERLAPS`], and the points
+/// where each edge's set-back lines cross every face it stops on, there or at
+/// its other end, where an edge it runs on along meets one laid before — at
+/// its other end, one an overlap taken there before left, on an edge shorter
+/// than its set-backs reach along it.
 pub(super) struct Overlap {
     pub solid: Exact,
     pub cleared: Vec<DVec3>,
@@ -41,22 +51,42 @@ pub(super) fn overlap(
     let at = given.vertex(corner).point;
     let bounds = given.bounds().ok_or(Declined::Unsupported)?;
     let past = |(edge, wedge): (EdgeId, &Wedge)| {
-        let stop = (stops(given, edge, wedge).into_iter())
+        let stops = stops(given, edge, wedge);
+        let stop = (stops.iter())
             .find(|stop| stop.end == corner)
             .ok_or(Declined::Unsupported)?;
         let prism = tool(wedge, taken, given.scale(), bounds)?;
         let (outline, frame, travel) = &prism;
         let raised = Exact::raised(outline, &[], *frame, *travel)?;
         let distance = taken * set_back(wedge);
-        let crossings = (wedge.into).map(|into| stop.crossing(at + into * distance, wedge.along));
+        let crossings: Vec<DVec3> = (stops.iter())
+            .flat_map(|stop| {
+                (wedge.into).map(|into| stop.crossing(at + into * distance, wedge.along))
+            })
+            .collect();
         Ok((common(&stop.beyond(&prism)?, &raised)?, crossings))
     };
     let [(one, first), (other, second)] = [past(pair[0])?, past(pair[1])?];
     let both = common(&one, &other)?;
     Ok(Overlap {
-        solid: Exact::of(both.brep.renumbered_by(|_| 0), 0, 0, BTreeMap::new()),
+        solid: Exact::of(both.brep.renumbered_by(|_| OVERLAPS), 0, 0, BTreeMap::new()),
         cleared: [first, second].concat(),
     })
+}
+
+impl Exact {
+    /// Declined `Unsupported` where a face of an overlap, numbered from
+    /// [`OVERLAPS`], still stands on the body once every edge is laid: one no
+    /// later edge covered.
+    pub(super) fn overlaps_covered(&self) -> Result<(), Declined> {
+        let left = (self.brep.face_ids())
+            .any(|face| (self.brep.numbers(face).iter()).any(|n| (OVERLAPS..PIECES).contains(n)));
+        if left {
+            Err(Declined::Unsupported)
+        } else {
+            Ok(())
+        }
+    }
 }
 
 /// What two solids both hold: the first less what of it the second does not.

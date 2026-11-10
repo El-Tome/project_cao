@@ -60,7 +60,7 @@ pub(in crate::body::exact) fn rounded_across(
     }
     let closed = Exact::of(brep, cut.next, cut.pieces, cut.roots);
     let _ = closed.drawn.set(drawn);
-    if closed.cut_along(&[], body, 1, &rounds) {
+    if closed.cut_along(&[], body, 1, &rounds, &[]) {
         Ok(closed)
     } else {
         Err(Declined::Unsupported)

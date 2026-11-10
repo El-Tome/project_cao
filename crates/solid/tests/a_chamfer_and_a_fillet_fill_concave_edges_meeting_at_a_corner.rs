@@ -37,7 +37,11 @@
 //!   outline is not a rectangle —
 //!   `a_chamfer_and_a_fillet_on_two_feet_at_a_corner_of_a_standing_block_that_is_not_square_fill_them_into_a_mitre`,
 //!   a trapezoid whose right wall leans, on the two feet at its obtuse corner,
-//!   the two at its acute one, and its four feet
+//!   the two at its acute one, and its four feet; and where an earlier step
+//!   chamfered the standing block's upright, two corners of 135° beside the
+//!   chamfer's two edges, the three feet round it filled in one step and the
+//!   same body in every order the list names them —
+//!   `a_chamfer_and_a_fillet_on_two_feet_and_the_foot_of_the_chamfered_upright_between_them_fill_them_into_two_mitres_in_every_order`
 //! - What must not break: as slice 1 — #699's corner tests, the concave fill
 //!   of one edge (`a_chamfer_and_a_fillet_fill_a_concave_edge`) and slice 1's
 //!   own tests; and the decline test
@@ -87,6 +91,20 @@
 //! corners `sin φ = 10/√116`. The mitre still runs from where the two
 //! set-backs cross on the lower block's top, the value out from both walls,
 //! up the upright the value: both walls stand upright on it.
+//!
+//! The standing block whose front right upright an earlier step chamfered by
+//! 1 holds 6995 with the block below, and its three feet round the chamfer,
+//! 9, `√2` and 9 long, meet at two corners of 135°. Filled at `d`, the matter
+//! added at a height `c` lies between the standing block's outline and that
+//! outline offset `t = d − c` out over the lower block's top, its corners
+//! mitred: `(18 + √2)t + 2·tan(22.5°)·t²`, each corner turning 45° and its
+//! mitre adding `t²·tan(22.5°)`. Over the height the flats add
+//! `(18 + √2)d²/2 + 2·tan(22.5°)·d³/3`, 7004.98325 at 1; the rounds
+//! `(18 + √2)r²(1 − π/4) + 4·tan(22.5°)·r³(5/6 − π/4)`. The arithmetic edge by
+//! edge — each fill trimmed flush on the walls at its ends, which past `√2/2`
+//! leaves the chamfer's foot no fill of its own, and each corner's `d³/3` or
+//! `r³(5/3 − π/2)` over `sin 45°` — comes to the same, and so do the booleans;
+//! both are held in the test, at 1.
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -499,6 +517,47 @@ fn corners_are_or_on(
     }
 }
 
+/// Holds that where the two rounds `faces` meet in a mitre at a corner, the
+/// edge between them lies on the plane halfway between their two edges —
+/// the plane through `corner` square to the difference of the two `ways`
+/// the edges run from it — so that, lying on each round's cylinder as well,
+/// it is an arc of an ellipse; that edge read off the points the two rounds'
+/// triangles share, every drawn point of it, and running between the two
+/// points `ends`.
+fn on_the_plane_halfway(
+    body: &Body,
+    faces: [usize; 2],
+    (corner, ways): (DVec3, [DVec3; 2]),
+    ends: [DVec3; 2],
+    what: &str,
+) {
+    let [one, other] = faces;
+    let theirs: Vec<DVec3> = body.triangles_of(other).flatten().collect();
+    let met: Vec<DVec3> = body
+        .triangles_of(one)
+        .flatten()
+        .filter(|point| theirs.iter().any(|their| their.distance(*point) < PLACE))
+        .collect();
+    assert!(
+        !met.is_empty(),
+        "{what}: the rounds {one} and {other} share no drawn point, where they meet in a mitre"
+    );
+    let across = (ways[0] - ways[1]).normalize();
+    for point in &met {
+        assert!(
+            (*point - corner).dot(across).abs() < PLACE,
+            "{what}: the mitre between the rounds {one} and {other} is drawn through {point}, off \
+             the plane halfway between their edges"
+        );
+    }
+    for end in ends {
+        assert!(
+            met.iter().any(|point| point.distance(end) < PLACE),
+            "{what}: the mitre between the rounds {one} and {other} does not reach {end}"
+        );
+    }
+}
+
 /// Holds that a flat face faces the way `toward` points.
 fn faces_toward(body: &Body, face: usize, toward: DVec3, what: &str) {
     let facing = body
@@ -883,17 +942,18 @@ impl Case<'_> {
 }
 
 /// Holds that `edges`, named in each of `orders` and filled by each of `cuts`
-/// at every one of [`VALUES`] in one step, leave what [`mitred`] holds, the
+/// at every one of `values` in one step, leave what [`mitred`] holds, the
 /// part holding `volume` before the step and keeping what [`kept`] says after
 /// it — which the booleans give too, [`by_booleans`] — and the same body
 /// whatever the order, as [`the_same_body`] holds it. Every list is laid
 /// before any body is read, so that a decline names every case that declines.
-fn mitre_in_every_order(
+fn mitre_in_every_order_at(
     part: &Body,
     volume: f64,
     edges: &[Concave],
     orders: &[&[usize]],
     cuts: &[Cut],
+    values: &[f64],
     called: &str,
 ) {
     assert!(
@@ -902,7 +962,7 @@ fn mitre_in_every_order(
         part.volume()
     );
     for &cut in cuts {
-        for value in VALUES {
+        for &value in values {
             let arithmetic = kept(volume, edges, cut, value);
             let booleans = by_booleans(part, edges, cut, value);
             assert!(
@@ -923,7 +983,7 @@ fn mitre_in_every_order(
         let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
         let named: Vec<&str> = order.iter().map(|&edge| edges[edge].called).collect();
         for &cut in cuts {
-            for value in VALUES {
+            for &value in values {
                 let what = format!(
                     "the {} of {value} on {called}, named {named:?}",
                     cut.called()
@@ -959,6 +1019,18 @@ fn mitre_in_every_order(
             the_same_body(part, edges, first, case);
         }
     }
+}
+
+/// Holds what [`mitre_in_every_order_at`] holds at every one of [`VALUES`].
+fn mitre_in_every_order(
+    part: &Body,
+    volume: f64,
+    edges: &[Concave],
+    orders: &[&[usize]],
+    cuts: &[Cut],
+    called: &str,
+) {
+    mitre_in_every_order_at(part, volume, edges, orders, cuts, &VALUES, called);
 }
 
 /// Holds that two steps naming the same edges in different orders left the
@@ -1184,12 +1256,14 @@ fn mitred(part: &Body, edges: &[Concave], case: &Case, promised: f64) {
                     }
                 }
                 let [before, after] = [0, 1].map(|end| clear_of(edges, index, end, value));
-                met_from_its_axis(
-                    body,
-                    face,
-                    &hollow.part(before, edge.length() - after),
-                    &format!("{which}, between its edge's ends"),
-                );
+                if edge.length() - after - before > PLACE {
+                    met_from_its_axis(
+                        body,
+                        face,
+                        &hollow.part(before, edge.length() - after),
+                        &format!("{which}, between its edge's ends"),
+                    );
+                }
             }
         }
         let filled_up: Vec<DVec3> = corners_of(own)
@@ -1281,6 +1355,20 @@ fn mitred(part: &Body, edges: &[Concave], case: &Case, promised: f64) {
         "{what}: face {shared}, which the edges share, meets the faces laid in place of the \
          edges' other faces, and every other face it met"
     );
+    if cut == Cut::Round {
+        for (edge, end, other, far) in mitres(edges) {
+            on_the_plane_halfway(
+                body,
+                [laid[edge], laid[other]],
+                (
+                    edges[edge].ends[end].at,
+                    [from_end(&edges[edge], end), from_end(&edges[other], far)],
+                ),
+                fill_corners(edges, edge, end, value),
+                what,
+            );
+        }
+    }
     for (edge, end, other, _) in mitres(edges) {
         let [one, two] = [edges[edge].between[1], edges[other].between[1]];
         assert_eq!(
@@ -1452,5 +1540,121 @@ fn a_chamfer_and_a_fillet_on_two_feet_at_a_corner_of_a_standing_block_that_is_no
         &ROUND_AND_ACROSS,
         &[Cut::Flat, Cut::Round],
         "the leaning block's four feet",
+    );
+}
+
+/// Every order three edges can be named in.
+const ORDERS_OF_THREE: [&[usize]; 6] = [
+    &[0, 1, 2],
+    &[0, 2, 1],
+    &[1, 0, 2],
+    &[1, 2, 0],
+    &[2, 0, 1],
+    &[2, 1, 0],
+];
+
+/// [`stacked`] with its standing block's front right upright chamfered by 1
+/// in an earlier step, stopping flush on the lower block's top as #801's
+/// first slice stops it: the chamfer's flat numbered twelve, standing upright
+/// between (19, 5) and (20, 6), its foot a concave edge √2 long between the
+/// front foot, 9 long now, and the right foot, 9; and at each end of it an
+/// edge meeting outwards where the flat meets the front or the right wall.
+/// It holds 7000 less the chamfer's `10 · 1²/2`, 6995.
+fn stacked_with_its_upright_chamfered() -> Body {
+    let part = stacked();
+    let upright = edge_between(&part, STANDING_FRONT, STANDING_RIGHT);
+    part.chamfer(&upright, 1.0)
+        .expect("the upright is chamfered")
+        .body
+}
+const CHAMFERED_UPRIGHT: usize = 12;
+const STACKED_CHAMFERED_VOLUME: f64 = 6995.0;
+
+/// The three feet round the chamfered upright of
+/// [`stacked_with_its_upright_chamfered`]: the front foot, from the left
+/// wall, the chamfer's foot, and the right foot, to the back wall, each two
+/// meeting where an edge meeting outwards stands above them.
+fn feet_round_the_chamfered_upright() -> [Concave; 3] {
+    let flat = DVec3::new(1.0, -1.0, 0.0).normalize();
+    let [front_corner, right_corner] = [DVec3::new(19.0, 5.0, 10.0), DVec3::new(20.0, 6.0, 10.0)];
+    let free = |at: DVec3, on: usize, facing: DVec3| End {
+        at,
+        on,
+        facing,
+        matter_past: false,
+    };
+    [
+        Concave {
+            called: "the standing block's front foot",
+            between: [TOP, STANDING_FRONT],
+            facing: [DVec3::Z, -DVec3::Y],
+            ends: [
+                free(DVec3::new(10.0, 5.0, 10.0), STANDING_LEFT, -DVec3::X),
+                free(front_corner, CHAMFERED_UPRIGHT, flat),
+            ],
+        },
+        Concave {
+            called: "the foot of the chamfered upright",
+            between: [TOP, CHAMFERED_UPRIGHT],
+            facing: [DVec3::Z, flat],
+            ends: [
+                free(front_corner, STANDING_FRONT, -DVec3::Y),
+                free(right_corner, STANDING_RIGHT, DVec3::X),
+            ],
+        },
+        Concave {
+            called: "the standing block's right foot",
+            between: [TOP, STANDING_RIGHT],
+            facing: [DVec3::Z, DVec3::X],
+            ends: [
+                free(right_corner, CHAMFERED_UPRIGHT, flat),
+                free(DVec3::new(20.0, 15.0, 10.0), STANDING_BACK, DVec3::Y),
+            ],
+        },
+    ]
+}
+
+/// What [`stacked_with_its_upright_chamfered`] holds once its three feet
+/// round the chamfered upright are filled at `value` in one step, as the
+/// module's documentation derives it: at each height the standing block's
+/// outline there offset out over the lower block's top, its two corners of
+/// 135° mitred.
+fn round_the_chamfered_upright(cut: Cut, value: f64) -> f64 {
+    let along = 18.0 + 2f64.sqrt();
+    let turn = (PI / 8.0).tan();
+    STACKED_CHAMFERED_VOLUME
+        + match cut {
+            Cut::Flat => along * value * value / 2.0 + 2.0 * turn * value.powi(3) / 3.0,
+            Cut::Round => {
+                along * value * value * (1.0 - PI / 4.0)
+                    + 4.0 * turn * value.powi(3) * (5.0 / 6.0 - PI / 4.0)
+            }
+        }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_two_feet_and_the_foot_of_the_chamfered_upright_between_them_fill_them_into_two_mitres_in_every_order()
+ {
+    let part = stacked_with_its_upright_chamfered();
+    let edges = feet_round_the_chamfered_upright();
+    let called = "the standing block's three feet round its chamfered upright";
+    for cut in [Cut::Flat, Cut::Round] {
+        let offset = round_the_chamfered_upright(cut, 1.0);
+        let arithmetic = kept(STACKED_CHAMFERED_VOLUME, &edges, cut, 1.0);
+        assert!(
+            (arithmetic - offset).abs() <= EXACT * offset,
+            "{called}, the {} of 1: the outline offset holds {offset}, the arithmetic edge by edge \
+             {arithmetic}",
+            cut.called()
+        );
+    }
+    mitre_in_every_order_at(
+        &part,
+        STACKED_CHAMFERED_VOLUME,
+        &edges,
+        &ORDERS_OF_THREE,
+        &[Cut::Flat, Cut::Round],
+        &[1.0],
+        called,
     );
 }

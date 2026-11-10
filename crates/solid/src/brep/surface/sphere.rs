@@ -121,6 +121,16 @@ impl Sphere {
         self.round().meridian(circle, eps)
     }
 
+    /// Whether `circle` lies on the sphere within `eps`, whatever line it
+    /// turns about: a latitude circle of the sphere read about the circle's
+    /// own axis, as a great circle tilted across the poles is (#800).
+    pub fn carries(&self, circle: &Circle, eps: f64) -> bool {
+        let from = circle.center - self.middle();
+        let h = from.dot(circle.axis);
+        (from - circle.axis * h).length() <= eps
+            && (DVec2::new(h, circle.radius).length() - self.radius).abs() <= eps
+    }
+
     /// How far along the unit `direction` the sphere reaches, from its lowest
     /// point to its highest.
     pub fn extent(&self, direction: DVec3) -> [f64; 2] {

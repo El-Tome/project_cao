@@ -16,7 +16,10 @@
 //! strips between the rows of a grid along the meridian, and the lattice
 //! points where the rows cross the angles are added inside the face — on no
 //! edge, so that every edge's samples are still shared with the face beyond
-//! it. Each face is cut alone, so two faces standing within the tolerance of
+//! it. A piece of sphere bounded by a circle that is neither a latitude nor
+//! a meridian is cut on its central projection instead (#800), and points
+//! are added inside it until every triangle stands within the tolerance:
+//! on no edge either. Each face is cut alone, so two faces standing within the tolerance of
 //! each other can fold onto each other across their edge; [`folds`] cuts them
 //! the other way once all are cut.
 
@@ -53,11 +56,7 @@ impl Body {
         let mut drawn = Vec::new();
         let mut uncut = Vec::new();
         for id in self.face_ids() {
-            let Some(outline) = Outline::of(self, &mut samples, id, tolerance) else {
-                uncut.push(id);
-                continue;
-            };
-            let Some(cut) = outline.cut() else {
+            let Some((outline, cut)) = Outline::cut_of(self, &mut samples, id, tolerance) else {
                 uncut.push(id);
                 continue;
             };

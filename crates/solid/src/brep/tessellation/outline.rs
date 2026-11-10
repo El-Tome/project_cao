@@ -1,6 +1,7 @@
 //! A face's loops laid out in its surface's parameters, the region on the
 //! left of every segment: what the sweep cuts.
 
+mod central;
 mod columns;
 mod cone;
 mod cylinder;
@@ -20,6 +21,7 @@ use crate::brep::topology::{Body, FaceId};
 /// between them. A face of a sphere or a torus is cut in strips between the
 /// rows of its grid, each strip's segments swept alone ([`round`]); any
 /// other face is one region, swept whole.
+#[derive(Default)]
 pub(super) struct Outline {
     pub(super) points: Vec<DVec2>,
     pub(super) samples: Vec<usize>,
@@ -34,6 +36,27 @@ pub(super) struct Outline {
 }
 
 impl Outline {
+    /// The outline of a face and its triangles. A piece of sphere its
+    /// `(θ, φ)` chart cannot lay out is laid out and cut on a chart of its
+    /// own ([`central`]), with points added inside it. None when the face
+    /// can be neither laid out nor cut.
+    pub(super) fn cut_of(
+        body: &Body,
+        samples: &mut Samples,
+        id: FaceId,
+        tolerance: f64,
+    ) -> Option<(Outline, Vec<[usize; 3]>)> {
+        if let Some(outline) = Outline::of(body, samples, id, tolerance) {
+            let cut = outline.cut()?;
+            return Some((outline, cut));
+        }
+        let face = body.face(id);
+        let Surface::Sphere(sphere) = body.surface(face.surface) else {
+            return None;
+        };
+        Outline::central(sphere, samples, &laps(body, samples, id)?, tolerance)
+    }
+
     /// The outline of a face, turned when the face is flipped so that its
     /// region is on the left in the surface's own parameters. None when the
     /// face cannot be laid out.
@@ -43,40 +66,9 @@ impl Outline {
         face: FaceId,
         tolerance: f64,
     ) -> Option<Outline> {
+        let laps = laps(body, samples, face)?;
         let face = body.face(face);
-        let laps: Vec<Vec<usize>> = face
-            .loops
-            .iter()
-            .map(|lap| {
-                let mut ids = Vec::new();
-                for coedge in lap {
-                    let along = samples.edge(coedge.edge);
-                    let closed = body.edge(coedge.edge).ends.is_none();
-                    let run: Vec<usize> = if coedge.forward {
-                        along.to_vec()
-                    } else {
-                        along.iter().rev().copied().collect()
-                    };
-                    let kept = if closed { run.len() } else { run.len() - 1 };
-                    ids.extend(&run[..kept]);
-                }
-                if face.flipped {
-                    ids.reverse();
-                }
-                ids
-            })
-            .collect();
-        if laps.iter().any(|lap| lap.len() < 2) {
-            return None;
-        }
-        let mut outline = Outline {
-            points: Vec::new(),
-            samples: Vec::new(),
-            segments: Vec::new(),
-            at: BTreeMap::new(),
-            walls: Vec::new(),
-            strips: Vec::new(),
-        };
+        let mut outline = Outline::default();
         match body.surface(face.surface) {
             Surface::Plane(plane) => {
                 for lap in laps {
@@ -182,6 +174,35 @@ impl Outline {
             self.chain(&round);
         }
     }
+}
+
+/// The samples of each loop of a face, in the way the loop runs, turned when
+/// the face is flipped. None when a loop has fewer than two.
+fn laps(body: &Body, samples: &Samples, face: FaceId) -> Option<Vec<Vec<usize>>> {
+    let face = body.face(face);
+    let laps: Vec<Vec<usize>> = face
+        .loops
+        .iter()
+        .map(|lap| {
+            let mut ids = Vec::new();
+            for coedge in lap {
+                let along = samples.edge(coedge.edge);
+                let closed = body.edge(coedge.edge).ends.is_none();
+                let run: Vec<usize> = if coedge.forward {
+                    along.to_vec()
+                } else {
+                    along.iter().rev().copied().collect()
+                };
+                let kept = if closed { run.len() } else { run.len() - 1 };
+                ids.extend(&run[..kept]);
+            }
+            if face.flipped {
+                ids.reverse();
+            }
+            ids
+        })
+        .collect();
+    (!laps.iter().any(|lap| lap.len() < 2)).then_some(laps)
 }
 
 #[cfg(test)]

@@ -1,15 +1,14 @@
 //! Undoing folds does not stop while a fold it can still undo remains,
 //! whatever other faces of the body count (#832, part of #755).
 //!
-//! `folds::unfolded` passes over every face again while a pass takes a flip
-//! and meets fewer folds than the one before. The count is the body's, not a
-//! face's: a fold on one face kept the passes going for another, and its
-//! absence stopped them early. 354000000008162 held on `main` by that
-//! accident — its passes counted 4, 3, 1, 0, the first holding the triangle
-//! #820 turns right side up. With #820 they count 3, 3, and the loop stops
-//! with a triangle of the leaning cone (face 2) still folded through the
-//! bore's cylinder near (-0.73, -1.87, -0.71), its fan undone one flip per
-//! pass and one pass short.
+//! `folds::unfolded` used to stop as soon as a pass met no fewer folds than
+//! the one before. The count was the body's, not a face's: a fold on one face
+//! kept the passes going for another, and its absence stopped them early.
+//! 354000000008162 held on `main` by that accident — its passes counted 4, 3,
+//! 1, 0, the first holding the triangle #820 turns right side up. With #820
+//! they counted 3, 3, and the loop stopped with a triangle of the leaning cone
+//! (face 2) still folded through the bore's cylinder near
+//! (-0.73, -1.87, -0.71), its fan undone one flip per pass and one pass short.
 //!
 //! Closes #832.
 //! - 354000000008162's shrunk case is pinned and holds through the body on

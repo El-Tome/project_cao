@@ -207,10 +207,11 @@
 //!   the decline it held turned into a body held through
 //!   `closes_with_a_sphere` as the slanted prism's corner is, to the volume
 //!   `sphere_by_booleans` gives
-//! - What must not break: every sphere, ball and torus test (#553, #576 and
-//!   the turned parts); the corner tests of #699 — no test: held by those
-//!   tests, left as they were; the corner tests of #699 are this file's, and
-//!   the tilted block's fillet above is the only one #800 changes
+//! - What must not break, in the issue's words: "Every sphere, ball and
+//!   torus test (#553, #576 and the turned parts); the corner tests of
+//!   #699." — no test: each is held by its own test, left as it was, but for
+//!   the tilted block's fillet in this file, the one test of #699 that #800
+//!   turns from a decline into a body
 //!
 //! The volumes are arithmetic, measured from the corner along its three
 //! edges: a point stands `(a, b, c)` from it, `a` along the edge whose length

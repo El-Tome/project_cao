@@ -36,10 +36,11 @@ pub(super) struct Outline {
 }
 
 impl Outline {
-    /// The outline of a face and its triangles. A piece of sphere its
-    /// `(θ, φ)` chart cannot lay out is laid out and cut on a chart of its
-    /// own ([`central`]), with points added inside it. None when the face
-    /// can be neither laid out nor cut.
+    /// The outline of a face and its triangles. A face of a sphere its
+    /// `(θ, φ)` chart cannot lay out, for whatever reason, is laid out and
+    /// cut on a chart of its own ([`central`]), with points added inside it;
+    /// one it lays out is cut there or not at all. None when the face can be
+    /// neither laid out nor cut.
     pub(super) fn cut_of(
         body: &Body,
         samples: &mut Samples,

@@ -3,7 +3,12 @@
 //! volume within what the chords take off, and the same twice. A piece of
 //! sphere bounded by great-circle arcs that are no line of the sphere's
 //! `(θ, φ)` chart, neither a meridian nor the equator, is held to the same
-//! (#800), on a sector of a ball built by hand.
+//! (#800), on a sector of a ball built by hand: one over a narrow triangle,
+//! and one over a wide triangle whose corners stand eighty degrees from its
+//! middle, as a convex corner of sharp angles leaves its piece of sphere.
+//! The ball less such a sector leaves a face of the sphere that lies in
+//! front of no one direction, more than a hemisphere: it is left open, never
+//! drawn inside out.
 
 use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
@@ -15,7 +20,7 @@ use crate::brep::Declined;
 use crate::brep::curve::{Circle, Curve};
 use crate::brep::surface::{Sphere, Surface};
 use crate::brep::tessellation::Cut;
-use crate::brep::topology::{Body, Coedge};
+use crate::brep::topology::{Body, Coedge, FaceId, VertexId};
 use crate::brep::turned::tests::round::{
     apple, ball, ball_at_the_origin, bent, cap, grooved_bore, lemon, ring, rounded_shaft, turned,
     zone,
@@ -329,14 +334,26 @@ fn both_meridians_of_a_partial_turn_are_sampled_on_the_same_rows_of_the_sphere()
     }
 }
 
+/// What of the ball a fixture keeps: the sector over a triangle of great
+/// circles, or the ball less that sector. The rest's volume is not read: its
+/// face of the sphere holds both poles round a loop that winds round neither,
+/// a face no step builds, and the flux leaves out the ball they close.
+#[derive(Clone, Copy)]
+enum Kept {
+    Sector,
+    Rest,
+}
+
 /// The sector of the ball of `radius` about `centre` over the triangle of
-/// great circles whose corners stand the ways `corners` point from it, its
-/// sphere read about `axis`: three flat faces meeting at the centre, each
-/// between two of those ways and bounded towards the sphere by the arc of
-/// the great circle through them, and the piece of sphere the three arcs
-/// bound. Built by hand: no boolean cuts a sphere along a plane through its
-/// centre that is neither square to its axis nor holds it.
-fn sector(centre: DVec3, radius: f64, corners: [DVec3; 3], axis: DVec3) -> Body {
+/// great circles whose corners stand the ways `corners` point from it, or
+/// the ball less that sector, its sphere read about `axis`: three flat faces
+/// meeting at the centre, each between two of those ways and bounded
+/// towards the sphere by the arc of the great circle through them, and the
+/// face of the sphere the three arcs bound — the triangle, or the rest of
+/// the sphere round it, which holds the sphere's two poles. Built by hand:
+/// no boolean cuts a sphere along a plane through its centre that is
+/// neither square to its axis nor holds it.
+fn wedge(centre: DVec3, radius: f64, corners: [DVec3; 3], axis: DVec3, kept: Kept) -> Body {
     let ways = counterclockwise(corners);
     let mut build = Build::new();
     let middle = build.vertex(centre);
@@ -359,22 +376,42 @@ fn sector(centre: DVec3, radius: f64, corners: [DVec3; 3], axis: DVec3) -> Body 
             start + (end - start).rem_euclid(TAU),
         )
     });
-    let sphere = build.surface(Surface::Sphere(Sphere::through(centre, axis, 0.0, radius)));
-    let lap: Vec<Coedge> = (0..3).map(|at| build.leaving(arcs[at], feet[at])).collect();
-    build.face(sphere, false, vec![lap]);
-    for at in 0..3 {
+    let round = Sphere::through(centre, axis, 0.0, radius);
+    let poles: Vec<VertexId> = match kept {
+        Kept::Sector => Vec::new(),
+        Kept::Rest => [-radius, radius]
+            .map(|side| build.vertex(round.middle() + round.axis * side))
+            .to_vec(),
+    };
+    let sphere = build.surface(Surface::Sphere(round));
+    let lap: Vec<Coedge> = match kept {
+        Kept::Sector => [0, 1, 2].map(|at| build.leaving(arcs[at], feet[at])),
+        Kept::Rest => [2, 1, 0].map(|at| build.leaving(arcs[at], feet[(at + 1) % 3])),
+    }
+    .to_vec();
+    let piece = build.face(sphere, false, vec![lap]);
+    for (at, &arc) in arcs.iter().enumerate() {
         let next = (at + 1) % 3;
-        let (plane, flipped) = build.plane(centre, ways[next].cross(ways[at]));
-        let out = build.line(middle, feet[next]);
-        let back = build.line(feet[at], middle);
+        let [first, second] = match kept {
+            Kept::Sector => [next, at],
+            Kept::Rest => [at, next],
+        };
+        let (plane, flipped) = build.plane(centre, ways[first].cross(ways[second]));
+        let out = build.line(middle, feet[first]);
+        let back = build.line(feet[second], middle);
         let lap = vec![
             build.leaving(out, middle),
-            build.leaving(arcs[at], feet[next]),
-            build.leaving(back, feet[at]),
+            build.leaving(arc, feet[first]),
+            build.leaving(back, feet[second]),
         ];
         build.face(plane, flipped, vec![lap]);
     }
-    build.finish((centre.abs() + DVec3::splat(radius)).max_element())
+    let mut body = build.finish((centre.abs() + DVec3::splat(radius)).max_element());
+    for pole in &poles {
+        body.vertices[pole.0 as usize].on = vec![sphere];
+    }
+    body.faces[piece.0 as usize].poles = poles;
+    body
 }
 
 /// The three ways, of unit length, in the order that turns counterclockwise
@@ -397,73 +434,160 @@ fn spread(corners: [DVec3; 3]) -> f64 {
         .atan2(1.0 + a.dot(b) + b.dot(c) + c.dot(a))
 }
 
+/// Whether the way `direction` stands outside the cone the three ways span.
+fn outside(corners: [DVec3; 3], direction: DVec3) -> bool {
+    let ways = counterclockwise(corners);
+    (0..3).any(|at| ways[(at + 1) % 3].cross(ways[at]).dot(direction) > 0.0)
+}
+
+/// The face of `body` on the sphere, once the fixture is held to what it is
+/// built to be: listed sound, its sphere's poles outside the triangle the
+/// ways `corners` bound, and every arc of the face neither a meridian nor a
+/// latitude of the sphere, no line of its `(θ, φ)` chart.
+fn piece_of(body: &Body, corners: [DVec3; 3], what: &str) -> FaceId {
+    let eps = body.scale().eps();
+    assert_eq!(
+        listed(&body.listing(), body.scale().reach()),
+        Ok(()),
+        "{what}"
+    );
+    let [piece] = body
+        .face_ids()
+        .filter(|&face| matches!(body.surface(body.face(face).surface), Surface::Sphere(_)))
+        .collect::<Vec<_>>()[..]
+    else {
+        panic!("{what}: one face on the sphere");
+    };
+    let Surface::Sphere(sphere) = body.surface(body.face(piece).surface) else {
+        panic!("{what}: the piece lies on a sphere");
+    };
+    for side in [-1.0, 1.0] {
+        assert!(
+            outside(corners, sphere.axis * side),
+            "{what}: a pole of the sphere stands inside the triangle"
+        );
+    }
+    for coedge in body.face(piece).loops.iter().flatten() {
+        let Curve::Circle(circle) = body.curve(body.edge(coedge.edge).curve) else {
+            panic!("{what}: the piece is bounded by arcs");
+        };
+        assert!(
+            !sphere.meridian(circle, eps) && !sphere.holds(circle, eps),
+            "{what}: an arc of the piece, {circle:?}, is a line of its chart"
+        );
+    }
+    piece
+}
+
+/// Holds that the sector of the ball of `radius` about `centre` over the
+/// triangle the ways `corners` bound, its sphere read about each of `axes`,
+/// is drawn closed at every tolerance, enclosing its volume, its piece of
+/// sphere drawn within the sector.
+fn sector_drawn(centre: DVec3, radius: f64, corners: [DVec3; 3], axes: &[DVec3]) {
+    let ways = counterclockwise(corners);
+    let whole = radius.powi(3) * spread(corners) / 3.0;
+    for &axis in axes {
+        let body = wedge(centre, radius, corners, axis.normalize(), Kept::Sector);
+        let what = format!("the sector over {corners:?} read about {axis}");
+        let eps = body.scale().eps();
+        piece_of(&body, corners, &what);
+        assert!(
+            (body.volume() - whole).abs() <= 1e-9 * whole,
+            "{what}: holds {}, where its sector holds {whole}",
+            body.volume()
+        );
+        for tolerance in TOLERANCES {
+            let cut = held(&body, tolerance);
+            let drawn = on_rounds(&body, &cut);
+            assert!(
+                !drawn.is_empty(),
+                "{what}: the piece is drawn at {tolerance}"
+            );
+            for point in drawn.iter().flatten() {
+                for at in 0..3 {
+                    let outward = ways[(at + 1) % 3].cross(ways[at]).normalize();
+                    assert!(
+                        (*point - centre).dot(outward) <= eps,
+                        "{what}: the piece is drawn at {tolerance} through {point}, past the \
+                         flat face facing {outward}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// The middle of the sectors, and the radius of their ball.
+const SECTOR_CENTRE: DVec3 = DVec3::new(28.0, 2.0, 13.0);
+const SECTOR_RADIUS: f64 = 2.0;
+
 #[test]
 fn a_sector_of_a_ball_bounded_by_three_great_circle_arcs_none_a_meridian_nor_the_equator_is_drawn_closed_and_encloses_its_volume()
  {
-    let (centre, radius) = (DVec3::new(28.0, 2.0, 13.0), 2.0f64);
-    let triangles = [
+    let axes = [DVec3::new(1.0, 2.0, -3.0), DVec3::new(-2.0, 1.0, 1.0)];
+    for corners in [
         [DVec3::X, DVec3::NEG_Y, DVec3::new(-0.1, -0.2, 1.0)],
         [
             DVec3::new(1.0, 0.1, 0.2),
             DVec3::new(0.2, 1.0, 0.1),
             DVec3::new(0.1, 0.2, 1.0),
         ],
+    ] {
+        sector_drawn(SECTOR_CENTRE, SECTOR_RADIUS, corners, &axes);
+    }
+}
+
+/// The ways at `polar` degrees from `middle`, at each of `azimuths` degrees
+/// round it.
+fn round_about<const N: usize>(middle: DVec3, polar: f64, azimuths: [f64; N]) -> [DVec3; N] {
+    let middle = middle.normalize();
+    let across = middle.any_orthonormal_vector();
+    let beside = middle.cross(across);
+    let (sin, cos) = polar.to_radians().sin_cos();
+    azimuths.map(|azimuth| {
+        let (s, c) = azimuth.to_radians().sin_cos();
+        middle * cos + (across * c + beside * s) * sin
+    })
+}
+
+#[test]
+fn a_sector_of_a_ball_over_a_wide_triangle_whose_corners_stand_eighty_degrees_from_its_middle_is_drawn_closed_and_encloses_its_volume()
+ {
+    let middle = DVec3::new(0.3, -0.4, 1.0);
+    let corners = round_about(middle, 80.0, [0.0, 110.0, 230.0]);
+    let axes = round_about(middle, 90.0, [40.0, 100.0]);
+    sector_drawn(SECTOR_CENTRE, SECTOR_RADIUS, corners, &axes);
+}
+
+#[test]
+fn the_sphere_face_of_a_ball_less_a_sector_in_front_of_no_one_direction_is_left_open_and_never_drawn_inside_out()
+ {
+    let corners = [
+        DVec3::new(1.0, 0.1, 0.2),
+        DVec3::new(0.2, 1.0, 0.1),
+        DVec3::new(0.1, 0.2, 1.0),
     ];
-    let axes = [DVec3::new(1.0, 2.0, -3.0), DVec3::new(-2.0, 1.0, 1.0)];
-    for corners in triangles {
-        let ways = counterclockwise(corners);
-        let whole = radius.powi(3) * spread(corners) / 3.0;
-        for axis in axes {
-            let body = sector(centre, radius, corners, axis.normalize());
-            let what = format!("the sector over {corners:?} read about {axis}");
-            let eps = body.scale().eps();
+    for axis in [DVec3::new(1.0, 2.0, -3.0), DVec3::new(-2.0, 1.0, 1.0)] {
+        let body = wedge(
+            SECTOR_CENTRE,
+            SECTOR_RADIUS,
+            corners,
+            axis.normalize(),
+            Kept::Rest,
+        );
+        let what = format!("the ball less the sector over {corners:?} read about {axis}");
+        let piece = piece_of(&body, corners, &what);
+        for tolerance in TOLERANCES {
+            let cut = body.triangles_by_face(tolerance);
             assert_eq!(
-                listed(&body.listing(), body.scale().reach()),
-                Ok(()),
-                "{what}"
+                cut.uncut,
+                vec![piece],
+                "{what}: at {tolerance}, the sphere face alone is left open"
             );
             assert!(
-                (body.volume() - whole).abs() <= 1e-9 * whole,
-                "{what}: holds {}, where its sector holds {whole}",
-                body.volume()
+                !cut.faces.contains(&piece),
+                "{what}: at {tolerance}, triangles came back for the sphere face"
             );
-            let [piece] = body
-                .face_ids()
-                .filter(|&face| matches!(body.surface(body.face(face).surface), Surface::Sphere(_)))
-                .collect::<Vec<_>>()[..]
-            else {
-                panic!("{what}: one face on the sphere");
-            };
-            let Surface::Sphere(sphere) = body.surface(body.face(piece).surface) else {
-                panic!("{what}: the piece lies on a sphere");
-            };
-            for coedge in body.face(piece).loops.iter().flatten() {
-                let Curve::Circle(circle) = body.curve(body.edge(coedge.edge).curve) else {
-                    panic!("{what}: the piece is bounded by arcs");
-                };
-                assert!(
-                    !sphere.meridian(circle, eps) && !sphere.holds(circle, eps),
-                    "{what}: an arc of the piece, {circle:?}, is a line of its chart"
-                );
-            }
-            for tolerance in TOLERANCES {
-                let cut = held(&body, tolerance);
-                let drawn = on_rounds(&body, &cut);
-                assert!(
-                    !drawn.is_empty(),
-                    "{what}: the piece is drawn at {tolerance}"
-                );
-                for point in drawn.iter().flatten() {
-                    for at in 0..3 {
-                        let outward = ways[(at + 1) % 3].cross(ways[at]).normalize();
-                        assert!(
-                            (*point - centre).dot(outward) <= eps,
-                            "{what}: the piece is drawn at {tolerance} through {point}, past \
-                             the flat face facing {outward}"
-                        );
-                    }
-                }
-            }
         }
     }
 }

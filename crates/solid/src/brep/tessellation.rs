@@ -16,12 +16,15 @@
 //! strips between the rows of a grid along the meridian, and the lattice
 //! points where the rows cross the angles are added inside the face — on no
 //! edge, so that every edge's samples are still shared with the face beyond
-//! it. A piece of sphere bounded by a circle that is neither a latitude nor
-//! a meridian is cut on its central projection instead (#800), and points
-//! are added inside it until every triangle stands within the tolerance:
-//! on no edge either. Each face is cut alone, so two faces standing within the tolerance of
-//! each other can fold onto each other across their edge; [`folds`] cuts them
-//! the other way once all are cut.
+//! it. A face of a sphere that chart cannot lay out, for whatever reason — a
+//! circle that is neither a latitude nor a meridian, a loop its strips
+//! cannot follow — is cut on its central projection instead (#800), points
+//! added inside it until every triangle stands within the tolerance, on no
+//! edge either; a face reaching some 87° or more from every direction, or
+//! behind the plane of its chart, is left open, as is a face of a torus its
+//! chart refuses. Each face is cut alone, so two faces standing within the
+//! tolerance of each other can fold onto each other across their edge;
+//! [`folds`] cuts them the other way once all are cut.
 
 mod contact;
 mod folds;

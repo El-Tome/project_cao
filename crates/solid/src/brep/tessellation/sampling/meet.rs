@@ -184,7 +184,7 @@ pub(super) fn of_edge(
 ) -> Vec<DVec3> {
     let points = alone(body, edge, meet, around, grids, fineness);
     let walls = outside::pierced(body, edge, meet, around, fineness, &points);
-    let points = outside::kept_outside(body, edge, meet, &walls, fineness.0, points);
+    let points = outside::kept_outside(body, edge, meet, &walls, fineness, points, around);
     twin::shared(body, edge, meet, around, grids, fineness, points)
 }
 

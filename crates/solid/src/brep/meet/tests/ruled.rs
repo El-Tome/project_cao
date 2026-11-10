@@ -145,3 +145,121 @@ fn at_the_angle_it_comes_back_to_at_its_seam_a_ruled_meet_is_found_at_its_seam()
         }
     }
 }
+
+/// Lap `component` of the pin and the rod `walls`, held to cross `theta` at
+/// its seam: standing within rounding of it at both ends of its table, and
+/// either side of it a hair before and a hair after.
+fn crossing_at_its_seam((pin, rod): (Wall, Wall), component: u8, theta: f64) -> Meet {
+    let meet = Meet {
+        first: pin,
+        second: rod,
+        component,
+    };
+    let off = |t: f64| super::around(meet.seen_on(false, t)[0].x - theta);
+    for (t, name) in [(0.0, "its start"), (TAU, "its end")] {
+        assert!(
+            off(t).abs() < 1e-14,
+            "lap {component} is {} off {theta} at {name}",
+            off(t)
+        );
+    }
+    let hair = 1e-12;
+    let [before, after] = [off(TAU - hair), off(hair)];
+    assert!(
+        (before < 0.0) != (after < 0.0) && before.abs().max(after.abs()) < 1e-9,
+        "lap {component} is {before} off {theta} a hair before its seam and {after} a hair after"
+    );
+    meet
+}
+
+fn found_at_its_seam(meet: &Meet, theta: f64) -> Vec<f64> {
+    let found = meet.at_angle(false, theta);
+    let at_the_seam: Vec<f64> = found
+        .iter()
+        .copied()
+        .filter(|t| t.min(TAU - t) < 1e-9)
+        .collect();
+    assert!(
+        at_the_seam == [0.0],
+        "the lap stands at {} at its start and {} at its end, and crosses {theta} there once; \
+         found {at_the_seam:?} at its seam, not nought alone, in {found:?}",
+        meet.seen_on(false, 0.0)[0].x,
+        meet.seen_on(false, TAU)[0].x,
+    );
+    found
+}
+
+#[test]
+fn at_an_angle_between_the_two_ends_of_its_table_a_ruled_meet_is_found_at_its_seam() {
+    let theta = 6.221836942020814;
+    found_at_its_seam(&crossing_at_its_seam(over_the_rod(256.5), 1, theta), theta);
+}
+
+#[test]
+fn at_an_angle_neither_end_step_of_its_table_holds_a_ruled_meet_is_found_at_its_seam() {
+    let theta = 0.24746744108332255;
+    found_at_its_seam(&crossing_at_its_seam(over_the_rod(22.5), 1, theta), theta);
+}
+
+#[test]
+fn a_ruled_meet_found_a_hair_before_the_end_of_its_lap_is_kept_at_its_seam() {
+    let theta = 2.7058540406527594;
+    found_at_its_seam(&crossing_at_its_seam(over_the_rod(10.5), 0, theta), theta);
+}
+
+#[test]
+fn a_ruled_meet_crossing_an_angle_at_its_seam_is_found_there_once() {
+    let theta = 0.22615065610152887;
+    found_at_its_seam(&crossing_at_its_seam(over_the_rod(147.9), 1, theta), theta);
+}
+
+/// A pin of ten degrees, its apex at the origin pointing down, pierced six
+/// below its apex by a rod of radius 0.3 lying across it, `off` its axis:
+/// each lap rings the rod, its angle on the rod winding a whole turn.
+fn through_the_rod(off: f64) -> (Wall, Wall) {
+    let pin = pin(DVec3::ZERO, -DVec3::Z, 10.0);
+    let (sin, cos) = 3f64.to_radians().sin_cos();
+    let across = DVec3::new(-sin, cos, 0.0);
+    let rod = Cylinder::about(
+        DVec3::new(0.0, 0.0, -6.0) + across * off,
+        DVec3::new(cos, sin, 0.0),
+        0.3,
+    );
+    (Wall::Cone(pin), Wall::Cylinder(rod))
+}
+
+#[test]
+fn on_a_lap_winding_round_the_other_wall_a_ruled_meet_is_found_only_where_it_stands_at_the_angle() {
+    let (pin, rod) = through_the_rod(0.17);
+    for component in 0..2 {
+        let meet = Meet {
+            first: pin,
+            second: rod,
+            component,
+        };
+        let [start, end] = [0.0, TAU].map(|t| meet.seen_on(false, t)[0].x);
+        assert!(
+            ((end - start) / TAU).round().abs() >= 1.0,
+            "lap {component} stands at {start} at its start and {end} at its end, winding no turn"
+        );
+        for share in [0.25, 0.5, 0.75] {
+            let theta = start + TAU * share;
+            let found = meet.at_angle(false, theta);
+            assert!(!found.is_empty(), "lap {component} never stands at {theta}");
+            for &t in &found {
+                let seen = meet.seen_on(false, t)[0].x;
+                assert!(
+                    super::around(seen - theta).abs() < 1e-9,
+                    "lap {component}: {t} stands at {seen}, not {theta}, in {found:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn on_a_lap_winding_round_the_other_wall_a_ruled_meet_crossing_an_angle_at_its_seam_is_found_there_once()
+ {
+    let theta = -1.520775469989124;
+    found_at_its_seam(&crossing_at_its_seam(through_the_rod(0.0), 0, theta), theta);
+}

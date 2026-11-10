@@ -20,6 +20,11 @@ const DEEPEST: u32 = 40;
 const MOST: usize = 16 * AROUND;
 /// The step central differences are taken over, in the parameter.
 const STEP: f64 = 1e-5;
+/// How near its seam a root found along a lap is the one the seam holds: the
+/// two ends of a winding lap's table disagree by a few ulps of its angle,
+/// carried into the parameter by its rate; two real roots that close to the
+/// seam are a tangency there.
+const SEAM: f64 = 1024.0 * TAU * f64::EPSILON;
 
 impl Ruled {
     pub fn point(&self, lap: &Lap, t: f64) -> DVec3 {
@@ -193,11 +198,20 @@ impl Ruled {
                     } else if end == 0.0 {
                         found.push(to.rem_euclid(TAU));
                     } else if (start < 0.0) != (end < 0.0) {
-                        found.push(halved(off, from, to));
+                        found.push(halved(off, from, to).rem_euclid(TAU));
                     }
                 }
             }
+            let [first, last] = [0.0, TAU].map(angle);
+            let back = last - TAU * ((last - first) / TAU).round();
+            let target = theta + TAU * ((first.min(back) - theta) / TAU).ceil();
+            if target <= first.max(back) {
+                found.push(0.0);
+            }
             found
+                .into_iter()
+                .map(|t| if t.min(TAU - t) <= SEAM { 0.0 } else { t })
+                .collect()
         };
         found.retain(|t| (0.0..TAU).contains(t));
         found.sort_by(f64::total_cmp);

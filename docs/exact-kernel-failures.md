@@ -4045,3 +4045,42 @@ bored away or sagged more than the chord dipped. Keeping to a wall that holds a 
 sags less than the chord dips cured the five, and gave back four of its
 gains, all through the body: 352000000009898, 352000000012341,
 352000000014760 and 354000000009413.
+
+## #840: a meet's chords near a third wall are halved by one rule
+
+Follows #821. Its pass chose the third wall by one rule — a chord dips
+into it deeper than the wall's own triangles sag, where one of its faces
+stands — and then halved the chords by another, down to eps, whether a face
+stood there or not. `sampling/meet/outside.rs` now halves by the first rule
+alone: a chord is cut until it dips no deeper than the sag, or only where
+the wall holds no face. Both passes read the same grid and rays, and pick
+the walls an end of the edge stands on once.
+
+The same branch closes the seam of #811. A ruled meet's root at t = 0 was
+lost three ways: an end window kept with no sign change, no end window kept
+at all when theta fell between the two readings of the seam, and a root
+halved to exactly TAU and then dropped. The lap is now read at both ends of
+its turn, and a root within an ulp of either end is the seam, found once.
+
+A third wall that is a cone is out of reach here: the pass sees the body's
+contact walls, which are cylinders only, and a list of cone walls does not
+exist yet.
+
+**How it was measured.** The walls and turned sets of #821, on `main`
+(64ddb7a8) and on the branch (f691751e), compared seed by seed.
+
+| Set | Exact, `main` | Exact, #840 | Body, `main` | Body, #840 |
+| --- | --- | --- | --- | --- |
+| walls 352… | 41 | 41 | 85 | 85 |
+| walls 353… | 24 | 24 | 79 | 79 |
+| walls 354… | 37 | 37 | 83 | 83 |
+| turned 533300000… | 22 | 22 | 42 | 42 |
+
+Every set fails on the same seeds by the same rules: no regression, no gain.
+The six draws pinned under #821 hold. What #840 changes is reached by its
+unit tests, not by a draw these sets hold: the slivers point 1 of the issue
+feared are not among their failures.
+
+**Left.** The sag is still read from the wall's grid and rays, not from its
+triangles: near a contact line, or where a face's boundary samples are
+closer than the grid, the two differ. No draw of these sets shows it.

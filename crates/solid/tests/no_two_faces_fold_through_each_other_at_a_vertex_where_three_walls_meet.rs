@@ -15,15 +15,26 @@
 //! the bore's.
 //!
 //! The pass is held beside its code, in
-//! `crates/solid/src/brep/tessellation/sampling/meet/outside/tests.rs`. The
-//! mutants of `outside.rs` those tests leave alive are equivalent:
-//! - `67:23` and `68:30` `>` → `>=`, `151:51` `<` → `<=`, `152:74` `>` →
-//!   `>=`, `165:59` `>` → `>=`: each differs only where a depth or a distance
-//!   equals the kernel's tolerance, the sag or the tolerance asked to the
-//!   last bit, which no probe of a chord between rounded points lands on.
-//! - `103:62` `+` → `-`: the first angle a turn back rather than a turn on
-//!   moves the half step and the cell's middle by a whole turn each, which
-//!   neither cosine sees.
+//! `crates/solid/src/brep/tessellation/sampling/meet/outside/tests.rs`, and
+//! the seam of a ruled meet in `crates/solid/src/brep/meet/tests/ruled.rs`.
+//! The mutants those tests leave alive are equivalent:
+//! - `outside.rs` `122:16` and `123:22` `>` → `>=` in `dips`, `189:89` and
+//!   `204:68` `>` → `>=` in `kept_outside`: each differs only where a depth
+//!   or a distance equals the kernel's tolerance, the sag or the tolerance
+//!   asked to the last bit, which no probe of a chord between rounded points
+//!   lands on.
+//! - `outside.rs` `149:62` `+` → `-` in `sag_at`: the first angle a turn
+//!   back rather than a turn on moves the half step and the cell's middle by
+//!   a whole turn each, which neither cosine sees.
+//! - `ruled/seen.rs` `200:38` and `200:53` `<` → `<=` in `Ruled::at_angle`:
+//!   an end of a window standing exactly at the angle is taken by the
+//!   `== 0.0` arms above, so the sign test never meets a nought.
+//!
+//! Four mutants of `outside.rs` `189`, where the curve is read at the share
+//! a chord dips at — `189:65` `+` → `*`, `189:71` `-` → `+` and `-` → `/`,
+//! `189:79` `*` → `+` — time out rather than fail: read elsewhere, the curve
+//! of a chord running inside the wall stands outside, and every half of it
+//! is halved again, forty levels down.
 //!
 //! Closes #821.
 //! - 354000000011719's shrunk case is pinned and holds through the body with
@@ -42,6 +53,43 @@
 //!
 //! Seed 352000000000339 is pinned as drawn, not shrunk: its shrunk case
 //! crosses on `main` too, the same with the pass or without it.
+//!
+//! Closes #840.
+//! - The two rules of `outside.rs` are one, and the five draws pinned under
+//!   #821 and 354000000011719 still hold —
+//!   `seed_354000000011719_a_cone_joined_to_a_cone_leaning_27_degrees_then_bored_at_40_degrees_keeps_every_rule_through_the_application_s_body`,
+//!   `seed_352000000016261_an_elliptic_bar_cut_by_an_elliptic_bar_and_two_round_ones_keeps_every_rule_through_the_application_s_body`,
+//!   `seed_352000000000339_an_elliptic_bar_joined_to_a_round_one_leaning_80_degrees_then_cut_by_a_round_and_an_elliptic_one_at_30_degrees_keeps_every_rule`,
+//!   `seed_353000000000880_a_cone_bored_at_47_degrees_then_joined_to_a_bar_at_31_degrees_keeps_every_rule`,
+//!   `seed_354000000007974_a_round_bar_cut_by_two_bores_of_its_radius_at_46_and_42_degrees_keeps_every_rule_through_the_application_s_body`,
+//!   `seed_354000000009148_an_elliptic_bar_cut_by_two_bores_crossing_square_one_6e_8_off_keeps_every_rule_through_the_application_s_body`;
+//!   the one rule is held beside its code, in
+//!   `crates/solid/src/brep/tessellation/sampling/meet/outside/tests.rs`, by
+//!   `a_chord_dipping_into_a_pierced_wall_no_deeper_than_its_triangles_sag_is_left_whole`,
+//!   `a_chord_dipping_into_a_wall_deeper_than_its_triangles_sag_is_halved_only_until_it_dips_no_deeper_than_they_sag`,
+//!   `a_chord_dipping_into_a_pierced_wall_deeper_than_its_triangles_sag_where_it_is_bored_away_is_left_whole`
+//!   and
+//!   `a_chord_dipping_into_a_wall_only_where_the_curve_itself_runs_inside_it_is_left_whole`
+//! - A unit test pins the seam case of point 4, red before — no test: in this
+//!   file; held by
+//!   `at_an_angle_between_the_two_ends_of_its_table_a_ruled_meet_is_found_at_its_seam`,
+//!   `at_an_angle_neither_end_step_of_its_table_holds_a_ruled_meet_is_found_at_its_seam`,
+//!   `a_ruled_meet_found_a_hair_before_the_end_of_its_lap_is_kept_at_its_seam`,
+//!   `a_ruled_meet_crossing_an_angle_at_its_seam_is_found_there_once`,
+//!   `on_a_lap_winding_round_the_other_wall_a_ruled_meet_is_found_only_where_it_stands_at_the_angle`
+//!   and
+//!   `on_a_lap_winding_round_the_other_wall_a_ruled_meet_crossing_an_angle_at_its_seam_is_found_there_once`,
+//!   in `crates/solid/src/brep/meet/tests/ruled.rs`
+//! - No draw regresses against `main`, seed by seed, in the walls sets 352,
+//!   353, 354 and the turned set; the measurement is recorded in
+//!   `docs/exact-kernel-failures.md` — no test: a campaign measurement, the
+//!   walls sets 352000000000000, 353000000000000 and 354000000000000 and the
+//!   turned set run on `main` and on the branch and compared seed by seed,
+//!   recorded in a document
+//! - From the comment: a third wall that is a cone is covered by the one rule
+//!   or named out of reach — no test: named out of reach; the pass sees only
+//!   the body's contact walls, `contact::Wall`, which are cylinders, and a
+//!   cone third wall would need a list of cone walls that does not exist
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;

@@ -6,16 +6,17 @@
 //! chord of it near there can pass inside, deeper than the third wall's own
 //! triangles sag, and through them. The chord bounds the two faces either
 //! side of it, so no cut of either face undoes that (354000000011719); it is
-//! halved instead until it stays outside wherever the curve does. Only a
-//! chord reaching further than the tolerance from the wall is: a meet
-//! staying within it of the wall — on a wall a hair from it — is left
-//! alone: halved there, a cone across a shaft and a bore a hair off it is
-//! cut crossed. And only a wall the chord passes inside deeper than the
-//! wall's own triangles sag, where it holds a face, is one the chord can
-//! cross ([`pierced`]): a wall bored away there, or sagging further, is
-//! crossed by nothing, and the samples halving adds only cut the faces
-//! either side into slivers fanned from far corners, which do cross
-//! (354000000007974, 353000000000880).
+//! halved instead, by one rule ([`dips`]), until it dips no deeper than the
+//! wall's triangles sag where it passes, or dips only where no face of the
+//! wall holds — the sag read at the wall's grid and at the rays it takes,
+//! without which it is too wide and the chord still crosses. Halved any
+//! finer, or where the wall is bored away, the faces either side are cut
+//! into slivers fanned from far corners, which do cross (354000000007974,
+//! 353000000000880). [`pierced`] finds the walls the rule halves against.
+//! Only a chord reaching further than the tolerance from the wall is
+//! halved: a meet staying within it of the wall — on a wall a hair from it —
+//! is left alone, as halved there a cone across a shaft and a bore a hair
+//! off it is cut crossed.
 
 use std::f64::consts::TAU;
 
@@ -28,59 +29,104 @@ use crate::brep::curve::{Meet, Wall};
 use crate::brep::domain::Location;
 use crate::brep::surface::Cylinder;
 use crate::brep::tessellation::contact;
-use crate::brep::topology::{Body, EdgeId};
+use crate::brep::topology::{Body, EdgeId, FaceId, SurfaceId};
 
 /// The walls of `around` other than the meet's own, an end of the edge `id`
 /// lying on each, that a chord between two of its `points` — its ends either
-/// side — passes inside deeper than the wall's own triangles sag there, where
-/// the wall holds a face: those sag as the chord of the wall's grid and the
-/// rays it takes, either side of that place, does.
+/// side — dips into ([`dips`]).
 pub(super) fn pierced(
     body: &Body,
     id: EdgeId,
     meet: &Meet,
-    (walls, _, contacts): Around,
-    (tolerance, span): (f64, f64),
+    around: Around,
+    fineness: (f64, f64),
     points: &[DVec3],
 ) -> Vec<contact::Wall> {
-    let edge = body.edge(id);
-    let Some(ends) = edge.ends else {
+    let Some((ends, beside)) = beside(body, id, meet, around.0, around, fineness) else {
         return Vec::new();
     };
     let eps = body.scale().eps();
-    let ends = ends.map(|end| body.vertex(end).point);
     let mut run = vec![ends[0]];
     run.extend_from_slice(points);
     run.push(ends[1]);
-    let deep = |(surface, wall): &&contact::Wall| {
-        let steps = divisions_in(wall.radius, tolerance, span);
-        let angles = sampled_angles(steps, taken(&Wall::Cylinder(*wall), wall, walls, contacts));
-        let faces: Vec<_> = body
-            .face_ids()
-            .filter(|face| body.face(*face).surface == *surface)
-            .collect();
-        run.windows(2).any(|pair| {
-            (1..PROBES).any(|part| {
-                let chord = pair[0].lerp(pair[1], part as f64 / PROBES as f64);
-                let at = wall.parameters(chord);
-                let depth = -wall.distance(chord);
-                depth > eps
-                    && depth > sag_at(&angles, wall.radius, at.x.rem_euclid(TAU))
-                    && faces
-                        .iter()
-                        .any(|face| !matches!(body.locate(*face, at, eps), Ok(Location::Outside)))
-            })
+    beside
+        .into_iter()
+        .filter(|seen| {
+            run.windows(2)
+                .any(|pair| dips(body, seen, eps, pair[0], pair[1]).next().is_some())
         })
-    };
-    walls
+        .map(|seen| (seen.surface, seen.wall))
+        .collect()
+}
+
+/// The wall on `surface` as its triangles stand: sampled round its axis at
+/// the ordered `angles`, and holding `faces`.
+struct Seen {
+    surface: SurfaceId,
+    wall: Cylinder,
+    angles: Vec<f64>,
+    faces: Vec<FaceId>,
+}
+
+/// The edge `id`'s ends, and the walls of `walls` other than `meet`'s own
+/// that one of them lies on, each seen at its grid cut for `fineness` and
+/// the rays it takes in `around`: none for an edge without ends.
+fn beside(
+    body: &Body,
+    id: EdgeId,
+    meet: &Meet,
+    walls: &[contact::Wall],
+    (all, _, contacts): Around,
+    (tolerance, span): (f64, f64),
+) -> Option<([DVec3; 2], Vec<Seen>)> {
+    let eps = body.scale().eps();
+    let ends = body.edge(id).ends?.map(|end| body.vertex(end).point);
+    let beside = walls
         .iter()
         .filter(|(_, wall)| {
             ![meet.first, meet.second].contains(&Wall::Cylinder(*wall))
                 && ends.iter().any(|end| wall.distance(*end).abs() <= eps)
         })
-        .filter(deep)
-        .copied()
-        .collect()
+        .map(|&(surface, wall)| {
+            let steps = divisions_in(wall.radius, tolerance, span);
+            Seen {
+                surface,
+                wall,
+                angles: sampled_angles(steps, taken(&Wall::Cylinder(wall), &wall, all, contacts)),
+                faces: body
+                    .face_ids()
+                    .filter(|face| body.face(*face).surface == surface)
+                    .collect(),
+            }
+        })
+        .collect();
+    Some((ends, beside))
+}
+
+/// The places along the chord from `start` to `end`, as shares of it, where
+/// it dips into the wall `seen` deeper than `eps` and deeper than the wall's
+/// triangles sag there, at a place one of its faces holds.
+fn dips<'a>(
+    body: &'a Body,
+    seen: &'a Seen,
+    eps: f64,
+    start: DVec3,
+    end: DVec3,
+) -> impl Iterator<Item = f64> + 'a {
+    let wall = &seen.wall;
+    (1..PROBES).filter_map(move |part| {
+        let share = part as f64 / PROBES as f64;
+        let chord = start.lerp(end, share);
+        let at = wall.parameters(chord);
+        let depth = -wall.distance(chord);
+        (depth > eps
+            && depth > sag_at(&seen.angles, wall.radius, at.x.rem_euclid(TAU))
+            && seen
+                .faces
+                .iter()
+                .any(|face| !matches!(body.locate(*face, at, eps), Ok(Location::Outside))))
+        .then_some(share)
+    })
 }
 
 /// The angles a wall of a grid of `steps` is sampled at round its axis, and
@@ -107,35 +153,27 @@ fn sag_at(angles: &[f64], radius: f64, angle: f64) -> f64 {
 
 /// The points of the edge `id` along `meet` between its ends, `points` with
 /// places added along the curve wherever a chord between two of them, one
-/// standing further than `tolerance` outside a wall of `walls` an end of the
-/// edge lies on, passes inside it where the curve stands outside, either by
-/// more than the kernel's tolerance. `points` stand as they were, bit for
-/// bit.
+/// standing further than the tolerance of `fineness` outside a wall of
+/// `walls` an end of the edge lies on, dips into it ([`dips`]) where the
+/// curve stands outside it by more than the kernel's tolerance: halved until
+/// it no longer does. `points` stand as they were, bit for bit.
 pub(super) fn kept_outside(
     body: &Body,
     id: EdgeId,
     meet: &Meet,
     walls: &[contact::Wall],
-    tolerance: f64,
+    fineness: (f64, f64),
     points: Vec<DVec3>,
+    around: Around,
 ) -> Vec<DVec3> {
-    let edge = body.edge(id);
-    let Some(ends) = edge.ends else {
+    let Some((_, beside)) = beside(body, id, meet, walls, around, fineness) else {
         return points;
     };
-    let eps = body.scale().eps();
-    let ends = ends.map(|end| body.vertex(end).point);
-    let beside: Vec<Cylinder> = walls
-        .iter()
-        .map(|(_, cylinder)| *cylinder)
-        .filter(|cylinder| {
-            ![meet.first, meet.second].contains(&Wall::Cylinder(*cylinder))
-                && ends.iter().any(|end| cylinder.distance(*end).abs() <= eps)
-        })
-        .collect();
     if beside.is_empty() {
         return points;
     }
+    let edge = body.edge(id);
+    let eps = body.scale().eps();
     let low = edge.from.min(edge.to);
     let along = |point: DVec3| {
         let t = meet.parameter(point);
@@ -144,12 +182,11 @@ pub(super) fn kept_outside(
             .map_or(t, |period| low + (t - low).rem_euclid(period));
         (meet.point(t).distance(point) <= eps).then_some(t)
     };
-    let inside = |wall: &Cylinder, from: f64, to: f64| {
+    let dipping = |left: &[&Seen], from: f64, to: f64| {
         let (start, end) = (meet.point(from), meet.point(to));
-        (1..PROBES).any(|part| {
-            let share = part as f64 / PROBES as f64;
-            wall.distance(start.lerp(end, share)) < -eps
-                && wall.distance(meet.point(from + (to - from) * share)) > eps
+        left.iter().any(|seen| {
+            dips(body, seen, eps, start, end)
+                .any(|share| seen.wall.distance(meet.point(from + (to - from) * share)) > eps)
         })
     };
     let run: Vec<Option<f64>> = std::iter::once(Some(edge.from))
@@ -159,15 +196,16 @@ pub(super) fn kept_outside(
     let mut kept = Vec::with_capacity(points.len());
     for (rank, pair) in run.windows(2).enumerate() {
         if let [Some(from), Some(to)] = *pair {
-            let clear = |wall: &&Cylinder| {
-                [from, to]
-                    .into_iter()
-                    .any(|t| wall.distance(meet.point(t)) > tolerance)
-            };
-            let left: Vec<&Cylinder> = beside.iter().filter(clear).collect();
+            let left: Vec<&Seen> = beside
+                .iter()
+                .filter(|seen| {
+                    [from, to]
+                        .into_iter()
+                        .any(|t| seen.wall.distance(meet.point(t)) > fineness.0)
+                })
+                .collect();
             let mut places = Vec::new();
-            let done = |from, to| !left.iter().any(|wall| inside(wall, from, to));
-            halved_until(&done, from, to, &mut places);
+            halved_until(&|from, to| !dipping(&left, from, to), from, to, &mut places);
             kept.extend(places.into_iter().map(|t| meet.point(t)));
         }
         kept.extend(points.get(rank).copied());

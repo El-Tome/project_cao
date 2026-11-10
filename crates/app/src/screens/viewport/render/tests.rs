@@ -3334,11 +3334,11 @@ fn a_volume_the_section_parts_is_drawn_in_its_own_state_every_piece_of_it() {
     let drawn = shown(&state, &SketchEditor::default(), document.body());
     let renumbered: Vec<usize> = drawn
         .opaque
-        .triangles_by_face()
+        .pieces()
         .into_iter()
-        .filter_map(|(triangle, face)| {
-            let over_the_u = triangle.iter().all(|corner| corner.x > 19.999);
-            face.filter(|face| over_the_u && *face >= document.body().faces_end())
+        .filter(|&piece| {
+            let corners: Vec<DVec3> = drawn.opaque.triangles_of(piece).flatten().collect();
+            !corners.is_empty() && corners.iter().all(|corner| corner.x > 19.999)
         })
         .collect();
     assert!(

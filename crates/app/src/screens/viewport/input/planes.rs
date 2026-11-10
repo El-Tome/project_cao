@@ -12,8 +12,6 @@ use crate::screens::SketchContext;
 use crate::screens::sketch::PlaneChoice;
 
 use super::{PICK_PIXELS, ViewScale, ViewportState, plane_half_size, to_ndc};
-#[cfg(test)]
-use crate::screens::viewport::matter::shown;
 use crate::screens::viewport::matter::{drawn_under, seen};
 use crate::screens::viewport::navigation::drag_asked;
 use crate::screens::viewport::{DEFAULT_SKETCH_RADIUS, section::Section};

@@ -26,7 +26,10 @@
 //! - found while designing the replay: a face of the part shown answers to
 //!   the number it has in the part, so that what is picked on the one is
 //!   anchored on the other —
-//!   `a_face_of_the_part_shown_answers_to_the_number_it_has_in_the_part`
+//!   `a_face_of_the_part_shown_answers_to_the_number_it_has_in_the_part`; and
+//!   so does a face of a see-through addition's ghost, for a face picked on it
+//!   to anchor on the part —
+//!   `a_face_of_a_ghost_answers_to_the_number_it_has_in_the_part`
 
 use std::collections::BTreeMap;
 
@@ -323,5 +326,34 @@ fn a_face_of_the_part_shown_answers_to_the_number_it_has_in_the_part() {
         in_the_part.is_some_and(|met| (met - distance).abs() < 1e-9),
         "the second block's top, the first invisible, answers to {face}, which in the part is \
          met at {in_the_part:?} along rather than {distance}",
+    );
+}
+
+#[test]
+fn a_face_of_a_ghost_answers_to_the_number_it_has_in_the_part() {
+    let (document, _, second) = two_overlapping_additions();
+    let shown = shown_with(&document, &[(second, VolumeState::SeeThrough)]);
+    let ghost = &shown
+        .ghosts
+        .iter()
+        .find(|ghost| ghost.step == second)
+        .expect("the second block's ghost")
+        .body;
+
+    let (origin, along) = (DVec3::new(50.0, 5.0, 2.0), DVec3::NEG_X);
+    let hit = ghost
+        .ray_hit(origin, along)
+        .expect("the ghost's far wall, at x = 15");
+    let in_the_part = document
+        .body()
+        .ray_hit_among(origin, along, &|face| face == hit.face)
+        .map(|met| met.distance);
+
+    assert!(
+        in_the_part.is_some_and(|met| (met - hit.distance).abs() < 1e-9),
+        "the ghost's far wall answers to {}, which in the part is met at {in_the_part:?} along \
+         rather than {}",
+        hit.face,
+        hit.distance,
     );
 }

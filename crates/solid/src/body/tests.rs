@@ -1071,52 +1071,6 @@ mod chamfer;
 mod fillet;
 
 #[test]
-fn each_triangle_drawn_is_handed_once_beside_the_first_number_of_its_face() {
-    let part = block(DVec2::ZERO, DVec2::new(20.0, 10.0), 10.0);
-    let beside = block(DVec2::new(10.0, 0.0), DVec2::new(30.0, 10.0), 10.0);
-    let joined = part.union(&beside).expect("the kernel joins them");
-    let beside_s_top = 6 + TOP;
-    assert!(
-        joined.has_face(TOP)
-            && joined.triangles_of(TOP).collect::<Vec<_>>()
-                == joined.triangles_of(beside_s_top).collect::<Vec<_>>(),
-        "the fixture wants one top answering to both blocks' numbers",
-    );
-
-    let by_face = joined.triangles_by_face();
-
-    let drawn = joined.triangles();
-    assert_eq!(
-        by_face.len(),
-        drawn.len(),
-        "a triangle handed twice, or left out"
-    );
-    assert!(
-        drawn
-            .iter()
-            .all(|triangle| by_face.iter().any(|(handed, _)| handed == triangle)),
-        "a triangle drawn is not handed",
-    );
-    let on_the_top: Vec<Option<usize>> = by_face
-        .iter()
-        .filter(|(triangle, _)| triangle.iter().all(|corner| (corner.z - 10.0).abs() < 1e-9))
-        .map(|(_, face)| *face)
-        .collect();
-    assert!(!on_the_top.is_empty(), "the top is drawn");
-    assert!(
-        on_the_top.iter().all(|face| *face == Some(TOP)),
-        "the top answering to {TOP} and {beside_s_top} is handed as {on_the_top:?}",
-    );
-    for (triangle, face) in &by_face {
-        let face = face.unwrap_or_else(|| panic!("{triangle:?} is handed with no face"));
-        assert!(
-            joined.triangles_of(face).any(|held| held == *triangle),
-            "{triangle:?} is handed beside face {face}, which is not drawn with it",
-        );
-    }
-}
-
-#[test]
 fn a_ray_goes_through_the_faces_it_is_not_to_meet_on_either_kernel() {
     const FLOOR: usize = 0;
     let (origin, down) = (DVec3::new(5.0, 5.0, 50.0), DVec3::NEG_Z);
@@ -1185,5 +1139,60 @@ fn a_face_answering_to_two_numbers_is_met_when_either_is_kept_and_reads_its_firs
     assert!(
         neither.is_some_and(|distance| (distance - 50.0).abs() < 1e-9),
         "with neither of the top's numbers kept, the ray stops {neither:?} along, not on the floor",
+    );
+}
+
+#[test]
+fn a_tool_numbered_after_a_part_answers_to_the_numbers_joining_it_would_give_it() {
+    let part = block(DVec2::ZERO, DVec2::splat(10.0), 10.0);
+    let tool = block(DVec2::new(20.0, 0.0), DVec2::new(30.0, 10.0), 4.0);
+    let joined = part.union(&tool).expect("the kernel joins them");
+
+    let numbered = tool
+        .numbered_after(&part)
+        .expect("the kernel numbers the tool");
+
+    assert!(
+        (numbered.volume() - tool.volume()).abs() < 1e-9 * tool.volume(),
+        "the tool numbered holds {}, not the tool's {} alone",
+        numbered.volume(),
+        tool.volume(),
+    );
+    for (origin, direction, what) in [
+        (DVec3::new(25.0, 5.0, 50.0), DVec3::NEG_Z, "top"),
+        (DVec3::new(25.0, 5.0, -50.0), DVec3::Z, "floor"),
+        (DVec3::new(50.0, 5.0, 2.0), DVec3::NEG_X, "far wall"),
+    ] {
+        let face = |body: &Body| body.ray_hit(origin, direction).map(|hit| hit.face);
+        assert_eq!(
+            face(&numbered),
+            face(&joined),
+            "the tool's {what}, numbered after the part, does not answer to the number joining \
+             it gives",
+        );
+        assert_ne!(
+            face(&numbered),
+            face(&tool),
+            "the tool's {what} answers to the number it had alone",
+        );
+    }
+}
+
+#[test]
+fn a_tool_of_the_flats_numbered_after_a_part_counts_past_the_part_s_numbers() {
+    let part = flats_block(10.0, 10.0, 10.0);
+    let tool = flats_block(10.0, 10.0, 4.0);
+
+    let numbered = tool.numbered_after(&part).expect("the flats never decline");
+
+    assert!(
+        (numbered.volume() - tool.volume()).abs() < 1e-9 * tool.volume(),
+        "the tool numbered holds {}, not the tool's {} alone",
+        numbered.volume(),
+        tool.volume(),
+    );
+    assert!(
+        numbered.has_face(part.faces_end() + TOP) && !numbered.has_face(TOP),
+        "the tool's top does not answer to a number past the part's six",
     );
 }

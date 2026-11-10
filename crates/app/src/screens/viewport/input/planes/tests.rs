@@ -87,6 +87,7 @@ use super::*;
 use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::SketchEditor;
+use crate::screens::viewport::matter::shown;
 use crate::screens::viewport::section::Section;
 use cao_part::PartDocument;
 use cao_render::{MatterInFront, OrbitCamera};
@@ -1192,12 +1193,12 @@ fn the_u_hidden_under(document: &PartDocument, section: Section) -> ViewportStat
     state.next_volume_mode(document, THE_U);
     assert_eq!(state.volume_mode(document, THE_U), MatterInFront::Hidden);
     let drawn = shown(&state, &SketchEditor::default(), document.body());
+    let over_the_u = |piece: usize| {
+        let corners: Vec<DVec3> = drawn.opaque.triangles_of(piece).flatten().collect();
+        !corners.is_empty() && corners.iter().all(|corner| corner.x > 19.999)
+    };
     assert!(
-        drawn
-            .opaque
-            .triangles_by_face()
-            .iter()
-            .any(|(_, face)| face.is_some_and(|face| face >= document.body().faces_end())),
+        drawn.opaque.pieces().into_iter().any(over_the_u),
         "the fixture wants the section to part a face of the U and number a piece anew",
     );
     state

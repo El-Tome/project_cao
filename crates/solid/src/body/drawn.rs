@@ -103,22 +103,10 @@ impl Drawn {
         &'a self,
         body: &'a brep::Body,
     ) -> impl Iterator<Item = ([DVec3; 3], usize)> + 'a {
-        self.by_face(body)
-            .filter_map(|(triangle, face)| Some((triangle, face?)))
-    }
-
-    /// Every triangle, beside the first number of its face when it has one.
-    pub fn by_face<'a>(
-        &'a self,
-        body: &'a brep::Body,
-    ) -> impl Iterator<Item = ([DVec3; 3], Option<usize>)> + 'a {
         self.triangles
             .iter()
             .zip(&self.faces)
-            .map(|(triangle, id)| {
-                let first = body.numbers(*id).first().map(|&number| number as usize);
-                (*triangle, first)
-            })
+            .filter_map(|(triangle, id)| Some((*triangle, *body.numbers(*id).first()? as usize)))
     }
 }
 

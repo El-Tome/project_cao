@@ -2,23 +2,28 @@
 //! raised along it as a cut's is, trimmed flush at each end on the surface of
 //! the face the edge ends on there — a plane, or a round (#788) — and joined
 //! to the body, its ends merged into those faces and the edges either side of
-//! the edge's ends made one where they run on along one curve.
+//! the edge's ends made one where they run on along one curve. The later of
+//! two fills meeting at a corner beside a convex edge takes with it what both
+//! prisms hold past that corner (#801), and the two run on into a mitre.
 
 mod round;
 
 use glam::DVec3;
 
 use super::end::{beyond, end_face};
+use super::overlap::Overlap;
 use super::{Prism, Wedge};
 use crate::body::exact::Exact;
 use crate::brep::{self, Declined, EdgeId, FaceId, Surface};
 
 impl Exact {
-    /// The body with the corner along each of `edges` filled in by `tool`,
-    /// the prism raised from `prism` — its first walls, one for each edge,
-    /// numbered from nought and counted as raised, so that the solids its
-    /// ends are trimmed by number their faces past its own: each end of it
-    /// trimmed flush on the surface of the face the first edge ends on,
+    /// The body with the corner along each of `edges`, read on `on`, filled in
+    /// by `tool`, the prism raised from `prism` — its first walls, one for each
+    /// edge, numbered from nought and counted as raised, so that the solids
+    /// its ends are trimmed by and the overlaps it takes number their faces
+    /// past its own: each end of it trimmed flush on the surface of the face
+    /// the first edge ends on, joined to each of `overlaps`, what it takes past
+    /// a corner it shares with a fill laid before it beside a convex edge,
     /// and joined to the body, every face of the prism that merged into one
     /// of the body's answering to the body's numbers alone, so that the face
     /// it merged into stays the face it was: its ends, merged into the faces
@@ -32,38 +37,45 @@ impl Exact {
     /// curve running on past the edge's end — the plate's top round a rib
     /// ending short of its edge, or round its rounded end — the two edges
     /// either side of that corner are made one, since the fill covered what
-    /// of the edge's faces reached it. Declined `Unsupported`: an end where
+    /// of the edge's faces reached it, and so are those either side of each
+    /// point an overlap clears. Declined `Unsupported`: an end where
     /// no face but the edge's two meets it, or several do, or one the fill
     /// cannot be trimmed flush on, as [`past_the_end`] declines it, and
     /// another edge that does not end on the faces the first ends on.
     pub(super) fn filled(
         &self,
+        on: &brep::Body,
         edges: &[(EdgeId, &Wedge)],
+        overlaps: &[Overlap],
         prism: &Prism,
         tool: Exact,
     ) -> Result<Exact, Declined> {
         let &[(edge, wedge), ..] = edges else {
             return Err(Declined::Unsupported);
         };
-        let ends = self.brep.edge(edge).ends.ok_or(Declined::Unsupported)?;
+        let ends = on.edge(edge).ends.ok_or(Declined::Unsupported)?;
         let mut trimmed = tool;
         let mut end_faces = Vec::new();
         for (end, past) in ends.into_iter().zip([-wedge.along, wedge.along]) {
-            let face = end_face(&self.brep, end, wedge.faces).ok_or(Declined::Unsupported)?;
-            let point = self.brep.vertex(end).point;
-            trimmed = trimmed.cut_by(&past_the_end(&self.brep, face, point, past, prism)?)?;
+            let face = end_face(on, end, wedge.faces).ok_or(Declined::Unsupported)?;
+            let point = on.vertex(end).point;
+            trimmed = trimmed.cut_by(&past_the_end(on, face, point, past, prism)?)?;
             end_faces.push(face);
         }
         let mut corners = Vec::new();
         for &(edge, wedge) in edges {
-            let ends = self.brep.edge(edge).ends.ok_or(Declined::Unsupported)?;
+            let ends = on.edge(edge).ends.ok_or(Declined::Unsupported)?;
             for end in ends {
-                let face = end_face(&self.brep, end, wedge.faces).ok_or(Declined::Unsupported)?;
+                let face = end_face(on, end, wedge.faces).ok_or(Declined::Unsupported)?;
                 if !end_faces.contains(&face) {
                     return Err(Declined::Unsupported);
                 }
-                corners.push(self.brep.vertex(end).point);
+                corners.push(on.vertex(end).point);
             }
+        }
+        for overlap in overlaps {
+            trimmed = trimmed.joined(&overlap.solid)?;
+            corners.extend(overlap.cleared.iter().copied());
         }
         let next = edges.len() as u32;
         self.joined(&Exact { next, ..trimmed })?.merged_at(&corners)

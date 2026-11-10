@@ -44,13 +44,14 @@ impl Body {
     /// edges in the list, then the next. Two cut off where they meet beside a
     /// concave edge left sharp — the L's top edges at its inner corner, a
     /// pocket's rim — each stop flush on the face the other runs along and are
-    /// mitred past it, down to the concave edge, no face laid there; at any
-    /// other corner where an edge meets inwards they are declined
-    /// `Unsupported`, as is an edge of a slope meeting another edge of the
-    /// list at a corner, and an edge whose flat would be one slope with two
-    /// others'. Flats that would meet anywhere else are declined
-    /// `Unsupported`, until #792 measures them. The first edge declined
-    /// declines the step.
+    /// mitred past it, down to the concave edge, no face laid there, and two
+    /// filled in beside a convex edge left sharp — two feet of a block standing
+    /// on another — are mitred outside it the same way; at any other corner
+    /// where an edge meets inwards they are declined `Unsupported`, as is an
+    /// edge of a slope meeting another edge of the list at a corner, and an
+    /// edge whose flat would be one slope with two others'. Flats that would
+    /// meet anywhere else are declined `Unsupported`, until #792 measures them.
+    /// The first edge declined declines the step.
     pub fn chamfer_edges(&self, edges: &[EdgeName], distance: f64) -> Result<Chamfered, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Lost(Lost::Gone));

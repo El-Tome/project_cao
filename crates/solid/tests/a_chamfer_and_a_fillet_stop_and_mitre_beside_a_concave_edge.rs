@@ -58,7 +58,11 @@
 //!   and the two on the floor together, mitred; and at a corner whose edges'
 //!   faces do not meet square, an L whose top is tilted, so that a round there
 //!   is set back along each face more than its radius —
-//!   `a_chamfer_and_a_fillet_on_the_two_top_edges_at_the_inner_corner_of_an_l_whose_top_is_tilted_mitre_them_beside_its_upright`
+//!   `a_chamfer_and_a_fillet_on_the_two_top_edges_at_the_inner_corner_of_an_l_whose_top_is_tilted_mitre_them_beside_its_upright`;
+//!   and at an inner corner an earlier step filled in, two corners of 135°
+//!   beside its two concave edges, the three top edges round it cut in one
+//!   step and the same body in every order the list names them —
+//!   `a_chamfer_and_a_fillet_on_the_l_s_two_top_edges_and_the_top_of_its_filled_inner_upright_between_them_mitre_into_two_corners_in_every_order`
 //! - What must not break: #699's corner tests; the concave fill of one edge
 //!   (`a_chamfer_and_a_fillet_fill_a_concave_edge`); the decline test
 //!   `a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_declined_as_unsupported`,
@@ -144,6 +148,22 @@
 //! prism, carried well past both ends and clipped there by the plane of the
 //! face it runs into, on the matter's side, or by the plane halfway between
 //! the two edges, on the other's.
+//!
+//! The L whose inner upright an earlier step filled in by 1 holds 2765, and
+//! its three top edges round the fill, 17, `√2` and 7 long, meet at two
+//! corners of 135°. Cut at `d`, the matter they take at a depth `c` lies
+//! between the top's outline there and that outline offset `t = d − c` into
+//! the matter, its corners mitred: `(24 + √2)t + 2·tan(22.5°)·t²`, each corner
+//! turning 45° and its mitre adding `t²·tan(22.5°)`. Over the depth the flats
+//! take `(24 + √2)d²/2 + 2·tan(22.5°)·d³/3`; the rounds, the offset at each
+//! depth `r − √(r² − (r − u)²)` reached at `u`,
+//! `(24 + √2)r²(1 − π/4) + 4·tan(22.5°)·r³(5/6 − π/4)`. The arithmetic edge by
+//! edge — each cut stopped flush on the face it runs into, which past `√2/2`
+//! leaves the fill's own cut nothing, and each corner's `d³/3` or
+//! `r³(5/3 − π/2)` over `sin 45°` — comes to the same, and so do the booleans,
+//! both held in the test at ½, where the fill's top edge keeps a cut of its
+//! own, and at 1, where it keeps none. Past 1 the booleans' clipped prisms
+//! would reach beyond the third face, and are not held there.
 //!
 //! The L whose top is tilted, rising 0.1 along X and along Y, has no closed
 //! form at its corner: the edges' faces meet at 84.3°, the round's section
@@ -1288,6 +1308,47 @@ fn met_from_outside(body: &Body, face: usize, round: &Round, what: &str) {
     }
 }
 
+/// Holds that where the two rounds `faces` meet in a mitre at a corner, the
+/// edge between them lies on the plane halfway between their two edges —
+/// the plane through `corner` square to the difference of the two `ways`
+/// the edges run from it — so that, lying on each round's cylinder as well,
+/// it is an arc of an ellipse; that edge read off the points the two rounds'
+/// triangles share, every drawn point of it, and running, where the arithmetic
+/// names them, between the two points `ends`.
+fn on_the_plane_halfway(
+    body: &Body,
+    faces: [usize; 2],
+    (corner, ways): (DVec3, [DVec3; 2]),
+    ends: Option<[DVec3; 2]>,
+    what: &str,
+) {
+    let [one, other] = faces;
+    let theirs: Vec<DVec3> = body.triangles_of(other).flatten().collect();
+    let met: Vec<DVec3> = body
+        .triangles_of(one)
+        .flatten()
+        .filter(|point| theirs.iter().any(|their| their.distance(*point) < PLACE))
+        .collect();
+    assert!(
+        !met.is_empty(),
+        "{what}: the rounds {one} and {other} share no drawn point, where they meet in a mitre"
+    );
+    let across = (ways[0] - ways[1]).normalize();
+    for point in &met {
+        assert!(
+            (*point - corner).dot(across).abs() < PLACE,
+            "{what}: the mitre between the rounds {one} and {other} is drawn through {point}, off \
+             the plane halfway between their edges"
+        );
+    }
+    for end in ends.into_iter().flatten() {
+        assert!(
+            met.iter().any(|point| point.distance(end) < PLACE),
+            "{what}: the mitre between the rounds {one} and {other} does not reach {end}"
+        );
+    }
+}
+
 /// Holds that a flat face faces the way `toward` points.
 fn faces_toward(body: &Body, face: usize, toward: DVec3, what: &str) {
     let facing = body
@@ -1328,6 +1389,19 @@ fn mitre_in_every_order(
     cuts: &[Cut],
     called: &str,
 ) {
+    mitre_in_every_order_at(part, volume, edges, orders, cuts, &VALUES, called);
+}
+
+/// Holds what [`mitre_in_every_order`] holds, at every one of `values`.
+fn mitre_in_every_order_at(
+    part: &Body,
+    volume: f64,
+    edges: &[Convex],
+    orders: &[&[usize]],
+    cuts: &[Cut],
+    values: &[f64],
+    called: &str,
+) {
     assert!(
         (part.volume() - volume).abs() <= EXACT * volume,
         "{called}: the part holds {}, where arithmetic gives {volume}",
@@ -1336,8 +1410,7 @@ fn mitre_in_every_order(
     laid_in_every_order(
         part,
         edges,
-        orders,
-        cuts,
+        (orders, cuts, values),
         called,
         &|cut, value| kept(volume, edges, cut, value),
         Sections::Square,
@@ -1354,16 +1427,16 @@ enum Sections {
     Leaning,
 }
 
-/// Holds that `edges`, named in each of `orders` and cut by each of `cuts` at
-/// every one of [`VALUES`] in one step, leave what [`mitred`] holds, the body
-/// keeping what `promised` says of each cut and value, and the same body
-/// whatever the order, as [`the_same_body`] holds it. Every list is laid
-/// before any body is read, so that a decline names every case that declines.
+/// Holds that `edges`, named in each of the orders and cut by each of the
+/// cuts at every one of the values `cases` gives, in one step, leave what
+/// [`mitred`] holds, the body keeping what `promised` says of each cut and
+/// value, and the same body whatever the order, as [`the_same_body`] holds
+/// it. Every list is laid before any body is read, so that a decline names
+/// every case that declines.
 fn laid_in_every_order(
     part: &Body,
     edges: &[Convex],
-    orders: &[&[usize]],
-    cuts: &[Cut],
+    (orders, cuts, values): (&[&[usize]], &[Cut], &[f64]),
     called: &str,
     promised: &dyn Fn(Cut, f64) -> f64,
     sections: Sections,
@@ -1378,7 +1451,7 @@ fn laid_in_every_order(
         let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
         let named: Vec<&str> = order.iter().map(|&edge| edges[edge].called).collect();
         for &cut in cuts {
-            for value in VALUES {
+            for &value in values {
                 let what = format!(
                     "the {} of {value} on {called}, named {named:?}",
                     cut.called()
@@ -1662,12 +1735,14 @@ fn mitred(part: &Body, edges: &[Convex], case: &Case, promised: f64, sections: S
                     }
                 }
                 let [before, after] = [0, 1].map(|end| clear_of(edges, index, end, value));
-                met_from_outside(
-                    body,
-                    face,
-                    &round.part(before, edge.length() - after),
-                    &format!("{which}, between its edge's ends"),
-                );
+                if edge.length() - after - before > PLACE {
+                    met_from_outside(
+                        body,
+                        face,
+                        &round.part(before, edge.length() - after),
+                        &format!("{which}, between its edge's ends"),
+                    );
+                }
             }
         }
         if square {
@@ -1730,6 +1805,21 @@ fn mitred(part: &Body, edges: &[Convex], case: &Case, promised: f64, sections: S
         "{what}: face {shared}, which the edges share, meets the faces laid in place of the \
          edges' other faces, and every other face it met"
     );
+    if cut == Cut::Round {
+        for (edge, end, other, far) in mitres(edges) {
+            let ends = square.then(|| cut_corners(edges, edge, end, value));
+            on_the_plane_halfway(
+                body,
+                [laid[edge], laid[other]],
+                (
+                    edges[edge].ends[end].at,
+                    [from_end(&edges[edge], end), from_end(&edges[other], far)],
+                ),
+                ends,
+                what,
+            );
+        }
+    }
     for (edge, end, other, _) in mitres(edges) {
         let [one, two] = [edges[edge].between[1], edges[other].between[1]];
         assert_eq!(
@@ -2136,10 +2226,158 @@ fn a_chamfer_and_a_fillet_on_the_two_top_edges_at_the_inner_corner_of_an_l_whose
     laid_in_every_order(
         &part,
         &edges,
-        &BOTH_ORDERS,
-        &[Cut::Flat, Cut::Round],
+        (&BOTH_ORDERS, &[Cut::Flat, Cut::Round], &VALUES),
         called,
         &|cut, value| by_booleans(&part, &edges, cut, value),
         Sections::Leaning,
+    );
+}
+
+/// The values a list holding an edge `√2` long between two mitres is cut
+/// at: one under `√2/2`, where that edge's own cut keeps a face of its own,
+/// and one over, where the faces at its two ends leave it none and the two
+/// mitres meet across it.
+const ROUND_A_SHORT_EDGE: [f64; 2] = [0.5, 1.0];
+
+/// Every order three edges can be named in.
+const ORDERS_OF_THREE: [&[usize]; 6] = [
+    &[0, 1, 2],
+    &[0, 2, 1],
+    &[1, 0, 2],
+    &[1, 2, 0],
+    &[2, 0, 1],
+    &[2, 1, 0],
+];
+
+/// [`ell`] with its inner upright filled in by a chamfer of 1 in an earlier
+/// step, as #778 fills it: the fill's flat numbered eight, standing upright
+/// between (13, 6) and (12, 7), its top edge meeting outwards, √2 long,
+/// between the arm's back's top edge, 17 long now, and the stem's right
+/// side's, 7; and at each end of it a concave edge where the flat meets the
+/// arm's back or the stem's right side. It holds the L's 2760 and the fill's
+/// `10 · 1²/2`, 2765.
+fn ell_with_its_inner_upright_filled() -> Body {
+    let ell = ell();
+    let inner = edge_between(&ell, ARM_BACK, STEM_RIGHT);
+    ell.chamfer(&inner, 1.0)
+        .expect("the inner upright is filled")
+        .body
+}
+const FILLED_UPRIGHT: usize = 8;
+const ELL_FILLED_VOLUME: f64 = 2765.0;
+
+/// The three top edges round the filled inner corner of
+/// [`ell_with_its_inner_upright_filled`]: the arm's back's, from the arm's
+/// right end, the fill's, and the stem's right side's, to the stem's back,
+/// each two meeting where a concave edge stands below them.
+fn top_edges_round_the_filled_upright() -> [Convex; 3] {
+    let flat = DVec3::new(1.0, 1.0, 0.0).normalize();
+    let [arm_corner, stem_corner] = [DVec3::new(13.0, 6.0, 10.0), DVec3::new(12.0, 7.0, 10.0)];
+    [
+        Convex {
+            called: "the L's top edge on the arm's back",
+            between: [TOP, ARM_BACK],
+            facing: [DVec3::Z, DVec3::Y],
+            ends: [
+                End {
+                    at: DVec3::new(30.0, 6.0, 10.0),
+                    on: ARM_END,
+                    facing: DVec3::X,
+                    matter_past: false,
+                },
+                End {
+                    at: arm_corner,
+                    on: FILLED_UPRIGHT,
+                    facing: flat,
+                    matter_past: true,
+                },
+            ],
+        },
+        Convex {
+            called: "the L's top edge on the filled inner upright",
+            between: [TOP, FILLED_UPRIGHT],
+            facing: [DVec3::Z, flat],
+            ends: [
+                End {
+                    at: arm_corner,
+                    on: ARM_BACK,
+                    facing: DVec3::Y,
+                    matter_past: true,
+                },
+                End {
+                    at: stem_corner,
+                    on: STEM_RIGHT,
+                    facing: DVec3::X,
+                    matter_past: true,
+                },
+            ],
+        },
+        Convex {
+            called: "the L's top edge on the stem's right side",
+            between: [TOP, STEM_RIGHT],
+            facing: [DVec3::Z, DVec3::X],
+            ends: [
+                End {
+                    at: stem_corner,
+                    on: FILLED_UPRIGHT,
+                    facing: flat,
+                    matter_past: true,
+                },
+                End {
+                    at: DVec3::new(12.0, 14.0, 10.0),
+                    on: STEM_BACK,
+                    facing: DVec3::Y,
+                    matter_past: false,
+                },
+            ],
+        },
+    ]
+}
+
+/// What the L of [`ell_with_its_inner_upright_filled`] keeps once its three
+/// top edges round the filled corner are cut at `value` in one step, as the
+/// module's documentation derives it: at each depth the top's outline there
+/// offset into the matter, its two corners of 135° mitred.
+fn round_the_filled_upright(cut: Cut, value: f64) -> f64 {
+    let along = 24.0 + 2f64.sqrt();
+    let turn = (PI / 8.0).tan();
+    ELL_FILLED_VOLUME
+        - match cut {
+            Cut::Flat => along * value * value / 2.0 + 2.0 * turn * value.powi(3) / 3.0,
+            Cut::Round => {
+                along * value * value * (1.0 - PI / 4.0)
+                    + 4.0 * turn * value.powi(3) * (5.0 / 6.0 - PI / 4.0)
+            }
+        }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_the_l_s_two_top_edges_and_the_top_of_its_filled_inner_upright_between_them_mitre_into_two_corners_in_every_order()
+ {
+    let part = ell_with_its_inner_upright_filled();
+    let edges = top_edges_round_the_filled_upright();
+    let called = "the L's three top edges round its filled inner upright";
+    for cut in [Cut::Flat, Cut::Round] {
+        for value in ROUND_A_SHORT_EDGE {
+            let offset = round_the_filled_upright(cut, value);
+            let arithmetic = kept(ELL_FILLED_VOLUME, &edges, cut, value);
+            let booleans = by_booleans(&part, &edges, cut, value);
+            assert!(
+                (arithmetic - offset).abs() <= EXACT * offset
+                    && (booleans - offset).abs() <= EXACT * offset,
+                "{called}, the {} of {value}: the outline offset keeps {offset}, the arithmetic \
+                 edge by edge {arithmetic}, the booleans {booleans}",
+                cut.called()
+            );
+        }
+    }
+    mitre_in_every_order_at(
+        &part,
+        ELL_FILLED_VOLUME,
+        &edges,
+        &ORDERS_OF_THREE,
+        &[Cut::Flat, Cut::Round],
+        &ROUND_A_SHORT_EDGE,
+        called,
     );
 }

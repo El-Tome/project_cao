@@ -1,8 +1,11 @@
 //! Which corners a step on several edges takes (#801), read on [`admit`]
-//! itself. A list it lets through by mistake is declined further on all the
-//! same — a fill and a cut meeting at a corner by the fill's reading, two
-//! fills by the overlap's — so a step on the whole body cannot tell which
-//! reading declined it; here the corner's own answer is held.
+//! itself: two edges of one sense beside a third of the other, the inner
+//! corner of an L or the corner two feet of a standing block meet at, and no
+//! other corner but a convex one. It is the first guard a step's corners
+//! meet: a list it lets through by mistake — a cut and a fill meeting at a
+//! corner, three concave edges — is declined further on all the same, so a
+//! step on the whole body cannot tell which reading declined it. Here the
+//! corner's own answer is held.
 
 use glam::{DVec2, DVec3};
 
@@ -12,13 +15,13 @@ use crate::brep::{self, Declined, EdgeId};
 use crate::profile::{Contour, Frame, Profile};
 use crate::sweep::Loop;
 
-/// The numbers a raised part's floor and top answer to.
+/// The number a raised part's top answers to.
 const TOP: u32 = 1;
 
-/// An outline raised from `from` by `height` and joined to the matter so far,
-/// as `cao_part` builds a step: the outline's faces numbered past the part's,
-/// its floor first, then its top, then its walls, one for each run.
-fn joined(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
+/// An outline raised from `from` by `height`, as `cao_part` raises a step:
+/// its faces numbered past the part's, its floor first, then its top, then
+/// its walls, one for each run.
+fn raised(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
     let profile = Profile {
         exact: Some((outline, Vec::new())),
         sampled: Loop::straight(&[]),
@@ -30,10 +33,20 @@ fn joined(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
         u: DVec3::X,
         v: DVec3::Y,
     };
-    let tool = part
-        .tool_raised(&profile, frame, DVec3::Z * height)
-        .expect("the kernel raises it");
-    part.union(&tool).expect("the kernel joins it")
+    part.tool_raised(&profile, frame, DVec3::Z * height)
+        .expect("the kernel raises it")
+}
+
+/// The part joined to an outline raised from `from` by `height`.
+fn joined(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
+    part.union(&raised(part, outline, from, height))
+        .expect("the kernel joins it")
+}
+
+/// The part less an outline raised from `from` by `height`.
+fn cut(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
+    part.difference(&raised(part, outline, from, height))
+        .expect("the kernel cuts it")
 }
 
 /// A block 30 by 20 by 10: its top one, its front two, its right three.
@@ -59,6 +72,21 @@ fn stacked() -> Body {
 }
 const STANDING_FRONT: u32 = 8;
 const STANDING_RIGHT: u32 = 9;
+
+/// The block with a pocket 10 by 10 sunk 5 into the middle of its top: the
+/// pocket's floor six, its walls, front, right, back and left, eight to
+/// eleven. Its floor's edges and its uprights all meet inwards.
+fn pocketed() -> Body {
+    cut(
+        &block(),
+        Contour::rectangle(DVec2::new(10.0, 5.0), DVec2::new(20.0, 15.0)),
+        5.0,
+        6.0,
+    )
+}
+const POCKET_FLOOR: u32 = 6;
+const POCKET_FRONT: u32 = 8;
+const POCKET_RIGHT: u32 = 9;
 
 /// An L: an arm 30 by 6 along the front, a stem 12 wide reaching back to 14,
 /// raised 10. Its arm's back, four, and its stem's right side, five, meet
@@ -117,10 +145,33 @@ fn admitted(part: &Body, pairs: &[[u32; 2]]) -> Result<Vec<(DVec3, [usize; 2])>,
 }
 
 #[test]
-fn two_feet_of_a_standing_block_meeting_at_its_corner_are_declined() {
+fn two_feet_of_a_standing_block_are_taken_beside_its_upright_by_their_ranks() {
     let feet = [[TOP, STANDING_FRONT], [TOP, STANDING_RIGHT]];
 
-    assert_eq!(admitted(&stacked(), &feet), Err(Declined::Unsupported));
+    let beside = admitted(&stacked(), &feet).expect("the corner is taken");
+
+    assert_eq!(
+        beside.len(),
+        1,
+        "one corner beside a convex edge: {beside:?}"
+    );
+    let (at, ranks) = beside[0];
+    assert!(
+        at.distance(DVec3::new(20.0, 5.0, 10.0)) < 1e-9,
+        "the corner at the foot of the front right upright, not {at}"
+    );
+    assert_eq!(
+        ranks,
+        [0, 1],
+        "the two edges' ranks in the list, the lower first"
+    );
+}
+
+#[test]
+fn two_edges_of_a_pocket_s_floor_meeting_at_its_corner_are_declined() {
+    let floor = [[POCKET_FLOOR, POCKET_FRONT], [POCKET_FLOOR, POCKET_RIGHT]];
+
+    assert_eq!(admitted(&pocketed(), &floor), Err(Declined::Unsupported));
 }
 
 #[test]

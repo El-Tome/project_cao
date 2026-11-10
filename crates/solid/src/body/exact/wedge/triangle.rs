@@ -33,7 +33,7 @@ pub(in crate::body::exact) fn cut_across(
     let (outline, frame, travel) = across(corner.crossings, corner.at);
     let tool = Exact::raised(&outline, &[], frame, travel)?;
     let cut = body.cut_by(&Exact { next: 1, ..tool })?;
-    if cut.cut_along(&[], body, 1, &flats) {
+    if cut.cut_along(&[], body, 1, &flats, &[]) {
         Ok(cut)
     } else {
         Err(Declined::Unsupported)

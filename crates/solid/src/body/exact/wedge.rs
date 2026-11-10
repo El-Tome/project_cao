@@ -33,8 +33,8 @@ use flush::{Flush, Stop};
 use overlap::OVERLAPS;
 pub(super) use pairs::Together;
 pub(super) use section::Side;
-pub(super) use sphere::rounded_across;
-pub(super) use triangle::cut_across;
+pub(super) use sphere::{hollowed_across, rounded_across};
+pub(super) use triangle::{cut_across, joined_across};
 
 /// A straight edge between two flat faces: a point of it, the way it runs, its
 /// two faces and the numbers they answer to on the body it was read on, for
@@ -97,23 +97,24 @@ impl Exact {
     /// Two fills meeting where the third edge is concave too, at a pocket's
     /// bottom corner, are each trimmed flush on the face the other runs along
     /// and meet in a valley, the third edge left sharp one value short. A
-    /// corner three of the edges meet at is closed once all are laid, as
-    /// `meeting` closes it, read where each two's set-backs cross on the face
-    /// they share, as [`Exact::closed`] closes it, its face numbered past the
-    /// edges'. The wall an edge's prism lays is numbered where the steps'
-    /// numbers ended, plus the edge's rank in the list; a pair is laid at its
-    /// later edge's turn, so that every number laid before stands below those a
-    /// prism lays, as [`Exact::cut_along`] reads them. A value shorter than the
-    /// kernel can set a cut back from an edge is declined first; a list of no
-    /// edge `Unsupported`; an edge its name no longer finds `Lost`; an edge
-    /// that is not a wedge, one edge two names find, two edges meeting at a
-    /// corner that is neither convex — every edge ending there a wedge whose
-    /// faces meet outwards — nor two of one sense beside an edge of the other
-    /// left out of the list, nor two concave beside a third concave, more than
-    /// three edges meeting at a corner, or three where another edge ends too,
-    /// where `meeting` lays two together an edge meeting two others, or one of
-    /// two laid together that meets another edge of the list at a corner, a cut
-    /// or a fill that left something else than its one face, as
+    /// corner three of the edges meet at, all convex or all concave, is closed
+    /// once all are laid, as `meeting` closes it by the way they meet, read
+    /// where each two's set-backs cross on the face they share, as
+    /// [`Exact::closed`] closes it, its face numbered past the edges'. The wall
+    /// an edge's prism lays is numbered where the steps' numbers ended, plus
+    /// the edge's rank in the list; a pair is laid at its later edge's turn, so
+    /// that every number laid before stands below those a prism lays, as
+    /// [`Exact::cut_along`] reads them. A value shorter than the kernel can set
+    /// a cut back from an edge is declined first; a list of no edge
+    /// `Unsupported`; an edge its name no longer finds `Lost`; an edge that is
+    /// not a wedge, one edge two names find, two edges meeting at a corner that
+    /// is neither convex — every edge ending there a wedge whose faces meet
+    /// outwards — nor two of one sense beside an edge of the other left out of
+    /// the list, nor two concave beside a third concave, more than three edges
+    /// meeting at a corner, or three where another edge ends too, where
+    /// `meeting` lays two together an edge meeting two others, or one of two
+    /// laid together that meets another edge of the list at a corner, a cut or
+    /// a fill that left something else than its one face, as
     /// [`Exact::cut_along`] reads it, and a face of an overlap no edge covered,
     /// are declined `Unsupported`; a prism the tool cannot raise, as the tool
     /// says.

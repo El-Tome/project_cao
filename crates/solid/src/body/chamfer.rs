@@ -40,19 +40,21 @@ impl Body {
     /// distance taken: its own distance is read off its face, never from
     /// [`Chamfered::taken`]. Two edges meeting at a convex corner are mitred
     /// there, the corner's third edge left sharp, and three are closed there by
-    /// a triangle, numbered after every flat, by the lowest ranks of their
-    /// edges in the list, then the next. Two cut off where they meet beside a
-    /// concave edge left sharp — the L's top edges at its inner corner, a
-    /// pocket's rim — each stop flush on the face the other runs along and are
-    /// mitred past it, down to the concave edge, no face laid there, and two
-    /// filled in beside a convex edge left sharp — two feet of a block standing
-    /// on another — are mitred outside it the same way, and two filled in
-    /// beside a concave edge left sharp, at a pocket's bottom corner, meet in a
-    /// valley; at any other corner where an edge meets inwards they are
-    /// declined `Unsupported`, as is an edge of a slope meeting another edge of
-    /// the list at a corner, and an edge whose flat would be one slope with two
-    /// others'. Flats that would meet anywhere else are declined `Unsupported`,
-    /// until #792 measures them. The first edge declined declines the step.
+    /// a triangle, cut off at a convex corner and filled in at a concave one —
+    /// a pocket's bottom —, numbered after every flat, by the lowest ranks of
+    /// their edges in the list, then the next. Two cut off where they meet
+    /// beside a concave edge left sharp — the L's top edges at its inner
+    /// corner, a pocket's rim — each stop flush on the face the other runs
+    /// along and are mitred past it, down to the concave edge, no face laid
+    /// there, and two filled in beside a convex edge left sharp — two feet of a
+    /// block standing on another — are mitred outside it the same way, and two
+    /// filled in beside a concave edge left sharp, at a pocket's bottom corner,
+    /// meet in a valley; at any other corner where an edge meets inwards they
+    /// are declined `Unsupported`, as is an edge of a slope meeting another
+    /// edge of the list at a corner, and an edge whose flat would be one slope
+    /// with two others'. Flats that would meet anywhere else are declined
+    /// `Unsupported`, until #792 measures them. The first edge declined
+    /// declines the step.
     pub fn chamfer_edges(&self, edges: &[EdgeName], distance: f64) -> Result<Chamfered, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Lost(Lost::Gone));

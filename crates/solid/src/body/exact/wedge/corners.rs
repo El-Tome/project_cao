@@ -5,7 +5,8 @@
 //! left out of the list (#801) — two cuts beside a concave edge, two fills
 //! beside a convex one — each stops flush and the two run on past the corner
 //! into a mitre. Two concave edges beside a third concave one, at a pocket's
-//! bottom corner, are each trimmed flush and meet in a valley. Any other
+//! bottom corner, are each trimmed flush and meet in a valley, and the three
+//! there are closed as three convex ones are, the closing joined. Any other
 //! corner is declined.
 
 use std::collections::BTreeMap;
@@ -26,7 +27,8 @@ pub(super) type Beside = (VertexId, [usize; 2]);
 /// meeting inwards at the inner corner of an L or a pocket's rim above an
 /// upright, two meeting inwards beside one meeting outwards at the feet of a
 /// block standing on another — or, the two meeting inwards, inwards too, at
-/// a pocket's bottom corner. Every other corner two of them meet at is to be
+/// a pocket's bottom corner, which takes its three edges too, closed as
+/// [`of_three`] reads it. Every other corner two of them meet at is to be
 /// convex: each edge ending there straight between two flat faces that meet
 /// outwards, whatever those faces hold past the corner. Declined
 /// `Unsupported` where one is none of these.
@@ -53,6 +55,7 @@ pub(super) fn admit(body: &brep::Body, edges: &[EdgeId]) -> Result<Vec<Beside>, 
             {
                 beside.push((corner, [one, other]));
             }
+            (&[_, _, _], 3) if ending.iter().all(|&edge| meeting(edge, true)) => {}
             _ => return Err(Declined::Unsupported),
         }
     }

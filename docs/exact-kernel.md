@@ -410,8 +410,19 @@ It can:
   nothing past the corner: each is trimmed flush into the matter on the face
   the other runs along, the later read on the body as given, and their join
   is the valley, a line among flats and an ellipse among rounds, the third
-  edge left sharp and ending one value short. Three such edges listed at one
-  corner are still declined.
+  edge left sharp and ending one value short. All three edges of such a
+  corner, a pocket's bottom, are laid so and closed as #699 closes a convex
+  corner, mirrored (`wedge/triangle.rs`, `wedge/sphere.rs`): the three fills
+  leave a hollow behind the point where they would meet, which chamfers fill
+  with the prism `across` raises, its floor the triangle through where each
+  two fills' set-backs cross, joined where a convex corner's is cut, and spread
+  half again the triangle rather than three times, so that it stays inside a
+  wall half the pocket's depth thick. Fillets fill the corner up to the three
+  planes through the centre, one radius out from the three faces, square to
+  the edges, and replace the three quarter discs that leaves, facing the
+  centre, with the hollow piece of sphere their arcs bound, facing its
+  centre: the matter lies outside the ball. Each patch is numbered after the
+  edges' faces, as #699's are.
 - **decline**, with a reason (`Declined`), and never hand back a solid it could
   not verify. A declined step is a broken step: the part stands as before it,
   the screen says so and the tree marks it, and the step still moves the face

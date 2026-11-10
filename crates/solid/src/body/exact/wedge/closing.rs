@@ -1,6 +1,8 @@
 //! A corner three edges of one step meet at (#699), closed once the three are
 //! laid: the corner as the body given reads it, and the closing each kind
-//! lays there — a triangle among flats, a piece of sphere among rounds.
+//! lays there — a triangle among flats, a piece of sphere among rounds, cut
+//! where the three meet outwards and joined, hollow, where they meet inwards,
+//! at a pocket's bottom corner (#801).
 
 use glam::DVec3;
 
@@ -13,7 +15,11 @@ use crate::brep::Declined;
 /// on, the faces they laid numbered as the three numbers say, its own face
 /// numbered where the steps' numbers end: as [`super::cut_across`] closes it
 /// among flats, and [`super::rounded_across`] among rounds.
-pub(in crate::body::exact) type Closing = fn(&Exact, &Corner, [u32; 3]) -> Result<Exact, Declined>;
+pub(in crate::body::exact) type Close = fn(&Exact, &Corner, [u32; 3]) -> Result<Exact, Declined>;
+
+/// What a kind closes a corner with: the first where its three edges meet
+/// outwards, the second where they meet inwards.
+pub(in crate::body::exact) type Closing = [Close; 2];
 
 /// A corner three edges of a step meet at, read on the body as given: where
 /// it stands; where the set-backs of each two cross on the face the two share
@@ -30,22 +36,23 @@ pub(in crate::body::exact) struct Corner {
 
 /// Each corner three edges meet at, read as a [`Corner`] for the value
 /// `taken`, each edge set back `set_back` along its faces, with the ranks of
-/// its edges and what closes it. Declined `Unsupported` where two of a
-/// corner's edges share no face, or their set-backs never cross.
+/// its edges and what of `closing` closes it, by the way its edges meet.
+/// Declined `Unsupported` where two of a corner's edges share no face, or
+/// their set-backs never cross.
 pub(super) fn closings(
     corners: Vec<Three>,
     wedges: &[Wedge],
     set_back: impl Fn(&Wedge) -> f64,
     taken: f64,
     closing: Closing,
-) -> Result<Vec<(Corner, [usize; 3], Closing)>, Declined> {
+) -> Result<Vec<(Corner, [usize; 3], Close)>, Declined> {
     corners
         .into_iter()
         .map(|(at, ranks, along)| {
             let three = ranks.map(|rank| &wedges[rank]);
             let corner = read((at, along), three, three.map(&set_back), taken)
                 .ok_or(Declined::Unsupported)?;
-            Ok((corner, ranks, closing))
+            Ok((corner, ranks, closing[usize::from(three[0].inwards)]))
         })
         .collect()
 }
@@ -88,7 +95,7 @@ impl Exact {
     /// in turn.
     pub(super) fn closed(
         self,
-        closes: &[(Corner, [usize; 3], Closing)],
+        closes: &[(Corner, [usize; 3], Close)],
         start: u32,
     ) -> Result<Exact, Declined> {
         closes

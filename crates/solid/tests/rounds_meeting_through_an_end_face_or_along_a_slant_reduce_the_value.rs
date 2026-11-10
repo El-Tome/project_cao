@@ -52,8 +52,14 @@
 //!   set-back closes between its two mitres first — a trapezoid's short top
 //!   edge between its two sides, which converge below it — the step takes
 //!   the value at which it closes, the three set-backs meeting in one point,
-//!   past which the two sides' would cross on the top beyond its strip —
-//!   `a_fillet_and_a_chamfer_on_a_trapezoid_s_short_top_edge_and_its_two_sides_named_between_them_asked_past_where_its_set_back_closes_take_the_value_at_which_it_closes`
+//!   past which the two sides' would cross on the top beyond its strip,
+//!   wherever the trapezoid stands, on the origin or off it along both axes —
+//!   `a_fillet_and_a_chamfer_on_a_trapezoid_s_short_top_edge_and_its_two_sides_named_between_them_asked_past_where_its_set_back_closes_take_the_value_at_which_it_closes`;
+//!   and with the three walls leaning in under their top edges, where a
+//!   fillet sets each edge back along the top by its radius over the tangent
+//!   of half the edge's angle, at the radius whose set-back closes the short
+//!   edge's, and a chamfer still at the distance that does —
+//!   `a_fillet_and_a_chamfer_on_a_drafted_trapezoid_s_short_top_edge_and_its_two_sides_named_between_them_asked_past_where_its_set_back_closes_take_the_value_whose_set_back_closes_it`
 //! - Every step #698 lays — held by the suite of #698 in
 //!   `a_chamfer_and_a_fillet_take_several_edges_in_one_step.rs`, left as it
 //!   was but for the two tests that held these meetings declined. The one on
@@ -87,7 +93,15 @@
 //!   past that value, the last named laid after both its neighbours —
 //!   `a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_in_ring_order_asked_past_where_alternate_edges_would_cross_take_the_value_at_which_they_touch`.
 //!   The value taken may so depend on the order of the list; a value that
-//!   does not is left to #822.
+//!   does not is left to #822. And two steps #698 lays that the reading of
+//!   an edge of the list between two others could shrink take the value
+//!   asked: where the middle edge's wall overhangs, so steeply that its
+//!   fillet's set-back runs ahead of where the outer two's would cross —
+//!   `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_whose_middle_wall_overhangs_take_the_value_asked_its_set_back_outrunning_where_the_outer_two_would_cross`;
+//!   and where the outer two reach the middle edge through its two faces,
+//!   one ending on its top face and the other on its wall, a chain of three
+//!   on the block and on the trapezoid —
+//!   `a_fillet_and_a_chamfer_on_three_edges_in_a_chain_whose_outer_two_reach_the_middle_one_through_its_two_faces_take_the_value_asked`
 
 use std::collections::BTreeSet;
 use std::f64::consts::{FRAC_1_SQRT_2, PI};
@@ -2001,10 +2015,9 @@ fn a_fillet_and_a_chamfer_on_two_edges_whose_rounds_would_meet_take_the_same_val
     }
 }
 
-/// A step on top edges of the hexagonal prism, a fillet's if `fillet`, a
-/// chamfer's if not: the value it reports asked, the one it took, and the
-/// body it laid.
-fn stepped_on_the_hexagon(
+/// A step on edges of a part, a fillet's if `fillet`, a chamfer's if not:
+/// the value it reports asked, the one it took, and the body it laid.
+fn stepped(
     prism: &Body,
     names: &[EdgeName],
     asked: f64,
@@ -2072,8 +2085,7 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_named
                  {asked}: the middle one laid after both outer ones, which would cross on it"
             );
 
-            let (reported, taken, body) =
-                stepped_on_the_hexagon(&prism, &names, asked, fillet, &what);
+            let (reported, taken, body) = stepped(&prism, &names, asked, fillet, &what);
 
             reduced_to_touching(reported, taken, [asked, touching], HEXAGON_HAIR, &what);
             for (rank, &wall) in IN_A_ROW.iter().enumerate() {
@@ -2185,7 +2197,7 @@ fn a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_in_ring_orde
              laid after both its neighbours, which would cross on it"
         );
 
-        let (reported, taken, body) = stepped_on_the_hexagon(&prism, &names, asked, fillet, &what);
+        let (reported, taken, body) = stepped(&prism, &names, asked, fillet, &what);
 
         reduced_to_touching(reported, taken, [asked, touching], HEXAGON_HAIR, &what);
         for ((rank, &wall), &number) in HEXAGON_WALLS.iter().enumerate().zip(&laid) {
@@ -2241,8 +2253,14 @@ const TRAPEZOID_LEFT: usize = 5;
 /// one's set-back closes, which each alone gives.
 const TRAPEZOID_ASKED: f64 = 6.0;
 
-/// The trapezoid's corners, from the short side's left end round.
-fn trapezoid_corners() -> [DVec2; 4] {
+/// Where the trapezoid is drawn off the origin as well as on it: along
+/// both axes, so that no point the step reads lies square to the ways it
+/// reads them along.
+const TRAPEZOID_MOVED: DVec2 = DVec2::new(3.0, 7.0);
+
+/// The trapezoid's corners, from the short side's left end round, the
+/// first at `at`.
+fn trapezoid_corners_at(at: DVec2) -> [DVec2; 4] {
     let lean = TRAPEZOID_LEAN_DEGREES.to_radians();
     let side = DVec2::new(lean.cos(), lean.sin()) * TRAPEZOID_SIDE;
     [
@@ -2251,13 +2269,15 @@ fn trapezoid_corners() -> [DVec2; 4] {
         DVec2::new(TRAPEZOID_SHORT, 0.0) + side,
         DVec2::new(-side.x, side.y),
     ]
+    .map(|corner| corner + at)
 }
 
-/// The trapezoid of [`trapezoid_corners`], raised [`TRAPEZOID_HEIGHT`].
-fn trapezoid() -> Body {
+/// The trapezoid of [`trapezoid_corners_at`] `at`, raised
+/// [`TRAPEZOID_HEIGHT`].
+fn trapezoid_at(at: DVec2) -> Body {
     raised_with(
         &Body::default(),
-        Contour::straight(trapezoid_corners().to_vec()),
+        Contour::straight(trapezoid_corners_at(at).to_vec()),
         TRAPEZOID_HEIGHT,
     )
 }
@@ -2298,8 +2318,33 @@ fn crossing((point, way): (DVec2, DVec2), (other, other_way): (DVec2, DVec2)) ->
     point + way * along
 }
 
+/// What is left of the top of the trapezoid of `corners` once its left,
+/// short and right top edges are set back by `inset` along it: the long
+/// edge as it was, and each corner where two of the four lines cross.
+fn trapezoid_top(corners: [DVec2; 4], inset: f64) -> [DVec3; 4] {
+    let [c0, c1, c2, c3] = corners;
+    let line = |from: DVec2, to: DVec2, by: f64| {
+        let (along, out) = trapezoid_edge(from, to);
+        (from - out * by, along)
+    };
+    let [left, short, right, long] = [
+        line(c3, c0, inset),
+        line(c0, c1, inset),
+        line(c1, c2, inset),
+        line(c2, c3, 0.0),
+    ];
+    [
+        crossing(left, short),
+        crossing(short, right),
+        crossing(right, long),
+        crossing(long, left),
+    ]
+    .map(|corner| corner.extend(TRAPEZOID_HEIGHT))
+}
+
 /// Holds what a step at `value` on the trapezoid's three top edges, numbered
-/// `laid` in the order of [`trapezoid_edges`], leaves: each edge's round on
+/// `laid` in the order of [`trapezoid_edges`], the trapezoid drawn `at`,
+/// leaves: each edge's round on
 /// its cylinder, or its flat facing halfway between the top and its wall;
 /// each of the three walls cut down by the value; the top set back by it
 /// from all three, mitred at the short edge's ends and running on to the
@@ -2310,12 +2355,13 @@ fn crossing((point, way): (DVec2, DVec2), (other, other_way): (DVec2, DVec2)) ->
 fn trapezoid_laid(
     part: &Body,
     body: &Body,
-    laid: [usize; 3],
+    (laid, at): ([usize; 3], DVec2),
     value: f64,
     fillet: bool,
     what: &str,
 ) {
-    let [c0, c1, c2, c3] = trapezoid_corners();
+    let corners = trapezoid_corners_at(at);
+    let [c0, c1, c2, c3] = corners;
     let top = TRAPEZOID_HEIGHT;
     let edges = [
         (c3, c0, TRAPEZOID_LEFT),
@@ -2374,26 +2420,10 @@ fn trapezoid_laid(
     }
     do_not_meet(body, [laid[0], laid[2]], what);
     kept_every_face_and_laid(part, body, &laid, what);
-    let inset = |from: DVec2, to: DVec2, by: f64| {
-        let (along, out) = trapezoid_edge(from, to);
-        (from - out * by, along)
-    };
-    let [left, short, right, long] = [
-        inset(c3, c0, value),
-        inset(c0, c1, value),
-        inset(c1, c2, value),
-        inset(c2, c3, 0.0),
-    ];
     corners_are(
         body,
         TOP,
-        &[
-            crossing(left, short),
-            crossing(short, right),
-            crossing(right, long),
-            crossing(long, left),
-        ]
-        .map(|corner| corner.extend(top)),
+        &trapezoid_top(corners, value),
         &format!("{what}: the top, set back by the value from all three edges"),
     );
     let mitre = (90.0 - TRAPEZOID_LEAN_DEGREES / 2.0)
@@ -2411,7 +2441,7 @@ fn trapezoid_laid(
     };
     let strips = TRAPEZOID_SHORT + 2.0 * TRAPEZOID_SIDE;
     let taken_off = strips * first - (2.0 * mitre + run_on) * second;
-    let area = (c1.x - c0.x + c2.x - c3.x) / 2.0 * c2.y;
+    let area = (c1.x - c0.x + c2.x - c3.x) / 2.0 * (c2.y - c1.y);
     let promised = area * top - taken_off;
     let drawn = if fillet {
         DRAWN * reach_of(part) * PI / 2.0 * value * (strips + 4.0 * value)
@@ -2424,13 +2454,16 @@ fn trapezoid_laid(
 #[test]
 fn a_fillet_and_a_chamfer_on_a_trapezoid_s_short_top_edge_and_its_two_sides_named_between_them_asked_past_where_its_set_back_closes_take_the_value_at_which_it_closes()
  {
-    let part = trapezoid();
-    let names = trapezoid_edges(&part);
-    let laid = [0, 1, 2].map(|rank| part.faces_end() + rank);
     let closing = trapezoid_closing();
-    let hair = 20.0 * 1e-9 * reach_of(&part);
 
-    for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
+    for ((kind, fillet), at) in [("fillet", true), ("chamfer", false)]
+        .into_iter()
+        .flat_map(|kind| [DVec2::ZERO, TRAPEZOID_MOVED].map(|at| (kind, at)))
+    {
+        let part = trapezoid_at(at);
+        let names = trapezoid_edges(&part);
+        let laid = [0, 1, 2].map(|rank| part.faces_end() + rank);
+        let hair = 20.0 * 1e-9 * reach_of(&part);
         for asked in [TRAPEZOID_ASKED, closing + hair] {
             alone_each_takes(
                 |name| {
@@ -2445,16 +2478,385 @@ fn a_fillet_and_a_chamfer_on_a_trapezoid_s_short_top_edge_and_its_two_sides_name
                 &format!("the {kind} on one of the trapezoid's three top edges, asked {asked}"),
             );
             let what = format!(
-                "the {kind} on the trapezoid's left, short and right top edges, asked {asked}: \
-                 the short one laid before the right, the two sides' set-backs crossing past \
-                 its own once it closes"
+                "the {kind} on the trapezoid's left, short and right top edges, drawn at {at}, \
+                 asked {asked}: the short one laid before the right, the two sides' set-backs \
+                 crossing past its own once it closes"
             );
 
-            let (reported, taken, body) =
-                stepped_on_the_hexagon(&part, &names, asked, fillet, &what);
+            let (reported, taken, body) = stepped(&part, &names, asked, fillet, &what);
 
             reduced_to_touching(reported, taken, [asked, closing], hair, &what);
-            trapezoid_laid(&part, &body, laid, taken, fillet, &what);
+            trapezoid_laid(&part, &body, (laid, at), taken, fillet, &what);
+        }
+    }
+}
+
+/// The part with the wall under the top edge from `from` to `to`, facing
+/// `out`, cut back to lean in under that edge by `degrees` from upright, as
+/// a part's next step cuts it: a box drawn on a sketch lying on the leaning
+/// plane, wider than the part, raised off it out of the matter and taken
+/// away. Gives the number the leaning wall answers to, the box's floor
+/// numbered past the part's faces.
+fn leaning_in(part: &Body, [from, to]: [DVec3; 2], out: DVec3, degrees: f64) -> (Body, usize) {
+    let tilt = degrees.to_radians();
+    let facing = out * tilt.cos() - DVec3::Z * tilt.sin();
+    let u = (to - from).normalize();
+    let frame = Frame {
+        origin: (from + to) / 2.0,
+        u,
+        v: facing.cross(u),
+    };
+    let wider = Contour::rectangle(DVec2::splat(-60.0), DVec2::splat(60.0));
+    let tool = part
+        .tool_raised(&profile(wider), frame, facing * 40.0)
+        .expect("the tool raises");
+    let wall = part.faces_end();
+    (part.difference(&tool).expect("the cut is built"), wall)
+}
+
+/// How far the drafted trapezoid's three walls lean in under its top edges.
+const DRAFT_DEGREES: f64 = 10.0;
+
+/// The trapezoid of [`trapezoid_corners_at`] the origin, its left, short and
+/// right walls each leaning in by [`DRAFT_DEGREES`] under its top edge, its
+/// top and its long wall as they were: the part, and the numbers its three
+/// leaning walls answer to, in that order.
+fn drafted_trapezoid() -> (Body, [usize; 3]) {
+    let [c0, c1, c2, c3] = trapezoid_corners_at(DVec2::ZERO);
+    let mut part = trapezoid_at(DVec2::ZERO);
+    let mut walls = [0; 3];
+    for ((from, to), wall) in [(c3, c0), (c0, c1), (c1, c2)].into_iter().zip(&mut walls) {
+        let (_, out) = trapezoid_edge(from, to);
+        let up = |at: DVec2| at.extend(TRAPEZOID_HEIGHT);
+        (part, *wall) = leaning_in(&part, [up(from), up(to)], out.extend(0.0), DRAFT_DEGREES);
+    }
+    (part, walls)
+}
+
+/// How far along the top a fillet of one sets back an edge of the drafted
+/// trapezoid's top: the cotangent of half the edge's angle, 90 degrees less
+/// the draft, which is `(1 + sin δ) / cos δ`; a chamfer's is one.
+fn drafted_per(fillet: bool) -> f64 {
+    let draft = DRAFT_DEGREES.to_radians();
+    if fillet {
+        (1.0 + draft.sin()) / draft.cos()
+    } else {
+        1.0
+    }
+}
+
+/// The drafted trapezoid's matter, and what a step at `value` on its three
+/// top edges takes off it. At a depth `t` under the top, the section is the
+/// trapezoid with its three drafted sides set in by `s = t tan δ`, holding
+/// `A(s) = A₀ − 50 s + β s²` — the strips along the three sides, less
+/// `cot 47.5°` at each mitre and `cot 85° / 2` where a strip runs on to the
+/// long side, `β` their sum. The cut sets the three sides in by a width `w`
+/// more, taking `A(s) − A(s + w) = 50 w − β (2 s w + w²)`. A chamfer's flat
+/// leaves the top `d` in and the wall `d` down it, so `w = d − t / cos δ`
+/// down to `d cos δ`; a fillet's round, its axis `r p` in and `r` down,
+/// leaves `w = r p − √(r² − (r − t)²) − s` down to `r (1 + sin δ)`, summed
+/// over its turn, `t = r (1 − cos θ)`, by Simpson's rule.
+fn drafted_matter(value: f64, fillet: bool) -> (f64, f64) {
+    let [c0, c1, c2, c3] = trapezoid_corners_at(DVec2::ZERO);
+    let draft = DRAFT_DEGREES.to_radians();
+    let lean = TRAPEZOID_LEAN_DEGREES.to_radians();
+    let beta = 2.0
+        * (90.0 - TRAPEZOID_LEAN_DEGREES / 2.0)
+            .to_radians()
+            .tan()
+            .recip()
+        + lean.tan().recip();
+    let strips = TRAPEZOID_SHORT + 2.0 * TRAPEZOID_SIDE;
+    let area = (c1.x - c0.x + c2.x - c3.x) / 2.0 * c2.y;
+    let height = TRAPEZOID_HEIGHT;
+    let whole = area * height - strips * draft.tan() * height * height / 2.0
+        + beta * draft.tan().powi(2) * height.powi(3) / 3.0;
+    let lost = |s: f64, w: f64| strips * w - beta * (2.0 * s * w + w * w);
+    let simpson = |f: &dyn Fn(f64) -> f64, end: f64| {
+        let steps = 2000;
+        let step = end / steps as f64;
+        (0..=steps)
+            .map(|rank| {
+                let weight = match rank {
+                    0 => 1.0,
+                    last if last == steps => 1.0,
+                    odd if odd % 2 == 1 => 4.0,
+                    _ => 2.0,
+                };
+                weight * f(rank as f64 * step)
+            })
+            .sum::<f64>()
+            * step
+            / 3.0
+    };
+    let taken = if fillet {
+        let (r, p) = (value, drafted_per(true));
+        simpson(
+            &|turn: f64| {
+                let t = r * (1.0 - turn.cos());
+                let s = t * draft.tan();
+                let w = r * p - r * turn.sin() - s;
+                lost(s, w) * r * turn.sin()
+            },
+            PI / 2.0 + draft,
+        )
+    } else {
+        simpson(
+            &|t: f64| lost(t * draft.tan(), value - t / draft.cos()),
+            value * draft.cos(),
+        )
+    };
+    (whole, taken)
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_a_drafted_trapezoid_s_short_top_edge_and_its_two_sides_named_between_them_asked_past_where_its_set_back_closes_take_the_value_whose_set_back_closes_it()
+ {
+    let (part, walls) = drafted_trapezoid();
+    let names = walls.map(|wall| edge_between(&part, TOP, wall));
+    let laid = [0, 1, 2].map(|rank| part.faces_end() + rank);
+    let hair = 20.0 * 1e-9 * reach_of(&part);
+    let [c0, c1, c2, c3] = trapezoid_corners_at(DVec2::ZERO);
+    let draft = DRAFT_DEGREES.to_radians();
+    let top = TRAPEZOID_HEIGHT;
+    let (whole, _) = drafted_matter(0.0, false);
+    assert!(
+        (part.volume() - whole).abs() <= EXACT * whole,
+        "the drafted trapezoid holds {}, where arithmetic promised {whole}",
+        part.volume()
+    );
+
+    for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
+        let per = drafted_per(fillet);
+        let closing = trapezoid_closing() / per;
+        for asked in [TRAPEZOID_ASKED, closing + hair] {
+            alone_each_takes(
+                |name| {
+                    if fillet {
+                        part.fillet(name, asked).map(|single| single.taken)
+                    } else {
+                        part.chamfer(name, asked).map(|single| single.taken)
+                    }
+                },
+                &names,
+                asked,
+                &format!("the {kind} on one of the drafted trapezoid's top edges, asked {asked}"),
+            );
+            let what = format!(
+                "the {kind} on the drafted trapezoid's left, short and right top edges, asked \
+                 {asked}: the short one's set-back, {per} of the value along the top, closes at \
+                 {closing}"
+            );
+
+            let (reported, value, body) = stepped(&part, &names, asked, fillet, &what);
+
+            reduced_to_touching(reported, value, [asked, closing], hair, &what);
+            for ((from, to), number) in [(c3, c0), (c0, c1), (c1, c2)].into_iter().zip(laid) {
+                let (along, out) = trapezoid_edge(from, to);
+                let leaning = out.extend(0.0) * draft.cos() - DVec3::Z * draft.sin();
+                let which = format!("{what}: face {number}");
+                if fillet {
+                    let length = (to - from).length();
+                    let round = |start: DVec2, length: f64| Round {
+                        start: (start - out * value * per).extend(top - value),
+                        along: along.extend(0.0),
+                        length,
+                        radius: value,
+                        facing: [DVec3::Z, leaning],
+                    };
+                    let past = 2.0 * value;
+                    drawn_on(
+                        &body,
+                        number,
+                        &round(from - along * past, length + 2.0 * past),
+                        &which,
+                    );
+                    let middle = if number == laid[1] { 0.5 } else { 2.0 };
+                    met_from_outside(
+                        &body,
+                        number,
+                        &round(from + along * (length / 2.0 - middle), 2.0 * middle),
+                        &which,
+                    );
+                } else {
+                    faces_toward(&body, number, (DVec3::Z + leaning).normalize(), &which);
+                }
+            }
+            do_not_meet(&body, [laid[0], laid[2]], &what);
+            kept_every_face_and_laid(&part, &body, &laid, &what);
+            corners_are(
+                &body,
+                TOP,
+                &trapezoid_top([c0, c1, c2, c3], value * per),
+                &format!(
+                    "{what}: the top, set back {} along it from all three edges",
+                    value * per
+                ),
+            );
+            let (whole, taken_off) = drafted_matter(value, fillet);
+            let promised = whole - taken_off;
+            let drawn = if fillet {
+                DRAWN * reach_of(&part) * PI / 2.0 * value * (60.0 + 4.0 * value)
+            } else {
+                EXACT * promised
+            };
+            sound_drawn_within(&body, promised, drawn, &what);
+        }
+    }
+}
+
+/// How far the overhanging hexagon's middle wall leans in under its top
+/// edge: steep enough that a fillet's set-back along the top, the radius
+/// over the tangent of half the edge's angle, outruns where the two edges
+/// beside it would cross.
+const OVERHANG_DEGREES: f64 = 40.0;
+
+/// What is asked of the three top edges in a row of the overhanging
+/// hexagon: short of what the overhanging wall alone gives.
+const OVERHANG_ASKED: f64 = 2.0;
+
+/// Holds that a body is exact, its surface closed and no face through
+/// another: the rules every solid keeps, short of the matter its triangles
+/// enclose. A round ending on a wall that overhangs is drawn further from
+/// its surface than the drawing's tolerance — a fillet of 2 on the
+/// hexagon's front top edge alone, its next wall leaning in 20 degrees,
+/// encloses 0.145 less than it holds, past the 0.063 the tolerance allows
+/// its round — which is the drawing's business (#824), not this step's.
+fn closed_and_uncrossed(body: &Body, what: &str) {
+    assert!(
+        body.is_exact(),
+        "{what}: the exact kernel computed the body"
+    );
+    let triangles = body.triangles();
+    assert_eq!(closed(&triangles), Ok(()), "{what}");
+    assert_eq!(uncrossed(&triangles), Ok(()), "{what}");
+}
+
+/// The corners of the polygon `corners` once its sides are set in by
+/// `insets`, the side from each corner to the next by the inset of that
+/// rank: where each two set-in sides next to each other cross.
+fn set_in(corners: &[DVec2], insets: &[f64]) -> Vec<DVec2> {
+    let count = corners.len();
+    let side = |rank: usize| {
+        let (from, to) = (corners[rank], corners[(rank + 1) % count]);
+        let (along, out) = trapezoid_edge(from, to);
+        (from - out * insets[rank], along)
+    };
+    (0..count)
+        .map(|rank| crossing(side((rank + count - 1) % count), side(rank)))
+        .collect()
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_whose_middle_wall_overhangs_take_the_value_asked_its_set_back_outrunning_where_the_outer_two_would_cross()
+ {
+    let [_, from, to, _, _, _] = hexagon_corners();
+    let (_, out) = trapezoid_edge(from, to);
+    let (part, wall) = leaning_in(
+        &hexagonal_prism(),
+        [from, to].map(|at| at.extend(HEXAGON_HEIGHT)),
+        out.extend(0.0),
+        OVERHANG_DEGREES,
+    );
+    let names = [
+        edge_between(&part, TOP, HEXAGON_FRONT),
+        edge_between(&part, TOP, wall),
+        edge_between(&part, TOP, HEXAGON_ACROSS),
+    ];
+    let laid = [0, 1, 2].map(|rank| part.faces_end() + rank);
+    let value = OVERHANG_ASKED;
+
+    for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
+        let per = if fillet {
+            (45.0 - OVERHANG_DEGREES / 2.0).to_radians().tan().recip()
+        } else {
+            1.0
+        };
+        let what = format!(
+            "the {kind} on three top edges in a row of the hexagon whose middle wall overhangs \
+             {OVERHANG_DEGREES} degrees, asked {value}: the middle one's set-back along the top, \
+             {per} of the value, runs ahead of where the outer two's set-backs would cross"
+        );
+
+        let (reported, taken, body) = stepped(&part, &names, value, fillet, &what);
+
+        taken_as_asked(reported, taken, value, &what);
+        for (rank, number) in [(0, laid[0]), (2, laid[2])] {
+            let turn = rank as f64 * PI / 3.0;
+            let which = format!("{what}: face {number}");
+            if fillet {
+                let reach = HEXAGON_SIDE / 2.0 + value / 3.0f64.sqrt();
+                drawn_on(&body, number, &hexagon_round_to(value, turn, reach), &which);
+            } else {
+                let (_, facing) = hexagon_flat_to(value, turn, 0.0);
+                faces_toward(&body, number, facing, &which);
+            }
+        }
+        do_not_meet(&body, [laid[0], laid[2]], &what);
+        kept_every_face_and_laid(&part, &body, &laid, &what);
+        let insets = [value, value * per, value, 0.0, 0.0, 0.0];
+        corners_are(
+            &body,
+            TOP,
+            &set_in(&hexagon_corners(), &insets)
+                .into_iter()
+                .map(|corner| corner.extend(HEXAGON_HEIGHT))
+                .collect::<Vec<_>>(),
+            &format!("{what}: the top, set back from the three edges"),
+        );
+        closed_and_uncrossed(&body, &what);
+    }
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_three_edges_in_a_chain_whose_outer_two_reach_the_middle_one_through_its_two_faces_take_the_value_asked()
+ {
+    let block = block();
+    let trapezoid = trapezoid_at(DVec2::ZERO);
+    let chains = [
+        (
+            "the block's top front edge, its top right edge and its right wall's back edge",
+            &block,
+            [
+                edge_between(&block, TOP, FRONT),
+                edge_between(&block, TOP, RIGHT),
+                edge_between(&block, RIGHT, BACK),
+            ],
+            MORE_THAN_HALF,
+        ),
+        (
+            "the trapezoid's left top edge, its short top edge and the upright at the short \
+             edge's right end",
+            &trapezoid,
+            [
+                edge_between(&trapezoid, TOP, TRAPEZOID_LEFT),
+                edge_between(&trapezoid, TOP, TRAPEZOID_SHORT_WALL),
+                edge_between(&trapezoid, TRAPEZOID_SHORT_WALL, TRAPEZOID_RIGHT),
+            ],
+            TRAPEZOID_ASKED,
+        ),
+    ];
+
+    for (chain, part, names, value) in chains {
+        let laid = [0, 1, 2].map(|rank| part.faces_end() + rank);
+        for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
+            let what = format!(
+                "the {kind} on {chain}, asked {value}: the first ends on the middle one's top \
+                 face, the last on its wall"
+            );
+
+            let (reported, taken, body) = stepped(part, &names, value, fillet, &what);
+
+            taken_as_asked(reported, taken, value, &what);
+            do_not_meet(&body, [laid[0], laid[2]], &what);
+            kept_every_face_and_laid(part, &body, &laid, &what);
+            let promised = body.volume();
+            sound_drawn_within(
+                &body,
+                promised,
+                DRAWN * reach_of(part) * 3.0 * PI * value * 30.0,
+                &what,
+            );
         }
     }
 }

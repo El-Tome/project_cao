@@ -233,6 +233,12 @@ impl PartTree {
     }
 }
 
+/// The name of the `rank`th sketch, the one its row and its line in the
+/// history both go by.
+fn sketch_name(lang: &Catalogue, rank: usize) -> String {
+    numbered(lang, "part_tree.sketch", rank)
+}
+
 fn numbered(lang: &Catalogue, key: &str, rank: usize) -> String {
     lang.t_with(key, &[("rank", &rank.to_string())])
 }
@@ -287,7 +293,7 @@ fn drawn(
         sketch: index,
         badge: None,
         step,
-        name: numbered(lang, "part_tree.sketch", rank),
+        name: sketch_name(lang, rank),
         plane: String::new(),
         open: false,
         dimmed: false,

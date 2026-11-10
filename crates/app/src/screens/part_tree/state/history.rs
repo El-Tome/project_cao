@@ -1,11 +1,18 @@
 //! The history at the bottom of the Part panel: one flat line per action,
 //! numbered as the list reads. A section is a way of looking at the part, not
 //! an action on it, and takes no line.
+//!
+//! A sketch and a volume go by the names their rows above give them, ranked
+//! over every step, undone ones included; any other action keeps the name the
+//! history has always given it.
 
-use cao_part::PartDocument;
+use cao_part::history::{Operation, PointRef};
+use cao_part::{PartDocument, Variables};
 
+use super::volumes::{mode_key, volume_name};
+use super::{numbered, sketch_name};
 use crate::lang::Catalogue;
-use crate::wording;
+use crate::wording::{self, dimension, formula};
 
 /// One action of the history.
 #[derive(Clone, Debug, PartialEq)]
@@ -28,20 +35,37 @@ impl History {
     pub fn of(document: &PartDocument, lang: &Catalogue) -> Self {
         let variables = document.variables();
         let applied = document.history.applied();
-        let lines: Vec<HistoryLine> = document
-            .history
-            .operations()
-            .iter()
-            .enumerate()
-            .filter(|(_, operation)| !operation.is_about_a_section())
-            .enumerate()
-            .map(|(shown, (step, operation))| HistoryLine {
-                number: shown + 1,
-                name: wording::history::label(lang, variables, operation),
-                detail: wording::history::detail(lang, variables, operation),
+        let (mut sketches, mut volumes) = (0, 0);
+        let mut lines = Vec::new();
+        for (step, operation) in document.history.operations().iter().enumerate() {
+            if operation.is_about_a_section() {
+                continue;
+            }
+            let (name, detail) = match operation {
+                Operation::CreateSketch { plane, on } => {
+                    sketches += 1;
+                    let laid = wording::history::laid_on(lang, plane, on);
+                    (sketch_name(lang, sketches), laid)
+                }
+                Operation::CreateSketchOnSection { section, .. } => {
+                    sketches += 1;
+                    let cut = numbered(lang, "part_tree.section", section + 1);
+                    (sketch_name(lang, sketches), cut)
+                }
+                Operation::Extrude { .. } | Operation::Revolve { .. } => {
+                    volumes += 1;
+                    let name = volume_name(lang, operation, volumes).unwrap_or_default();
+                    (name, matter(lang, variables, operation))
+                }
+                _ => drawn(lang, variables, operation),
+            };
+            lines.push(HistoryLine {
+                number: lines.len() + 1,
+                name,
+                detail,
                 undone: step >= applied,
-            })
-            .collect();
+            });
+        }
         let key = match lines.len() {
             1 => "part_tree.history.actions_one",
             _ => "part_tree.history.actions_many",
@@ -49,4 +73,47 @@ impl History {
         let actions = lang.t_with(key, &[("count", &lines.len().to_string())]);
         Self { actions, lines }
     }
+}
+
+/// « ajout de matière · 10 mm »: what a step of matter does, then how far.
+fn matter(lang: &Catalogue, variables: &Variables, operation: &Operation) -> String {
+    let (key, reach, mode) = match operation {
+        Operation::Extrude { distance, mode, .. } => ("part_tree.history.raised", distance, mode),
+        Operation::Revolve { angle, mode, .. } => ("part_tree.history.swept", angle, mode),
+        _ => return String::new(),
+    };
+    let reach = formula::sized(lang, variables, reach, |at| at.to_string());
+    lang.t_with(
+        key,
+        &[("mode", &lang.t(mode_key(*mode))), ("reach", &reach)],
+    )
+}
+
+/// The name and the detail of an action inside a sketch: its size, for a
+/// rectangle or a circle, and what the history has always said otherwise.
+fn drawn(lang: &Catalogue, variables: &Variables, operation: &Operation) -> (String, String) {
+    let name = wording::history::label(lang, variables, operation);
+    let size = match operation {
+        Operation::AddRectangle {
+            corner: PointRef::New(corner),
+            opposite: PointRef::New(opposite),
+            ..
+        } => {
+            let span = (*opposite - *corner).abs();
+            Some(lang.t_with(
+                "part_tree.history.rectangle",
+                &[
+                    ("width", &dimension::short(span.x)),
+                    ("height", &dimension::short(span.y)),
+                ],
+            ))
+        }
+        Operation::AddCircle { radius, .. } => Some(lang.t_with(
+            "part_tree.history.circle",
+            &[("diameter", &dimension::short(radius * 2.0))],
+        )),
+        _ => None,
+    };
+    let detail = size.unwrap_or_else(|| wording::history::detail(lang, variables, operation));
+    (name, detail)
 }

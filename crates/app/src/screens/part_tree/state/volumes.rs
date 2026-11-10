@@ -19,7 +19,7 @@ pub(super) fn volume(
     (declined, unstable): (bool, Option<String>),
 ) -> Option<Body> {
     let variables = document.variables();
-    let (name, reads, sketch, areas, mode) = match operation {
+    let (reads, sketch, areas, mode) = match operation {
         Operation::Extrude {
             sketch,
             areas,
@@ -31,7 +31,7 @@ pub(super) fn volume(
                 "part_tree.raised",
                 &[("distance", &travel), ("mode", &lang.t(mode_key(*mode)))],
             );
-            ("part_tree.extrusion", reads, *sketch, areas, *mode)
+            (reads, *sketch, areas, *mode)
         }
         Operation::Revolve {
             sketch,
@@ -45,14 +45,14 @@ pub(super) fn volume(
                 "part_tree.swept",
                 &[("angle", &turn), ("mode", &lang.t(mode_key(*mode)))],
             );
-            ("part_tree.revolution", reads, *sketch, areas, *mode)
+            (reads, *sketch, areas, *mode)
         }
         _ => return None,
     };
     let standing = standing_on(lang, document, sketch, areas);
     Some(Body {
         step,
-        name: numbered(lang, name, rank),
+        name: volume_name(lang, operation, rank)?,
         reads,
         badge: gravest(declined, standing.len() < areas.len(), unstable.is_some()),
         unstable,
@@ -65,7 +65,18 @@ pub(super) fn volume(
     })
 }
 
-fn mode_key(mode: ExtrusionMode) -> &'static str {
+/// The name of the `rank`th step of matter, the one its row and its line in
+/// the history both go by.
+pub(super) fn volume_name(lang: &Catalogue, operation: &Operation, rank: usize) -> Option<String> {
+    let key = match operation {
+        Operation::Extrude { .. } => "part_tree.extrusion",
+        Operation::Revolve { .. } => "part_tree.revolution",
+        _ => return None,
+    };
+    Some(numbered(lang, key, rank))
+}
+
+pub(super) fn mode_key(mode: ExtrusionMode) -> &'static str {
     match mode {
         ExtrusionMode::Add => "part_tree.mode.add",
         ExtrusionMode::Cut => "part_tree.mode.cut",

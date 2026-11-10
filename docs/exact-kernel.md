@@ -206,10 +206,22 @@ It can:
   the faces it meets at its ends. That last one checks what the cut left:
   no face of the prism but its chamfer, the chamfer in one piece, each of
   its corners on one of the edge's faces, and every face the body held
-  still there but the edge's two, which the chamfer may consume. So an
-  edge ending at a concave corner where a flat wall leaves it — an arm's
-  edge running into the stem of an L, a pocket's rim — is declined: the
-  cut carried along the line would run on along that wall. A round leaving
+  still there but the edge's two, which the chamfer may consume. An edge
+  ending where matter lies past it, behind the one flat face it runs into
+  there — an arm's edge running into the stem of an L, a pocket's rim, an
+  upright of a block standing on another — stops flush instead (#801,
+  `Exact::cut_flush` in `body/exact/wedge/flush.rs`): the prism is trimmed
+  on that face's plane as a fill's is, and that face grows by the cut's end
+  section and keeps its number. Where the face it runs into is curved, or
+  is not one face, the cut is carried along the line and the check
+  declines what it takes. Two such edges of one step meeting at a corner
+  whose third edge is concave and left out of the list — the L's two top
+  edges at its inner corner, two edges of a pocket's rim — each stop flush
+  there, and the later takes with it what both prisms, carried past the
+  corner, hold beyond both faces they stop on (`wedge/overlap.rs`): the two
+  flats or rounds run on into a mitre, a line among flats and an ellipse
+  among rounds, down to the concave edge, left sharp and one value short of
+  the corner, and no face is laid there. A round leaving
   the edge's end at a few degrees inwards trims the chamfer like any other
   end face; one leaving it outwards dips outside the edge's face past the
   end corner, and is covered only while the prism's side, a margin out,
@@ -417,10 +429,9 @@ Left, in the order #497 set:
   or square to it (#571), and two cylinders, elliptic walls or cones at any
   angle (#577);
 - an exact STEP;
-- fillets on a straight edge, then on a circular one, then where fillets
-  meet at a corner; a chamfer on one straight edge is done (#696), and a
-  chamfer on several edges at once, on a curved edge, or stopping at the
-  wall of a concave corner is still to come;
+- a chamfer and a fillet on a curved edge: on straight edges both are done
+  — one edge (#696, #697), several at once (#698), edges meeting at a convex
+  corner (#699), and stopping at the wall of a concave corner (#801);
 - draft, shell, loft.
 
 Known and still open:

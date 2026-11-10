@@ -686,8 +686,7 @@ const ELL_RESIZED: Ell = Ell {
     height: 12.0,
 };
 
-/// The numbers an L's arm's back and its stem's back answer to.
-const ARM_BACK: usize = 4;
+/// The number an L's stem's back answers to.
 const STEM_BACK: usize = 6;
 
 impl Ell {
@@ -994,17 +993,6 @@ fn a_chamfer_on_the_round_rim_of_a_disc_is_declined_as_unsupported() {
     let rim = edge_between(&disc, TOP, 2);
 
     let declined = disc.chamfer(&rim, 1.0).err();
-
-    assert_eq!(declined, Some(Declined::Unsupported));
-}
-
-#[test]
-fn a_chamfer_whose_cut_carried_along_its_edge_would_run_into_the_l_s_stem_is_declined_as_unsupported()
- {
-    let ell = ELL.on(ground());
-    let arm_back = edge_between(&ell, TOP, ARM_BACK);
-
-    let declined = ell.chamfer(&arm_back, 1.0).err();
 
     assert_eq!(declined, Some(Declined::Unsupported));
 }

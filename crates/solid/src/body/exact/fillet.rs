@@ -21,33 +21,44 @@ impl Exact {
     /// two set-backs on such a face stop short of crossing. Where they meet,
     /// the face is gone and the two rounds, about one axis, are one full round
     /// — a round bottom where the faces meet inwards — as
-    /// [`Wedge::rounded_with`] lays it, at the radius they meet at. Two edges
-    /// meeting at a convex corner are mitred there, on the ellipse where their
-    /// rounds cross, from where they leave the face the edges share down to the
-    /// corner's third edge, left sharp. Three edges meeting at a convex corner
-    /// are closed there by a piece of sphere of the radius, centred one radius
-    /// from the corner's three faces, meeting each round along the round's end
-    /// section, square to its edge through the centre, and numbered after the
-    /// rounds, as [`rounded_across`] lays it; declined `Undrawn` where the
-    /// kernel cannot draw it. Rounds that would meet anywhere else are not
-    /// measured, and declined where they meet until #792. The rounds are
-    /// numbered, in the order the names come, where the steps' numbers ended; a
-    /// full round answers to both its edges' numbers. Declined `Distance`: a
-    /// radius that is no length, one whose round would stand off the faces it
-    /// replaces by less than the kernel can set a cut back by — a larger radius
-    /// stands further off, and on an edge bent nearly flat is what rounds it —
-    /// and a round the kernel read onto those faces even so, or did not lay as
-    /// one face. `Lost`: an edge its name no longer finds. `Unsupported`: a
-    /// list of no edge, an edge that is not straight between two flat faces,
-    /// one running on tangentially into the next edge of a face on the body as
-    /// given, one edge named twice, two edges meeting at a corner where an edge
-    /// meets inwards, an edge whose set-backs meet those of two others — rounds
-    /// closing on themselves, #790 — an edge of a full round or a round bottom
-    /// meeting another edge of the list at a corner, and a cut that left
-    /// anything but its round — a face of the prism, the round in two pieces or
-    /// with a corner on neither of the edge's faces, a face the body held, but
-    /// the edge's two, taken away whole — as where a round leaving the edge's
-    /// end outwards bulges past the edge's face, and the prism's wall square to
+    /// [`Wedge::rounded_with`] lays it, at the radius they meet at. Where
+    /// matter lies past an end of an edge rounded off, behind the one flat
+    /// face it runs into there — the inner corner of an L, a pocket's rim, the
+    /// foot of a block standing on another — its round stops flush on that
+    /// face, which grows by the round's end and keeps its number, as
+    /// [`Exact::cut_flush`] stops it. Two edges meeting at a convex corner are
+    /// mitred there, on the ellipse where their rounds cross, from where they
+    /// leave the face the edges share down to the corner's third edge, left
+    /// sharp. Two rounded off where they meet beside a concave edge left sharp
+    /// — the L's two top edges at its inner corner, two edges of a pocket's
+    /// rim — each stop flush there and run on past the corner into a mitre,
+    /// on the ellipse where their rounds cross, from where they leave the face
+    /// the edges share down to the concave edge, which ends one radius short
+    /// of the corner, no face laid there. Three edges meeting at a convex
+    /// corner are closed there by a piece of sphere of the radius, centred one
+    /// radius from the corner's three faces, meeting each round along the
+    /// round's end section, square to its edge through the centre, and
+    /// numbered after the rounds, as [`rounded_across`] lays it; declined
+    /// `Undrawn` where the kernel cannot draw it. Rounds that would meet
+    /// anywhere else are not measured, and declined where they meet until
+    /// #792. The rounds are numbered, in the order the names come, where the
+    /// steps' numbers ended; a full round answers to both its edges' numbers.
+    /// Declined `Distance`: a radius that is no length, one whose round would
+    /// stand off the faces it replaces by less than the kernel can set a cut
+    /// back by — a larger radius stands further off, and on an edge bent
+    /// nearly flat is what rounds it — and a round the kernel read onto those
+    /// faces even so, or did not lay as one face. `Lost`: an edge its name no
+    /// longer finds. `Unsupported`: a list of no edge, an edge that is not
+    /// straight between two flat faces, one running on tangentially into the
+    /// next edge of a face on the body as given, one edge named twice, two
+    /// edges meeting at any other corner where an edge meets inwards, an edge
+    /// whose set-backs meet those of two others — rounds closing on
+    /// themselves, #790 — an edge of a full round or a round bottom meeting
+    /// another edge of the list at a corner, and a cut that left anything but
+    /// its round — a face of the prism, the round in two pieces or with a
+    /// corner on neither of the edge's faces, a face the body held, but the
+    /// edge's two, taken away whole — as where a round leaving the edge's end
+    /// outwards bulges past the edge's face, and the prism's wall square to
     /// that face cuts the bulge off, or two rounds meet where the radius was
     /// not measured for them.
     pub fn filleted(&self, names: &[EdgeName], radius: f64) -> Result<(Exact, f64), Declined> {

@@ -51,7 +51,12 @@
 //!   `seed_352000000000339_an_elliptic_bar_joined_to_a_round_one_leaning_80_degrees_then_cut_by_a_round_and_an_elliptic_one_at_30_degrees_keeps_every_rule`,
 //!   `seed_353000000000880_a_cone_bored_at_47_degrees_then_joined_to_a_bar_at_31_degrees_keeps_every_rule`,
 //!   `seed_354000000007974_a_round_bar_cut_by_two_bores_of_its_radius_at_46_and_42_degrees_keeps_every_rule_through_the_application_s_body`,
-//!   `seed_354000000009148_an_elliptic_bar_cut_by_two_bores_crossing_square_one_6e_8_off_keeps_every_rule_through_the_application_s_body`
+//!   `seed_354000000009148_an_elliptic_bar_cut_by_two_bores_crossing_square_one_6e_8_off_keeps_every_rule_through_the_application_s_body`;
+//!   the one rule is held beside its code, in
+//!   `crates/solid/src/brep/tessellation/sampling/meet/outside/tests.rs`, by
+//!   `a_chord_dipping_into_a_pierced_wall_no_deeper_than_its_triangles_sag_is_left_whole`
+//!   and
+//!   `a_chord_dipping_into_a_wall_deeper_than_its_triangles_sag_is_halved_only_until_it_dips_no_deeper_than_they_sag`
 //! - A unit test pins the seam case of point 4, red before — no test: in this
 //!   file; held by
 //!   `at_an_angle_between_the_two_ends_of_its_table_a_ruled_meet_is_found_at_its_seam`,
@@ -65,9 +70,9 @@
 //!   turned set run on `main` and on the branch and compared seed by seed,
 //!   recorded in a document
 //! - From the comment: a third wall that is a cone is covered by the one rule
-//!   or named out of reach — no test: in this file; held by
-//!   `a_meet_s_chord_passing_inside_a_cone_its_end_stands_on_where_the_curve_stays_outside_is_cut_until_it_stays_outside`,
-//!   in `crates/solid/src/brep/tessellation/sampling/meet/outside/tests.rs`
+//!   or named out of reach — no test: named out of reach; the pass sees only
+//!   the body's contact walls, `contact::Wall`, which are cylinders, and a
+//!   cone third wall would need a list of cone walls that does not exist
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;

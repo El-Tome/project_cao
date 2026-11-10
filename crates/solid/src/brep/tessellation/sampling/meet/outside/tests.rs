@@ -122,22 +122,34 @@ fn deepest_inside(wall: &Cylinder, start: DVec3, end: DVec3) -> f64 {
 }
 
 #[test]
-fn a_meet_s_chord_passing_inside_a_wall_its_end_stands_on_where_the_curve_stays_outside_is_cut_until_it_stays_outside()
+fn a_meet_s_chord_passing_inside_a_wall_its_end_stands_on_deeper_than_its_triangles_sag_is_cut_until_it_dips_no_deeper_than_they_sag()
  {
     let (body, edge, meet, walls) =
         a_quarter_meet_and_a_wall_touching_the_stock_inside_at_its_top(10.0);
     let eps = body.scale().eps();
     let wall = &walls[0].1;
-    let before = run_of(&body, edge, &[]);
+    let angles = sampled_angles(
+        divisions_in(wall.radius, TOLERANCE, span(&body)),
+        Vec::new(),
+    );
     assert!(
-        deepest_inside(wall, before[0], before[1]) > 1e3 * eps,
-        "the fixture's chord stays outside the wall"
+        deeper_than_the_sag(&meet, wall, &angles, eps, FRAC_PI_2, PI) > 0.0,
+        "the fixture's chord dips no deeper than the wall's triangles sag"
     );
 
-    let kept = kept_outside(&body, edge, &meet, &walls, TOLERANCE, Vec::new());
+    let zones = Zones::of(&body, &walls);
+    let contacts = BTreeMap::new();
+    let kept = kept_outside(
+        &body,
+        edge,
+        &meet,
+        &walls,
+        TOLERANCE,
+        Vec::new(),
+        (&walls, &zones, &contacts),
+    );
 
     assert!(!kept.is_empty(), "the chord is left whole");
-    let run = run_of(&body, edge, &kept);
     let mut last = FRAC_PI_2;
     for point in &kept {
         let t = meet.parameter(*point);
@@ -148,11 +160,15 @@ fn a_meet_s_chord_passing_inside_a_wall_its_end_stands_on_where_the_curve_stays_
         assert!(last < t && t < PI, "{t} out of order after {last}");
         last = t;
     }
-    for pair in run.windows(2) {
-        let depth = deepest_inside(wall, pair[0], pair[1]);
+    let places: Vec<f64> = std::iter::once(FRAC_PI_2)
+        .chain(kept.iter().map(|point| meet.parameter(*point)))
+        .chain(std::iter::once(PI))
+        .collect();
+    for pair in places.windows(2) {
+        let deeper = deeper_than_the_sag(&meet, wall, &angles, eps, pair[0], pair[1]);
         assert!(
-            depth <= eps,
-            "the chord from {} to {} passes {depth} inside the wall",
+            deeper <= 0.0,
+            "the chord from {} to {} dips {deeper} deeper than the wall's triangles sag",
             pair[0],
             pair[1]
         );
@@ -187,7 +203,17 @@ fn a_meet_s_chords_ending_within_the_tolerance_of_a_wall_a_hair_inside_its_own_a
         "the fixture's curve lies on the wall"
     );
 
-    let kept = kept_outside(&body, edge, &meet, &walls, TOLERANCE, points.clone());
+    let zones = Zones::of(&body, &walls);
+    let contacts = BTreeMap::new();
+    let kept = kept_outside(
+        &body,
+        edge,
+        &meet,
+        &walls,
+        TOLERANCE,
+        points.clone(),
+        (&walls, &zones, &contacts),
+    );
 
     assert_eq!(kept, points);
 }
@@ -196,11 +222,21 @@ fn a_meet_s_chords_ending_within_the_tolerance_of_a_wall_a_hair_inside_its_own_a
 fn a_meet_s_own_samples_stand_bit_for_bit_among_those_the_wall_adds() {
     let (body, edge, meet, walls) =
         a_quarter_meet_and_a_wall_touching_the_stock_inside_at_its_top(10.0);
-    let points: Vec<DVec3> = [0.25, 0.5, 0.75]
+    let points: Vec<DVec3> = [0.5, 0.75]
         .map(|share| meet.point(FRAC_PI_2 + FRAC_PI_2 * share) + DVec3::X * 1e-10)
         .to_vec();
 
-    let kept = kept_outside(&body, edge, &meet, &walls, TOLERANCE, points.clone());
+    let zones = Zones::of(&body, &walls);
+    let contacts = BTreeMap::new();
+    let kept = kept_outside(
+        &body,
+        edge,
+        &meet,
+        &walls,
+        TOLERANCE,
+        points.clone(),
+        (&walls, &zones, &contacts),
+    );
 
     assert!(kept.len() > points.len(), "the wall adds no sample");
     let mut found = kept.iter();
@@ -406,13 +442,17 @@ fn a_wall_no_end_of_the_edge_lies_on_keeps_no_chord_of_it_outside() {
     );
     assert!(deepest_inside(&laid.wall.1, ends[0], ends[1]) > 1e3 * eps);
 
+    let walls = [laid.wall];
+    let zones = Zones::of(&laid.body, &walls);
+    let contacts = BTreeMap::new();
     let kept = kept_outside(
         &laid.body,
         laid.edge,
         &laid.meet,
-        &[laid.wall],
+        &walls,
         TOLERANCE,
         Vec::new(),
+        (&walls, &zones, &contacts),
     );
 
     assert_eq!(kept, Vec::new());
@@ -436,13 +476,17 @@ fn a_chord_dipping_into_a_wall_no_deeper_than_the_kernel_s_tolerance_is_left_alo
         ) > eps
     );
 
+    let walls = [laid.wall];
+    let zones = Zones::of(&laid.body, &walls);
+    let contacts = BTreeMap::new();
     let kept = kept_outside(
         &laid.body,
         laid.edge,
         &laid.meet,
-        &[laid.wall],
+        &walls,
         0.0,
         Vec::new(),
+        (&walls, &zones, &contacts),
     );
 
     assert_eq!(kept, Vec::new());
@@ -465,14 +509,164 @@ fn a_chord_passing_inside_a_wall_the_curve_itself_runs_along_is_left_alone() {
     }
     assert!(wall.distance(ends[1]) > 0.0);
 
+    let walls = [laid.wall];
+    let zones = Zones::of(&laid.body, &walls);
+    let contacts = BTreeMap::new();
     let kept = kept_outside(
         &laid.body,
         laid.edge,
         &laid.meet,
-        &[laid.wall],
+        &walls,
         0.0,
         Vec::new(),
+        (&walls, &zones, &contacts),
     );
 
     assert_eq!(kept, Vec::new());
+}
+
+/// Half round the hole, from its top down to its foot at (0, 20, 0), both on
+/// a wall of radius 10 touching the stock inside, which holds a face; sampled
+/// at the parameters `samples`. The chord from the top dips into the wall far
+/// deeper than its triangles sag; the chord to the foot from nine tenths of
+/// the way dips into it less.
+fn a_half_meet_from_a_wall_s_top_to_its_foot(samples: &[f64]) -> (Laid, Vec<DVec3>) {
+    let laid = Layout {
+        to: 3.0 * FRAC_PI_2,
+        faced: Some([0.0, fixtures::HEIGHT]),
+        ..Layout::quarter(10.0)
+    }
+    .laid();
+    let points = samples.iter().map(|t| laid.meet.point(*t)).collect();
+    (laid, points)
+}
+
+/// The edge's points once its chords are kept outside the walls they pierce,
+/// the two steps taken as the sampling of an edge takes them.
+fn kept_outside_in(laid: &Laid, tolerance: f64, points: Vec<DVec3>) -> Vec<DVec3> {
+    let walls = [laid.wall];
+    let zones = Zones::of(&laid.body, &walls);
+    let contacts = BTreeMap::new();
+    let pierced = pierced(
+        &laid.body,
+        laid.edge,
+        &laid.meet,
+        (&walls, &zones, &contacts),
+        (tolerance, span(&laid.body)),
+        &points,
+    );
+    assert_eq!(pierced, vec![laid.wall], "the edge's chords pierce no wall");
+    kept_outside(
+        &laid.body,
+        laid.edge,
+        &laid.meet,
+        &pierced,
+        tolerance,
+        points,
+        (&walls, &zones, &contacts),
+    )
+}
+
+/// How much deeper the chord of `meet` from `from` to `to` dips into `wall`
+/// than the wall's triangles sag, sampled at `angles`, at its worst, where
+/// the curve stands outside the wall: below nought, nowhere.
+fn deeper_than_the_sag(
+    meet: &Meet,
+    wall: &Cylinder,
+    angles: &[f64],
+    eps: f64,
+    from: f64,
+    to: f64,
+) -> f64 {
+    let (start, end) = (meet.point(from), meet.point(to));
+    (1..PROBES)
+        .filter_map(|part| {
+            let share = part as f64 / PROBES as f64;
+            let chord = start.lerp(end, share);
+            let depth = -wall.distance(chord);
+            let sag = sag_at(
+                angles,
+                wall.radius,
+                wall.parameters(chord).x.rem_euclid(TAU),
+            );
+            let outside = wall.distance(meet.point(from + (to - from) * share)) > eps;
+            (outside && depth > eps).then_some(depth - sag)
+        })
+        .fold(f64::NEG_INFINITY, f64::max)
+}
+
+fn parameters_between(meet: &Meet, kept: &[DVec3], from: f64, to: f64) -> Vec<f64> {
+    kept.iter()
+        .map(|point| meet.parameter(*point))
+        .filter(|t| from + 1e-9 < *t && *t < to - 1e-9)
+        .collect()
+}
+
+#[test]
+fn a_chord_dipping_into_a_pierced_wall_no_deeper_than_its_triangles_sag_is_left_whole() {
+    let last = FRAC_PI_2 + 0.9 * PI;
+    let (laid, points) = a_half_meet_from_a_wall_s_top_to_its_foot(&[PI, last]);
+    let eps = laid.body.scale().eps();
+    let (_, wall) = laid.wall;
+    let angles = sampled_angles(
+        divisions_in(wall.radius, TOLERANCE, span(&laid.body)),
+        Vec::new(),
+    );
+    let foot = 3.0 * FRAC_PI_2;
+    let (start, end) = (laid.meet.point(last), laid.meet.point(foot));
+    assert!(
+        deepest_inside(&wall, start, end) > 1e2 * eps,
+        "the chord to the foot stays outside the wall"
+    );
+    assert!(
+        deeper_than_the_sag(&laid.meet, &wall, &angles, eps, last, foot) <= 0.0,
+        "the chord to the foot dips deeper than the wall's triangles sag"
+    );
+    assert!(
+        wall.distance(start) > TOLERANCE,
+        "the chord to the foot stays within the tolerance of the wall"
+    );
+
+    let kept = kept_outside_in(&laid, TOLERANCE, points);
+
+    let added = parameters_between(&laid.meet, &kept, last, foot);
+    assert!(
+        added.is_empty(),
+        "the chord to the foot is cut at {added:?}"
+    );
+}
+
+#[test]
+fn a_chord_dipping_into_a_wall_deeper_than_its_triangles_sag_is_halved_only_until_it_dips_no_deeper_than_they_sag()
+ {
+    let (laid, points) = a_half_meet_from_a_wall_s_top_to_its_foot(&[PI, FRAC_PI_2 + 0.9 * PI]);
+    let eps = laid.body.scale().eps();
+    let (_, wall) = laid.wall;
+    let angles = sampled_angles(
+        divisions_in(wall.radius, TOLERANCE, span(&laid.body)),
+        Vec::new(),
+    );
+    let meet = laid.meet;
+    let to = meet.parameter(points[0]);
+
+    let kept = kept_outside_in(&laid, TOLERANCE, points);
+
+    let mut stretches = vec![(FRAC_PI_2, to)];
+    while let Some((from, to)) = stretches.pop() {
+        let added = parameters_between(&meet, &kept, from, to);
+        let deeper = deeper_than_the_sag(&meet, &wall, &angles, eps, from, to);
+        if deeper > 0.0 {
+            let middle = (from + to) / 2.0;
+            assert!(
+                added.iter().any(|t| (t - middle).abs() <= 1e-9),
+                "the chord from {from} to {to} dips {deeper} deeper than the wall's triangles sag, and is not halved: {added:?}"
+            );
+            stretches.extend([(from, middle), (middle, to)]);
+        } else {
+            assert!(
+                added.is_empty(),
+                "the chord from {from} to {to} dips no deeper than the wall's triangles sag, and is cut at {added:?}"
+            );
+        }
+    }
 }

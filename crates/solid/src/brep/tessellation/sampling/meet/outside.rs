@@ -89,3 +89,6 @@ pub(super) fn kept_outside(
     }
     kept
 }
+
+#[cfg(test)]
+mod tests;

@@ -86,10 +86,10 @@ impl Ribbon {
 }
 
 /// Whether a menu right after this command is its variants. A toggle's state
-/// is no tool a menu could offer variants of: « Construction » precedes
-/// « Contraintes » without being one of them.
+/// is no tool a menu could offer variants of, and « Mesurer » only reads the
+/// drawing: each may precede « Contraintes » without being one of them.
 fn takes_a_menu(command: Command) -> bool {
-    command != Command::ToggleConstruction
+    !matches!(command, Command::ToggleConstruction | Command::ToolMeasure)
 }
 
 /// The deepest level whose groups are spread out on the bar: a group below it

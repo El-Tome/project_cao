@@ -18,9 +18,7 @@ impl Default for ToolbarLayout {
                 Item::group(
                     "sketch",
                     vec![
-                        Item::Command(C::NewSketch),
-                        Item::Command(C::SectionView),
-                        Item::Separator,
+                        Item::group("new_sketch", vec![Item::Command(C::NewSketch)]),
                         Item::group(
                             "drawing",
                             vec![
@@ -56,24 +54,14 @@ impl Default for ToolbarLayout {
                                     ],
                                 ),
                                 Item::Command(C::ToolPoint),
+                            ],
+                        ),
+                        Item::Group {
+                            name: "dimensions".to_string(),
+                            size: GroupSize::SmallThreeRows,
+                            items: vec![
                                 Item::Command(C::ToolDimension),
                                 Item::Command(C::ToolMeasure),
-                                Item::Command(C::ToolTrim),
-                                Item::Command(C::ToolSplit),
-                                Item::Command(C::ToolMirror),
-                                Item::Command(C::ToolCircularPattern),
-                                Item::Command(C::ToolRectangularPattern),
-                                Item::Command(C::ToolFillet),
-                                Item::Command(C::ToolChamfer),
-                                Item::group(
-                                    "chamfers",
-                                    vec![
-                                        Item::Command(C::ChamferEqual),
-                                        Item::Command(C::ChamferAngled),
-                                        Item::Command(C::ChamferSided),
-                                    ],
-                                ),
-                                Item::Command(C::ToggleConstruction),
                                 // A third level opens as a menu rather than
                                 // being spread out: nine rules laid on the bar
                                 // would push everything else off it.
@@ -92,11 +80,29 @@ impl Default for ToolbarLayout {
                                     ],
                                 ),
                             ],
-                        ),
-                        Item::Command(C::Reframe),
-                        Item::Command(C::NextMatterInFront),
-                        Item::Command(C::FinishSketch),
-                        Item::Separator,
+                        },
+                        Item::Group {
+                            name: "modify".to_string(),
+                            size: GroupSize::SmallThreeRows,
+                            items: vec![
+                                Item::Command(C::ToolTrim),
+                                Item::Command(C::ToolSplit),
+                                Item::Command(C::ToolMirror),
+                                Item::Command(C::ToolFillet),
+                                Item::Command(C::ToolChamfer),
+                                Item::group(
+                                    "chamfers",
+                                    vec![
+                                        Item::Command(C::ChamferEqual),
+                                        Item::Command(C::ChamferAngled),
+                                        Item::Command(C::ChamferSided),
+                                    ],
+                                ),
+                                Item::Command(C::ToggleConstruction),
+                                Item::Command(C::ToolCircularPattern),
+                                Item::Command(C::ToolRectangularPattern),
+                            ],
+                        },
                         Item::Group {
                             name: "edit".to_string(),
                             size: GroupSize::SmallTwoRows,
@@ -107,27 +113,44 @@ impl Default for ToolbarLayout {
                 Item::group(
                     "extrusion",
                     vec![
-                        Item::Command(C::ExtrusionAdd),
-                        Item::Command(C::ExtrusionCut),
-                        Item::Separator,
-                        Item::Command(C::ExtrusionStraight),
-                        Item::Command(C::ExtrusionRevolution),
+                        Item::group(
+                            "matter",
+                            vec![
+                                Item::Command(C::ExtrusionAdd),
+                                Item::Command(C::ExtrusionCut),
+                            ],
+                        ),
+                        Item::group(
+                            "shape",
+                            vec![
+                                Item::Command(C::ExtrusionStraight),
+                                Item::Command(C::ExtrusionRevolution),
+                            ],
+                        ),
+                        Item::Group {
+                            name: "edit".to_string(),
+                            size: GroupSize::SmallTwoRows,
+                            items: vec![Item::Command(C::Undo), Item::Command(C::Redo)],
+                        },
                     ],
                 ),
                 Item::group(
                     "export",
-                    vec![
-                        Item::Group {
-                            name: "stl".to_string(),
-                            size: GroupSize::Menu,
-                            items: vec![
-                                Item::Command(C::ExportStlCoarse),
-                                Item::Command(C::ExportStlNormal),
-                                Item::Command(C::ExportStlFine),
-                            ],
-                        },
-                        Item::Command(C::ExportStep),
-                    ],
+                    vec![Item::group(
+                        "formats",
+                        vec![
+                            Item::Group {
+                                name: "stl".to_string(),
+                                size: GroupSize::Menu,
+                                items: vec![
+                                    Item::Command(C::ExportStlCoarse),
+                                    Item::Command(C::ExportStlNormal),
+                                    Item::Command(C::ExportStlFine),
+                                ],
+                            },
+                            Item::Command(C::ExportStep),
+                        ],
+                    )],
                 ),
             ],
         }

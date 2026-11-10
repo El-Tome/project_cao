@@ -181,7 +181,7 @@ fn a_sketch_on_yz(test: &str, size: egui::Vec2) -> driver::App {
     driver::click(&mut app, "Nouvelle esquisse");
     driver::click_at_world_point(&mut app, ON_THE_YZ_PLANE);
     assert!(
-        driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
+        driver::a_sketch_is_open(&app),
         "the click on YZ opened no sketch, showing {:?}",
         driver::on_screen(&app),
     );

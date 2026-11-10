@@ -6,6 +6,7 @@ use egui::{
 
 use super::{ink, key_ink, pressable, undo_the_fade};
 use crate::ui::icon::{Icon, IconSize};
+use crate::ui::theme::hovered_menu_rows_stand_out;
 use crate::ui::theme::tokens::{
     BORDER_FIELD, BORDER_SEPARATOR, SHADOW_MENU, SPACING_M, TYPOGRAPHY_SIZES_BUTTON,
     TYPOGRAPHY_SIZES_MONO_VALUE,
@@ -33,6 +34,7 @@ pub fn ribbon_menu(opened_by: &Response, rows: impl FnOnce(&mut Ui)) {
         .show(|ui| {
             ui.set_width(MENU_WIDTH - 2.0 * (margin + MENU_BORDER));
             ui.spacing_mut().item_spacing.y = 0.0;
+            hovered_menu_rows_stand_out(ui);
             rows(ui);
         });
 }
@@ -44,7 +46,10 @@ pub fn sub_menu(ui: &mut Ui, name: &str, entries: impl FnOnce(&mut Ui)) {
         ui.menu_button(name, entries);
         return;
     }
-    let (response, _) = SubMenuButton::from_button(Button::new(name)).ui(ui, entries);
+    let (response, _) = SubMenuButton::from_button(Button::new(name)).ui(ui, |ui| {
+        hovered_menu_rows_stand_out(ui);
+        entries(ui);
+    });
     let padding = ui.spacing().button_padding.x;
     ui.painter().text(
         response.rect.right_center() - vec2(padding, 0.0),

@@ -175,6 +175,65 @@ fn settings_written_by_another_version_open_on_the_defaults() {
     assert_eq!(Profiles::load(&files, &at), Profiles::default());
 }
 
+/// The last version a settings file was written at with the ribbon #732
+/// regrouped: a figure of the past, which later versions leave where it is.
+const LAST_VERSION_OF_THE_OLD_RIBBON: u32 = 3;
+
+#[test]
+fn a_default_profile_saved_with_the_old_ribbon_takes_the_new_one_at_load() {
+    let at = at();
+    let files = InMemoryFiles::default();
+    let mut profiles = Profiles::default();
+    profiles.active_mut().toolbar.items = vec![Item::group(
+        "sketch",
+        vec![
+            Item::Command(Command::NewSketch),
+            Item::Command(Command::Reframe),
+            Item::Command(Command::FinishSketch),
+        ],
+    )];
+    profiles.version = LAST_VERSION_OF_THE_OLD_RIBBON;
+    profiles
+        .save(&files, &at)
+        .expect("the settings are written");
+
+    let read = Profiles::load(&files, &at);
+
+    assert_eq!(read.active_name(), DEFAULT_PROFILE);
+    assert_eq!(
+        read.active().toolbar,
+        ToolbarLayout::default(),
+        "a profile saved before the ribbon was regrouped keeps the old ribbon",
+    );
+}
+
+#[test]
+fn a_profile_the_user_created_keeps_its_own_toolbar_across_a_save_and_a_load() {
+    let at = at();
+    let files = InMemoryFiles::default();
+    let mut settings = Settings::default();
+    settings.toolbar.items = vec![Item::group(
+        "sketch",
+        vec![Item::Command(Command::ToolLine)],
+    )];
+    let own = settings.toolbar.clone();
+    let mut profiles = Profiles::default();
+    profiles.add(Profile::new("Workshop", settings));
+
+    profiles
+        .save(&files, &at)
+        .expect("the settings are written");
+    let read = Profiles::load(&files, &at);
+
+    assert_eq!(read.active_name(), "Workshop");
+    assert_eq!(read.active().toolbar, own);
+    assert_ne!(
+        read.active().toolbar,
+        ToolbarLayout::default(),
+        "the profile the user made was given the default ribbon",
+    );
+}
+
 #[test]
 fn settings_holding_no_profile_at_all_open_on_the_defaults() {
     let at = at();
@@ -252,15 +311,33 @@ fn a_shortcut_the_user_unbound_stays_unbound_across_a_save_and_a_load() {
     assert_eq!(read.active().shortcuts, saved);
 }
 
+/// Where a command stands in a toolbar tree, as the ranks of the groups to walk
+/// through and its own.
+fn path_of(items: &[Item], wanted: Command) -> Option<Vec<usize>> {
+    items
+        .iter()
+        .enumerate()
+        .find_map(|(rank, item)| match item {
+            Item::Command(command) if *command == wanted => Some(vec![rank]),
+            Item::Group { items, .. } => path_of(items, wanted).map(|mut below| {
+                below.insert(0, rank);
+                below
+            }),
+            _ => None,
+        })
+}
+
 #[test]
 fn a_button_the_user_removed_stays_removed_across_a_save_and_a_load() {
     let at = at();
     let files = InMemoryFiles::default();
     let mut profiles = Profiles::default();
+    let new_sketch = path_of(&profiles.active().toolbar.items, Command::NewSketch)
+        .expect("the standard toolbar holds the new-sketch command");
     let removed = profiles
         .active_mut()
         .toolbar
-        .remove(&[0, 0])
+        .remove(&new_sketch)
         .expect("a button of the standard toolbar");
     assert_eq!(removed, Item::Command(Command::NewSketch));
     let saved = profiles.active().toolbar.clone();

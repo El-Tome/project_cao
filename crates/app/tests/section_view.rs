@@ -35,10 +35,10 @@ fn a_block(test: &str) -> driver::App {
     driver::click_at_sketch_point(&mut app, driver::INSIDE_THE_RECTANGLE);
     driver::click(&mut app, "Appliquer");
     driver::press(&mut app, egui::Key::Escape);
-    click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
+    driver::finish_the_sketch(&mut app);
     driver::click_the_button(&mut app, "Esquisse");
     assert!(
-        !driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
+        !driver::a_sketch_is_open(&app),
         "the sketch the block was raised from is still being edited, showing {:?}",
         driver::on_screen(&app),
     );
@@ -66,12 +66,12 @@ fn the_panel_is_open(app: &driver::App) -> bool {
 fn the_section_view_button_opens_its_panel_and_closing_it_turns_the_view_off() {
     let mut app = a_block("the_section_view_button_opens_its_panel");
 
-    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     let opened = the_panel_is_open(&app);
     let offers_a_face = driver::shows(&app, "Face cliquée");
-    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     let closed_by_the_button = !the_panel_is_open(&app);
-    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     let opened_again = the_panel_is_open(&app);
     driver::press(&mut app, egui::Key::Escape);
     let closed_by_escape = !the_panel_is_open(&app);
@@ -99,7 +99,7 @@ fn the_section_view_button_opens_its_panel_and_closing_it_turns_the_view_off() {
 #[test]
 fn starting_a_sketch_turns_the_section_view_off() {
     let mut app = a_block("starting_a_sketch_turns_the_section_view_off");
-    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     assert!(
         the_panel_is_open(&app),
         "« Vue en coupe » opens no panel, showing {:?}",
@@ -110,7 +110,7 @@ fn starting_a_sketch_turns_the_section_view_off() {
     driver::click_at_world_point(&mut app, ON_THE_YZ_PLANE_BESIDE_THE_BLOCK);
 
     assert!(
-        driver::shows(&app, driver::FINISH_IN_THE_RIBBON),
+        driver::a_sketch_is_open(&app),
         "the click started no sketch, showing {:?}",
         driver::on_screen(&app),
     );
@@ -123,7 +123,7 @@ fn starting_a_sketch_turns_the_section_view_off() {
 #[test]
 fn the_close_control_in_the_panel_s_title_turns_the_view_off() {
     let mut app = a_block("the_close_control_in_the_panel_s_title");
-    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     assert!(
         the_panel_is_open(&app),
         "« Vue en coupe » opens no panel, showing {:?}",

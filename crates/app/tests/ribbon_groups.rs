@@ -137,6 +137,92 @@
 //! - the dock / undock command — no test: `Command::ToggleToolbarDocked` stays
 //!   what it is today, a no-op in `commands.rs`, and nothing here changes it
 //!
+//! Closes #732. The bullets keep the issue's wording, its French names between
+//! guillemets; what the prefs and the wording hold is named as held there.
+//! - Esquisse tab holds, in this order: « Esquisse » (« Nouvelle esquisse »,
+//!   large) · « Dessin », large: « Sélection », « Ligne », « Ligne sym. »,
+//!   « Rectangle », « Cercle ▾ » (5), « Arc ▾ » (2), « Ellipse ▾ » (2),
+//!   « Point » · « Cotes et contraintes », small on 3 rows: « Cote »,
+//!   « Mesurer », « Contraintes ▾ » (9) · « Modifier », small on 3 rows:
+//!   « Ajuster », « Diviser », « Symétrie », « Congé », « Chanfrein ▾ » (3),
+//!   « Construction », « Réseau circulaire », « Réseau rectangulaire » ·
+//!   « Édition », small on 2 rows: « Annuler », « Rétablir » (greyed when there
+//!   is nothing to redo) —
+//!   `the_sketch_tab_writes_its_five_groups_in_order_each_under_its_buttons`,
+//!   `each_group_of_the_sketch_tab_draws_its_buttons_at_its_size` and, for
+//!   « Contraintes ▾ » standing apart from « Mesurer »,
+//!   `measure_stays_a_plain_button_and_the_constraints_split_stands_alone`; the
+//!   tree and its sizes in `crates/prefs/src/toolbar/tests.rs` by
+//!   `the_default_sketch_tab_holds_its_five_groups_and_their_commands_in_order`,
+//!   the group names in `crates/app/src/wording/toolbar/tests.rs` by
+//!   `the_five_groups_of_the_sketch_tab_read_as_the_design_names_them`, and
+//!   « Rétablir » greyed by
+//!   `redo_on_the_default_ribbon_is_greyed_until_something_can_be_redone`, and
+//!   at the presenter by `a_fresh_part_has_nothing_to_undo_and_nothing_to_redo`
+//!   in `crates/app/src/screens/ribbon/state/tests.rs`
+//! - Extrusion tab holds « Matière » (« Ajout de matière », « Enlèvement de
+//!   matière ») · « Forme » (« Extrusion droite », « Révolution ») · « Édition »
+//!   — `the_extrusion_tab_writes_its_three_groups_in_order_each_under_its_buttons`;
+//!   the tree and its sizes in `crates/prefs/src/toolbar/tests.rs` by
+//!   `the_default_extrusion_tab_holds_its_three_groups_and_their_commands_in_order`,
+//!   the group names in `crates/app/src/wording/toolbar/tests.rs` by
+//!   `the_three_groups_of_the_extrusion_tab_read_as_the_design_names_them`
+//! - Export tab holds « Exporter en STL… ▾ » (« Grossière » « rapide »,
+//!   « Normale » « par défaut », « Fine » « lourd ») and « Exporter en STEP… » —
+//!   `the_export_tab_draws_one_stl_split_with_its_three_levels_and_the_step_export`;
+//!   the tree in `crates/prefs/src/toolbar/tests.rs` by
+//!   `the_default_export_tab_holds_one_stl_split_and_the_step_export`
+//! - added on request on pull request #819, as screen `04` draws it: the Export
+//!   tab writes « EXPORTER » under its two buttons —
+//!   `the_export_tab_writes_its_group_under_its_buttons`, its wording in
+//!   `crates/app/src/wording/toolbar/tests.rs` by
+//!   `the_group_of_the_export_tab_reads_exporter_and_the_tab_keeps_its_name`
+//! - added on request on pull request #819: the ribbon is the same height on
+//!   every tab — `the_ribbon_is_the_same_height_on_every_tab`
+//! - Moved out: « Recadrer », « Vue en coupe », « Matière devant » and
+//!   « Terminer » are no longer in the default ribbon. They stay commands, with
+//!   their keys, and can be put back from the preferences —
+//!   `the_four_moved_commands_stand_in_no_tab_of_the_default_ribbon` and
+//!   `the_four_moved_commands_can_be_put_back_from_the_preferences`; the tree
+//!   and the keys in `crates/prefs/src/toolbar/tests.rs` by
+//!   `the_four_moved_commands_are_nowhere_in_the_default_tree_and_keep_their_keys`
+//! - The « Par défaut » profile takes this ribbon; a profile Tom created keeps
+//!   its own until « Réinitialiser la barre d'outils » —
+//!   `resetting_the_toolbar_gives_the_profile_the_default_ribbon`, the button
+//!   still reading « ↺ Barre par défaut » until #747 renames it; the load in
+//!   `crates/prefs/src/profiles/tests.rs` by
+//!   `a_default_profile_saved_with_the_old_ribbon_takes_the_new_one_at_load` and
+//!   `a_profile_the_user_created_keeps_its_own_toolbar_across_a_save_and_a_load`
+//! - At 1440 px the sketch tab fits on one line —
+//!   `the_sketch_tab_fits_on_one_line_at_1440`; and, as screens `01` and `03`
+//!   draw them, the names of a tab's groups stand at one height whatever the
+//!   size of each group — `the_group_names_of_a_tab_stand_on_one_line`; found
+//!   in review: wrapped, each line's names stay level and above the next
+//!   line — `a_wrapped_ribbon_keeps_each_line_s_names_level_and_above_the_next_line`
+//!   — and a group beside one wrapped inside itself keeps its name under its own
+//!   buttons — `a_group_beside_a_wrapped_group_keeps_its_name_under_its_own_buttons`
+//! - Every command stays reachable (G2): what leaves the ribbon has its place in
+//!   the view bar or the sketch pill —
+//!   `what_left_the_ribbon_has_its_place_in_the_view_bar_or_the_sketch_pill`,
+//!   and what stays by `every_command_of_the_default_tree_can_be_reached`
+//! - F and ↵ still reframe and finish —
+//!   `f_still_reframes_and_enter_still_finishes_the_sketch`
+//! - added on request on pull request #819: a hovered row of a chevron menu
+//!   can be seen, its fill standing clear of the menu's —
+//!   `a_hovered_row_of_a_chevron_menu_stands_out_from_the_menu`; the hover of a
+//!   button outside a menu does not change —
+//!   `hovering_a_ribbon_button_outside_a_menu_keeps_its_fill`; a row that is on
+//!   keeps its amber — `a_menu_row_that_is_on_keeps_its_amber`; a disabled row
+//!   paints nothing — `a_disabled_menu_row_paints_nothing_when_hovered`; the
+//!   same fill on the view bar's « Matière devant » menu —
+//!   `a_hovered_choice_of_the_view_bar_s_matter_menu_stands_out_from_the_menu`,
+//!   its current choice staying marked —
+//!   `the_current_choice_of_the_view_bar_s_matter_menu_stays_marked`, and on a
+//!   sub-group nested in a chevron menu —
+//!   `a_hovered_sub_group_of_a_chevron_menu_stands_out_from_the_menu`, and an
+//!   entry of the popup that sub-group opens —
+//!   `a_hovered_entry_of_a_nested_sub_menu_stands_out_from_the_menu`
+//!
 //! Decided on the way. The tree does not change: « Cercle » and the group
 //! `circles` stay two siblings, and a split button is a rule of the drawing —
 //! a command immediately followed by a menu-depth group is one button, the
@@ -147,11 +233,12 @@
 
 mod driver;
 
-use cao_app::theme::tokens::{BORDER_GROUP, BORDER_KEY, TEXT_QUIET};
+use cao_app::theme::tokens::{ACCENT_AMBER_BACKGROUND, BORDER_GROUP, BORDER_KEY, TEXT_QUIET};
 use cao_prefs::{Chord, Command, Edge, GroupSize, Item, Key, Settings};
 use egui::accesskit::{Role, Toggled};
 use egui::epaint::TextShape;
 use egui_kittest::kittest::{NodeT, Queryable};
+use glam::DVec3;
 
 /// How far two things laid out by egui may be apart and still be aligned:
 /// frames and galleys are placed on rounded points.
@@ -355,7 +442,8 @@ fn a_large_group_draws_large_buttons() {
 
 #[test]
 fn a_command_sitting_directly_in_a_tab_is_large() {
-    let app = opened("a_command_sitting_directly", WIDE, Settings::default());
+    let settings = bar_of(vec![Item::Command(Command::NewSketch)]);
+    let app = opened("a_command_sitting_directly", WIDE, settings);
 
     let new_sketch = the_ribbon_button(&app, "Nouvelle esquisse");
     assert!(
@@ -385,13 +473,12 @@ fn below_1440_the_ribbon_wraps_group_by_group_rather_than_button_by_button() {
 
 #[test]
 fn an_entry_of_a_tab_never_stands_above_the_one_before_it_in_the_tree() {
-    const IN_TREE_ORDER: [&str; 7] = [
+    const IN_TREE_ORDER: [&str; 6] = [
         "Nouvelle esquisse",
         "Sélection",
-        "Contraintes",
-        "Recadrer",
-        "Matière devant",
-        "Terminer",
+        "Point",
+        "Cote",
+        "Ajuster",
         "Annuler",
     ];
     let mut wrong = Vec::new();
@@ -440,8 +527,32 @@ fn a_bar_wide_enough_lays_all_its_groups_on_one_line() {
 
 #[test]
 fn a_group_wider_than_the_whole_bar_wraps_inside_itself_as_a_last_resort() {
+    use Command as C;
     let size = egui::vec2(1024.0, 768.0);
-    let app = opened("a_group_wider_than_the_bar", size, Settings::default());
+    let settings = bar_of(vec![Item::group(
+        "drawing",
+        commands(&[
+            C::ToolSelect,
+            C::ToolLine,
+            C::ToolLineSymmetric,
+            C::ToolRectangle,
+            C::ToolCircle,
+            C::ToolArc,
+            C::ToolEllipse,
+            C::ToolPoint,
+            C::ToolDimension,
+            C::ToolMeasure,
+            C::ToolTrim,
+            C::ToolSplit,
+            C::ToolMirror,
+            C::ToolCircularPattern,
+            C::ToolRectangularPattern,
+            C::ToolFillet,
+            C::ToolChamfer,
+            C::ToggleConstruction,
+        ]),
+    )]);
+    let app = opened("a_group_wider_than_the_bar", size, settings);
 
     let buttons = [
         "Sélection",
@@ -1047,7 +1158,7 @@ fn down_a_side_with_names_off_a_group_writes_its_whole_name() {
 
 #[test]
 fn down_a_side_a_command_sitting_directly_in_a_tab_is_small() {
-    let mut settings = Settings::default();
+    let mut settings = bar_of(vec![Item::Command(Command::NewSketch)]);
     settings.toolbar.edge = Edge::Left;
     let app = opened("down_a_side_a_command_directly_in_a_tab", WIDE, settings);
 
@@ -1177,6 +1288,912 @@ fn a_chevron_reaches_the_commands_of_its_sub_groups() {
     driver::click_exactly(&mut app, "Arcs");
 
     the_button(&app, "Centre, départ et arrivée");
+}
+
+/// The five groups of the default sketch tab, as written under their buttons,
+/// and the buttons each one holds on the bar.
+const THE_FIVE_GROUPS: [(&str, &[&str]); 5] = [
+    ("ESQUISSE", &["Nouvelle esquisse"]),
+    (
+        "DESSIN",
+        &[
+            "Sélection",
+            "Ligne",
+            "Ligne symétrique",
+            "Rectangle",
+            "Cercle",
+            "Arc",
+            "Ellipse",
+            "Point",
+        ],
+    ),
+    ("COTES ET CONTRAINTES", &["Cote", "Mesurer", "Contraintes"]),
+    (
+        "MODIFIER",
+        &[
+            "Ajuster",
+            "Diviser",
+            "Symétrie",
+            "Congé",
+            "Chanfrein",
+            "Construction",
+            "Réseau circulaire",
+            "Réseau rectangulaire",
+        ],
+    ),
+    ("ÉDITION", &["Annuler", "Rétablir"]),
+];
+
+#[test]
+fn the_sketch_tab_writes_its_five_groups_in_order_each_under_its_buttons() {
+    let app = opened(
+        "the_sketch_tab_writes_its_five_groups",
+        WIDE,
+        Settings::default(),
+    );
+
+    assert_groups_read_in_order_each_under_its_buttons(&app, &THE_FIVE_GROUPS);
+}
+
+/// Each group's name, as written, stands under its buttons, and the names read
+/// left to right in the order given.
+fn assert_groups_read_in_order_each_under_its_buttons(
+    app: &driver::App,
+    groups: &[(&str, &[&str])],
+) {
+    let mut lefts = Vec::new();
+    for (name, buttons) in groups {
+        let written_name = written(app, name);
+        let lowest = buttons
+            .iter()
+            .map(|button| the_ribbon_button(app, button).bottom())
+            .fold(f32::NEG_INFINITY, f32::max);
+        assert!(
+            written_name.rect.top() >= lowest,
+            "« {name} » is written at {:?}, above the bottom of its buttons at {lowest}",
+            written_name.rect,
+        );
+        lefts.push(written_name.rect.left());
+    }
+
+    assert!(
+        lefts.is_sorted(),
+        "the groups {groups:?} do not read left to right in order: {lefts:?}",
+    );
+}
+
+#[test]
+fn the_extrusion_tab_writes_its_three_groups_in_order_each_under_its_buttons() {
+    let mut app = opened(
+        "the_extrusion_tab_writes_its_three_groups",
+        WIDE,
+        Settings::default(),
+    );
+    driver::click_the_button(&mut app, "Extrusion");
+
+    assert_groups_read_in_order_each_under_its_buttons(
+        &app,
+        &[
+            ("MATIÈRE", &["Ajout de matière", "Enlèvement de matière"]),
+            ("FORME", &["Extrusion droite", "Révolution"]),
+            ("ÉDITION", &["Annuler", "Rétablir"]),
+        ],
+    );
+    for name in ["Ajout de matière", "Extrusion droite"] {
+        let height = the_ribbon_button(&app, name).height();
+        assert!(
+            height >= 64.0,
+            "« {name} », in a large group, is {height} high",
+        );
+    }
+    for name in ["Annuler", "Rétablir"] {
+        assert_tall(
+            the_ribbon_button(&app, name),
+            26.0,
+            &format!("« {name} », in a group small on 2 rows,"),
+        );
+    }
+}
+
+/// The fill the frame last painted exactly over this rectangle, if any.
+fn fill_painted_over(app: &driver::App, rect: egui::Rect) -> Option<egui::Color32> {
+    shapes(app).iter().find_map(|shape| match shape {
+        egui::Shape::Rect(painted)
+            if painted.fill.a() > 0
+                && painted.rect.expand(ALIGNED_WITHIN).contains_rect(rect)
+                && rect.expand(ALIGNED_WITHIN).contains_rect(painted.rect) =>
+        {
+            Some(painted.fill)
+        }
+        _ => None,
+    })
+}
+
+/// The fill of the rectangle holding these rows: the frame of their menu.
+fn fill_of_the_menu_around(app: &driver::App, rows: egui::Rect) -> egui::Color32 {
+    shapes(app)
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Rect(rect) if rect.fill.a() > 0 && rect.rect.contains_rect(rows) => {
+                Some((rect.rect, rect.fill))
+            }
+            _ => None,
+        })
+        .min_by(|one, other| one.0.area().total_cmp(&other.0.area()))
+        .expect("a menu frame painted around its rows")
+        .1
+}
+
+/// Hovers a row and lets the frame settle, the way a hand resting on it would.
+fn hover_the_row(app: &mut driver::App, row: egui::Rect) {
+    app.hover_at(row.center());
+    app.run_steps(4);
+}
+
+/// The WCAG relative luminance of an opaque colour.
+fn luminance(colour: egui::Color32) -> f32 {
+    let linear = |channel: u8| {
+        let c = f32::from(channel) / 255.0;
+        if c <= 0.04045 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    0.2126 * linear(colour.r()) + 0.7152 * linear(colour.g()) + 0.0722 * linear(colour.b())
+}
+
+fn contrast(one: egui::Color32, other: egui::Color32) -> f32 {
+    let (a, b) = (luminance(one), luminance(other));
+    (a.max(b) + 0.05) / (a.min(b) + 0.05)
+}
+
+#[test]
+fn a_hovered_row_of_a_chevron_menu_stands_out_from_the_menu() {
+    let mut app = the_stl_menu_open("a_hovered_row_stands_out");
+    let rows = ["Grossière", "Normale", "Fine"]
+        .iter()
+        .fold(egui::Rect::NOTHING, |all, row| {
+            all.union(the_button(&app, row).rect())
+        });
+    let row = the_button(&app, "Normale").rect();
+    let menu = fill_of_the_menu_around(&app, rows);
+
+    hover_the_row(&mut app, row);
+
+    assert_the_hovered_row_stands_out(&app, row, menu);
+}
+
+/// The hovered row wears the fill chosen on sight, and stands clear of the
+/// fill of the menu it sits in.
+fn assert_the_hovered_row_stands_out(app: &driver::App, row: egui::Rect, menu: egui::Color32) {
+    let fill = fill_painted_over(app, row).expect("the row hovered paints a fill");
+    assert_eq!(
+        fill,
+        egui::Color32::from_rgb(0x35, 0x3A, 0x45),
+        "the hovered row is filled {fill:?}, where #353A45 was chosen on sight",
+    );
+    let against_the_menu = contrast(fill, menu);
+    assert!(
+        against_the_menu >= 1.25,
+        "the hovered row's fill stands {against_the_menu}:1 from the menu's fill {menu:?}: \
+         it can barely be seen",
+    );
+}
+
+const THE_THREE_MATTER_CHOICES: [&str; 3] = ["cachée", "transparente", "opaque"];
+
+fn the_view_bar_s_matter_menu_open(test: &str) -> driver::App {
+    let mut app = sketching(test);
+    driver::click_in_the_bar(&mut app, "Matière devant");
+    app
+}
+
+#[test]
+fn a_hovered_choice_of_the_view_bar_s_matter_menu_stands_out_from_the_menu() {
+    let mut app = the_view_bar_s_matter_menu_open("a_hovered_matter_choice_stands_out");
+    let rows = THE_THREE_MATTER_CHOICES
+        .iter()
+        .fold(egui::Rect::NOTHING, |all, row| {
+            all.union(the_button(&app, row).rect())
+        });
+    let menu = fill_of_the_menu_around(&app, rows);
+    let row = the_button(&app, "opaque").rect();
+
+    hover_the_row(&mut app, row);
+
+    assert_the_hovered_row_stands_out(&app, row, menu);
+}
+
+#[test]
+fn the_current_choice_of_the_view_bar_s_matter_menu_stays_marked() {
+    let mut app = the_view_bar_s_matter_menu_open("the_current_matter_choice_stays_marked");
+    let (current, other) = (
+        the_button(&app, "cachée").rect(),
+        the_button(&app, "opaque").rect(),
+    );
+
+    assert_eq!(
+        fill_painted_over(&app, current),
+        Some(ACCENT_AMBER_BACKGROUND)
+    );
+    hover_the_row(&mut app, other);
+    assert_eq!(
+        fill_painted_over(&app, current),
+        Some(ACCENT_AMBER_BACKGROUND),
+        "the current choice lost its amber while another row is hovered",
+    );
+    hover_the_row(&mut app, current);
+    assert_eq!(
+        fill_painted_over(&app, current),
+        Some(ACCENT_AMBER_BACKGROUND),
+        "the current choice, hovered, lost its amber",
+    );
+}
+
+/// A sketch under a chevron menu « Cercles » holding the sub-group « Arcs », the
+/// menu open.
+fn a_chevron_menu_holding_a_sub_group(test: &str) -> driver::App {
+    use Command as C;
+    let settings = bar_of(vec![Item::group(
+        "drawing",
+        vec![
+            Item::Command(C::NewSketch),
+            Item::Command(C::ToolCircle),
+            Item::group(
+                "circles",
+                vec![
+                    Item::group("arcs", commands(&[C::ArcByCenter, C::ArcByEnds])),
+                    Item::Command(C::CircleCenter),
+                ],
+            ),
+        ],
+    )]);
+    let mut app = opened(test, WIDE, settings);
+    driver::start_a_sketch(&mut app);
+    driver::click_exactly(&mut app, "Cercles");
+    app
+}
+
+#[test]
+fn a_hovered_entry_of_a_nested_sub_menu_stands_out_from_the_menu() {
+    let mut app = a_chevron_menu_holding_a_sub_group("a_hovered_nested_entry_stands_out");
+    driver::click_exactly(&mut app, "Arcs");
+    let entries = [
+        "Centre, départ et arrivée",
+        "Deux bouts et un point traversé",
+    ]
+    .map(|entry| the_button(&app, entry).rect());
+    let menu = fill_of_the_menu_around(&app, entries[0].union(entries[1]));
+
+    hover_the_row(&mut app, entries[1]);
+
+    assert_the_hovered_row_stands_out(&app, entries[1], menu);
+}
+
+#[test]
+fn a_hovered_sub_group_of_a_chevron_menu_stands_out_from_the_menu() {
+    let mut app = a_chevron_menu_holding_a_sub_group("a_hovered_sub_group_stands_out");
+    let row = the_button(&app, "Arcs").rect();
+    let menu = fill_of_the_menu_around(
+        &app,
+        row.union(row_starting(&app, "Centre et diamètre").rect()),
+    );
+
+    hover_the_row(&mut app, row);
+
+    assert_the_hovered_row_stands_out(&app, row, menu);
+}
+
+#[test]
+fn hovering_a_ribbon_button_outside_a_menu_keeps_its_fill() {
+    let mut app = sketching("hovering_a_ribbon_button_keeps_its_fill");
+    let rectangle = the_button(&app, "Rectangle (R)").rect();
+
+    hover_the_row(&mut app, rectangle);
+
+    assert_eq!(
+        fill_painted_over(&app, rectangle),
+        Some(egui::Color32::from_rgb(0x23, 0x27, 0x31)),
+        "the hover of « Rectangle » on the ribbon changed",
+    );
+}
+
+#[test]
+fn a_menu_row_that_is_on_keeps_its_amber() {
+    let mut app = sketching("a_menu_row_that_is_on_keeps_its_amber");
+    driver::click_exactly(&mut app, "Cercles");
+    driver::click_exactly(&mut app, "Deux points du bord");
+    driver::click_exactly(&mut app, "Cercles");
+    let row = the_button(&app, "Deux points du bord").rect();
+
+    hover_the_row(&mut app, row);
+
+    assert_eq!(
+        fill_painted_over(&app, row),
+        Some(ACCENT_AMBER_BACKGROUND),
+        "the row in hand, hovered, lost its amber",
+    );
+}
+
+#[test]
+fn a_disabled_menu_row_paints_nothing_when_hovered() {
+    let settings = bar_of(vec![Item::group(
+        "drawing",
+        vec![
+            Item::Command(Command::NewSketch),
+            Item::Command(Command::ToolCircle),
+            Item::group("circles", commands(&[Command::Redo, Command::CircleCenter])),
+        ],
+    )]);
+    let mut app = opened("a_disabled_menu_row_paints_nothing", WIDE, settings);
+    driver::start_a_sketch(&mut app);
+    driver::click_exactly(&mut app, "Cercles");
+    let row = row_starting(&app, "Rétablir").rect();
+    assert!(
+        row_starting(&app, "Rétablir")
+            .accesskit_node()
+            .is_disabled(),
+        "there is something to redo: the premise of this test",
+    );
+
+    hover_the_row(&mut app, row);
+
+    assert_eq!(
+        fill_painted_over(&app, row),
+        None,
+        "« Rétablir », greyed out and hovered, paints a fill",
+    );
+}
+
+#[test]
+fn the_export_tab_writes_its_group_under_its_buttons() {
+    let mut app = opened("the_export_tab_writes_its_group", WIDE, Settings::default());
+    driver::click_the_button(&mut app, "Export");
+
+    assert_groups_read_in_order_each_under_its_buttons(
+        &app,
+        &[("EXPORTER", &["Exporter en STL…", "Exporter en STEP…"])],
+    );
+}
+
+#[test]
+fn the_ribbon_is_the_same_height_on_every_tab() {
+    let mut app = opened(
+        "the_ribbon_is_the_same_height_on_every_tab",
+        egui::vec2(1440.0, 900.0),
+        Settings::default(),
+    );
+
+    let view_starts = ["Esquisse", "Extrusion", "Export"].map(|tab| {
+        driver::click_the_button(&mut app, tab);
+        (tab, driver::canvas(&app).top())
+    });
+
+    assert!(
+        view_starts
+            .iter()
+            .all(|(_, top)| (top - view_starts[0].1).abs() <= ALIGNED_WITHIN),
+        "the view does not start at one height from tab to tab: {view_starts:?}",
+    );
+}
+
+#[test]
+fn the_export_tab_draws_one_stl_split_with_its_three_levels_and_the_step_export() {
+    let app = the_stl_menu_open("the_export_tab_draws_one_stl_split");
+
+    assert_one_split_button(&app, "Exporter en STL…", "Exporter en STL… ⌄");
+    let (stl, step) = (
+        the_button(&app, "Exporter en STL…").rect(),
+        the_ribbon_button(&app, "Exporter en STEP…"),
+    );
+    assert!(
+        step.left() >= stl.right(),
+        "« Exporter en STEP… » at {step:?} does not stand after « Exporter en STL… » at {stl:?}",
+    );
+
+    let levels = [
+        ("Grossière", "rapide"),
+        ("Normale", "par défaut"),
+        ("Fine", "lourd"),
+    ];
+    let tops = levels.map(|(level, _)| the_button(&app, level).rect().top());
+    assert!(
+        tops.is_sorted(),
+        "the three levels do not read in order, their rows at {tops:?}",
+    );
+    for (level, hint) in levels {
+        let row = the_button(&app, level).rect();
+        assert!(
+            row.expand(1.0).contains_rect(written(&app, hint).rect),
+            "« {hint} » is not on the line of « {level} » at {row:?}",
+        );
+    }
+}
+
+#[test]
+fn each_group_of_the_sketch_tab_draws_its_buttons_at_its_size() {
+    let app = opened(
+        "each_group_of_the_sketch_tab_at_its_size",
+        WIDE,
+        Settings::default(),
+    );
+
+    for name in ["Nouvelle esquisse", "Ligne", "Point"] {
+        let height = the_ribbon_button(&app, name).height();
+        assert!(
+            height >= 64.0,
+            "« {name} », in a large group, is {height} high",
+        );
+    }
+    for name in ["Cote", "Mesurer", "Ajuster", "Diviser", "Réseau circulaire"] {
+        assert_tall(
+            the_ribbon_button(&app, name),
+            20.0,
+            &format!("« {name} », in a group small on 3 rows,"),
+        );
+    }
+    for name in ["Annuler", "Rétablir"] {
+        assert_tall(
+            the_ribbon_button(&app, name),
+            26.0,
+            &format!("« {name} », in a group small on 2 rows,"),
+        );
+    }
+}
+
+#[test]
+fn redo_on_the_default_ribbon_is_greyed_until_something_can_be_redone() {
+    let mut app = sketching("redo_on_the_default_ribbon_is_greyed");
+    let greyed = |app: &driver::App| {
+        driver::the_ribbon_s(app, "Rétablir")
+            .expect("the default ribbon's group « Édition » holds « Rétablir »")
+            .accesskit_node()
+            .is_disabled()
+    };
+
+    assert!(greyed(&app), "« Rétablir » is offered on a fresh sketch");
+
+    driver::draw_a_segment(&mut app);
+    assert!(
+        greyed(&app),
+        "« Rétablir » is offered with nothing undone yet"
+    );
+
+    driver::press_with_command(&mut app, egui::Key::Z);
+    assert!(
+        !greyed(&app),
+        "« Rétablir » stays greyed though a step was just undone",
+    );
+}
+
+const THE_NINE_RULES: [&str; 9] = [
+    "Perpendiculaire",
+    "Parallèle",
+    "Égalité",
+    "Coïncidence",
+    "Colinéaire",
+    "Tangence",
+    "Milieu",
+    "Fixe",
+    "Concentrique",
+];
+
+#[test]
+fn measure_stays_a_plain_button_and_the_constraints_split_stands_alone() {
+    let mut app = sketching("measure_stays_plain_constraints_stand_alone");
+
+    let (dimension, measure, constraints) = (
+        row_starting(&app, "Cote").rect(),
+        row_starting(&app, "Mesurer").rect(),
+        the_button(&app, "Contraintes").rect(),
+    );
+    assert!(
+        (dimension.left() - measure.left()).abs() <= ALIGNED_WITHIN
+            && (measure.left() - constraints.left()).abs() <= ALIGNED_WITHIN
+            && measure.top() >= dimension.bottom()
+            && constraints.top() >= measure.bottom(),
+        "« Cote » at {dimension:?}, « Mesurer » at {measure:?} and « Contraintes » at \
+         {constraints:?} do not stand one above the other, in that order",
+    );
+
+    assert_one_split_button(&app, "Contraintes", "Contraintes ⌄");
+    let beside_measure: Vec<String> = app
+        .query_all_by_role(Role::Button)
+        .filter(|node| {
+            let at = node.rect();
+            at != measure
+                && (at.center().y - measure.center().y).abs() <= ALIGNED_WITHIN
+                && at.expand(2.0).intersects(measure)
+        })
+        .filter_map(|node| node.accesskit_node().label())
+        .collect();
+    assert!(
+        beside_measure.is_empty(),
+        "« Mesurer » at {measure:?} is a split button, with beside it {beside_measure:?}",
+    );
+
+    driver::click_exactly(&mut app, "Contraintes ⌄");
+    for rule in THE_NINE_RULES {
+        the_button(&app, rule);
+    }
+}
+
+#[test]
+fn the_four_moved_commands_stand_in_no_tab_of_the_default_ribbon() {
+    let mut app = sketching("the_four_moved_commands_stand_in_no_tab");
+
+    let mut still_there = Vec::new();
+    for tab in ["Esquisse", "Extrusion", "Export"] {
+        driver::click_the_button(&mut app, tab);
+        for name in ["Recadrer", "Vue en coupe", "Matière devant", "Terminer"] {
+            if driver::the_ribbon_s(&app, name).is_some() {
+                still_there.push(format!("« {name} » under the tab « {tab} »"));
+            }
+        }
+    }
+
+    assert!(
+        still_there.is_empty(),
+        "the default ribbon still offers {still_there:?}",
+    );
+}
+
+#[test]
+fn the_four_moved_commands_can_be_put_back_from_the_preferences() {
+    let mut settings = Settings::default();
+    settings
+        .shortcuts
+        .bind(Command::SectionView, Chord::new(Key::K));
+    let mut app = opened("the_four_moved_commands_in_the_palette", WIDE, settings);
+    for keyed in ["Recadrer", "Vue en coupe"] {
+        let read = driver::the_bar_s(&app, keyed)
+            .accesskit_node()
+            .label()
+            .unwrap_or_default();
+        assert_ne!(
+            read, keyed,
+            "the view bar's button reads exactly the palette's, so a search could find either: \
+             the premise of this test",
+        );
+    }
+    driver::press_with_command(&mut app, egui::Key::Comma);
+    driver::click_exactly(&mut app, "Barre d'outils");
+    for name in ["Recadrer", "Vue en coupe", "Matière devant", "Terminer"] {
+        let offered = app
+            .query_all_by_label(name)
+            .any(|node| node.accesskit_node().role() == Role::Button);
+        assert!(
+            offered,
+            "the palette does not offer « {name} » to put on the toolbar: {:?}",
+            driver::on_screen(&app),
+        );
+    }
+
+    let mut app = opened(
+        "the_four_moved_commands_put_back_are_drawn",
+        WIDE,
+        driver::the_moved_commands_put_back(),
+    );
+    driver::start_a_sketch(&mut app);
+    for name in [
+        "Recadrer",
+        "Vue en coupe",
+        "Matière devant",
+        "Terminer (Entrée)",
+    ] {
+        assert!(
+            driver::the_ribbon_s(&app, name).is_some(),
+            "« {name} », put back on the toolbar, is not drawn in the ribbon: {:?}",
+            driver::on_screen(&app),
+        );
+    }
+}
+
+#[test]
+fn resetting_the_toolbar_gives_the_profile_the_default_ribbon() {
+    let test = "resetting_the_toolbar_gives_the_default_ribbon";
+    let own = bar_of(vec![Item::group("drawing", commands(&[Command::ToolLine]))]);
+    let mut app = opened(test, WIDE, own);
+    assert!(
+        driver::the_ribbon_s(&app, "Nouvelle esquisse").is_none(),
+        "this profile's own toolbar holds no « Nouvelle esquisse »: the premise of this test",
+    );
+
+    driver::press_with_command(&mut app, egui::Key::Comma);
+    driver::click_exactly(&mut app, "Barre d'outils");
+    driver::click_the_button(&mut app, "↺ Barre par défaut");
+
+    assert_eq!(
+        driver::saved_settings(test).toolbar,
+        cao_prefs::ToolbarLayout::default(),
+        "the toolbar was reset, and the next start would read another one",
+    );
+    assert!(
+        driver::the_ribbon_s(&app, "Nouvelle esquisse").is_some(),
+        "the toolbar was reset, and the ribbon does not show the default one: {:?}",
+        driver::on_screen(&app),
+    );
+}
+
+#[test]
+fn the_sketch_tab_fits_on_one_line_at_1440() {
+    let size = egui::vec2(1440.0, 900.0);
+    let mut app = opened("the_sketch_tab_fits_at_1440", size, Settings::default());
+    driver::start_a_sketch(&mut app);
+
+    let firsts = THE_FIVE_GROUPS.map(|(_, buttons)| the_ribbon_button(&app, buttons[0]));
+    assert!(
+        firsts
+            .iter()
+            .all(|first| (first.top() - firsts[0].top()).abs() <= ALIGNED_WITHIN),
+        "at 1440 wide the groups of the sketch tab start on several lines: {firsts:?}",
+    );
+
+    let line_ends_at = firsts
+        .iter()
+        .map(|first| first.bottom())
+        .fold(f32::NEG_INFINITY, f32::max);
+    for (_, buttons) in THE_FIVE_GROUPS {
+        for button in buttons {
+            let at = the_ribbon_button(&app, button);
+            assert!(
+                at.top() < line_ends_at,
+                "« {button} » at {at:?} went to a second line, the first ending at {line_ends_at}",
+            );
+            assert!(
+                at.right() <= size.x,
+                "« {button} » at {at:?} runs off a window 1440 wide",
+            );
+        }
+    }
+}
+
+#[test]
+fn the_group_names_of_a_tab_stand_on_one_line() {
+    let size = egui::vec2(1440.0, 900.0);
+    let mut app = opened(
+        "the_group_names_stand_on_one_line",
+        size,
+        Settings::default(),
+    );
+
+    let mut wrong = Vec::new();
+    for (tab, names) in [
+        (
+            "Esquisse",
+            [
+                "ESQUISSE",
+                "DESSIN",
+                "COTES ET CONTRAINTES",
+                "MODIFIER",
+                "ÉDITION",
+            ]
+            .as_slice(),
+        ),
+        ("Extrusion", ["MATIÈRE", "FORME", "ÉDITION"].as_slice()),
+    ] {
+        driver::click_the_button(&mut app, tab);
+        let tops: Vec<(&str, f32)> = names
+            .iter()
+            .map(|name| (*name, line_of(&written(&app, name))))
+            .collect();
+        if tops
+            .iter()
+            .any(|(_, top)| (top - tops[0].1).abs() > ALIGNED_WITHIN)
+        {
+            wrong.push(format!("under the tab « {tab} »: {tops:?}"));
+        }
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "the names of the groups do not stand at one height:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+/// The height a written name stands at: the galley's origin, because the ink
+/// of an accented capital starts higher than that of a plain one.
+fn line_of(name: &Written) -> f32 {
+    name.text.pos.y
+}
+
+#[test]
+fn a_wrapped_ribbon_keeps_each_line_s_names_level_and_above_the_next_line() {
+    let app = opened(
+        "a_wrapped_ribbon_keeps_each_line_level",
+        egui::vec2(900.0, 800.0),
+        Settings::default(),
+    );
+
+    let mut lines: Vec<(f32, Vec<(&str, Written)>)> = Vec::new();
+    for (name, buttons) in THE_FIVE_GROUPS {
+        let top = the_ribbon_button(&app, buttons[0]).top();
+        let held = (name, written(&app, name));
+        match lines
+            .iter_mut()
+            .find(|(line, _)| (line - top).abs() <= ALIGNED_WITHIN)
+        {
+            Some((_, names)) => names.push(held),
+            None => lines.push((top, vec![held])),
+        }
+    }
+    lines.sort_by(|one, other| one.0.total_cmp(&other.0));
+    assert!(
+        lines.len() >= 2,
+        "at 900 wide the sketch tab did not wrap: the premise of this test",
+    );
+
+    for (rank, (top, names)) in lines.iter().enumerate() {
+        let level = line_of(&names[0].1);
+        let at: Vec<(&str, f32)> = names.iter().map(|(n, w)| (*n, line_of(w))).collect();
+        assert!(
+            at.iter().all(|(_, y)| (y - level).abs() <= ALIGNED_WITHIN),
+            "the names of the line at {top} do not stand at one height: {at:?}",
+        );
+        if let Some((next, _)) = lines.get(rank + 1) {
+            for (name, read) in names {
+                assert!(
+                    read.rect.bottom() <= *next,
+                    "« {name} » at {:?} runs into the next line's buttons, which start at {next}",
+                    read.rect,
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn a_group_beside_a_wrapped_group_keeps_its_name_under_its_own_buttons() {
+    use Command as C;
+    let settings = bar_of(vec![
+        Item::group("a", commands(&[C::ToolPoint])),
+        Item::group(
+            "drawing",
+            commands(&[
+                C::ToolRectangle,
+                C::ToolArc,
+                C::ToolEllipse,
+                C::ToolDimension,
+                C::ToolMeasure,
+                C::ToolTrim,
+                C::ToolSplit,
+                C::ToolMirror,
+                C::ToolFillet,
+                C::ToolSelect,
+                C::ToolCircle,
+                C::ToolLineSymmetric,
+                C::ExtrusionCut,
+                C::ToolLine,
+            ]),
+        ),
+    ]);
+    let app = opened(
+        "a_group_beside_a_wrapped_group",
+        egui::vec2(890.0, 700.0),
+        settings,
+    );
+
+    let beside = the_ribbon_button(&app, "Point");
+    let first = the_ribbon_button(&app, "Rectangle");
+    let last = the_ribbon_button(&app, "Ligne (L)");
+    assert!(
+        (beside.top() - first.top()).abs() <= ALIGNED_WITHIN && last.top() > first.bottom(),
+        "« Point » at {beside:?} does not stand beside a group wrapped inside itself, from \
+         {first:?} to {last:?}: the premise of this test",
+    );
+
+    let (name, wrapped) = (written(&app, "A"), written(&app, "DESSIN"));
+    assert!(
+        line_of(&name) < line_of(&wrapped) - ALIGNED_WITHIN && name.rect.top() >= beside.bottom(),
+        "the name « A » at {} took the height of the group wrapped beside it, whose name \
+         stands at {}, instead of staying under its own button, which ends at {}",
+        line_of(&name),
+        line_of(&wrapped),
+        beside.bottom(),
+    );
+}
+
+/// How many points of the screen a length of the part spans: what stepping
+/// away from it shrinks and framing it brings back.
+fn points_across_the_part(app: &driver::App) -> f32 {
+    let at = |point: DVec3| {
+        app.state()
+            .where_the_view_shows(point)
+            .unwrap_or_else(|| panic!("{point:?} of the part stands behind the eye"))
+    };
+    (at(DVec3::new(0.0, 100.0, 0.0)) - at(DVec3::ZERO)).length()
+}
+
+/// Steps well back from the block, then says whether this gesture framed it
+/// again.
+fn assert_frames_the_block(
+    app: &mut driver::App,
+    what: &str,
+    gesture: impl FnOnce(&mut driver::App),
+) {
+    let the_block = DVec3::new(5.0, driver::ON_THE_BLOCK.x, driver::ON_THE_BLOCK.y);
+    let over_the_block = app
+        .state()
+        .where_the_view_shows(the_block)
+        .expect("the block stands before the eye");
+    driver::step_back(app, over_the_block);
+    let stepped_back = points_across_the_part(app);
+
+    gesture(app);
+
+    let framed = points_across_the_part(app);
+    assert!(
+        framed > 2.0 * stepped_back,
+        "{what} spans the part over {framed} points, where it was stepped back to {stepped_back}",
+    );
+}
+
+#[test]
+fn what_left_the_ribbon_has_its_place_in_the_view_bar_or_the_sketch_pill() {
+    let mut app = driver::a_block("what_left_the_ribbon_has_its_place");
+
+    driver::start_a_sketch(&mut app);
+    assert!(
+        driver::a_sketch_is_open(&app),
+        "no sketch was opened on the block, showing {:?}",
+        driver::on_screen(&app),
+    );
+    driver::click_in_the_bar(&mut app, "Matière devant");
+    driver::click_exactly(&mut app, "transparente");
+    let reads = driver::the_bar_s(&app, "Matière devant")
+        .accesskit_node()
+        .label()
+        .unwrap_or_default();
+    assert!(
+        reads.starts_with("Matière devant : transparente"),
+        "« transparente » was picked in the view bar, and it reads {reads:?}",
+    );
+    driver::finish_the_sketch(&mut app);
+    assert!(
+        !driver::a_sketch_is_open(&app),
+        "the pill's « Terminer » left the sketch open, showing {:?}",
+        driver::on_screen(&app),
+    );
+
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
+    assert!(
+        driver::a_button_reads(&app, "Inverser"),
+        "« Vue en coupe » in the view bar opens no panel, showing {:?}",
+        driver::on_screen(&app),
+    );
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
+    assert!(
+        !driver::a_button_reads(&app, "Inverser"),
+        "« Vue en coupe » clicked again in the view bar leaves its panel open",
+    );
+
+    assert_frames_the_block(&mut app, "« Recadrer » in the view bar", |app| {
+        driver::click_in_the_bar(app, "Recadrer");
+    });
+}
+
+#[test]
+fn f_still_reframes_and_enter_still_finishes_the_sketch() {
+    let mut app = driver::a_block("f_still_reframes_and_enter_still_finishes");
+
+    driver::start_a_sketch(&mut app);
+    assert!(
+        driver::a_sketch_is_open(&app),
+        "no sketch was opened on the block, showing {:?}",
+        driver::on_screen(&app),
+    );
+    driver::press(&mut app, egui::Key::Enter);
+    assert!(
+        !driver::a_sketch_is_open(&app),
+        "↵ left the sketch open, showing {:?}",
+        driver::on_screen(&app),
+    );
+
+    assert_frames_the_block(&mut app, "F", |app| {
+        driver::press(app, egui::Key::F);
+    });
 }
 
 #[test]

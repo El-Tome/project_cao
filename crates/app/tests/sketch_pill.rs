@@ -73,9 +73,9 @@
 //! green, would mislead. A third came while the count was laid in: the pill
 //! stands over the top of the view, and a pull of the drawing let go on it lost
 //! its gesture, so the pill takes no pointer while something is being dragged.
-//! Removing « Terminer » from the default ribbon is left
-//! to the issue of the default ribbon; until then the ribbon's button is aimed
-//! at by its whole name, `driver::FINISH_IN_THE_RIBBON`.
+//! « Terminer » then left the default ribbon (#732), where a user can still
+//! put it back: the tests that compare the pill's button with the ribbon's do
+//! so on settings that have it back, `driver::the_moved_commands_put_back`.
 //!
 //! The pill is told apart from the breadcrumb, which reads « Esquisse N » too
 //! during a sketch, by where it stands: inside the view, which the title bar
@@ -164,6 +164,9 @@ const CENTRED_WITHIN: f32 = 1.0;
 /// How far a patch may sit inside what it carries, in points: the rect the
 /// tree gives a widget and the one painted around it are rounded apart.
 const HUGGED_WITHIN: f32 = 0.5;
+
+/// The ribbon's « Terminer », which the pill's « Terminer ↵ » is compared to.
+const FINISH_IN_THE_RIBBON: &str = "Terminer (Entrée)";
 
 /// What betrays a piece of the pill among what the view holds: the sketch's
 /// name, a plane, a section, a face, the count, the finish.
@@ -273,18 +276,17 @@ fn the_pill_is_gone_before_a_sketch_is_opened_and_once_it_is_finished() {
 
     driver::click_at_world_point(&mut app, ON_THE_XY_PLANE);
     assert!(
-        driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
+        driver::a_sketch_is_open(&app),
         "the click on XY opened no sketch, showing {:?}",
         driver::on_screen(&app),
     );
     seen.push(("a sketch open on XY", true, what_the_pill_shows(&app)));
 
-    driver::click(&mut app, driver::FINISH_IN_THE_RIBBON);
+    driver::finish_the_sketch(&mut app);
     seen.push(("the sketch finished", false, what_the_pill_shows(&app)));
-    driver::click_the_button(&mut app, "Esquisse");
     assert!(
-        !driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
-        "the ribbon's « Terminer » left the sketch open, showing {:?}",
+        !driver::a_sketch_is_open(&app),
+        "the pill's « Terminer ↵ » left the sketch open, showing {:?}",
         driver::on_screen(&app),
     );
 
@@ -384,7 +386,7 @@ fn a_sketch_whose_section_is_no_longer_kept_reads_its_plane_s_name() {
     driver::click_in_the_ribbon(&mut app, "Nouvelle esquisse");
     driver::click_at_world_point(&mut app, driver::ON_THE_CUT);
     assert_a_sketch_is_open(&app, "the click on the cut of « Coupe 1 »");
-    driver::click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
+    driver::finish_the_sketch(&mut app);
     delete_from_the_tree(&mut app, "Coupe 1");
     assert!(
         !driver::in_the_tree(&app, "Coupe 1"),
@@ -735,7 +737,7 @@ fn the_pill_s_button_names_the_keys_that_finish_the_sketch_once_rebound() {
         .into_iter()
         .enumerate()
     {
-        let mut settings = cao_prefs::Settings::default();
+        let mut settings = driver::the_moved_commands_put_back();
         settings.shortcuts.bind(Command::FinishSketch, chord);
         let mut app =
             driver::open_held_with(&format!("the_pill_s_button_once_rebound_{index}"), settings);
@@ -771,7 +773,11 @@ fn the_pill_s_button_names_the_keys_that_finish_the_sketch_once_rebound() {
 
 #[test]
 fn the_pill_s_button_names_no_key_once_finishing_is_unbound() {
-    let mut app = a_part("the_pill_s_button_names_no_key_once_finishing_is_unbound");
+    let mut app = driver::open_held_with(
+        "the_pill_s_button_names_no_key_once_finishing_is_unbound",
+        driver::the_moved_commands_put_back(),
+    );
+    driver::create_a_part(&mut app, "Platine");
     driver::start_a_sketch(&mut app);
     unbind_in_the_preferences(&mut app, "Terminer");
 
@@ -799,7 +805,7 @@ fn open_a_sketch_on_xy(app: &mut driver::App) {
     driver::click(app, "Nouvelle esquisse");
     driver::click_at_world_point(app, ON_THE_XY_PLANE);
     assert!(
-        driver::is_enabled(app, driver::FINISH_IN_THE_RIBBON),
+        driver::a_sketch_is_open(app),
         "the click on XY opened no sketch, showing {:?}",
         driver::on_screen(app),
     );
@@ -919,7 +925,8 @@ fn what_a_finish_left_wrong(left: &EndState) -> Vec<String> {
 
 /// A sketch with a trait drawn in it, finished that way.
 fn finished_by(test: &str, finish: Gesture) -> EndState {
-    let mut app = a_part(test);
+    let mut app = driver::open_held_with(test, driver::the_moved_commands_put_back());
+    driver::create_a_part(&mut app, "Platine");
     driver::start_a_sketch(&mut app);
     driver::draw_a_segment(&mut app);
     finish(&mut app);
@@ -927,7 +934,7 @@ fn finished_by(test: &str, finish: Gesture) -> EndState {
 }
 
 fn finish_with_the_ribbon(app: &mut driver::App) {
-    driver::click(app, driver::FINISH_IN_THE_RIBBON);
+    driver::click_in_the_ribbon(app, FINISH_IN_THE_RIBBON);
 }
 
 fn finish_with_enter(app: &mut driver::App) {
@@ -1020,7 +1027,7 @@ fn the_design_s_success_text() -> egui::Color32 {
 
 fn assert_a_sketch_is_open(app: &driver::App, after: &str) {
     assert!(
-        driver::is_enabled(app, driver::FINISH_IN_THE_RIBBON),
+        driver::a_sketch_is_open(app),
         "{after} opened no sketch, showing {:?}",
         driver::on_screen(app),
     );
@@ -1029,7 +1036,7 @@ fn assert_a_sketch_is_open(app: &driver::App, after: &str) {
 /// Opens the section tool, lays it along that plane, keeps it with
 /// « Enregistrer la coupe » and closes the tool.
 fn save_a_section(app: &mut driver::App, plane: &str) {
-    driver::click_in_the_ribbon(app, "Vue en coupe");
+    driver::click_in_the_bar(app, "Vue en coupe");
     driver::click(app, plane);
     driver::click_the_button(app, "Enregistrer la coupe");
     if driver::a_button_reads(app, "Inverser") {

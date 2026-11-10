@@ -48,7 +48,8 @@ Every field has a default value, so **a profile written by a version that knew
 fewer settings still loads**: the ones it does not know keep their original
 value. Only a different version number is refused.
 
-`settings.json` is at version 2. Version 1 named the profile that always
+`settings.json` is at version 4; `SETTINGS_VERSION` says what each version
+changed. Version 1 named the profile that always
 exists by a French sentence rather than by the `default` key, so a file
 written by it is not read at all: the settings go back to their defaults. A
 break rather than a migration, taken while there is nobody to migrate — the

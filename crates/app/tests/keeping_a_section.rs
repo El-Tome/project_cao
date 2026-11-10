@@ -145,7 +145,7 @@ fn right_click(app: &mut driver::App, label: &str) {
 /// Opens the section tool, lays it along that plane, keeps it with « Enregistrer
 /// la coupe » and closes the tool.
 fn save_a_section(app: &mut driver::App, plane: &str) {
-    click_in_the_ribbon(app, "Vue en coupe");
+    driver::click_in_the_bar(app, "Vue en coupe");
     driver::click(app, plane);
     driver::click_the_button(app, "Enregistrer la coupe");
     close_the_panel(app);
@@ -176,11 +176,11 @@ fn a_sketch_on_the_cut(app: &mut driver::App) {
     click_in_the_ribbon(app, "Nouvelle esquisse");
     driver::click_at_world_point(app, driver::ON_THE_CUT);
     assert!(
-        driver::is_enabled(app, driver::FINISH_IN_THE_RIBBON),
+        driver::a_sketch_is_open(app),
         "the click on the cut started no sketch, showing {:?}",
         driver::on_screen(app),
     );
-    click_in_the_ribbon(app, driver::FINISH_IN_THE_RIBBON);
+    driver::finish_the_sketch(app);
 }
 
 /// The part as the application left it on disk, once it was put away.
@@ -211,13 +211,13 @@ fn the_section_tool_closed_without_saving_leaves_nothing_behind_and_a_sketch_on_
 {
     let test = "keeping_a_section_closed_without_saving";
     let mut app = driver::a_block(test);
-    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     driver::click(&mut app, "Plan YZ");
     let distance: f64 = driver::field_beside(&app, "Distance")
         .parse()
         .expect("the panel reads its distance");
     a_sketch_on_the_cut(&mut app);
-    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     close_the_panel(&mut app);
 
     let tree_holds_a_section = driver::in_the_tree(&app, "Coupe 1");
@@ -258,7 +258,7 @@ fn the_section_tool_closed_without_saving_leaves_nothing_behind_and_a_sketch_on_
 #[test]
 fn a_saved_section_reopened_from_the_tree_comes_back_on_its_plane_its_offset_and_its_sides() {
     let mut app = driver::a_block("keeping_a_section_reopened_from_the_tree");
-    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     driver::click(&mut app, "Plan YZ");
     driver::type_beside(&mut app, "Distance", "3");
     driver::click(&mut app, "Derrière");
@@ -270,7 +270,7 @@ fn a_saved_section_reopened_from_the_tree_comes_back_on_its_plane_its_offset_and
     );
     driver::click_the_button(&mut app, "Enregistrer la coupe");
     close_the_panel(&mut app);
-    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     close_the_panel(&mut app);
 
     assert!(
@@ -362,9 +362,9 @@ fn opening_a_sketch_made_on_a_section_switches_it_on_and_leaving_puts_the_sectio
     let before = (is_active(&app, "Coupe 1"), is_active(&app, "Coupe 2"));
 
     double_click(&mut app, "Esquisse 2");
-    let opened = driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON);
+    let opened = driver::a_sketch_is_open(&app);
     let while_open = (is_active(&app, "Coupe 1"), is_active(&app, "Coupe 2"));
-    click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
+    driver::finish_the_sketch(&mut app);
     let after = (is_active(&app, "Coupe 1"), is_active(&app, "Coupe 2"));
 
     assert_eq!(
@@ -463,7 +463,7 @@ fn sections_in_the_tree(app: &driver::App) -> Vec<String> {
 #[test]
 fn saving_again_after_the_save_was_undone_keeps_a_section_again() {
     let mut app = driver::a_block("keeping_a_section_saved_undone_saved");
-    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     driver::click(&mut app, "Plan YZ");
     driver::click_the_button(&mut app, "Enregistrer la coupe");
     driver::press_with_command(&mut app, egui::Key::Z);
@@ -486,7 +486,7 @@ fn saving_again_after_the_save_was_undone_keeps_a_section_again() {
 #[test]
 fn saving_after_the_section_was_deleted_from_the_tree_makes_a_new_one() {
     let mut app = driver::a_block("keeping_a_section_saved_deleted_saved");
-    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     driver::click(&mut app, "Plan YZ");
     driver::click_the_button(&mut app, "Enregistrer la coupe");
     right_click(&mut app, "Coupe 1");
@@ -578,7 +578,7 @@ fn the_history_still_reads_its_last_row_as_current_once_a_section_is_saved_and_c
 #[test]
 fn a_section_whose_face_is_gone_reads_face_lost_in_the_tree() {
     let mut app = driver::a_block("keeping_a_section_face_lost");
-    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     driver::click(&mut app, "Face cliquée");
     driver::click_at_world_point(&mut app, ON_THE_BLOCK_UNDER_THE_CUT);
     driver::click_the_button(&mut app, "Enregistrer la coupe");
@@ -590,7 +590,7 @@ fn a_section_whose_face_is_gone_reads_face_lost_in_the_tree() {
     app.hover_at(away_from_the_drawing);
     app.run();
     driver::press(&mut app, egui::Key::Delete);
-    click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
+    driver::finish_the_sketch(&mut app);
 
     assert_eq!(
         sections_in_the_tree(&app),

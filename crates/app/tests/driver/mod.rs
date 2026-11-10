@@ -45,12 +45,6 @@ pub const WHERE_ITS_DIMENSION_GOES: DVec2 = DVec2::new(87.39, 65.72);
 /// where the area an extrusion raises is clicked.
 pub const INSIDE_THE_RECTANGLE: DVec2 = DVec2::new(62.61, -15.15);
 
-/// The ribbon's « Terminer », by the whole name the ribbon gives it, its
-/// shortcut included: the pill a sketch shows over the view carries a
-/// « Terminer ↵ » of its own (#727), and a gesture aimed at « Terminer » alone
-/// would find both.
-pub const FINISH_IN_THE_RIBBON: &str = "Terminer (Entrée)";
-
 pub type App = Harness<'static, CaoApp>;
 
 /// How high the drawing area was when the fixtures above were tuned, in
@@ -770,6 +764,77 @@ pub fn the_bar_s<'a>(app: &'a App, label: &str) -> egui_kittest::Node<'a> {
         })
 }
 
+/// The pill's button that finishes the sketch, found by where it stands: the
+/// view holds it, which it holds of no button of the ribbon. It stands there
+/// only while a sketch is open, so that absent reads as no sketch.
+pub fn the_pill_s_finish<'a>(app: &'a App) -> Option<egui_kittest::Node<'a>> {
+    let view = drawing_area(app)?;
+    app.query_all_by_role(egui::accesskit::Role::Button)
+        .find(|node| {
+            node.accesskit_node()
+                .label()
+                .is_some_and(|read| read.starts_with("Terminer"))
+                && view.contains_rect(node.rect())
+        })
+}
+
+/// Whether a sketch is open, read from the editor rather than the pill, so
+/// that a test of the pill has a witness that is not the pill.
+pub fn a_sketch_is_open(app: &App) -> bool {
+    app.state()
+        .where_the_view_shows_the_sketch_point(DVec2::ZERO)
+        .is_some()
+}
+
+/// Finishes the open sketch with the pill's button, the way a hand does now
+/// that the ribbon has no « Terminer » to offer by default (#732).
+pub fn finish_the_sketch(app: &mut App) {
+    let node = the_pill_s_finish(app).unwrap_or_else(|| {
+        panic!(
+            "no « Terminer » stands inside the view, so no sketch is open, showing {:?}",
+            on_screen(app)
+        )
+    });
+    within_reach("Terminer", node.rect().center(), app.ctx.content_rect());
+    node.click();
+    app.run();
+    hold_the_canvas(app);
+}
+
+/// The mouse wheel turned towards the user over this place, thirty notches at
+/// once, as a hand stepping well back from the part does.
+pub fn step_back(app: &mut App, over: egui::Pos2) {
+    app.hover_at(over);
+    app.run();
+    app.event(egui::Event::MouseWheel {
+        unit: egui::MouseWheelUnit::Line,
+        delta: egui::vec2(0.0, -30.0),
+        phase: egui::TouchPhase::Move,
+        modifiers: egui::Modifiers::NONE,
+    });
+    app.run();
+    hold_the_canvas(app);
+}
+
+/// The settings of someone who has put the four commands #732 took off the
+/// default ribbon back on it, at the end of its first tab.
+pub fn the_moved_commands_put_back() -> cao_prefs::Settings {
+    use cao_prefs::{Command, Item};
+    let mut settings = cao_prefs::Settings::default();
+    if let Some(Item::Group { items, .. }) = settings.toolbar.items.first_mut() {
+        items.extend(
+            [
+                Command::Reframe,
+                Command::SectionView,
+                Command::NextMatterInFront,
+                Command::FinishSketch,
+            ]
+            .map(Item::Command),
+        );
+    }
+    settings
+}
+
 pub fn click_in_the_bar(app: &mut App, label: &str) {
     let node = the_bar_s(app, label);
     within_reach(label, node.rect().center(), app.ctx.content_rect());
@@ -906,7 +971,12 @@ pub const ON_THE_CUT: DVec3 = DVec3::new(5.0, 46.2, -2.47);
 /// A part named « Bloc », a block raised 10 mm off a rectangle drawn on the
 /// plane YZ, its sketch then finished.
 pub fn a_block(test: &str) -> App {
-    let mut app = open(test);
+    a_block_with(test, cao_prefs::Settings::default())
+}
+
+/// `a_block`, in an application opened on these settings.
+pub fn a_block_with(test: &str, settings: cao_prefs::Settings) -> App {
+    let mut app = open_held_with(test, settings);
     create_a_part(&mut app, "Bloc");
     start_a_sketch(&mut app);
     click(&mut app, "Rectangle (R)");
@@ -918,10 +988,10 @@ pub fn a_block(test: &str) -> App {
     click_at_sketch_point(&mut app, ON_THE_BLOCK);
     click(&mut app, "Appliquer");
     press(&mut app, egui::Key::Escape);
-    click_in_the_ribbon(&mut app, FINISH_IN_THE_RIBBON);
+    finish_the_sketch(&mut app);
     click_the_button(&mut app, "Esquisse");
     assert!(
-        !is_enabled(&app, FINISH_IN_THE_RIBBON),
+        !a_sketch_is_open(&app),
         "the sketch the block was raised from is still being edited, showing {:?}",
         on_screen(&app),
     );

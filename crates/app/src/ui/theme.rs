@@ -8,7 +8,7 @@ use std::sync::Arc;
 use egui::style::{Selection, WidgetVisuals, Widgets};
 use egui::{
     Color32, Context, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Margin, Stroke,
-    Style, TextStyle, Theme, ThemePreference, Visuals, vec2,
+    Style, TextStyle, Theme, ThemePreference, Ui, Visuals, vec2,
 };
 
 use tokens::*;
@@ -19,6 +19,10 @@ const JETBRAINS_MONO: &[u8] = include_bytes!("../../assets/fonts/jetbrains_mono_
 /// The border every state of a widget wears, and how far its frame reaches
 /// past the room it takes, in points.
 const BORDER: i8 = 1;
+
+/// A row of a menu under the pointer. Not a token of the design file, whose
+/// hover greys barely show on a menu's own fill: this one was chosen on sight.
+pub const MENU_ROW_HOVERED: Color32 = Color32::from_rgb(0x35, 0x3A, 0x45);
 
 /// Dark whatever the system asks for, in the tokens' colours, sizes and
 /// typefaces.
@@ -45,6 +49,14 @@ pub fn font_definitions() -> FontDefinitions {
         JETBRAINS_MONO,
     );
     definitions
+}
+
+/// The rows `egui` draws in this `ui`, a menu's, answer the pointer in
+/// `MENU_ROW_HOVERED`.
+pub fn hovered_menu_rows_stand_out(ui: &mut Ui) {
+    let hovered = &mut ui.visuals_mut().widgets.hovered;
+    hovered.weak_bg_fill = MENU_ROW_HOVERED;
+    hovered.bg_fill = MENU_ROW_HOVERED;
 }
 
 fn put_first(

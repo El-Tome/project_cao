@@ -307,7 +307,7 @@ fn with_another_tool_in_hand_command_a_leaves_the_tool_at_its_work() {
 fn outside_a_sketch_command_a_changes_nothing() {
     let mut app = a_sketch("outside_a_sketch_command_a_changes_nothing");
     driver::draw_a_segment(&mut app);
-    driver::click(&mut app, driver::FINISH_IN_THE_RIBBON);
+    driver::finish_the_sketch(&mut app);
     driver::open_the_history(&mut app);
     let (steps_before, said_before) = (driver::steps(&app), driver::said(&app));
 

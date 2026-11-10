@@ -196,7 +196,7 @@ impl Outline {
             !samples.is_vertex(id) || floor.tip(id)
         })?;
         if apex.is_none() && passing.is_none() {
-            self.columned(steps);
+            self.columned(steps, cone);
         }
         Some(())
     }

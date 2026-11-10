@@ -4,6 +4,7 @@ mod caught;
 pub(crate) mod chamfer;
 mod drawn;
 mod exact;
+mod faces;
 pub(crate) mod fillet;
 mod names;
 mod section;

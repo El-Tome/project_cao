@@ -70,10 +70,12 @@ pub(super) fn drawn_under<'a>(
     origin: DVec3,
     direction: DVec3,
 ) -> Option<(&'a Body, FaceHit)> {
-    let shown = |face| faces.shows(face);
     std::iter::once(&*drawn.opaque)
         .chain(drawn.see_through.as_ref())
-        .filter_map(|piece| Some((piece, piece.ray_hit_among(origin, direction, &shown)?)))
+        .filter_map(|piece| {
+            let shown = |face| faces.shows(piece, face);
+            Some((piece, piece.ray_hit_among(origin, direction, &shown)?))
+        })
         .min_by(|(_, a), (_, b)| a.distance.total_cmp(&b.distance))
 }
 

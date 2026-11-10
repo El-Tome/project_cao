@@ -42,15 +42,22 @@ pub struct TreeRow<'a> {
     pub ink: Option<Color32>,
     pub value: Option<&'a str>,
     pub badge: Option<(&'a str, Level)>,
-    /// Whether the eye is open, and what a click on it does.
-    pub eye: Option<(bool, &'a str)>,
-    /// In the eye's place, C11's button for what is shown more ways than two:
-    /// the picture of its state, and what a click on it does.
-    pub visibility: Option<(Icon, &'a str)>,
+    /// The button in the eye's column, when the row has one.
+    pub eye: Option<Eye<'a>>,
     /// A picture before the name, in its own colour.
     pub icon: Option<(Icon, Color32)>,
     /// A click on it asks nothing: it reads as text, not as a button.
     pub inert: bool,
+}
+
+/// What stands in a row's eye column: C11, in one of its two forms.
+#[derive(Clone, Copy)]
+pub enum Eye<'a> {
+    /// Shown or not: whether the eye is open, and what a click on it does.
+    Open(bool, &'a str),
+    /// Shown more ways than two: the picture of its state, and what a click
+    /// on it does. Lit unless the row is dimmed.
+    Pictured(Icon, &'a str),
 }
 
 /// The row as the hand found it, and whether the button in its eye's column
@@ -111,17 +118,16 @@ pub fn tree_row(ui: &mut Ui, row: TreeRow<'_>) -> Touched {
     paint(&inside, &row, area, &response);
 
     let mut eye_clicked = false;
-    let column = Rect::from_x_y_ranges(line.left()..=line.left() + EYE_COLUMN, line.y_range());
-    let in_the_column = UiBuilder::new()
-        .max_rect(column)
-        .layout(Layout::left_to_right(Align::Center));
-    if let Some((lit, said)) = row.eye {
+    if let Some(shown) = row.eye {
+        let column = Rect::from_x_y_ranges(line.left()..=line.left() + EYE_COLUMN, line.y_range());
+        let in_the_column = UiBuilder::new()
+            .max_rect(column)
+            .layout(Layout::left_to_right(Align::Center));
         inside.scope_builder(in_the_column, |ui| {
-            eye_clicked = eye(ui, lit, said.to_string());
-        });
-    } else if let Some((drawn, said)) = row.visibility {
-        inside.scope_builder(in_the_column, |ui| {
-            eye_clicked = visibility(ui, !row.dimmed, drawn, said.to_string());
+            eye_clicked = match shown {
+                Eye::Open(lit, said) => eye(ui, lit, said.to_string()),
+                Eye::Pictured(drawn, said) => visibility(ui, !row.dimmed, drawn, said.to_string()),
+            };
         });
     }
     Touched {

@@ -4,7 +4,6 @@
 
 use cao_part::PartDocument;
 use cao_render::MatterInFront;
-use cao_solid::Body;
 use glam::{DVec3, Vec3};
 
 use super::{tint, tint_at};
@@ -27,15 +26,17 @@ pub(super) fn push_matter(
     let faces = state.face_modes(document);
     let (mut opaque, mut veiled) = (Vec::new(), Vec::new());
     for (triangle, face) in drawn.opaque.triangles_by_face() {
-        match faces.of(face) {
+        match faces.of_piece(&drawn.opaque, face) {
             MatterInFront::Opaque => opaque.push(triangle),
             MatterInFront::SeeThrough => veiled.push(triangle),
             MatterInFront::Hidden => {}
         }
     }
-    for (triangle, face) in drawn.see_through.iter().flat_map(Body::triangles_by_face) {
-        if faces.of(face) != MatterInFront::Hidden {
-            veiled.push(triangle);
+    if let Some(piece) = &drawn.see_through {
+        for (triangle, face) in piece.triangles_by_face() {
+            if faces.of_piece(piece, face) != MatterInFront::Hidden {
+                veiled.push(triangle);
+            }
         }
     }
     push_body(solids, opaque, tint(theme.solid), camera.forward());

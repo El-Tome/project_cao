@@ -96,7 +96,7 @@ fn cut_along_a_face(
         return false;
     }
     let up = |normal| once_facing(state, normal);
-    let shown = |face| faces.shows(face);
+    let shown = |face| faces.shows(body, face);
     let offered = what_is_shown_offers(body, &shown, (origin, direction), up);
     let (Some(PlaneChoice::Face { plane, .. }), Some(section)) = (offered, state.section.as_mut())
     else {
@@ -174,7 +174,7 @@ fn anchor_the_cut(
     part: &Body,
     ray: (DVec3, DVec3),
 ) {
-    let Some(hit) = piece.ray_hit_among(ray.0, ray.1, &|face| faces.shows(face)) else {
+    let Some(hit) = piece.ray_hit_among(ray.0, ray.1, &|face| faces.shows(piece, face)) else {
         return;
     };
     let up = once_facing(state, hit.normal);

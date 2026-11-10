@@ -9,6 +9,7 @@ use cao_part::history::StepKind;
 use cao_part::{Operation, PartDocument};
 use cao_render::MatterInFront;
 use cao_sketch::Sketch;
+use cao_solid::Body;
 
 use super::ViewportState;
 use crate::screens::SketchContext;
@@ -117,9 +118,16 @@ impl ViewportState {
         self.visibility.whole_body
     }
 
-    /// How each face of the part is drawn: as the volume that made it, worked
-    /// out once a frame since asking a step for its faces replays the history.
+    /// How each face of the part is drawn: as the volume that made it. Asking
+    /// a step for its faces replays the history, so it is asked only once a
+    /// volume was set apart from the whole body.
     pub(crate) fn face_modes(&self, document: &PartDocument) -> FaceModes {
+        if self.visibility.volumes.is_empty() {
+            return FaceModes {
+                made: BTreeMap::new(),
+                rest: self.whole_body_choice(),
+            };
+        }
         let made = volumes(document)
             .filter_map(|step| {
                 let faces = document.faces_made_by(document.history.number_at(step)?);
@@ -176,9 +184,19 @@ impl FaceModes {
         made.copied().unwrap_or(self.rest)
     }
 
-    /// Whether a face is drawn, and so met by a ray.
-    pub(crate) fn shows(&self, face: usize) -> bool {
-        self.of(Some(face)) != MatterInFront::Hidden
+    /// How a face of `drawn` is drawn: a piece a cut or a section parted and
+    /// numbered anew, as the part's own face it was parted from.
+    pub(crate) fn of_piece(&self, drawn: &Body, face: Option<usize>) -> MatterInFront {
+        let mut face = face;
+        while let Some(piece) = face.filter(|face| !self.made.contains_key(face)) {
+            face = drawn.parted_from(piece);
+        }
+        self.of(face)
+    }
+
+    /// Whether a face of `drawn` is drawn, and so met by a ray.
+    pub(crate) fn shows(&self, drawn: &Body, face: usize) -> bool {
+        self.of_piece(drawn, Some(face)) != MatterInFront::Hidden
     }
 }
 

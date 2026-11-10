@@ -264,6 +264,9 @@
 //!   test: no part built today has a face that no extrusion or revolution
 //!   made, so no frame can show one; the rule is held, face by face, in
 //!   `crates/app/src/screens/viewport/visibility/tests.rs`
+//! - found in review: a face of a volume the section parts in two, one piece
+//!   numbered anew, is still drawn as its volume — every piece of it —
+//!   `a_volume_the_section_parts_is_drawn_in_its_own_state_every_piece_of_it`
 //! - a see-through wall behind an opaque face is hidden by it — no test: the
 //!   depth test lives in the wgpu pipelines of `crates/render/src/renderer.rs`,
 //!   which no test reaches; the frame only says which layer a triangle goes
@@ -283,6 +286,7 @@ use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::part_tree::state::{Points, hover};
 use crate::screens::sketch::SketchEditor;
+use crate::screens::viewport::matter::shown;
 use crate::screens::viewport::section::Section;
 
 const SCREEN: egui::Rect = egui::Rect {
@@ -3071,5 +3075,121 @@ fn a_hidden_volume_draws_none_of_its_faces() {
         the_wall_and_the_block_seen(&hidden(THE_BLOCK)),
         (Seen::Opaque, Seen::Hidden),
         "the block invisible, as (wall, block)",
+    );
+}
+
+/// Where the U stands in the history of `a_block_and_a_u_beside_it`.
+const THE_U: usize = 5;
+
+/// How far along Y the section of `a_u_sectioned` cuts: through the U's two
+/// arms, above the bar that joins them.
+const ACROSS_THE_ARMS: f64 = 5.0;
+
+/// A block 10 by 10 and 4 high at the origin, then a U 6 high over x from 20
+/// to 30, its two arms 2 wide standing up along Y from a bar 2 deep: two
+/// volumes. The U is the outer rectangle less the notch drawn over it.
+fn a_block_and_a_u_beside_it() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    let rectangle = |document: &mut PartDocument, corner: DVec2, opposite: DVec2| {
+        document.apply(Operation::AddRectangle {
+            sketch: 0,
+            corner: PointRef::New(corner),
+            opposite: PointRef::New(opposite),
+            construction: false,
+        });
+    };
+    rectangle(&mut document, DVec2::ZERO, DVec2::splat(10.0));
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::splat(5.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    rectangle(&mut document, DVec2::new(20.0, 0.0), DVec2::new(30.0, 10.0));
+    rectangle(&mut document, DVec2::new(22.0, 2.0), DVec2::new(28.0, 12.0));
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(21.0, 1.0)]),
+        distance: 6.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    assert!(
+        matches!(
+            document.history.applied_operations().get(THE_U),
+            Some(Operation::Extrude { .. })
+        ),
+        "the fixture wants the U raised at step {THE_U}",
+    );
+    document
+}
+
+/// A view with the section on along XZ, through the U's arms, the side the
+/// arms stand on drawn and the side of the bar hidden.
+fn a_u_sectioned() -> ViewportState {
+    let mut section = Section::new(WorkPlane::XZ);
+    section.offset = -ACROSS_THE_ARMS;
+    let mut state = ViewportState::default();
+    state.section = Some(section);
+    state
+}
+
+/// Whether every corner of a triangle stands over the U, off the cutting plane
+/// where the section's own fill is drawn.
+fn of_the_u(triangle: &[&cao_render::Vertex; 3]) -> bool {
+    let over = triangle
+        .iter()
+        .all(|corner| (19.999..=30.001).contains(&corner.position[0]));
+    let on_the_cut = triangle
+        .iter()
+        .all(|corner| (f64::from(corner.position[1]) - ACROSS_THE_ARMS).abs() < 1e-3);
+    over && !on_the_cut
+}
+
+#[test]
+fn a_volume_the_section_parts_is_drawn_in_its_own_state_every_piece_of_it() {
+    let mut document = a_block_and_a_u_beside_it();
+    let mut state = a_u_sectioned();
+    let drawn = shown(&state, &SketchEditor::default(), document.body());
+    let renumbered: Vec<usize> = drawn
+        .opaque
+        .triangles_by_face()
+        .into_iter()
+        .filter_map(|(triangle, face)| {
+            let over_the_u = triangle.iter().all(|corner| corner.x > 19.999);
+            face.filter(|face| over_the_u && *face >= document.body().faces_end())
+        })
+        .collect();
+    assert!(
+        !renumbered.is_empty(),
+        "the fixture wants the section to part a face of the U and number a piece anew",
+    );
+    state.next_volume_mode(&document, THE_U);
+    assert_eq!(
+        state.volume_mode(&document, THE_U),
+        MatterInFront::SeeThrough
+    );
+
+    let frame = a_frame_of(&state, &mut document, &mut SketchEditor::default());
+
+    let opaque = triangles(&frame.scene_solids)
+        .into_iter()
+        .filter(of_the_u)
+        .count();
+    let veiled = triangles(&frame.scene_surfaces)
+        .into_iter()
+        .filter(of_the_u)
+        .count();
+    assert!(
+        veiled > 0,
+        "nothing of the see-through U is drawn see-through"
+    );
+    assert_eq!(
+        opaque, 0,
+        "{opaque} triangles of the see-through U are drawn opaque, as the whole body is, \
+         beside {veiled} drawn see-through",
     );
 }

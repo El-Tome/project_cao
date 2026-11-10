@@ -34,6 +34,7 @@ same shader and differ mostly in what they do with that buffer:
 | --- | --- |
 | `solid` | tests and **writes** |
 | `world_line` — axes and grid | tests without writing, pulled a hair towards the camera |
+| `veiled_matter` — the part's see-through faces | tests (`LessEqual`) without writing |
 | `line`, `triangle`, `surface`, `background` | always pass, without writing |
 
 A solid is the only geometry with a volume, and therefore the only one whose
@@ -43,6 +44,18 @@ trait crossing a block would read as an edge of that block; the nudge they get
 is explained in [viewport.md](viewport.md). Everything else goes over the top
 deliberately: a sketch or a dimension buried in a block would be unusable, and
 the orientation cube must never be hidden by the part.
+
+The faces of a volume set « transparente » are matter all the same, and an
+opaque face in front of them must hide them. They travel in `scene_surfaces`
+— that is where a frame's translucent triangles are read — and
+`SceneFrame::scene_veiled_matter` says which range of that list they hold.
+The renderer draws `scene_surfaces` in three slices, in order: before the
+range with `surface`, the range with `veiled_matter`, after it with `surface`
+again. So the areas chosen for an extrusion and the sketch fills, pushed
+before, and the section's square, pushed after, keep going over everything.
+The range is taken around `push_matter` in `frame_of`: **nothing else may be
+pushed into `scene_surfaces` between its two ends**, or it would be hidden by
+the part like the matter.
 
 The cube is still drawn last, and it is plain back-face culling that shows only
 its near faces. Its edges are emitted only for the visible faces, otherwise the

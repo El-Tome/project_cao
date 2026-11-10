@@ -13,7 +13,7 @@ use crate::ui::icon;
 use crate::ui::question::{Question, ask};
 use crate::ui::segmented::{Segment, segmented};
 use crate::ui::theme::tokens;
-use crate::ui::tree_row::{TreeRow, folding_row, tree_note, tree_row};
+use crate::ui::tree_row::{Eye, TreeRow, folding_row, tree_note, tree_row};
 use crate::wording::part_tree::{self as said, Problem, Rubric};
 
 /// What the tree reads to mark its rows, and the one thing asked of it.
@@ -180,7 +180,7 @@ fn made_of_matter(ui: &mut egui::Ui, body: &Body, asked: &mut Asked<'_>, lang: &
         dimmed: body.dimmed,
         value: Some(&body.state),
         badge: badge.as_deref().zip(body.badge.map(Problem::level)),
-        visibility: Some((drawn, &body.visibility_button)),
+        eye: Some(Eye::Pictured(drawn, &body.visibility_button)),
         icon: Some(made),
         ..TreeRow::default()
     };
@@ -214,7 +214,7 @@ fn drawn(ui: &mut egui::Ui, drawing: &Drawn, asked: &mut Asked<'_>, lang: &Catal
         dimmed: drawing.dimmed,
         value: Some(&drawing.plane),
         badge: badge.as_deref().zip(drawing.badge.map(Problem::level)),
-        eye: Some((lit, &eye)),
+        eye: Some(Eye::Open(lit, &eye)),
         ..TreeRow::default()
     };
     let id = egui::Id::new(("sketch", drawing.step));

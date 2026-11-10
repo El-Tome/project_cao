@@ -75,6 +75,11 @@
 //! - found while laying the frame: an invisible volume is not drawn, so none
 //!   of its faces is offered, and a ray goes through it to the face behind —
 //!   `a_hidden_volume_offers_none_of_its_faces_and_the_face_behind_it_is_offered`
+//! - found in review: under a section that parts a face of a hidden volume in
+//!   two and numbers a piece anew, no piece of it is offered to draw on —
+//!   `a_hidden_volume_the_section_parts_offers_no_piece_of_itself_to_draw_on` —
+//!   nor taken as a cutting face —
+//!   `a_hidden_volume_the_section_parts_offers_no_piece_of_itself_to_cut_along`
 
 use glam::{DVec2, DVec3};
 
@@ -1131,5 +1136,177 @@ fn a_hidden_volume_offers_none_of_its_faces_and_the_face_behind_it_is_offered() 
     assert!(
         stands_square_to_x_at(&through.document, face, 10.0),
         "a ray through the invisible post is anchored to face {face}, not the block's side at x = 10",
+    );
+}
+
+/// Where the U stands in the history of `a_block_and_a_u_beside_it`.
+const THE_U: usize = 5;
+
+/// A block 10 by 10 and 4 high at the origin, then a U 6 high over x from 20
+/// to 30, its two arms 2 wide standing up along Y from a bar 2 deep: two
+/// volumes. The U is the outer rectangle less the notch drawn over it.
+fn a_block_and_a_u_beside_it() -> PartDocument {
+    use cao_part::{ExtrusionMode, PointRef};
+
+    let mut document = a_part_holding_a_block();
+    for (corner, opposite) in [
+        (DVec2::new(20.0, 0.0), DVec2::new(30.0, 10.0)),
+        (DVec2::new(22.0, 2.0), DVec2::new(28.0, 12.0)),
+    ] {
+        document.apply(Operation::AddRectangle {
+            sketch: 0,
+            corner: PointRef::New(corner),
+            opposite: PointRef::New(opposite),
+            construction: false,
+        });
+    }
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(21.0, 1.0)]),
+        distance: 6.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    assert!(
+        matches!(
+            document.history.applied_operations().get(THE_U),
+            Some(Operation::Extrude { .. })
+        ),
+        "the fixture wants the U raised at step {THE_U}",
+    );
+    document
+}
+
+/// The section along XZ through the U's two arms, the side they stand on
+/// drawn: it parts the U's top and its floor, each in two, and numbers a piece
+/// of each anew — the top's over the left arm, the floor's under the right.
+fn across_the_u_s_arms() -> Section {
+    let mut section = Section::new(WorkPlane::XZ);
+    section.offset = -5.0;
+    section
+}
+
+/// The view with `section` on and the U hidden, the block left opaque.
+fn the_u_hidden_under(document: &PartDocument, section: Section) -> ViewportState {
+    let mut state = ViewportState::default();
+    state.section = Some(section);
+    state.next_volume_mode(document, THE_U);
+    state.next_volume_mode(document, THE_U);
+    assert_eq!(state.volume_mode(document, THE_U), MatterInFront::Hidden);
+    let drawn = shown(&state, &SketchEditor::default(), document.body());
+    assert!(
+        drawn
+            .opaque
+            .triangles_by_face()
+            .iter()
+            .any(|(_, face)| face.is_some_and(|face| face >= document.body().faces_end())),
+        "the fixture wants the section to part a face of the U and number a piece anew",
+    );
+    state
+}
+
+#[test]
+fn a_hidden_volume_the_section_parts_offers_no_piece_of_itself_to_draw_on() {
+    for (what, origin, direction) in [
+        (
+            "the top of the left arm",
+            DVec3::new(21.0, 7.0, 50.0),
+            DVec3::NEG_Z,
+        ),
+        (
+            "the floor of the right arm",
+            DVec3::new(29.0, 7.0, -50.0),
+            DVec3::Z,
+        ),
+    ] {
+        let document = a_block_and_a_u_beside_it();
+        let state = the_u_hidden_under(&document, across_the_u_s_arms());
+
+        let started = a_sketch_started_seen(document, state, origin, direction);
+
+        assert!(
+            !matches!(
+                started.offered,
+                Some(PlaneChoice::Face { .. } | PlaneChoice::Curved(_))
+            ),
+            "{what} of the invisible U is offered as {:?}",
+            started.offered,
+        );
+        assert!(
+            !matches!(
+                started.document.history.operations().last(),
+                Some(Operation::CreateSketch { on: Some(_), .. })
+            ),
+            "a click on {what} of the invisible U anchors a sketch to it",
+        );
+    }
+}
+
+/// One click at `at` on a canvas seen from straight above, while the section
+/// of `state` waits for a face: the view after it.
+fn a_click_from_above_while_the_section_waits(
+    mut document: PartDocument,
+    mut state: ViewportState,
+    at: DVec3,
+) -> ViewportState {
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let (yaw, pitch) = view_angles_towards(glam::Vec3::Z);
+    state.camera.set_view_angles(yaw, pitch);
+    let on_screen = on_the_screen(&state, at);
+    let context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    let egui = egui::Context::default();
+    let none = egui::Modifiers::NONE;
+    for events in [
+        vec![],
+        vec![egui::Event::PointerMoved(on_screen)],
+        pressed(on_screen, egui::PointerButton::Primary, none, true),
+        pressed(on_screen, egui::PointerButton::Primary, none, false),
+    ] {
+        egui.begin_pass(egui::RawInput {
+            screen_rect: Some(SCREEN),
+            events,
+            ..Default::default()
+        });
+        egui::Area::new(egui::Id::new("the canvas"))
+            .fixed_pos(SCREEN.min)
+            .show(&egui, |ui| {
+                ui.set_min_size(SCREEN.size());
+                let response = ui.interact(
+                    SCREEN,
+                    egui::Id::new("the canvas's surface"),
+                    egui::Sense::click_and_drag(),
+                );
+                let scale = ViewScale::of(&state.camera, SCREEN, 1.0, &state.config, 1.0);
+                point_the_section(ui, &mut state, &response, (SCREEN, scale), &context);
+            });
+        egui.end_pass().textures_delta.clear();
+    }
+    state
+}
+
+#[test]
+fn a_hidden_volume_the_section_parts_offers_no_piece_of_itself_to_cut_along() {
+    let document = a_block_and_a_u_beside_it();
+    let mut waiting = across_the_u_s_arms();
+    waiting.wait_for_a_face();
+    let state = the_u_hidden_under(&document, waiting);
+
+    let after =
+        a_click_from_above_while_the_section_waits(document, state, DVec3::new(21.0, 7.0, 6.0));
+
+    let section = after.section.as_ref().expect("the section stays on");
+    let plane = section.tilted();
+    let on_the_u_s_top = plane.normal().z.abs() > 1.0 - 1e-9
+        && (plane.origin.z + plane.normal().z * section.offset - 6.0).abs() < 1e-6;
+    assert!(
+        section.is_waiting_for_a_face() || !on_the_u_s_top,
+        "a click on the top of the invisible U's left arm takes it as the cutting face",
     );
 }

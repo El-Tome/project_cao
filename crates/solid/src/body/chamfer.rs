@@ -29,8 +29,11 @@ impl Body {
 
     /// The edge each name finds cut off, or filled in, as [`Body::chamfer`]
     /// cuts it, at `distance` or at the one largest distance every edge gives:
-    /// alone, and on a face two of them share, parallel and facing each other
-    /// across it, with the other laid. Each flat face is numbered on its own,
+    /// alone, and for any two not meeting at a corner, with their set-backs
+    /// short of reaching one point of a straight edge bounding a face of each
+    /// — two parallel edges facing each other across a face they share, an
+    /// edge ending on a face of another, two that are not parallel on a face
+    /// they share. Each flat face is numbered on its own,
     /// in the order the names come, from where the steps' numbers ended — but
     /// an edge cut off and one filled in whose set-backs meet across the face
     /// they share, and whose flats lie in one plane there — a tread's nose and
@@ -52,9 +55,9 @@ impl Body {
     /// meet in a valley; at any other corner where an edge meets inwards they
     /// are declined `Unsupported`, as is an edge of a slope meeting another
     /// edge of the list at a corner, and an edge whose flat would be one slope
-    /// with two others'. Flats that would meet anywhere else are declined
-    /// `Unsupported`, until #792 measures them. The first edge declined
-    /// declines the step.
+    /// with two others'. Flats that would meet only on a curved edge are not
+    /// measured, and declined `Unsupported` where they meet. The first edge
+    /// declined declines the step.
     pub fn chamfer_edges(&self, edges: &[EdgeName], distance: f64) -> Result<Chamfered, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Lost(Lost::Gone));

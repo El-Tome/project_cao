@@ -118,9 +118,11 @@
 //!   `crates/app/src/screens/part_tree/state/tests.rs`, under its own block
 //! - one display mode for the whole body — invisible, see-through, opaque —
 //!   "opaque by default" — `the_body_is_drawn_opaque_by_default`,
-//!   `the_body_is_drawn_invisible_see_through_or_opaque_as_its_mode_says`; set
-//!   on the « Corps » rubric, a click stepping round the three —
-//!   `the_body_s_mode_steps_round_its_three_states`
+//!   `the_body_is_drawn_invisible_see_through_or_opaque_as_its_mode_says`,
+//!   set since #734 from « TOUT LE CORPS ». The « Corps » rubric whose click
+//!   stepped round the three is gone with #734: each volume now steps round
+//!   them on its own, held in `crates/app/src/screens/viewport/visibility/tests.rs`
+//!   by `a_volume_s_visibility_cycles_opaque_see_through_invisible_and_round_again`
 //! - the sketch's own cut of #319 and the section of #193 still apply on top —
 //!   `a_see_through_body_keeps_the_matter_in_front_of_the_sketch_cut_away`,
 //!   `a_see_through_body_keeps_the_side_the_section_hides_hidden`; found in
@@ -1329,16 +1331,9 @@ fn an_area_lit_from_the_tree_is_drawn_lit_in_its_closed_sketch() {
     );
 }
 
-/// The view with the body drawn `mode`, reached the way the user reaches it,
-/// one click at a time.
+/// The view with the body drawn `mode`, chosen in « TOUT LE CORPS ».
 fn body_drawn(state: &mut ViewportState, mode: MatterInFront) {
-    for _ in 0..3 {
-        if state.body_mode() == mode {
-            return;
-        }
-        state.next_body_mode();
-    }
-    assert_eq!(state.body_mode(), mode, "three clicks never reach {mode:?}");
+    state.set_whole_body(mode);
 }
 
 /// How the block's matter is drawn, leaving out the ground its sketch lies on.
@@ -1350,7 +1345,7 @@ fn the_block_seen(frame: &SceneFrame) -> Seen {
 fn the_body_is_drawn_opaque_by_default() {
     let state = ViewportState::default();
 
-    assert_eq!(state.body_mode(), MatterInFront::Opaque);
+    assert_eq!(state.whole_body_choice(), MatterInFront::Opaque);
     assert_eq!(
         the_block_seen(&a_view_of_the_block(&state)),
         Seen::Opaque,
@@ -1368,27 +1363,6 @@ fn the_body_is_drawn_invisible_see_through_or_opaque_as_its_mode_says() {
             the_block_seen(&a_view_of_the_block(&state)),
             seen(mode),
             "the body set {mode:?} is drawn otherwise",
-        );
-    }
-}
-
-#[test]
-fn the_body_s_mode_steps_round_its_three_states() {
-    let mut state = ViewportState::default();
-    let mut met = vec![state.body_mode()];
-    for _ in 0..3 {
-        state.next_body_mode();
-        met.push(state.body_mode());
-    }
-
-    assert_eq!(
-        met[3], met[0],
-        "three clicks do not come back to where they started: {met:?}"
-    );
-    for mode in EVERY_STATE {
-        assert!(
-            met[..3].contains(&mode),
-            "the clicks never reach {mode:?}: {met:?}"
         );
     }
 }

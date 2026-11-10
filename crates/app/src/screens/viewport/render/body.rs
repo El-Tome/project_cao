@@ -27,7 +27,7 @@ pub(super) fn push_matter(
     let faces = state.face_modes(document);
     let (mut opaque, mut veiled) = (Vec::new(), Vec::new());
     for (triangle, face) in drawn.opaque.triangles_by_face() {
-        match faded_most(state.body_mode(), faces.of(face)) {
+        match faces.of(face) {
             MatterInFront::Opaque => opaque.push(triangle),
             MatterInFront::SeeThrough => veiled.push(triangle),
             MatterInFront::Hidden => {}
@@ -45,17 +45,6 @@ pub(super) fn push_matter(
     veiled.retain(|[a, b, c]| (*b - *a).cross(*c - *a).dot(eye - *a) > 0.0);
     let color = tint_at(theme.solid, SEE_THROUGH_OPACITY);
     push_body(surfaces, veiled, color, camera.forward());
-}
-
-/// The fainter of two ways of drawing matter: what the whole body is set to,
-/// and what its own face is.
-fn faded_most(body: MatterInFront, face: MatterInFront) -> MatterInFront {
-    use MatterInFront::{Hidden, Opaque, SeeThrough};
-    match (body, face) {
-        (Hidden, _) | (_, Hidden) => Hidden,
-        (SeeThrough, _) | (_, SeeThrough) => SeeThrough,
-        (Opaque, Opaque) => Opaque,
-    }
 }
 
 fn push_body(

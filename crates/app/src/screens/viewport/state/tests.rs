@@ -82,6 +82,7 @@ use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
+use crate::screens::viewport::matter::{drawn_under, shown};
 
 /// Who the canvas hands the gesture to, on an empty part.
 fn asked(cube_took_it: bool, setting_up_an_extrusion: bool) -> GestureGoesTo {
@@ -458,7 +459,11 @@ fn under(
     document: &PartDocument,
     (origin, direction): (DVec3, DVec3),
 ) -> Option<DVec3> {
-    state.point_of_the_part_under(&SketchEditor::default(), document.body(), origin, direction)
+    let editor = SketchEditor::default();
+    let drawn = shown(state, &editor, document.body());
+    let faces = state.face_modes(document);
+    let (_, hit) = drawn_under(&faces, &drawn, origin, direction)?;
+    Some(origin + direction * hit.distance)
 }
 
 fn assert_met_at(met: Option<DVec3>, expected: DVec3, what: &str) {
@@ -507,7 +512,7 @@ fn a_hidden_body_has_no_point_under_a_ray() {
     let document = a_block_on_the_origin();
     let mut state = ViewportState::default();
     assert_eq!(
-        state.body_mode(),
+        state.whole_body_choice(),
         MatterInFront::Opaque,
         "the body opens opaque"
     );
@@ -516,15 +521,13 @@ fn a_hidden_body_has_no_point_under_a_ray() {
         "an opaque body is met"
     );
 
-    state.next_body_mode();
-    assert_eq!(state.body_mode(), MatterInFront::SeeThrough);
+    state.set_whole_body(MatterInFront::SeeThrough);
     assert!(
         under(&state, &document, FROM_ABOVE).is_some(),
         "a see-through body is drawn, and is met as a plane is chosen on it",
     );
 
-    state.next_body_mode();
-    assert_eq!(state.body_mode(), MatterInFront::Hidden);
+    state.set_whole_body(MatterInFront::Hidden);
     assert_eq!(
         under(&state, &document, FROM_ABOVE),
         None,

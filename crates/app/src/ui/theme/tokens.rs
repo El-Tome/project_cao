@@ -49,6 +49,9 @@ pub const STATE_ERROR_BACKGROUND: Color32 =
     Color32::from_rgba_unmultiplied_const(240, 138, 126, 38);
 pub const STATE_SUCCESS_TEXT: Color32 = Color32::from_rgb(0x8F, 0xE3, 0xBC);
 
+pub const VOLUME_ADD: Color32 = Color32::from_rgb(0x5F, 0xD3, 0xA0);
+pub const VOLUME_CUT: Color32 = Color32::from_rgb(0xF0, 0x8A, 0x7E);
+
 pub const VARIABLE_TEXT: Color32 = Color32::from_rgb(0x9F, 0xC6, 0xFF);
 
 /// `0 10px 28px rgba(0,0,0,0.50)`: 0.50 of 255 is 128.

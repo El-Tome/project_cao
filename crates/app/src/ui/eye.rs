@@ -1,6 +1,6 @@
 use egui::{Button, Vec2};
 
-use crate::ui::icon::{self, IconSize};
+use crate::ui::icon::{self, Icon, IconSize};
 
 /// C11's side, in points, which the tokens do not carry.
 const SIDE: f32 = 22.0;
@@ -9,6 +9,12 @@ const SIDE: f32 = 22.0;
 /// it is not, and called what a click on it does. Says whether it was clicked.
 pub fn eye(ui: &mut egui::Ui, lit: bool, hover: String) -> bool {
     let drawn = if lit { icon::EYE } else { icon::EYE_OFF };
+    visibility(ui, lit, drawn, hover)
+}
+
+/// The same button wearing the picture of any state, for what is shown more
+/// ways than two: lit while what the row names is shown at all.
+pub fn visibility(ui: &mut egui::Ui, lit: bool, drawn: Icon, hover: String) -> bool {
     let image = drawn.image(IconSize::Small).alt_text(hover.as_str());
     let button = Button::selectable(lit, image)
         .image_tint_follows_text_color(true)

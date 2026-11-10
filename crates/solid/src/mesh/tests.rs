@@ -57,15 +57,44 @@ fn a_ray_finds_the_face_it_meets_first() {
 
     // Straight down onto the top of the box, from well above it.
     let hit = solid
-        .ray_hit(DVec3::new(5.0, 5.0, 20.0), DVec3::NEG_Z)
+        .ray_hit_among(DVec3::new(5.0, 5.0, 20.0), DVec3::NEG_Z, &|_| true)
         .expect("the top face");
     assert!((hit.distance - 16.0).abs() < 1e-3, "{}", hit.distance);
     assert!(hit.polygon.normal().dot(DVec3::Z) > 0.99, "it faces up");
 
     assert!(
         solid
-            .ray_hit(DVec3::new(50.0, 50.0, 20.0), DVec3::NEG_Z)
+            .ray_hit_among(DVec3::new(50.0, 50.0, 20.0), DVec3::NEG_Z, &|_| true)
             .is_none(),
         "beside the part"
+    );
+}
+
+#[test]
+fn a_ray_goes_through_a_face_it_is_not_to_meet_and_meets_the_next_one() {
+    let solid = box_of(10.0, 4.0, DVec3::ZERO);
+    let (origin, down) = (DVec3::new(5.0, 5.0, 20.0), DVec3::NEG_Z);
+    let top = solid
+        .ray_hit_among(origin, down, &|_| true)
+        .expect("the top face")
+        .polygon
+        .face;
+
+    let through = solid
+        .ray_hit_among(origin, down, &|face| face != top)
+        .expect("the floor, through the top");
+
+    assert!(
+        (through.distance - 20.0).abs() < 1e-3,
+        "the ray through the top stops {} along, not on the floor",
+        through.distance,
+    );
+    assert!(
+        through.polygon.normal().dot(DVec3::NEG_Z) > 0.99,
+        "the face met through the top does not face down, as the floor does",
+    );
+    assert!(
+        solid.ray_hit_among(origin, down, &|_| false).is_none(),
+        "with no face kept, the ray meets one",
     );
 }

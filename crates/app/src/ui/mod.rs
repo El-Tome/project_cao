@@ -10,6 +10,7 @@ pub mod panel_toggle;
 pub mod pill;
 pub mod primary_button;
 pub mod question;
+pub mod segmented;
 pub mod slider;
 pub mod text_edit;
 pub mod theme;

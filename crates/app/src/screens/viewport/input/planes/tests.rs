@@ -66,6 +66,15 @@
 //! - found in review: nothing of an invisible body is offered, neither to draw
 //!   on nor to cut along — `an_invisible_body_offers_nothing_of_itself_to_draw_on`,
 //!   `an_invisible_body_offers_no_face_to_cut_along`
+//!
+//! Closes #734 — the whole transcription is in
+//! `crates/app/src/screens/part_tree/state/tests.rs`; these bullets are the
+//! ones a click on the part answers.
+//! - a face can still be picked to start a sketch on a see-through or opaque
+//!   volume — `a_face_of_a_see_through_volume_is_offered_to_draw_on_beside_an_opaque_one`
+//! - found while laying the frame: an invisible volume is not drawn, so none
+//!   of its faces is offered, and a ray goes through it to the face behind —
+//!   `a_hidden_volume_offers_none_of_its_faces_and_the_face_behind_it_is_offered`
 
 use glam::{DVec2, DVec3};
 
@@ -77,6 +86,30 @@ use crate::screens::viewport::section::Section;
 use cao_part::PartDocument;
 use cao_render::{MatterInFront, OrbitCamera};
 use cao_solid::profile::{Contour, Run};
+
+/// A click on a bare body while the section waits for a face. No step of a
+/// part made the body, so each of its faces is drawn as « TOUT LE CORPS »
+/// says.
+fn choose_a_cutting_face(
+    state: &mut ViewportState,
+    body: &Body,
+    clicked: bool,
+    origin: DVec3,
+    direction: DVec3,
+) -> bool {
+    let faces = state.face_modes(&PartDocument::new("part", chrono::Utc::now()));
+    cut_along_a_face(state, (body, &faces), clicked, origin, direction)
+}
+
+/// What a bare body offers to draw on under a ray, every face of it shown.
+fn what_the_part_offers(
+    body: &Body,
+    origin: DVec3,
+    direction: DVec3,
+    screen_up: impl Fn(DVec3) -> DVec3,
+) -> Option<PlaneChoice> {
+    what_is_shown_offers(body, &|_| true, (origin, direction), screen_up)
+}
 
 /// Which way is up on screen once the view has swung onto a face — the same
 /// answer `once_facing` gives, without a viewport to ask.
@@ -847,29 +880,36 @@ fn the_section_takes_no_gesture_while_a_sketch_is_edited() {
     );
 }
 
-/// A view with the body drawn `mode`, reached one click at a time, as the
-/// rubric of the bodies reaches it.
+/// A view with the body drawn `mode`, chosen in « TOUT LE CORPS ».
 fn with_the_body(mode: MatterInFront) -> ViewportState {
     let mut state = ViewportState::default();
-    for _ in 0..3 {
-        if state.body_mode() == mode {
-            break;
-        }
-        state.next_body_mode();
-    }
-    assert_eq!(state.body_mode(), mode, "three clicks never reach {mode:?}");
+    state.set_whole_body(mode);
     state
 }
 
 /// The cursor brought over a place, then a click there, choosing the plane of
 /// a new sketch on the block, its body drawn `mode`.
 fn a_sketch_started_on_a_body(mode: MatterInFront, origin: DVec3, direction: DVec3) -> Started {
-    let mut document = a_part_holding_a_block();
+    a_sketch_started_seen(
+        a_part_holding_a_block(),
+        with_the_body(mode),
+        origin,
+        direction,
+    )
+}
+
+/// The cursor brought over a place, then a click there, choosing the plane of
+/// a new sketch on `document`, seen the way `state` says.
+fn a_sketch_started_seen(
+    mut document: PartDocument,
+    mut state: ViewportState,
+    origin: DVec3,
+    direction: DVec3,
+) -> Started {
     let mut editor = SketchEditor::default();
     let mut extrusion = ExtrusionState::default();
     let lang = Catalogue::french();
     editor.start_choosing_plane(&lang);
-    let mut state = with_the_body(mode);
 
     let (offered, started) = {
         let mut context = SketchContext {
@@ -946,13 +986,7 @@ fn an_invisible_body_offers_nothing_of_itself_to_draw_on() {
 fn an_invisible_body_offers_no_face_to_cut_along() {
     let body = block(10.0, 10.0, 4.0);
     let mut state = waiting_for_a_face();
-    for _ in 0..3 {
-        if state.body_mode() == MatterInFront::Hidden {
-            break;
-        }
-        state.next_body_mode();
-    }
-    assert_eq!(state.body_mode(), MatterInFront::Hidden);
+    state.set_whole_body(MatterInFront::Hidden);
 
     let taken = choose_a_cutting_face(
         &mut state,
@@ -970,5 +1004,132 @@ fn an_invisible_body_offers_no_face_to_cut_along() {
     assert!(
         section.is_waiting_for_a_face(),
         "a click on an invisible block, the panel no longer waits for a face",
+    );
+}
+
+/// Where the post stands in the history of `a_block_and_a_post_beside_it`.
+const THE_POST: usize = 4;
+
+/// The block of `a_part_holding_a_block`, 10 by 10 and 4 high, and a post 4 by
+/// 4 and 6 high beside it over x from 20 to 24: two volumes.
+fn a_block_and_a_post_beside_it() -> PartDocument {
+    let mut document = a_part_holding_a_block();
+    raise(
+        &mut document,
+        0,
+        &[(DVec2::new(20.0, 0.0), DVec2::new(24.0, 4.0))],
+        6.0,
+    );
+    assert!(
+        matches!(
+            document.history.applied_operations().get(THE_POST),
+            Some(Operation::Extrude { .. })
+        ),
+        "the fixture wants the post raised at step {THE_POST}",
+    );
+    document
+}
+
+/// The view with the post stepped `clicks` times round its states, the block
+/// left opaque.
+fn the_post_clicked(clicks: usize) -> ViewportState {
+    let document = a_block_and_a_post_beside_it();
+    let mut state = ViewportState::default();
+    for _ in 0..clicks {
+        state.next_volume_mode(&document, THE_POST);
+    }
+    state
+}
+
+/// Whether `face` of the document's own body stands square to X at `x`.
+fn stands_square_to_x_at(document: &PartDocument, face: usize, x: f64) -> bool {
+    let corners: Vec<DVec3> = document.body().triangles_of(face).flatten().collect();
+    !corners.is_empty() && corners.iter().all(|at| (at.x - x).abs() < 1e-9)
+}
+
+#[test]
+fn a_face_of_a_see_through_volume_is_offered_to_draw_on_beside_an_opaque_one() {
+    let see_through = the_post_clicked(1);
+    assert_eq!(
+        see_through.volume_mode(&a_block_and_a_post_beside_it(), THE_POST),
+        MatterInFront::SeeThrough,
+    );
+
+    for (what, origin, height, (from, to)) in [
+        (
+            "the see-through post",
+            DVec3::new(22.0, 2.0, 50.0),
+            6.0,
+            (20.0, 24.0),
+        ),
+        (
+            "the opaque block",
+            DVec3::new(5.0, 5.0, 50.0),
+            4.0,
+            (0.0, 10.0),
+        ),
+    ] {
+        let started = a_sketch_started_seen(
+            a_block_and_a_post_beside_it(),
+            the_post_clicked(1),
+            origin,
+            DVec3::NEG_Z,
+        );
+
+        assert!(
+            matches!(started.offered, Some(PlaneChoice::Face { .. })),
+            "the top of {what} is offered as {:?}, not as a face",
+            started.offered,
+        );
+        assert!(
+            started.started,
+            "a click on the top of {what} starts no sketch"
+        );
+        let face = anchored_face(&started.document);
+        assert!(
+            lies_flat_at(&started.document, face, height, (from, to)),
+            "the sketch is anchored to face {face}, not the top of {what}",
+        );
+    }
+}
+
+#[test]
+fn a_hidden_volume_offers_none_of_its_faces_and_the_face_behind_it_is_offered() {
+    let started = a_sketch_started_seen(
+        a_block_and_a_post_beside_it(),
+        the_post_clicked(2),
+        DVec3::new(22.0, 2.0, 50.0),
+        DVec3::NEG_Z,
+    );
+    assert!(
+        !matches!(
+            started.offered,
+            Some(PlaneChoice::Face { .. } | PlaneChoice::Curved(_) | PlaneChoice::Section(_))
+        ),
+        "the top of the invisible post is offered as {:?}",
+        started.offered,
+    );
+    assert!(
+        !matches!(
+            started.document.history.operations().last(),
+            Some(Operation::CreateSketch { on: Some(_), .. })
+        ),
+        "a click on the invisible post anchors a sketch to it",
+    );
+
+    let through = a_sketch_started_seen(
+        a_block_and_a_post_beside_it(),
+        the_post_clicked(2),
+        DVec3::new(50.0, 2.0, 1.0),
+        DVec3::NEG_X,
+    );
+    assert!(
+        through.started,
+        "a ray through the invisible post starts no sketch on the block behind it"
+    );
+    let face = anchored_face(&through.document);
+    assert!(
+        stands_square_to_x_at(&through.document, face, 10.0),
+        "a ray through the invisible post is anchored to face {face}, not the block's side at x = 10",
     );
 }

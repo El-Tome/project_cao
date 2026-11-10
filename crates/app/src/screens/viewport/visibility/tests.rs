@@ -258,20 +258,20 @@ fn a_face_takes_its_volume_s_state_and_one_no_volume_made_the_last_whole_body_ch
 
     for face in &block {
         assert_eq!(
-            state.face_mode(&document, *face),
+            state.face_modes(&document).of(Some(*face)),
             MatterInFront::SeeThrough,
             "face {face}, made by the block, is not drawn as the block is",
         );
     }
     for face in &wall {
         assert_eq!(
-            state.face_mode(&document, *face),
+            state.face_modes(&document).of(Some(*face)),
             MatterInFront::Opaque,
             "face {face}, a wall of the hole, is not drawn as the cut is",
         );
     }
     assert_eq!(
-        state.face_mode(&document, A_FACE_NO_VOLUME_MADE),
+        state.face_modes(&document).of(Some(A_FACE_NO_VOLUME_MADE)),
         MatterInFront::Hidden,
         "a face no volume made is not drawn as « TOUT LE CORPS » last chose",
     );

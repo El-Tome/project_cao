@@ -2141,7 +2141,7 @@ fn what_left_the_ribbon_has_its_place_in_the_view_bar_or_the_sketch_pill() {
         driver::on_screen(&app),
     );
     driver::click_in_the_bar(&mut app, "Matière devant");
-    driver::click_exactly(&mut app, "transparente");
+    driver::click_the_button(&mut app, "transparente");
     let reads = driver::the_bar_s(&app, "Matière devant")
         .accesskit_node()
         .label()

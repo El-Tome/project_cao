@@ -48,7 +48,10 @@ pub(crate) fn beside_the_part(
                 screens::part_tree::state::take(editor, what, adding);
             }
             screens::part_tree::TreeAction::Light(row) => viewport.light(row),
-            screens::part_tree::TreeAction::NextBodyMode => viewport.next_body_mode(),
+            screens::part_tree::TreeAction::NextVolumeMode(step) => {
+                viewport.next_volume_mode(doc, step);
+            }
+            screens::part_tree::TreeAction::SetWholeBody(mode) => viewport.set_whole_body(mode),
             screens::part_tree::TreeAction::ToggleSection(section) => {
                 viewport.kept_sections.toggle(section);
             }

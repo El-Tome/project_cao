@@ -302,8 +302,13 @@ impl Exact {
         (cut.uncut.is_empty() && !cut.capped).then_some(cut.triangles)
     }
 
-    pub fn ray_hit(&self, origin: DVec3, direction: DVec3) -> Option<FaceHit> {
-        quietly(|| self.drawn().ray_hit(&self.brep, origin, direction)).flatten()
+    pub fn ray_hit(
+        &self,
+        origin: DVec3,
+        direction: DVec3,
+        kept: &dyn Fn(usize) -> bool,
+    ) -> Option<FaceHit> {
+        quietly(|| self.drawn().ray_hit(&self.brep, (origin, direction), kept)).flatten()
     }
 
     pub fn triangles_of(&self, face: usize) -> impl Iterator<Item = [DVec3; 3]> + '_ {

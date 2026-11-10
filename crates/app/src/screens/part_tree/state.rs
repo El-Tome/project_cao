@@ -13,7 +13,8 @@
 
 use cao_part::PartDocument;
 use cao_part::history::{ExtrusionMode, Operation};
-use cao_sketch::{Area, DimensionTarget, Element, Sketch};
+use cao_render::MatterInFront;
+use cao_sketch::{DimensionTarget, Element, Sketch};
 
 use crate::lang::Catalogue;
 use crate::screens::sketch_pill::laid_on;
@@ -23,7 +24,10 @@ use crate::wording::{self, formula, plane};
 
 mod clicks;
 mod seen;
+mod volumes;
 pub use clicks::*;
+pub use seen::Segment;
+use volumes::volume;
 
 /// What a line of the tree points at, so that clicking it can find the thing
 /// itself.
@@ -72,6 +76,13 @@ pub struct Body {
     /// What the user is told of a step the kernel built though it reads it
     /// unstably (#552), when it did.
     pub unstable: Option<String>,
+    pub mode: ExtrusionMode,
+    /// How it is drawn, written out on its line, and what a click on its
+    /// visibility button makes of it; dimmed while invisible.
+    pub shown: MatterInFront,
+    pub state: String,
+    pub visibility_button: String,
+    pub dimmed: bool,
 }
 
 /// One sketch, and what is drawn on it, by kind.
@@ -108,6 +119,8 @@ pub struct PartTree {
     pub bodies: Vec<Body>,
     pub sketches: Vec<Drawn>,
     pub sections: Vec<Kept>,
+    /// « TOUT LE CORPS », one segment per state.
+    pub whole_body: Vec<Segment>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -172,60 +185,11 @@ impl PartTree {
                     shown.plane = laid_on(document, sketch, drawing, lang, plane::short);
                     tree.sketches.push(shown);
                 }
-                Operation::Extrude {
-                    sketch,
-                    areas,
-                    distance,
-                    mode,
-                } => {
-                    let standing = standing_on(lang, document, *sketch, areas);
-                    tree.bodies.push(Body {
-                        step,
-                        name: numbered(lang, "part_tree.extrusion", tree.bodies.len() + 1),
-                        reads: lang.t_with(
-                            "part_tree.raised",
-                            &[
-                                (
-                                    "distance",
-                                    &formula::sized(lang, variables, distance, |travel| {
-                                        travel.to_string()
-                                    }),
-                                ),
-                                ("mode", &lang.t(mode_key(*mode))),
-                            ],
-                        ),
-                        badge: gravest(declined, standing.len() < areas.len(), unstable.is_some()),
-                        unstable,
-                        areas: standing,
-                    });
-                }
-                Operation::Revolve {
-                    sketch,
-                    areas,
-                    angle,
-                    mode,
-                    ..
-                } => {
-                    let standing = standing_on(lang, document, *sketch, areas);
-                    tree.bodies.push(Body {
-                        step,
-                        name: numbered(lang, "part_tree.revolution", tree.bodies.len() + 1),
-                        reads: lang.t_with(
-                            "part_tree.swept",
-                            &[
-                                (
-                                    "angle",
-                                    &formula::sized(lang, variables, angle, |turn| {
-                                        turn.to_string()
-                                    }),
-                                ),
-                                ("mode", &lang.t(mode_key(*mode))),
-                            ],
-                        ),
-                        badge: gravest(declined, standing.len() < areas.len(), unstable.is_some()),
-                        unstable,
-                        areas: standing,
-                    });
+                Operation::Extrude { .. } | Operation::Revolve { .. } => {
+                    let rank = tree.bodies.len() + 1;
+                    let problems = (declined, unstable);
+                    let made = volume(lang, document, (step, rank), operation, problems);
+                    tree.bodies.extend(made);
                 }
                 _ => {}
             }
@@ -265,38 +229,8 @@ impl PartTree {
     }
 }
 
-fn mode_key(mode: ExtrusionMode) -> &'static str {
-    match mode {
-        ExtrusionMode::Add => "part_tree.mode.add",
-        ExtrusionMode::Cut => "part_tree.mode.cut",
-    }
-}
-
 fn numbered(lang: &Catalogue, key: &str, rank: usize) -> String {
     lang.t_with(key, &[("rank", &rank.to_string())])
-}
-
-/// The areas a step of matter was raised from, named as the sketch names them.
-///
-/// Which area a name answers to is `cao_part`'s answer and not one worked out
-/// here: a panel that reasons about it for itself is a panel that reads
-/// "fine" while the step raises nothing. One the drawing no longer encloses
-/// leaves no line, and the step's badge is what says so.
-fn standing_on(
-    lang: &Catalogue,
-    document: &PartDocument,
-    sketch: usize,
-    areas: &[Area],
-) -> Vec<Row> {
-    document
-        .areas_standing(sketch, areas)
-        .into_iter()
-        .map(|rank| Row {
-            name: numbered(lang, "part_tree.area", rank + 1),
-            value: None,
-            points: Points::Area { sketch, rank },
-        })
-        .collect()
 }
 
 fn drawn(

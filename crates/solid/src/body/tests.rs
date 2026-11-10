@@ -1069,3 +1069,85 @@ fn a_tool_that_takes_nothing_hands_back_the_part_without_a_note() {
 
 mod chamfer;
 mod fillet;
+
+#[test]
+fn each_triangle_drawn_is_handed_once_beside_the_first_number_of_its_face() {
+    let part = block(DVec2::ZERO, DVec2::new(20.0, 10.0), 10.0);
+    let beside = block(DVec2::new(10.0, 0.0), DVec2::new(30.0, 10.0), 10.0);
+    let joined = part.union(&beside).expect("the kernel joins them");
+    let beside_s_top = 6 + TOP;
+    assert!(
+        joined.has_face(TOP)
+            && joined.triangles_of(TOP).collect::<Vec<_>>()
+                == joined.triangles_of(beside_s_top).collect::<Vec<_>>(),
+        "the fixture wants one top answering to both blocks' numbers",
+    );
+
+    let by_face = joined.triangles_by_face();
+
+    let drawn = joined.triangles();
+    assert_eq!(
+        by_face.len(),
+        drawn.len(),
+        "a triangle handed twice, or left out"
+    );
+    assert!(
+        drawn
+            .iter()
+            .all(|triangle| by_face.iter().any(|(handed, _)| handed == triangle)),
+        "a triangle drawn is not handed",
+    );
+    let on_the_top: Vec<Option<usize>> = by_face
+        .iter()
+        .filter(|(triangle, _)| triangle.iter().all(|corner| (corner.z - 10.0).abs() < 1e-9))
+        .map(|(_, face)| *face)
+        .collect();
+    assert!(!on_the_top.is_empty(), "the top is drawn");
+    assert!(
+        on_the_top.iter().all(|face| *face == Some(TOP)),
+        "the top answering to {TOP} and {beside_s_top} is handed as {on_the_top:?}",
+    );
+    for (triangle, face) in &by_face {
+        let face = face.unwrap_or_else(|| panic!("{triangle:?} is handed with no face"));
+        assert!(
+            joined.triangles_of(face).any(|held| held == *triangle),
+            "{triangle:?} is handed beside face {face}, which is not drawn with it",
+        );
+    }
+}
+
+#[test]
+fn a_ray_goes_through_the_faces_it_is_not_to_meet_on_either_kernel() {
+    const FLOOR: usize = 0;
+    let (origin, down) = (DVec3::new(5.0, 5.0, 50.0), DVec3::NEG_Z);
+    for (kernel, body) in [
+        ("exact", block(DVec2::ZERO, DVec2::new(30.0, 20.0), 10.0)),
+        ("flats", flats_block(30.0, 20.0, 10.0)),
+    ] {
+        assert_eq!(
+            body.ray_hit_among(origin, down, &|_| true),
+            body.ray_hit(origin, down),
+            "{kernel}: with every face kept, the ray does not meet what it meets with none refused",
+        );
+
+        let through = body
+            .ray_hit_among(origin, down, &|face| face != TOP)
+            .unwrap_or_else(|| panic!("{kernel}: the ray through the top meets nothing"));
+        assert_eq!(
+            through.face, FLOOR,
+            "{kernel}: the ray through the top meets face {}, not the floor",
+            through.face,
+        );
+        assert!(
+            (through.distance - 50.0).abs() < 1e-9,
+            "{kernel}: the floor is met {} along",
+            through.distance,
+        );
+
+        assert_eq!(
+            body.ray_hit_among(origin, down, &|_| false),
+            None,
+            "{kernel}: with no face kept, the ray meets one",
+        );
+    }
+}

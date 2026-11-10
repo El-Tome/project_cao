@@ -114,7 +114,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         .hover_pos()
         .filter(|_| sketch.editor.active_sketch().is_none())
         .zip(drawn)
-        .and_then(|(at, drawn)| state.point_of_the_part_at(&drawn, at, rect));
+        .and_then(|(at, drawn)| state.point_of_the_part_at(sketch.document, &drawn, at, rect));
     let now = ui.input(|input| input.time);
     push_blinking_matter(&mut frame.scene_surfaces, state, sketch, now);
     if state.faces_blinking(now).is_some() {

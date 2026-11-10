@@ -3,7 +3,6 @@
 //! the handle pulled along the normal.
 
 use cao_part::history::{FaceAnchor, Operation};
-use cao_render::MatterInFront;
 use cao_render::camera::view_angles_towards;
 use cao_sketch::WorkPlane;
 use cao_solid::Body;
@@ -15,6 +14,7 @@ use crate::screens::sketch::PlaneChoice;
 use super::{PICK_PIXELS, ViewScale, ViewportState, plane_half_size, to_ndc};
 use crate::screens::viewport::matter::{drawn_under, shown};
 use crate::screens::viewport::navigation::drag_asked;
+use crate::screens::viewport::visibility::FaceModes;
 use crate::screens::viewport::{DEFAULT_SKETCH_RADIUS, section::Section};
 
 /// The step where the cursor is offering planes to draw on, and a click takes
@@ -83,20 +83,21 @@ pub(super) fn choose_a_plane(
 }
 
 /// While the section waits for a face, a click on a flat one makes its plane
-/// the cutting plane, facing out of the part, at a distance of nothing.
-pub(super) fn choose_a_cutting_face(
+/// the cutting plane, facing out of the part, at a distance of nothing. An
+/// invisible face is not met: the ray goes on through it.
+fn cut_along_a_face(
     state: &mut ViewportState,
-    body: &Body,
+    (body, faces): (&Body, &FaceModes),
     clicked: bool,
     origin: DVec3,
     direction: DVec3,
 ) -> bool {
-    let invisible = state.body_mode() == MatterInFront::Hidden;
-    if !clicked || invisible || !state.section().is_some_and(Section::is_waiting_for_a_face) {
+    if !clicked || !state.section().is_some_and(Section::is_waiting_for_a_face) {
         return false;
     }
-    let offered =
-        what_the_part_offers(body, origin, direction, |normal| once_facing(state, normal));
+    let up = |normal| once_facing(state, normal);
+    let shown = |face| faces.shows(face);
+    let offered = what_is_shown_offers(body, &shown, (origin, direction), up);
     let (Some(PlaneChoice::Face { plane, .. }), Some(section)) = (offered, state.section.as_mut())
     else {
         return false;
@@ -133,10 +134,11 @@ pub(crate) fn point_the_section(
         };
         let (origin, direction) = ray(at);
         let drawn = shown(state, context.editor, body);
-        let met = drawn_under(state, &drawn, origin, direction);
+        let faces = state.face_modes(context.document);
+        let met = drawn_under(&faces, &drawn, origin, direction);
         let piece = met.map_or(&*drawn.opaque, |(piece, _)| piece);
-        if choose_a_cutting_face(state, piece, true, origin, direction) {
-            anchor_the_cut(state, piece, body, (origin, direction));
+        if cut_along_a_face(state, (piece, &faces), true, origin, direction) {
+            anchor_the_cut(state, (piece, &faces), body, (origin, direction));
         }
         return true;
     }
@@ -166,8 +168,13 @@ pub(crate) fn point_the_section(
 
 /// The part's own face the section was just laid on, kept with it so that a
 /// section kept in the part follows that face.
-fn anchor_the_cut(state: &mut ViewportState, piece: &Body, part: &Body, ray: (DVec3, DVec3)) {
-    let Some(hit) = piece.ray_hit(ray.0, ray.1) else {
+fn anchor_the_cut(
+    state: &mut ViewportState,
+    (piece, faces): (&Body, &FaceModes),
+    part: &Body,
+    ray: (DVec3, DVec3),
+) {
+    let Some(hit) = piece.ray_hit_among(ray.0, ray.1, &|face| faces.shows(face)) else {
         return;
     };
     let up = once_facing(state, hit.normal);
@@ -217,7 +224,8 @@ fn what_is_drawn_offers(
 ) -> Option<PlaneChoice> {
     let part = context.document.body();
     let drawn = shown(state, context.editor, part);
-    let (piece, hit) = drawn_under(state, &drawn, origin, direction)?;
+    let faces = state.face_modes(context.document);
+    let (piece, hit) = drawn_under(&faces, &drawn, origin, direction)?;
     let up = |normal| once_facing(state, normal);
     match own_face(piece, part, hit.face) {
         Some(face) => offered_by(part, face, hit.normal, up),
@@ -251,14 +259,15 @@ fn own_face(drawn: &Body, part: &Body, mut face: usize) -> Option<usize> {
 /// that depends on how finely the wall was cut.
 ///
 /// `screen_up` says which way is up on screen once the view has swung round to
-/// face a normal, which is what decides how the face will read.
-fn what_the_part_offers(
+/// face a normal, which is what decides how the face will read. A face
+/// `shown` refuses is not met: the ray goes on through it.
+fn what_is_shown_offers(
     body: &Body,
-    origin: DVec3,
-    direction: DVec3,
+    shown: &dyn Fn(usize) -> bool,
+    (origin, direction): (DVec3, DVec3),
     screen_up: impl Fn(DVec3) -> DVec3,
 ) -> Option<PlaneChoice> {
-    let hit = body.ray_hit(origin, direction)?;
+    let hit = body.ray_hit_among(origin, direction, shown)?;
     offered_by(body, hit.face, hit.normal, screen_up)
 }
 

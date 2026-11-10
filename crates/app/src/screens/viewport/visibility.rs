@@ -1,7 +1,7 @@
 //! What of the part the canvas shows. A sketch an extrusion or a revolution
 //! was made from steps out of the way, unless its eye was lit; one never used
-//! stays. A row clicked in the tree is lit where it stands, and the body is
-//! drawn invisible, see-through or opaque.
+//! stays. A row clicked in the tree is lit where it stands, and each volume is
+//! drawn invisible, see-through or opaque, on its own or with the whole body.
 
 use std::collections::BTreeMap;
 
@@ -23,7 +23,6 @@ pub(super) struct Visibility {
     /// The row the hand is on in the tree, kept apart from `lit` so that
     /// leaving it puts out no light a click left.
     hovered: Option<Points>,
-    body: MatterInFront,
     /// The volumes set by hand, by the number of the operation that made
     /// them, as the eyes are.
     volumes: BTreeMap<u32, MatterInFront>,
@@ -38,7 +37,6 @@ impl Default for Visibility {
             eyes: BTreeMap::new(),
             lit: None,
             hovered: None,
-            body: MatterInFront::Opaque,
             volumes: BTreeMap::new(),
             whole_body: MatterInFront::Opaque,
         }
@@ -103,16 +101,6 @@ impl ViewportState {
     pub(crate) fn lit(&self) -> Option<Points> {
         self.visibility.lit
     }
-
-    pub(crate) fn body_mode(&self) -> MatterInFront {
-        self.visibility.body
-    }
-
-    /// Opaque, see-through, invisible, and round again: the body fades out
-    /// a step at a time.
-    pub(crate) fn next_body_mode(&mut self) {
-        self.visibility.body = faded(self.visibility.body);
-    }
 }
 
 impl ViewportState {
@@ -146,15 +134,14 @@ impl ViewportState {
         }
     }
 
-    #[cfg(test)]
-    pub(crate) fn face_mode(&self, document: &PartDocument, face: usize) -> MatterInFront {
-        self.face_modes(document).of(Some(face))
+    /// Whether no face of the part can be drawn at all.
+    pub(crate) fn shows_nothing(&self) -> bool {
+        let hidden = |mode: &MatterInFront| *mode == MatterInFront::Hidden;
+        hidden(&self.visibility.whole_body) && self.visibility.volumes.values().all(hidden)
     }
-}
 
-#[cfg_attr(not(test), expect(dead_code))]
-impl ViewportState {
-    /// Fades the volume made at that step of the history, as the body fades.
+    /// Opaque, see-through, invisible, and round again: the volume made at
+    /// that step of the history fades out a step at a time.
     pub(crate) fn next_volume_mode(&mut self, document: &PartDocument, step: usize) {
         let mode = faded(self.volume_mode(document, step));
         if let Some(number) = document.history.number_at(step) {
@@ -188,6 +175,11 @@ impl FaceModes {
         let made = face.and_then(|face| self.made.get(&face));
         made.copied().unwrap_or(self.rest)
     }
+
+    /// Whether a face is drawn, and so met by a ray.
+    pub(crate) fn shows(&self, face: usize) -> bool {
+        self.of(Some(face)) != MatterInFront::Hidden
+    }
 }
 
 impl ViewportState {
@@ -217,7 +209,6 @@ impl ViewportState {
     }
 }
 
-/// Opaque, see-through, invisible, and round again.
 fn faded(mode: MatterInFront) -> MatterInFront {
     match mode {
         MatterInFront::Opaque => MatterInFront::SeeThrough,

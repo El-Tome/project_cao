@@ -169,14 +169,19 @@ impl Mesh {
             .collect()
     }
 
-    /// The face a ray meets first, if any.
+    /// The face a ray meets first among those `kept` lets through, if any.
     ///
     /// This is what lets a sketch be started on the part itself rather than
     /// only on the three planes of the origin: the face under the cursor is
     /// found the same way the cursor finds anything else in the view.
-    pub fn ray_hit(&self, origin: DVec3, direction: DVec3) -> Option<PieceHit> {
+    pub fn ray_hit_among(
+        &self,
+        origin: DVec3,
+        direction: DVec3,
+        kept: &dyn Fn(usize) -> bool,
+    ) -> Option<PieceHit> {
         let mut nearest: Option<PieceHit> = None;
-        for polygon in &self.polygons {
+        for polygon in self.polygons.iter().filter(|polygon| kept(polygon.face)) {
             for triangle in polygon.triangles() {
                 let Some(distance) = ray_triangle(origin, direction, triangle) else {
                     continue;

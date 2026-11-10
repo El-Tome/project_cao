@@ -39,6 +39,27 @@ impl Body {
                 .collect(),
         }
     }
+
+    /// The face a ray meets first among those `kept` lets through, the ray
+    /// going on through the others as if they were not there.
+    pub fn ray_hit_among(
+        &self,
+        origin: DVec3,
+        direction: DVec3,
+        kept: &dyn Fn(usize) -> bool,
+    ) -> Option<FaceHit> {
+        match &self.matter {
+            Matter::Exact(exact) => exact.ray_hit(origin, direction, kept),
+            Matter::Flats(flats) => {
+                let hit = flats.mesh.ray_hit_among(origin, direction, kept)?;
+                Some(FaceHit {
+                    distance: hit.distance,
+                    face: hit.polygon.face,
+                    normal: hit.polygon.normal(),
+                })
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -67,11 +88,20 @@ impl Drawn {
 
     /// The nearest triangle a ray crosses names the face; the face's own
     /// surface, not the triangle, says which way it faces there.
-    pub fn ray_hit(&self, body: &brep::Body, origin: DVec3, direction: DVec3) -> Option<FaceHit> {
+    pub fn ray_hit(
+        &self,
+        body: &brep::Body,
+        (origin, direction): (DVec3, DVec3),
+        kept: &dyn Fn(usize) -> bool,
+    ) -> Option<FaceHit> {
         let (distance, id) = self
             .triangles
             .iter()
             .zip(&self.faces)
+            .filter(|(_, id)| {
+                let first = body.numbers(**id).first();
+                first.is_some_and(|&number| kept(number as usize))
+            })
             .filter_map(|(triangle, id)| Some((ray_triangle(origin, direction, *triangle)?, *id)))
             .min_by(|(near, _), (far, _)| near.total_cmp(far))?;
         let face = body.face(id);

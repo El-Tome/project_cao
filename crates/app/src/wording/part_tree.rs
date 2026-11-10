@@ -62,12 +62,30 @@ pub fn eye(lang: &Catalogue, lit: bool) -> String {
     })
 }
 
-/// The « Corps » rubric, with how the body is drawn.
-pub fn body(lang: &Catalogue, mode: MatterInFront) -> String {
-    let mode = lang.t(match mode {
-        MatterInFront::Hidden => "part_tree.body.hidden",
-        MatterInFront::SeeThrough => "part_tree.body.see_through",
-        MatterInFront::Opaque => "part_tree.body.opaque",
-    });
-    lang.t_with("part_tree.bodies_drawn", &[("mode", &mode)])
+/// How a volume is drawn, written on its line.
+pub fn volume_state(lang: &Catalogue, mode: MatterInFront) -> String {
+    lang.t(match mode {
+        MatterInFront::Hidden => "part_tree.volume.hidden",
+        MatterInFront::SeeThrough => "part_tree.volume.see_through",
+        MatterInFront::Opaque => "part_tree.volume.opaque",
+    })
+}
+
+/// What a click on a volume's visibility button does, given how it is drawn:
+/// opaque, see-through, invisible, and round again.
+pub fn visibility_button(lang: &Catalogue, mode: MatterInFront) -> String {
+    lang.t(match mode {
+        MatterInFront::Opaque => "part_tree.volume.make_see_through",
+        MatterInFront::SeeThrough => "part_tree.volume.make_hidden",
+        MatterInFront::Hidden => "part_tree.volume.make_opaque",
+    })
+}
+
+/// A segment of « TOUT LE CORPS », named after the state it sets.
+pub fn whole_body(lang: &Catalogue, mode: MatterInFront) -> String {
+    lang.t(match mode {
+        MatterInFront::Hidden => "part_tree.whole_body.hidden",
+        MatterInFront::SeeThrough => "part_tree.whole_body.see_through",
+        MatterInFront::Opaque => "part_tree.whole_body.opaque",
+    })
 }

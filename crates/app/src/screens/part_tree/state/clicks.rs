@@ -3,6 +3,7 @@
 //! canvas in the others.
 
 use cao_part::PartDocument;
+use cao_render::MatterInFront;
 use cao_sketch::{Selection, ToolState};
 
 use super::Points;
@@ -24,8 +25,11 @@ pub enum TreeAction {
     },
     /// Light this on the canvas, in a sketch that is not open.
     Light(Points),
-    /// Draw the body the next way round: opaque, see-through, invisible.
-    NextBodyMode,
+    /// Draw the volume made at this step of the history the next way round:
+    /// opaque, see-through, invisible.
+    NextVolumeMode(usize),
+    /// Draw every volume, and the faces none of them made, this way.
+    SetWholeBody(MatterInFront),
     /// Switch this kept section on, or off when it is on.
     ToggleSection(usize),
     /// Reopen the section view on this kept section, to change it.

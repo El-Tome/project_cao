@@ -50,9 +50,9 @@
 //!   CORPS », « VARIABLES » —
 //!   `the_panel_reads_its_sketches_volumes_sections_whole_body_then_variables`
 //! - « TOUT LE CORPS » holds today's « Corps : {mode} » row, unchanged — no
-//!   test: the row's sentence is `wording::part_tree::body`, which this issue
-//!   leaves alone (#734 reworks it), and where it sits is held by the order
-//!   above
+//!   test: the row's sentence was `wording::part_tree::body`, which this issue
+//!   left alone; #734 has since put a selector in its place, under its own
+//!   block below, and where it sits is held by the order above
 //! - « VARIABLES », read only: the name apart from the value —
 //!   `a_variable_reads_its_name_apart_from_its_value`
 //! - the value on the right and the name in `variable.text` — no test: where a
@@ -156,9 +156,7 @@
 //!   invisible, an add (green) or cut (red) icon, the name, its badge, and the state
 //!   written on the right (« opaque », « transparente », « invisible ») — the
 //!   row, `a_volume_row_reads_its_add_or_cut_icon_its_name_its_badge_and_its_state`;
-//!   the button cycling, through the presenter's click —
-//!   `a_click_on_a_volume_s_visibility_button_asks_for_its_next_state`; the
-//!   cycle itself, on the canvas's state, in
+//!   the cycle itself, on the canvas's state, in
 //!   `crates/app/src/screens/viewport/visibility/tests.rs` by
 //!   `a_volume_s_visibility_cycles_opaque_see_through_invisible_and_round_again`;
 //!   clicked through the whole application, in
@@ -185,8 +183,10 @@
 //!   a segment clicked through the whole application, in
 //!   `crates/app/tests/the_part_panel.rs` by
 //!   `clicking_opaque_in_the_whole_body_selector_makes_every_volume_opaque`
-//! - criterion 5, the « Corps » row is gone —
-//!   `the_part_panel_holds_no_body_row_any_more`
+//! - criterion 5, the « Corps » row is gone — no test: in this file, the
+//!   presenter never held that row, which the view drew from
+//!   `ViewportState::body_mode`; held in `crates/app/tests/the_part_panel.rs`
+//!   by `the_part_panel_holds_no_body_row_any_more`
 //! - criterion 6, a face of the part made by no listed volume takes the last
 //!   state chosen in « TOUT LE CORPS » (opaque at first), even when no segment
 //!   is lit any more — no test: in this file, the presenter draws no face;
@@ -210,10 +210,13 @@
 //!   tests under #193 in `crates/app/src/screens/viewport/render/tests.rs`
 //!   and `crates/app/tests/section_view.rs`; the picking, in
 //!   `crates/app/src/screens/viewport/input/planes/tests.rs`, by
-//!   `a_face_of_a_see_through_volume_is_offered_to_draw_on_beside_an_opaque_one`
+//!   `a_face_of_a_see_through_volume_is_offered_to_draw_on_beside_an_opaque_one`,
+//!   and a face of an invisible volume offered no more than it is drawn, by
+//!   `a_hidden_volume_offers_none_of_its_faces_and_the_face_behind_it_is_offered`
 
 use cao_part::VariableChange;
 use cao_part::history::{FaceAnchor, PointRef, RevolutionAxis, SectionAsked, SideDrawing};
+use cao_render::MatterInFront;
 use cao_sketch::{
     Constraint, DimensionTarget, Element, PointId, Rule, RulePick, SegmentId, Selection,
     SketchAxis, ToolState, WorkPlane,
@@ -1241,5 +1244,210 @@ fn a_sketch_reads_open_while_drawn_on_and_dimmed_while_its_eye_is_shut() {
         read(&nothing_open, &viewport),
         [(false, false), (false, false)],
         "a sketch whose eye was opened by hand still reads dimmed",
+    );
+}
+
+/// Where the block stands in the history of `a_block_with_a_hole`.
+const THE_BLOCK: usize = 3;
+/// Where the cut that bores the hole stands.
+const THE_HOLE: usize = 4;
+
+/// A block 10 by 20 raised 4 from XY, and a round cut through it at its
+/// middle: « Extrusion 1 » adds, « Extrusion 2 » cuts.
+fn a_block_with_a_hole() -> PartDocument {
+    let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 20.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(5.0, 10.0)),
+        radius: 2.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(1.0, 1.0), DVec2::new(5.0, 10.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(5.0, 10.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Cut,
+    });
+    let steps = document.history.applied_operations();
+    assert!(
+        matches!(steps.get(THE_BLOCK), Some(Operation::Extrude { .. }))
+            && matches!(steps.get(THE_HOLE), Some(Operation::Extrude { .. })),
+        "the fixture wants the block then the hole: {steps:?}",
+    );
+    document
+}
+
+/// A volume row as the user reads it: its name, whether it adds or cuts, its
+/// badge, its state, the state written on its line and its button's name.
+type VolumeRow = (
+    String,
+    ExtrusionMode,
+    Option<Problem>,
+    MatterInFront,
+    String,
+    String,
+);
+
+/// The volume rows of the panel, the view as `viewport` leaves it.
+fn volumes_seen(document: &PartDocument, viewport: &ViewportState) -> Vec<Body> {
+    PartTree::seen(document, &SketchEditor::default(), viewport, &french()).bodies
+}
+
+#[test]
+fn a_volume_row_reads_its_add_or_cut_icon_its_name_its_badge_and_its_state() {
+    let document = a_block_with_a_hole();
+    let mut viewport = ViewportState::default();
+    let read = |viewport: &ViewportState| -> Vec<VolumeRow> {
+        volumes_seen(&document, viewport)
+            .into_iter()
+            .map(|body| {
+                (
+                    body.name,
+                    body.mode,
+                    body.badge,
+                    body.shown,
+                    body.state,
+                    body.visibility_button,
+                )
+            })
+            .collect()
+    };
+    let row = |name: &str, mode, shown, state: &str, button: &str| -> VolumeRow {
+        (
+            name.to_string(),
+            mode,
+            None,
+            shown,
+            state.to_string(),
+            button.to_string(),
+        )
+    };
+    let block_opaque = row(
+        "Extrusion 1",
+        ExtrusionMode::Add,
+        MatterInFront::Opaque,
+        "opaque",
+        "Rendre transparente",
+    );
+
+    viewport.next_volume_mode(&document, THE_HOLE);
+    assert_eq!(
+        read(&viewport),
+        [
+            block_opaque.clone(),
+            row(
+                "Extrusion 2",
+                ExtrusionMode::Cut,
+                MatterInFront::SeeThrough,
+                "transparente",
+                "Rendre invisible",
+            ),
+        ],
+        "the block opaque and the cut see-through, as (name, add or cut, badge, state, \
+         state written, visibility button)",
+    );
+
+    viewport.next_volume_mode(&document, THE_HOLE);
+    assert_eq!(
+        read(&viewport),
+        [
+            block_opaque,
+            row(
+                "Extrusion 2",
+                ExtrusionMode::Cut,
+                MatterInFront::Hidden,
+                "invisible",
+                "Rendre opaque",
+            ),
+        ],
+        "the block opaque and the cut invisible",
+    );
+}
+
+#[test]
+fn an_invisible_volume_s_row_is_dimmed() {
+    let document = a_block_with_a_hole();
+    let mut viewport = ViewportState::default();
+    let dimmed = |viewport: &ViewportState| -> Vec<bool> {
+        volumes_seen(&document, viewport)
+            .iter()
+            .map(|body| body.dimmed)
+            .collect()
+    };
+
+    let mut seen = vec![dimmed(&viewport)];
+    for _ in 0..3 {
+        viewport.next_volume_mode(&document, THE_HOLE);
+        seen.push(dimmed(&viewport));
+    }
+
+    assert_eq!(
+        seen,
+        [
+            [false, false],
+            [false, false],
+            [false, true],
+            [false, false]
+        ],
+        "the cut opaque, see-through, invisible then opaque again, beside the block opaque: \
+         only an invisible row reads dimmed",
+    );
+}
+
+#[test]
+fn the_whole_body_selector_lights_the_state_every_volume_shares_and_none_when_they_differ() {
+    let document = a_block_with_a_hole();
+    let mut viewport = ViewportState::default();
+    let segments = |viewport: &ViewportState| -> Vec<(String, MatterInFront, bool)> {
+        PartTree::seen(&document, &SketchEditor::default(), viewport, &french())
+            .whole_body
+            .into_iter()
+            .map(|segment| (segment.name, segment.mode, segment.lit))
+            .collect()
+    };
+    let lit = |on: Option<MatterInFront>| -> Vec<(String, MatterInFront, bool)> {
+        [
+            ("Invisible", MatterInFront::Hidden),
+            ("Transparent", MatterInFront::SeeThrough),
+            ("Opaque", MatterInFront::Opaque),
+        ]
+        .into_iter()
+        .map(|(name, mode)| (name.to_string(), mode, on == Some(mode)))
+        .collect()
+    };
+
+    assert_eq!(
+        segments(&viewport),
+        lit(Some(MatterInFront::Opaque)),
+        "every volume opaque, as (segment, state it sets, lit)",
+    );
+    viewport.next_volume_mode(&document, THE_HOLE);
+    assert_eq!(
+        segments(&viewport),
+        lit(None),
+        "the block opaque and the cut see-through",
+    );
+    viewport.set_whole_body(MatterInFront::Hidden);
+    assert_eq!(
+        segments(&viewport),
+        lit(Some(MatterInFront::Hidden)),
+        "« Invisible » chosen",
     );
 }

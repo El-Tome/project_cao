@@ -4,12 +4,14 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
 
+use cao_part::PartDocument;
 use cao_render::MatterInFront;
 use cao_sketch::WorkPlane;
 use cao_solid::{Body, FaceHit};
 use glam::{DVec3, Vec3};
 
 use super::section::Section;
+use super::visibility::FaceModes;
 use super::{ViewMode, ViewportState, to_ndc};
 use crate::screens::sketch::SketchEditor;
 
@@ -61,19 +63,17 @@ pub(crate) fn shown<'a>(state: &ViewportState, editor: &SketchEditor, body: &'a 
 }
 
 /// The piece of what is drawn, opaque or see-through, the ray meets first,
-/// and where. Nothing of an invisible body is met.
+/// and where. No invisible face is met: the ray goes on through it.
 pub(super) fn drawn_under<'a>(
-    state: &ViewportState,
+    faces: &FaceModes,
     drawn: &'a Drawn<'_>,
     origin: DVec3,
     direction: DVec3,
 ) -> Option<(&'a Body, FaceHit)> {
-    if state.body_mode() == MatterInFront::Hidden {
-        return None;
-    }
+    let shown = |face| faces.shows(face);
     std::iter::once(&*drawn.opaque)
         .chain(drawn.see_through.as_ref())
-        .filter_map(|piece| Some((piece, piece.ray_hit(origin, direction)?)))
+        .filter_map(|piece| Some((piece, piece.ray_hit_among(origin, direction, &shown)?)))
         .min_by(|(_, a), (_, b)| a.distance.total_cmp(&b.distance))
 }
 
@@ -86,35 +86,31 @@ pub(crate) fn seen<'a>(
     editor: &SketchEditor,
     body: &'a Body,
 ) -> Option<Drawn<'a>> {
-    (state.body_mode() != MatterInFront::Hidden).then(|| shown(state, editor, body))
+    (!state.shows_nothing()).then(|| shown(state, editor, body))
 }
 
 impl ViewportState {
-    /// Where a ray first meets the part as a frame draws it.
-    #[cfg(test)]
-    pub(crate) fn point_of_the_part_under(
-        &self,
-        editor: &SketchEditor,
-        body: &Body,
-        origin: DVec3,
-        direction: DVec3,
-    ) -> Option<DVec3> {
-        self.point_met(&shown(self, editor, body), origin, direction)
-    }
-
     /// Where the ray through a place of `canvas` first meets what is drawn.
     pub(super) fn point_of_the_part_at(
         &self,
+        document: &PartDocument,
         drawn: &Drawn<'_>,
         at: egui::Pos2,
         canvas: egui::Rect,
     ) -> Option<DVec3> {
         let (origin, direction) = self.camera.ray(to_ndc(at, canvas), canvas.aspect_ratio());
-        self.point_met(drawn, origin.as_dvec3(), direction.as_dvec3())
+        let faces = self.face_modes(document);
+        self.point_met(&faces, drawn, origin.as_dvec3(), direction.as_dvec3())
     }
 
-    fn point_met(&self, drawn: &Drawn<'_>, origin: DVec3, direction: DVec3) -> Option<DVec3> {
-        let (_, hit) = drawn_under(self, drawn, origin, direction)?;
+    fn point_met(
+        &self,
+        faces: &FaceModes,
+        drawn: &Drawn<'_>,
+        origin: DVec3,
+        direction: DVec3,
+    ) -> Option<DVec3> {
+        let (_, hit) = drawn_under(faces, drawn, origin, direction)?;
         Some(origin + direction * hit.distance)
     }
 }

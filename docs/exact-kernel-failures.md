@@ -3941,3 +3941,56 @@ on both. The turned set fails on the same seeds by the same rules.
 other failing the same: 354000000008162 through the body holds again, and
 352000000007640 through the body and 354000000002729 on the exact kernel,
 `Uncrossed` on `main` and on #820 alone, hold on the pair.
+
+## #811: a meet read along a cone's rulings finds the other wall where it stands
+
+Part of #755. Where a cone cuts two walls a hair apart, its meet with each
+wall is sampled at the cone's grid, and read back along a ray as an angle of
+the other wall by `Ruled::at_angle`. That took any window of the meet's table
+whose ends straddle the angle and halved it; where the angle fell exactly on
+a node of the table, the window held no change of sign and the halving ran to
+its far end, giving the next node as well. Each wall rounds about its own
+axis, each got its own spurious sample, and the two meets fell out of step
+and crossed. `meet/ruled/seen.rs` now finds only the parameters where the
+meet stands at the angle: a window whose end stands at it gives that end
+(at the table's last end, the seam, t = 0), one with a strict change of sign
+is halved, and one with neither gives nothing.
+
+**How it was measured.** The walls draws on `main` (b0884bfc, identical
+seed by seed to #832's pair) and on #811 (e81ec5f7, whose production code is
+the tip's; the rebase onto 74b13bbd brought only #825's fillets and chamfers,
+which these sets never build) on exactly the same cases as #810: three sets
+of seeds, from 352000000000000, 353000000000000 and 354000000000000, each of
+5 887 cases on the exact kernel and 18 015 through the body at the default
+patience; and the turned set from 533300000, 20 000 cases on the exact
+kernel and 40 000 through the body at a patience of 300. Compared seed by
+seed.
+
+| Set | Exact, `main` | Exact, #811 | Body, `main` | Body, #811 |
+| --- | --- | --- | --- | --- |
+| walls 352… | 43 (7.3 ‰) | 41 (7.0 ‰) | 86 (4.8 ‰) | 85 (4.7 ‰) |
+| walls 353… | 24 (4.1 ‰) | 24 (4.1 ‰) | 82 (4.6 ‰) | 79 (4.4 ‰) |
+| walls 354… | 38 (6.5 ‰) | 37 (6.3 ‰) | 86 (4.8 ‰) | 84 (4.7 ‰) |
+| turned 533300000… | 22 (1.1 ‰) | 22 (1.1 ‰) | 42 (1.05 ‰) | 42 (1.05 ‰) |
+
+The walls draws go from 359 failures to 350: 10 gains, one regression, no
+rule shift. The turned set fails on the same seeds by the same rules.
+
+**Gains.** On the exact kernel, `Uncrossed` on `main`: 352000000000867,
+352000000001195, 354000000005407. Through the body: 352000000001195,
+353000000016959, 353000000017657, 354000000005407 and 354000000007100,
+`Uncrossed` on `main`; 353000000013044 and 354000000010993, `Answers` on
+`main`. The four seeds #810 shifted to `Uncrossed` — 352000000000867 and
+352000000001195 on the exact kernel, 352000000001195 and 353000000016959
+through the body — are among them.
+
+**One regression, on #821.** 354000000011719 through the body goes from
+holding to `Uncrossed`. The spurious sample #811 removes happened to split a
+chord of the base cone ending on a vertex where three walls meet, and a
+triangle on that chord now crosses one of a hole's cylinder. It holds with
+#821, stacked on #811; the two merge together.
+
+Of the seven draws the guard regressed when first tried on #810's tip,
+352000000000562, 352000000005478, 352000000006255, 352000000007343,
+354000000010173 and 354000000013382 hold since #820, and hold on #811;
+354000000011719 is the regression above.

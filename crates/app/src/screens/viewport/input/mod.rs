@@ -107,6 +107,7 @@ pub(crate) fn handle_sketch_input(
 ) -> bool {
     let Some(pointer) = response.hover_pos() else {
         context.editor.hovered_plane = None;
+        context.editor.hovered_face_drawn.clear();
         context.editor.cursor = None;
         return false;
     };

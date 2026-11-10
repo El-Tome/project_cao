@@ -4,6 +4,14 @@
 //! - the face under the cursor is lit with the triangles the exact kernel
 //!   draws the part with —
 //!   `the_face_under_the_cursor_is_lit_with_triangles_the_part_is_drawn_with`
+//!
+//! Closes #734 — the whole transcription is in
+//! `crates/app/src/screens/part_tree/state/tests.rs`; this is the bullet the
+//! light under the cursor answers.
+//! - found in review: the face under the cursor is lit as it is drawn, every
+//!   triangle of the drawn face, whatever outline the part gives it — with a
+//!   cut invisible, the whole top it fills in —
+//!   `the_top_an_invisible_cut_fills_in_is_lit_whole_under_the_cursor`
 
 use cao_part::PartDocument;
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
@@ -14,6 +22,8 @@ use super::*;
 use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::SketchEditor;
+use crate::screens::viewport::ViewScale;
+use crate::screens::viewport::input::handle_sketch_input;
 
 /// What the three planes are painted, when one of them is being pointed at.
 fn offered(hovered: Option<PlaneChoice>) -> (Vec<cao_render::Vertex>, Vec<cao_render::Vertex>) {
@@ -201,5 +211,190 @@ fn the_face_under_the_cursor_is_lit_with_triangles_the_part_is_drawn_with() {
         drawn.len(),
         "lit face by face, the part is not lit with every triangle it is drawn \
          with, once each",
+    );
+}
+
+/// Where the cut of `a_block_notched_deep_at_its_corner` is.
+const THE_NOTCH: usize = 4;
+
+/// A block 10 by 10 and 4 high at the origin, notched through by a square
+/// from (3, 3) to (15, 15): its top in the part a thin L, 3 wide. Both squares
+/// are drawn before either step.
+fn a_block_notched_deep_at_its_corner() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    for (corner, opposite) in [
+        (DVec2::ZERO, DVec2::splat(10.0)),
+        (DVec2::splat(3.0), DVec2::splat(15.0)),
+    ] {
+        document.apply(Operation::AddRectangle {
+            sketch: 0,
+            corner: PointRef::New(corner),
+            opposite: PointRef::New(opposite),
+            construction: false,
+        });
+    }
+    for (inside, distance, mode) in [
+        (
+            vec![DVec2::splat(1.0), DVec2::splat(5.0)],
+            4.0,
+            ExtrusionMode::Add,
+        ),
+        (
+            vec![DVec2::splat(5.0), DVec2::splat(12.0)],
+            10.0,
+            ExtrusionMode::Cut,
+        ),
+    ] {
+        document.apply(Operation::Extrude {
+            sketch: 0,
+            areas: document.areas_at(0, &inside),
+            distance: distance.into(),
+            mode,
+        });
+    }
+    assert!(
+        (document.body().volume() - 204.0).abs() < 1e-6,
+        "the notched block holds {}, not 400 less 7 by 7 by 4",
+        document.body().volume(),
+    );
+    document
+}
+
+/// Whether a triangle lying flat at the height of `point` holds it.
+fn holds([a, b, c]: &[Vec3; 3], point: Vec3) -> bool {
+    let flat = [a, b, c]
+        .iter()
+        .all(|corner| (corner.z - point.z).abs() < 1e-3);
+    let side = |p: &Vec3, q: &Vec3| (q.x - p.x) * (point.y - p.y) - (q.y - p.y) * (point.x - p.x);
+    let turns = [side(a, b), side(b, c), side(c, a)];
+    flat && (turns.iter().all(|turn| *turn >= -1e-4) || turns.iter().all(|turn| *turn <= 1e-4))
+}
+
+const SCREEN: egui::Rect = egui::Rect {
+    min: egui::Pos2::ZERO,
+    max: egui::pos2(1280.0, 800.0),
+};
+
+/// Where `at` lands on the canvas, seen as `state` sees it.
+fn on_the_screen(state: &ViewportState, at: Vec3) -> egui::Pos2 {
+    let view_projection = state
+        .camera
+        .view_projection(SCREEN.width() / SCREEN.height());
+    let clip = view_projection * at.extend(1.0);
+    let ndc = clip.truncate() / clip.w;
+    egui::pos2(
+        SCREEN.center().x + ndc.x * SCREEN.width() * 0.5,
+        SCREEN.center().y - ndc.y * SCREEN.height() * 0.5,
+    )
+}
+
+/// What is lit flat on the block's top, at z = 4, once the pointer has rested
+/// over `at` while a plane is being chosen for a new sketch, seen from straight
+/// above, the notch clicked `clicks` times round its states — and what was
+/// offered there.
+fn lit_with_the_pointer_over(at: Vec3, clicks: usize) -> (Vec<[Vec3; 3]>, Option<PlaneChoice>) {
+    let mut document = a_block_notched_deep_at_its_corner();
+    let mut state = ViewportState::default();
+    for _ in 0..clicks {
+        state.next_volume_mode(&document, THE_NOTCH);
+    }
+    let (yaw, pitch) = cao_render::camera::view_angles_towards(Vec3::Z);
+    state.camera.set_view_angles(yaw, pitch);
+    let pointer = on_the_screen(&state, at);
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    editor.start_choosing_plane(&lang);
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    let egui = egui::Context::default();
+    for events in [
+        vec![],
+        vec![egui::Event::PointerMoved(pointer)],
+        vec![egui::Event::PointerMoved(pointer)],
+    ] {
+        egui.begin_pass(egui::RawInput {
+            screen_rect: Some(SCREEN),
+            events,
+            ..Default::default()
+        });
+        egui::Area::new(egui::Id::new("the canvas"))
+            .fixed_pos(SCREEN.min)
+            .show(&egui, |ui| {
+                ui.set_min_size(SCREEN.size());
+                let response = ui.interact(
+                    SCREEN,
+                    egui::Id::new("the canvas's surface"),
+                    egui::Sense::click_and_drag(),
+                );
+                let scale = ViewScale::of(&state.camera, SCREEN, 1.0, &state.config, 1.0);
+                handle_sketch_input(ui, &mut state, &response, SCREEN, scale, &mut context);
+            });
+        egui.end_pass().textures_delta.clear();
+    }
+
+    let (mut surfaces, mut lines) = (Vec::new(), Vec::new());
+    push_choosable_planes(&mut surfaces, &mut lines, &state, &context);
+    let lit = surfaces
+        .chunks(3)
+        .map(|corners| std::array::from_fn(|rank| Vec3::from(corners[rank].position)))
+        .filter(|triangle: &[Vec3; 3]| triangle.iter().all(|corner| (corner.z - 4.0).abs() < 1e-3))
+        .collect();
+    (lit, context.editor.hovered_plane)
+}
+
+/// Whether what is lit holds each of these places.
+fn covers(lit: &[[Vec3; 3]], places: [Vec3; 2]) -> [bool; 2] {
+    places.map(|place| lit.iter().any(|triangle| holds(triangle, place)))
+}
+
+/// On the part's L, and over the notch the cut takes away.
+const ON_THE_L: Vec3 = Vec3::new(1.0, 1.0, 4.0);
+const OVER_THE_NOTCH: Vec3 = Vec3::new(8.0, 8.0, 4.0);
+
+#[test]
+fn the_top_an_invisible_cut_fills_in_is_lit_whole_under_the_cursor() {
+    let (opaque, offered) = lit_with_the_pointer_over(ON_THE_L, 0);
+    assert!(
+        matches!(offered, Some(PlaneChoice::Face { .. })),
+        "the fixture wants the L of the top offered under the pointer, not {offered:?}",
+    );
+    assert_eq!(
+        covers(&opaque, [ON_THE_L, OVER_THE_NOTCH]),
+        [true, false],
+        "the cut opaque, the L under the pointer is not lit as drawn, as (on the L, over the \
+         notch)",
+    );
+
+    let (filled, _) = lit_with_the_pointer_over(ON_THE_L, 2);
+    assert_eq!(
+        covers(&filled, [ON_THE_L, OVER_THE_NOTCH]),
+        [true, true],
+        "the cut invisible, the top under the pointer is not lit whole, as drawn, as (on the \
+         L, over the notch it fills in)",
+    );
+
+    let (over_nothing, offered) = lit_with_the_pointer_over(OVER_THE_NOTCH, 2);
+    assert!(
+        !matches!(
+            offered,
+            Some(PlaneChoice::Face { .. } | PlaneChoice::Curved(_))
+        ),
+        "the cut invisible, the top it fills in over the notch, which the part has nothing of, \
+         is offered as {offered:?}",
+    );
+    assert!(
+        over_nothing.is_empty(),
+        "the cut invisible, nothing offered over the notch, and {} triangles are lit on the top",
+        over_nothing.len(),
     );
 }

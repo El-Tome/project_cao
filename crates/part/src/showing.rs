@@ -8,8 +8,11 @@
 //! see-through addition brings no matter to the opaque part and its raw block
 //! is a ghost; a see-through cut is applied, and the raw block it removes is a
 //! ghost. A step left out still counts past the numbers it would have given
-//! its faces, so that every face shown answers to the number it has in the
-//! part.
+//! its faces, as a declined step does, so that the steps after it are raised
+//! as they are in the part. A sketch takes the plane it has in the part: one
+//! laid on a face of a volume left out, or whose face the part shown outlines
+//! otherwise, stays where it is in the part. What a face of the part shown
+//! answers to is read by where it lies, not by its number.
 
 use std::collections::BTreeMap;
 
@@ -85,8 +88,9 @@ impl PartDocument {
 
 impl PartState {
     /// The plane the sketch of that rank has in the part, for the part shown
-    /// to lay it on where the face it stands on is not shown: a sketch on a
-    /// volume left out stays where it is in the part.
+    /// to lay it on: a sketch on a face or a section of the part stays where
+    /// it is in the part, whatever the part shown makes of what it stands on.
+    /// Nothing for the part itself.
     pub(crate) fn plane_in_the_part(&self, sketch: usize) -> Option<WorkPlane> {
         self.showing.planes.get(sketch).copied()
     }

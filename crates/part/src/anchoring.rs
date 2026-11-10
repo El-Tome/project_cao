@@ -16,17 +16,17 @@ impl PartState {
     /// `recorded` is the plane it was drawn on the day it was made, kept as
     /// what to fall back on. A face that the part no longer has leaves the
     /// drawing there and marks it: catching the nearest face instead would
-    /// move a drawing to somewhere nobody pointed at. In the part shown with
-    /// its volumes' states, a face left out with its volume gives the drawing
-    /// the plane it has in the part.
+    /// move a drawing to somewhere nobody pointed at. The part shown with its
+    /// volumes' states lays the drawing on the plane it has in the part,
+    /// whatever the part shown makes of its face.
     pub(crate) fn plane_for(&mut self, recorded: WorkPlane, on: &Option<FaceAnchor>) -> WorkPlane {
         let Some(anchor) = on else {
             return recorded;
         };
-        if let Some(plane) = self.face_now(anchor) {
+        if let Some(plane) = self.plane_in_the_part(self.sketches.len()) {
             return plane;
         }
-        if let Some(plane) = self.plane_in_the_part(self.sketches.len()) {
+        if let Some(plane) = self.face_now(anchor) {
             return plane;
         }
         self.adrift.insert(self.sketches.len());

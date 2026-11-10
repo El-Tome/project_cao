@@ -26,6 +26,11 @@
 //! - found in review: a sketch laid on a face of a volume shown see-through
 //!   or invisible keeps the plane it has in the part, not the plane it was
 //!   recorded on — `a_sketch_on_a_volume_not_shown_opaque_keeps_the_plane_it_has_in_the_part`
+//! - found in review: such a sketch takes the plane it has in the part even
+//!   where its face is still shown, with another outline than in the part —
+//!   `a_sketch_on_a_face_shown_with_another_outline_keeps_the_plane_it_has_in_the_part`;
+//!   and so does a sketch on a kept section laid on a face of a volume left
+//!   out — `a_sketch_on_a_section_kept_on_a_volume_left_out_keeps_the_plane_it_has_in_the_part`
 //! - found in review: a revolution follows the same rules, an invisible
 //!   turned cut giving back its matter —
 //!   `an_invisible_revolved_cut_gives_back_the_matter_it_turned_away` — and a
@@ -40,7 +45,7 @@ use std::collections::BTreeMap;
 
 use std::f64::consts::PI;
 
-use cao_part::history::FaceAnchor;
+use cao_part::history::{FaceAnchor, SectionAsked, SideDrawing};
 use cao_part::{
     ExtrusionMode, Operation, PartDocument, PointRef, RevolutionAxis, Shown, VolumeState,
 };
@@ -437,4 +442,159 @@ fn a_see_through_revolved_addition_is_a_ghost_of_its_whole_turn() {
         1000.0 * PI,
         "the turn's ghost, the whole cylinder it turned, bore and all",
     );
+}
+
+/// The span of what a body holds above `height`: every corner of a triangle
+/// standing over it, which for a boss on a top is the boss's own top and
+/// walls.
+fn above(body: &Body, height: f64) -> Option<(DVec3, DVec3)> {
+    let corners: Vec<DVec3> = body
+        .triangles()
+        .into_iter()
+        .flatten()
+        .filter(|corner| corner.z > height + 1e-9)
+        .collect();
+    let first = *corners.first()?;
+    Some(corners.iter().fold((first, first), |(low, high), corner| {
+        (low.min(*corner), high.max(*corner))
+    }))
+}
+
+/// A block 10 by 10 by 10 notched through at its corner by a square from
+/// (-5, -5) to (5, 5): its top an L, the corner (0, 0) gone. Then a sketch on
+/// that top, read from one of the L's own corners, and a boss 2 by 2 raised 5
+/// from it. The notch's number.
+fn a_boss_on_a_corner_notched_top() -> (PartDocument, u32) {
+    let mut document = a_part();
+    rectangle(&mut document, DVec2::ZERO, DVec2::splat(10.0));
+    rectangle(&mut document, DVec2::splat(-5.0), DVec2::splat(5.0));
+    raised(
+        &mut document,
+        &[DVec2::splat(2.0), DVec2::splat(7.0)],
+        10.0,
+        ExtrusionMode::Add,
+    );
+    raised(
+        &mut document,
+        &[DVec2::splat(2.0), DVec2::splat(-2.0)],
+        20.0,
+        ExtrusionMode::Cut,
+    );
+    let notch = number_of(&document, 4);
+    assert_volume(document.body(), 750.0, "the block notched at its corner");
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: DVec3::new(0.0, 0.0, 10.0),
+            u: DVec3::X,
+            v: DVec3::Y,
+        },
+        on: Some(FaceAnchor {
+            face: 1,
+            up: DVec3::Y,
+        }),
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 1,
+        corner: PointRef::New(DVec2::splat(2.0)),
+        opposite: PointRef::New(DVec2::splat(4.0)),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 1,
+        areas: document.areas_at(1, &[DVec2::splat(3.0)]),
+        distance: 5.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    (document, notch)
+}
+
+#[test]
+fn a_sketch_on_a_face_shown_with_another_outline_keeps_the_plane_it_has_in_the_part() {
+    let (document, notch) = a_boss_on_a_corner_notched_top();
+    let in_the_part = above(document.body(), 10.0).expect("the boss stands on the top");
+
+    for state in [VolumeState::Invisible, VolumeState::SeeThrough] {
+        let shown = shown_with(&document, &[(notch, state)]);
+
+        let boss = above(&shown.body, 10.0).expect("the boss is shown");
+        assert!(
+            boss.0.distance(in_the_part.0) < PLACE && boss.1.distance(in_the_part.1) < PLACE,
+            "the notch {state:?}, the boss spans {} to {}, not {} to {} as in the part",
+            boss.0,
+            boss.1,
+            in_the_part.0,
+            in_the_part.1,
+        );
+    }
+}
+
+#[test]
+fn a_sketch_on_a_section_kept_on_a_volume_left_out_keeps_the_plane_it_has_in_the_part() {
+    let mut document = a_part();
+    rectangle(&mut document, DVec2::ZERO, DVec2::new(40.0, 20.0));
+    raised(
+        &mut document,
+        &[DVec2::new(20.0, 10.0)],
+        30.0,
+        ExtrusionMode::Add,
+    );
+    let block = number_of(&document, 2);
+    let as_recorded = WorkPlane {
+        origin: DVec3::new(0.0, 0.0, AS_SKETCHED),
+        u: DVec3::X,
+        v: DVec3::Y,
+    };
+    document.apply(Operation::SaveSection(SectionAsked {
+        plane: as_recorded,
+        on: Some(FaceAnchor {
+            face: 1,
+            up: DVec3::Y,
+        }),
+        offset: 5.0,
+        behind: SideDrawing::Opaque,
+        in_front: SideDrawing::Hidden,
+        tilt_about_u_degrees: 0.0,
+        tilt_about_v_degrees: 0.0,
+        pivot: DVec3::ZERO,
+    }));
+    let section = document.sections()[0].id;
+    document.apply(Operation::CreateSketchOnSection {
+        section,
+        plane: WorkPlane {
+            origin: DVec3::new(0.0, 0.0, AS_SKETCHED + 5.0),
+            ..as_recorded
+        },
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 1,
+        corner: PointRef::New(DVec2::new(10.0, 5.0)),
+        opposite: PointRef::New(DVec2::new(20.0, 15.0)),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 1,
+        areas: document.areas_at(1, &[DVec2::new(15.0, 10.0)]),
+        distance: 5.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    assert_bounds(
+        document.body(),
+        DVec3::ZERO,
+        DVec3::new(40.0, 20.0, 40.0),
+        "the block and the boss raised from the section kept 5 over its top",
+    );
+
+    for state in [VolumeState::Invisible, VolumeState::SeeThrough] {
+        let shown = shown_with(&document, &[(block, state)]);
+
+        assert_bounds(
+            &shown.body,
+            DVec3::new(10.0, 5.0, 35.0),
+            DVec3::new(20.0, 15.0, 40.0),
+            &format!(
+                "the boss on the section, the block it was kept on {state:?}, rather than \
+                 raised from where the section was recorded,"
+            ),
+        );
+    }
 }

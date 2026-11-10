@@ -1,9 +1,10 @@
 //! What a ray meets of the part as drawn, read on the part itself. What is
 //! drawn may be the part shown with its volumes' states, cut by a section or
-//! a sketch, and the ghosts of the volumes shown see-through: none of it
-//! numbers its faces as the part does. A face is found on the part by where
-//! the ray meets it, and a drawn face the part has nothing of lets the ray go
-//! on.
+//! a sketch, and the ghosts of the volumes shown see-through, and the numbers
+//! its faces carry are not relied on. A flat face — the same plane however it
+//! is cut into triangles — is found on the part by where the ray meets it, and
+//! one the part has nothing of lets the ray go on. A curved face stops the
+//! ray where it is met.
 
 use cao_solid::{Body, FaceHit};
 use glam::DVec3;
@@ -13,12 +14,21 @@ use super::{Drawn, drawn_under};
 /// How many faces a ray goes through before it gives up looking.
 const FACES_GONE_THROUGH: usize = 64;
 
-/// What the ray meets: the part's own face — met where a drawn face lies on
-/// it, its distance from the ray's origin — or a drawn face the part has
-/// nothing of, where the caller asked the ray to stop.
+/// What the ray meets: the part's own face — met where a drawn flat face lies
+/// on it, its distance from the ray's origin — or a drawn flat face the part
+/// has nothing of, where the caller asked the ray to stop, or a curved face.
 pub(crate) enum Met<'a> {
-    Part(FaceHit),
+    /// The part's own face, and the piece and face drawn on it.
+    Part {
+        own: FaceHit,
+        piece: &'a Body,
+        drawn: FaceHit,
+    },
     Drawn(&'a Body, FaceHit),
+    /// A curved face drawn, where the ray stops whatever the part has there:
+    /// its triangles stand wherever its piece's cutting put them, so where it
+    /// is met says nothing of the part's own face.
+    Curved(&'a Body, FaceHit),
 }
 
 /// How far apart two places may stand and still be one place on the part,
@@ -46,10 +56,17 @@ pub(crate) fn met_on_the_part<'a>(
         let from = origin + direction * travelled;
         let (piece, mut hit) = drawn_under(drawn, from, direction)?;
         hit.distance += travelled;
+        if !piece.is_flat(hit.face) {
+            return Some(Met::Curved(piece, hit));
+        }
         let at = origin + direction * hit.distance;
         if let Some(mut own) = the_part_s_face_at(part, at, hit.normal, near) {
             own.distance = hit.distance;
-            return Some(Met::Part(own));
+            return Some(Met::Part {
+                own,
+                piece,
+                drawn: hit,
+            });
         }
         if stops(at, hit.normal) {
             return Some(Met::Drawn(piece, hit));
@@ -67,21 +84,4 @@ fn the_part_s_face_at(part: &Body, at: DVec3, normal: DVec3, near: f64) -> Optio
     let there = (hit.distance - near).abs() <= near / 2.0;
     let square = hit.normal.dot(normal).abs() > 1.0 - 1e-6;
     (there && square).then_some(hit)
-}
-
-/// Whether a point lies on a triangle, within `near` of its plane and of its
-/// outline.
-pub(crate) fn lies_on([a, b, c]: [DVec3; 3], point: DVec3, near: f64) -> bool {
-    let normal = (b - a).cross(c - a);
-    let Some(unit) = normal.try_normalize() else {
-        return false;
-    };
-    let inside = [(a, b), (b, c), (c, a)].iter().all(|(from, to)| {
-        let edge = *to - *from;
-        let Some(along) = edge.try_normalize() else {
-            return false;
-        };
-        unit.cross(along).dot(point - *from) >= -near
-    });
-    unit.dot(point - a).abs() <= near && inside
 }

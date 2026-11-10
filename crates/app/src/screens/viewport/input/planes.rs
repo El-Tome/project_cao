@@ -28,7 +28,9 @@ pub(super) fn choose_a_plane(
     origin: DVec3,
     direction: DVec3,
 ) -> bool {
-    context.editor.hovered_plane = plane_under(state, context, origin, direction);
+    let (hovered, drawn) = plane_under(state, context, origin, direction);
+    context.editor.hovered_plane = hovered;
+    context.editor.hovered_face_drawn = drawn;
     context.editor.message = Some(match context.editor.hovered_plane {
         Some(PlaneChoice::Curved(_)) => context.lang.t("sketch.no_drawing_on_a_curve"),
         _ => context.lang.t("sketch.choose_a_plane"),
@@ -134,16 +136,22 @@ pub(crate) fn point_the_section(
             return true;
         };
         let on_the_cut = |at, normal| lies_on_the_cut(state, at, normal);
-        let (piece, hit) = match met_on_the_part(&drawn, body, (origin, direction), on_the_cut) {
-            Some(Met::Part(hit)) => (body, hit),
-            Some(Met::Drawn(piece, hit)) => (piece, hit),
+        let (piece, hit, own) = match met_on_the_part(&drawn, body, (origin, direction), on_the_cut)
+        {
+            Some(Met::Part { own, .. }) => (body, own, true),
+            Some(Met::Drawn(piece, hit) | Met::Curved(piece, hit)) => (piece, hit, false),
             None => return true,
         };
         // From a hair short of where the face was met, so that the ray meets
         // it first, whatever of the piece stands before it.
         let from = origin + direction * (hit.distance - nearness(body));
         if choose_a_cutting_face(state, piece, true, from, direction) {
-            anchor_the_cut(state, piece, body, (from, direction));
+            // Kept on the part's own face it was laid on, to follow it; on
+            // none when the part has nothing there.
+            let up = once_facing(state, hit.normal);
+            if let Some(section) = state.section.as_mut() {
+                section.on = own.then_some(FaceAnchor { face: hit.face, up });
+            }
         }
         return true;
     }
@@ -171,20 +179,9 @@ pub(crate) fn point_the_section(
     true
 }
 
-/// The part's own face the section was just laid on, kept with it so that a
-/// section kept in the part follows that face.
-fn anchor_the_cut(state: &mut ViewportState, piece: &Body, part: &Body, ray: (DVec3, DVec3)) {
-    let Some(hit) = piece.ray_hit(ray.0, ray.1) else {
-        return;
-    };
-    let up = once_facing(state, hit.normal);
-    if let Some(section) = state.section.as_mut() {
-        section.on = own_face(piece, part, hit.face).map(|face| FaceAnchor { face, up });
-    }
-}
-
 /// What is offered to sketch on under the cursor: a face of the part where
-/// there is one, otherwise the nearest of the three planes of the origin.
+/// there is one, with the triangles of the face drawn on it there, otherwise
+/// the nearest of the three planes of the origin.
 ///
 /// The part comes first rather than whatever is nearest the camera. The three
 /// planes are unbounded sheets running right through the part, so nearest-wins
@@ -195,13 +192,13 @@ fn plane_under(
     context: &SketchContext<'_>,
     origin: DVec3,
     direction: DVec3,
-) -> Option<PlaneChoice> {
-    if let Some(choice) = what_is_drawn_offers(state, context, origin, direction) {
-        return Some(choice);
+) -> (Option<PlaneChoice>, Vec<[DVec3; 3]>) {
+    if let Some((choice, drawn)) = what_is_drawn_offers(state, context, origin, direction) {
+        return (Some(choice), drawn);
     }
 
     let half_size = plane_half_size(state);
-    WorkPlane::ORIGIN_PLANES
+    let origin_plane = WorkPlane::ORIGIN_PLANES
         .iter()
         .enumerate()
         .filter_map(|(index, plane)| {
@@ -209,34 +206,39 @@ fn plane_under(
             Some(((plane.to_world(local) - origin).length(), index))
         })
         .min_by(|a, b| a.0.total_cmp(&b.0))
-        .map(|(_, index)| PlaneChoice::Origin(index))
+        .map(|(_, index)| PlaneChoice::Origin(index));
+    (origin_plane, Vec::new())
 }
 
 /// What the part as drawn offers under the ray: the part's own face where
 /// what is drawn lies on one, found by where the ray meets it; the cut of the
 /// section where the ray meets that, offered as its plane, turned the way the
 /// face met looks. A drawn face the part has nothing of — a ghost's, or the
-/// top an invisible cut fills in — lets the ray go on.
+/// top an invisible cut fills in — lets the ray go on. A face of the part comes
+/// with the triangles of the face drawn on it, to light as it is drawn.
 fn what_is_drawn_offers(
     state: &ViewportState,
     context: &SketchContext<'_>,
     origin: DVec3,
     direction: DVec3,
-) -> Option<PlaneChoice> {
+) -> Option<(PlaneChoice, Vec<[DVec3; 3]>)> {
     let part = context.document.body();
     let drawn = seen(state, context.editor, context.document)?;
     let on_the_cut = |at, normal| lies_on_the_cut(state, at, normal);
     let up = |normal| once_facing(state, normal);
     match met_on_the_part(&drawn, part, (origin, direction), on_the_cut)? {
-        Met::Part(hit) => offered_by(part, hit.face, hit.normal, up),
+        Met::Part { own, piece, drawn } => {
+            let offered = offered_by(part, own.face, own.normal, up)?;
+            Some((offered, piece.triangles_of(drawn.face).collect()))
+        }
+        Met::Curved(_, hit) => Some((PlaneChoice::Curved(hit.face), Vec::new())),
         Met::Drawn(_, hit) => {
             let cut = state.section_shown()?.cutting_plane();
-            Some(PlaneChoice::Section(
-                match hit.normal.dot(cut.normal()) > 0.0 {
-                    true => cut,
-                    false => WorkPlane::from_normal(cut.origin, -cut.normal()),
-                },
-            ))
+            let facing = match hit.normal.dot(cut.normal()) > 0.0 {
+                true => cut,
+                false => WorkPlane::from_normal(cut.origin, -cut.normal()),
+            };
+            Some((PlaneChoice::Section(facing), Vec::new()))
         }
     }
 }
@@ -256,15 +258,6 @@ fn lies_on_the_cut(state: &ViewportState, at: DVec3, normal: DVec3) -> bool {
 /// How far from its plane the kernel may lay a section's cut, as a share of
 /// how far from the origin it is laid.
 const CUT_LAID_WITHIN: f64 = 1e-3;
-
-/// The part's own face a face of `drawn` stands for, or `None` for one the
-/// part does not have.
-fn own_face(drawn: &Body, part: &Body, mut face: usize) -> Option<usize> {
-    while !part.has_face(face) {
-        face = drawn.parted_from(face)?;
-    }
-    Some(face)
-}
 
 /// What the face under the ray offers a drawing: its plane when the face is
 /// flat, a refusal when it is not.

@@ -90,6 +90,14 @@
 //!   and the top an invisible cut fills in, where the part has no face,
 //!   offers nothing either —
 //!   `the_top_an_invisible_cut_fills_in_offers_nothing_where_the_part_has_none`
+//! - found in review: a curved face met stops the ray there and refuses, as a
+//!   curved wall always has, under a section and with a volume left out alike,
+//!   rather than letting it through to a flat face behind —
+//!   `a_curved_wall_under_a_section_still_refuses_rather_than_letting_the_ray_through`,
+//!   `a_curved_wall_of_a_part_shown_still_refuses_rather_than_letting_the_ray_through`
+//! - found in review: a section laid from a face the part has nothing of — a
+//!   see-through cut's ghost, cut by the section — is kept on no face of the
+//!   part — `a_section_laid_on_the_cut_of_a_ghost_follows_no_face_of_the_part`
 
 use glam::{DVec2, DVec3};
 
@@ -1555,5 +1563,161 @@ fn the_top_an_invisible_cut_fills_in_offers_nothing_where_the_part_has_none() {
         "the top filled in over the notch, which the part does not have there, is offered as \
          {:?}",
         started.offered,
+    );
+}
+
+/// Where the long block of `a_cylinder_beside_a_long_block` is raised.
+const THE_LONG_BLOCK: usize = 4;
+
+/// A cylinder of radius 10 and 20 high on the origin, and beside it a block
+/// from x = 15 to 100, 10 wide and as high: two volumes, a flat face standing
+/// behind the cylinder's wall for a ray along X.
+fn a_cylinder_beside_a_long_block() -> PartDocument {
+    use cao_part::PointRef;
+
+    let mut document = PartDocument::new("part", chrono::Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 10.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    rectangles(
+        &mut document,
+        &[(DVec2::new(15.0, -5.0), DVec2::new(100.0, 5.0))],
+    );
+    extruded(&mut document, &[DVec2::ZERO], 20.0, false);
+    extruded(&mut document, &[DVec2::new(50.0, 0.0)], 20.0, false);
+    assert!(
+        matches!(
+            document.history.applied_operations().get(THE_LONG_BLOCK),
+            Some(Operation::Extrude { .. })
+        ),
+        "the fixture wants the long block raised at step {THE_LONG_BLOCK}",
+    );
+    document
+}
+
+/// A ray along X onto the cylinder's wall, the long block behind it.
+const ONTO_THE_WALL: (DVec3, DVec3) = (DVec3::new(-50.0, 4.3, 5.0), DVec3::X);
+
+fn assert_the_wall_refuses(started: &Started, what: &str) {
+    assert!(
+        matches!(started.offered, Some(PlaneChoice::Curved(_))),
+        "{what}, the cylinder's wall is offered as {:?}, not refused as a curved face",
+        started.offered,
+    );
+    assert!(
+        !started.started,
+        "{what}, a click on the cylinder's wall starts a sketch"
+    );
+}
+
+#[test]
+fn a_curved_wall_under_a_section_still_refuses_rather_than_letting_the_ray_through() {
+    let mut section = Section::new(WorkPlane::XY);
+    section.offset = 10.0;
+
+    let (origin, direction) = ONTO_THE_WALL;
+    let started = a_sketch_started(a_cylinder_beside_a_long_block(), section, origin, direction);
+
+    assert_the_wall_refuses(&started, "under a section at mid-height");
+}
+
+#[test]
+fn a_curved_wall_of_a_part_shown_still_refuses_rather_than_letting_the_ray_through() {
+    let document = a_cylinder_beside_a_long_block();
+    let mut state = ViewportState::default();
+    state.next_volume_mode(&document, THE_LONG_BLOCK);
+    state.next_volume_mode(&document, THE_LONG_BLOCK);
+    assert_eq!(
+        state.volume_mode(&document, THE_LONG_BLOCK),
+        VolumeState::Invisible
+    );
+
+    let (origin, direction) = ONTO_THE_WALL;
+    let started = a_sketch_started_seen(document, state, origin, direction);
+
+    assert_the_wall_refuses(&started, "the long block invisible");
+}
+
+/// Where the pocket of `a_block_pocketed_from_halfway_up` is cut.
+const THE_POCKET: usize = 5;
+
+/// The block of `a_part_holding_a_block`, 10 by 10 and 4 high, and a sketch on
+/// XY lifted to z = 2 from which a square 10 by 10 from (5, 5) is cut 10 up:
+/// a pocket in the block's corner whose floor, at z = 2, is a face of the
+/// part, and a cut reaching far past the block above it and beside it.
+fn a_block_pocketed_from_halfway_up() -> PartDocument {
+    use cao_part::{ExtrusionMode, PointRef};
+
+    let mut document = a_part_holding_a_block();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: DVec3::Z * 2.0,
+            ..WorkPlane::XY
+        },
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 1,
+        corner: PointRef::New(DVec2::splat(5.0)),
+        opposite: PointRef::New(DVec2::splat(15.0)),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 1,
+        areas: document.areas_at(1, &[DVec2::splat(10.0)]),
+        distance: 10.0.into(),
+        mode: ExtrusionMode::Cut,
+    });
+    assert!(
+        matches!(
+            document.history.applied_operations().get(THE_POCKET),
+            Some(Operation::Extrude { .. })
+        ),
+        "the fixture wants the pocket cut at step {THE_POCKET}",
+    );
+    assert!(
+        (document.body().volume() - 350.0).abs() < 1e-6,
+        "the pocketed block holds {}, not 400 less a pocket 5 by 5 by 2",
+        document.body().volume(),
+    );
+    document
+}
+
+#[test]
+fn a_section_laid_on_the_cut_of_a_ghost_follows_no_face_of_the_part() {
+    let document = a_block_pocketed_from_halfway_up();
+    let mut waiting = Section::new(WorkPlane::XY);
+    waiting.offset = 7.0;
+    waiting.wait_for_a_face();
+    let mut state = ViewportState::default();
+    state.next_volume_mode(&document, THE_POCKET);
+    state.section = Some(waiting);
+    assert_eq!(
+        state.volume_mode(&document, THE_POCKET),
+        VolumeState::SeeThrough
+    );
+
+    let after =
+        a_click_from_above_while_the_section_waits(document, state, DVec3::new(12.0, 12.0, 7.0));
+
+    let section = after.section.as_ref().expect("the section stays on");
+    assert!(
+        !section.is_waiting_for_a_face(),
+        "the fixture wants the cut of the ghost, flat on the section's plane, taken as the \
+         cutting face",
+    );
+    assert_eq!(
+        section.on.map(|anchor| anchor.face),
+        None,
+        "a section laid on the cut of the ghost, which the part has nothing of, follows a face \
+         of the part",
     );
 }

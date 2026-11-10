@@ -41,8 +41,16 @@ impl Body {
     /// above the radius taken: its own radius is read off its face, never from
     /// [`Filleted::taken`]. Two edges meeting at a convex corner are mitred
     /// there, the corner's third edge left sharp, and three are closed there by
-    /// a piece of sphere, numbered after every round, by the lowest ranks of
-    /// their edges in the list, then the next; at a corner where an edge meets
+    /// a piece of sphere, at a concave corner — a pocket's bottom — a hollow
+    /// one facing its centre, numbered after every round, by the lowest ranks
+    /// of their edges in the list, then the next. Two rounded off where they
+    /// meet beside a concave edge left sharp — the L's top edges at its inner
+    /// corner, a pocket's rim — each stop flush on the face the other runs
+    /// along and are mitred past it on an ellipse, down to the concave edge, no
+    /// face laid there, and two filled in beside a convex edge left sharp — two
+    /// feet of a block standing on another — are mitred outside it the same
+    /// way, and two filled in beside a concave edge left sharp, at a pocket's
+    /// bottom corner, meet in a valley; at any other corner where an edge meets
     /// inwards they are declined `Unsupported`, as is an edge of a full round
     /// or a round bottom meeting another edge of the list at a corner. Rounds
     /// that would meet only on a curved edge are not measured, and declined

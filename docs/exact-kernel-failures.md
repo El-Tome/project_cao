@@ -3821,3 +3821,123 @@ hold. 353000000005193, 353000000005461, 353000000014733 and
 354000000002444 have their cone face cut, and fail on the pair's walls
 crossing, on the exact kernel, and 353000000014733 through the body too:
 their pins wait on #811.
+
+## #820: a cone face whose edge turns back between two rulings
+
+Part of #755. A cone's face is cut in columns between the rulings of its
+grid, each swept in the cone's `(θ, l)`, which is not the cone rolled out
+flat: a straight segment there is no straight line on the surface. Where the
+face's edge turns back between two rulings, a side running almost along a
+ruling, fanned from a corner far along it, was cut into a sliver the right
+way round in the chart and upside down in space, and the body was left
+uncrossed. `outline/columns.rs` now sweeps a column one of whose triangles
+stands flat or the other way round again, in a frame where the cone is
+rolled out about the column's middle ruling. Only a folded column is:
+sweeping every column so crossed a triangle of the cone with one of a flat
+face, in `seed_5365223411_a_cone_joined_to_a_post_3e_7_inside_its_rim`.
+Where the rolled-out sweep cannot be made either — a column of a single
+triangle truly reversed, as on 354000000006300, which already fails so on
+`main` — the chart's cut is kept.
+
+**How it was measured.** The walls draws on `main` (77ad6f50, identical
+seed by seed to #810's final tip) and on #820's tip (04b8fd04, whose
+production code is the branch's as merged; the rebase onto `main` brought
+only tests and comments) on exactly the same cases as #810: three sets of
+seeds, from 352000000000000, 353000000000000 and 354000000000000, each of
+5 887 cases on the exact kernel and 18 015 through the body at the default
+patience; and the turned set from 533300000, 20 000 cases on the exact
+kernel and 40 000 through the body at a patience of 300. Compared seed by
+seed.
+
+| Set | Exact, `main` | Exact, #820 | Body, `main` | Body, #820 |
+| --- | --- | --- | --- | --- |
+| walls 352… | 49 (8.3 ‰) | 43 (7.3 ‰) | 96 (5.3 ‰) | 87 (4.8 ‰) |
+| walls 353… | 29 (4.9 ‰) | 24 (4.1 ‰) | 90 (5.0 ‰) | 82 (4.6 ‰) |
+| walls 354… | 40 (6.8 ‰) | 39 (6.6 ‰) | 93 (5.2 ‰) | 87 (4.8 ‰) |
+| turned 533300000… | 22 (1.1 ‰) | 22 (1.1 ‰) | 42 (1.05 ‰) | 42 (1.05 ‰) |
+
+The walls draws go from 397 failures to 362: 36 gains, one regression.
+Every gain was `Uncrossed` on `main` and holds on #820. The turned set fails
+on the same seeds by the same rules.
+
+**Gains.** On the exact kernel: 352000000000775, 352000000000862,
+352000000000877, 352000000001052, 352000000003161, 352000000005550,
+353000000000765, 353000000001414, 353000000001768, 353000000003042,
+353000000005159, 354000000003209. Through the body: 352000000000862,
+352000000002358, 352000000003161, 352000000006704, 352000000006733,
+352000000006873, 352000000015360, 352000000015401, 352000000017400,
+353000000001296, 353000000002360, 353000000002391, 353000000002749,
+353000000011545, 353000000011866, 353000000012992, 353000000016741,
+354000000001297, 354000000001702, 354000000008526, 354000000009425,
+354000000011491, 354000000015600, 354000000017442.
+
+**One regression, on #832.** 354000000008162 through the body goes from
+holding to `Uncrossed`, the same replayed alone: no late answer.
+`folds::unfolded` stops as soon as a pass meets no fewer folds than the one
+before, counted over the whole body. On `main` the upside-down triangle
+#820 removes was one of those folds, and kept the loop going long enough to
+undo three folds where a leaning cone meets a bore's cylinder, far from any
+rolled-out column; with it gone, the loop stops one pass short. It holds once
+#832 lands, the two merging together: see the next section.
+
+**With #811's guard on top.** The guard set aside on `wip/811-guard-set-aside`,
+applied on #820, takes the walls from 397 to 353: 46 gains, two
+regressions, 354000000008162 and 354000000011719. The six draws the guard
+regressed on its own — 352000000000562, 352000000005478, 352000000006255,
+352000000007343, 354000000010173 and 354000000013382 — hold, in the
+campaign and replayed alone; 354000000011719 still fails and stays with
+#821.
+
+## #832: undoing folds does not stop while one remains
+
+Part of #755, and the regression #820 left on 354000000008162.
+`folds::unfolded` passes over the faces again only while a pass takes a flip
+and meets fewer folds, counted over the whole body, than the pass before.
+A fold walked along a fan one triangle a pass meets as many folds twice
+before it comes undone, and the loop stopped with three folds left where a
+leaning cone meets a bore's cylinder. It now allows one more pass when a pass
+meets as many folds as the fewest met so far, one such pass in a row, the
+count of them reset when the number falls; it still stops when no flip is
+taken or the number rises. One is the smallest cap that cured
+354000000008162, measured on that seed, not derived: a longer walk may stall
+more than once.
+
+**How it was measured.** The walls draws on `main` (dc4b67e4) and on #820
+and #832 together (de023fdb; the commits after it touch comments only) on
+exactly the same cases as #810 and #820: three sets of seeds, from
+352000000000000, 353000000000000 and 354000000000000, each of 5 887 cases on
+the exact kernel and 18 015 through the body at the default patience; and
+the turned set from 533300000, 20 000 cases on the exact kernel and 40 000
+through the body at a patience of 300. Compared seed by seed. `main`'s
+walls 352… through the body was run twice: a cargo-mutants run loaded the
+machine and the first stopped at 10 758 cases; the second ran them all.
+`main` at dc4b67e4 fails on the same seeds by the same rules as at 77ad6f50,
+#820's base, in every set.
+
+| Set | Exact, `main` | Exact, #820 + #832 | Body, `main` | Body, #820 + #832 |
+| --- | --- | --- | --- | --- |
+| walls 352… | 49 (8.3 ‰) | 43 (7.3 ‰) | 96 (5.3 ‰) | 86 (4.8 ‰) |
+| walls 353… | 29 (4.9 ‰) | 24 (4.1 ‰) | 90 (5.0 ‰) | 82 (4.6 ‰) |
+| walls 354… | 40 (6.8 ‰) | 38 (6.5 ‰) | 93 (5.2 ‰) | 86 (4.8 ‰) |
+| turned 533300000… | 22 (1.1 ‰) | 22 (1.1 ‰) | 42 (1.05 ‰) | 42 (1.05 ‰) |
+
+The walls draws go from 397 failures to 359: 38 gains, no regression. Every
+gain was `Uncrossed` on `main` and holds on the pair. 354000000008162 holds
+on both. The turned set fails on the same seeds by the same rules.
+
+**Gains.** On the exact kernel: 352000000000775, 352000000000862,
+352000000000877, 352000000001052, 352000000003161, 352000000005550,
+353000000000765, 353000000001414, 353000000001768, 353000000003042,
+353000000005159, 354000000002729, 354000000003209. Through the body:
+352000000000862, 352000000002358, 352000000003161, 352000000006704,
+352000000006733, 352000000006873, 352000000007640, 352000000015360,
+352000000015401, 352000000017400, 353000000001296, 353000000002360,
+353000000002391, 353000000002749, 353000000011545, 353000000011866,
+353000000012992, 353000000016741, 354000000001297, 354000000001702,
+354000000008526, 354000000009425, 354000000011491, 354000000015600,
+354000000017442.
+
+**Against #820 alone.** #820's gains all hold, and three seeds move, every
+other failing the same: 354000000008162 through the body holds again, and
+352000000007640 through the body and 354000000002729 on the exact kernel,
+`Uncrossed` on `main` and on #820 alone, hold on the pair.

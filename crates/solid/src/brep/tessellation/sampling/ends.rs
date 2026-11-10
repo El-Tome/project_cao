@@ -50,7 +50,11 @@ impl Ends {
             }
             Surface::Cylinder(cylinder) => contact::lies_on(circle, cylinder, own),
             Surface::Cone(cone) => cone.holds(circle, own),
-            Surface::Sphere(sphere) => sphere.holds(circle, own) || sphere.meridian(circle, own),
+            Surface::Sphere(sphere) => {
+                sphere.holds(circle, own)
+                    || sphere.meridian(circle, own)
+                    || sphere.carries(circle, own)
+            }
             Surface::Torus(torus) => torus.holds(circle, own) || torus.meridian(circle, own),
             Surface::Elliptic(_) => false,
         };

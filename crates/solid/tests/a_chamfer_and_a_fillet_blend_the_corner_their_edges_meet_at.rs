@@ -3,9 +3,11 @@
 //! meeting outwards — two of its edges cut trim each other in a mitre and
 //! leave the third sharp, and all three are closed by a patch of their own
 //! kind: a triangle among flats, a piece of sphere among rounds. A corner with
-//! an edge meeting inwards is declined. An operation of the kernel on
-//! [`Body`], as the step on several edges of #698 is; the step of the history
-//! that calls it comes with the application, in #701.
+//! an edge meeting inwards is declined here, but for those #801 builds, held
+//! in `a_chamfer_and_a_fillet_stop_and_mitre_beside_a_concave_edge.rs`. An
+//! operation of the kernel on [`Body`], as the step on several edges of #698
+//! is; the step of the history that calls it comes with the application, in
+//! #701.
 //!
 //! Closes #699.
 //! - Three edges of a convex corner chamfered at one value leave a closed
@@ -23,9 +25,9 @@
 //!   top is cut by a plane tilted two ways, its flats closed by their
 //!   triangle —
 //!   `a_chamfer_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_closes_it_with_a_triangle_where_the_flats_edges_cross`
-//!   — and its rounds a broken step with its reason, `Undrawn`, until #800
-//!   draws their sphere —
-//!   `a_fillet_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_is_a_broken_step_until_its_sphere_can_be_drawn`;
+//!   — and its rounds by their piece of sphere, since #800 draws it; a broken
+//!   step with its reason, `Undrawn`, before —
+//!   `a_fillet_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces`;
 //!   and several corners closed in one step, the body the same whatever the
 //!   order the list names their edges: an upright of the block and the four
 //!   edges at its two ends, two corners, and the twelve edges of the block,
@@ -65,21 +67,26 @@
 //!   chamfer edges cross on each of the three faces; the sphere piece of three
 //!   fillets is centred at the point one value from all three faces, and
 //!   meets each fillet along that fillet's end section. Both hold for any
-//!   convex trihedral corner, not only a square one. This branch holds the
+//!   convex trihedral corner, not only a square one. This branch held the
 //!   triangle at any convex corner, and the sphere where one edge is square
 //!   to the other two, as at the block's corner and the slanted prism's;
 //!   where no two edges are square, the sphere's third arc is a great circle
 //!   that is neither a meridian nor the equator of its axis, which the
-//!   drawing cannot follow yet, and the step is a broken step with its
-//!   reason, `Undrawn`, until #800 draws it. The tests of the criterion
-//!   above, which hold the triangle's three corners and the sphere's centre,
-//!   radius and the arcs it shares with the rounds, and the broken step:
+//!   `(θ, φ)` chart of the sphere cannot follow, and the step was a broken
+//!   step with its reason, `Undrawn`. Decision of #800: such a piece of
+//!   sphere is drawn on a chart of its own, its central projection from the
+//!   sphere's centre onto a plane tangent at a direction the whole piece lies
+//!   in front of, where every great circle is a straight line, its boundary
+//!   sampled as its neighbours share it; a face the `(θ, φ)` chart draws
+//!   keeps its path. The tests of the criterion above, which hold the
+//!   triangle's three corners and the sphere's centre, radius and the arcs
+//!   it shares with the rounds:
 //!   `a_chamfer_on_the_three_edges_of_a_corner_closes_it_with_a_triangle_where_the_flats_edges_cross`,
 //!   `a_fillet_on_the_three_edges_of_a_corner_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces`,
 //!   `a_chamfer_on_the_three_edges_of_a_corner_that_is_not_square_closes_it_with_a_triangle_where_the_flats_edges_cross`,
 //!   `a_fillet_on_the_three_edges_of_a_corner_that_is_not_square_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces`,
 //!   `a_chamfer_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_closes_it_with_a_triangle_where_the_flats_edges_cross`,
-//!   `a_fillet_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_is_a_broken_step_until_its_sphere_can_be_drawn`
+//!   `a_fillet_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces`
 //! - Two of a convex corner's three edges chamfered or rounded leave a closed
 //!   body mitred at that corner, the third edge sharp. Volume exact, soundness
 //!   checks pass — on each of the corner's three pairs, named in either order,
@@ -110,17 +117,27 @@
 //!   `a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_declined_as_unsupported`;
 //!   the reason is `Unsupported`, the kernel's word for a shape it does not
 //!   build, until #801, the follow-up issue the decision promised, builds
-//!   those corners. At the
-//!   L's inner corner and at a pocket's, each edge but the L's upright one is
-//!   declined alone already, its cut carried along its line taking matter
-//!   beyond it: those lists hold what the user sees, and not why. What holds
-//!   the corner's own decline is a block standing on another, whose four feet
-//!   are filled in each alone, and two of which meet at each of its corners,
-//!   the third edge there its upright, meeting outwards. Lists taking that
-//!   upright, with a foot or with both, are declined too, but the upright is
-//!   declined alone already, its cut carried down past the foot taking matter
-//!   of the block below: those lists hold what the user sees as well, and
-//!   only the feet hold the corner's own decline
+//!   those corners. Its first slice builds every edge at such a corner alone
+//!   — the L's top and floor edges at its inner corner, a pocket's rim, a
+//!   standing block's uprights, each stopping flush on the face it runs into
+//!   — and two convex edges meeting where the third is concave, mitred, the
+//!   third left sharp: the L's two top edges at its inner corner and two edges
+//!   of a pocket's rim, which this test declined before, held now in
+//!   `a_chamfer_and_a_fillet_stop_and_mitre_beside_a_concave_edge.rs`. Its
+//!   second slice builds two concave edges meeting where the third is convex,
+//!   mitred, the third left sharp: two feet of a block standing on another,
+//!   meeting where its upright meets outwards, and its four feet, which this
+//!   test declined before, held now in
+//!   `a_chamfer_and_a_fillet_fill_concave_edges_meeting_at_a_corner.rs`. Its
+//!   third slice builds a pocket's floor edges and uprights alone, each fill
+//!   trimmed flush on the faces at its ends, and two of the three concave
+//!   edges at a pocket's bottom corner, mitred, the third left sharp: two
+//!   edges of its floor, or one and the upright it meets, which this test
+//!   declined before, held now in that same file. The lists left here are a
+//!   cut meeting a fill at a corner, declined at the corner itself, each of
+//!   their edges laid alone — a foot and the upright above it, the L's top
+//!   edge and its inner upright, the three edges at a corner of mixed sense —
+//!   until #829
 //! - A full round, two parallel edges whose rounds meet across the face they
 //!   share, meeting a third edge of the list at a corner, is not built here:
 //!   the fillet is declined `Unsupported` whichever edge the list names
@@ -184,6 +201,29 @@
 //!   held that two edges meeting at the block's top front right corner are
 //!   declined; they now meet in a mitre, and its two pairs are two of the
 //!   three the mitre tests above hold
+//!
+//! Closes #800.
+//! - Three fillets at a convex corner where no two edges are square leave a
+//!   drawn, closed, uncrossed body with its piece of sphere — on the tilted
+//!   block's corner, in every order the list names its three edges,
+//!   `a_fillet_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces`;
+//!   and the drawing alone, on a sector of a ball whose piece of sphere is
+//!   bounded by three great-circle arcs none of which is a meridian or the
+//!   equator of the sphere's axis, built by hand beside the drawing —
+//!   `a_sector_of_a_ball_bounded_by_three_great_circle_arcs_none_a_meridian_nor_the_equator_is_drawn_closed_and_encloses_its_volume`,
+//!   in `crates/solid/src/brep/tessellation/tests/rounds.rs`
+//! - The test #699 wrote on the tilted block (`tilted_block()`, corner
+//!   (30, 0, 15), r = 2, volume 4311.32576 by independent booleans) then
+//!   expects the body rather than the decline —
+//!   `a_fillet_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces`,
+//!   the decline it held turned into a body held through
+//!   `closes_with_a_sphere` as the slanted prism's corner is, to the volume
+//!   `sphere_by_booleans` gives
+//! - What must not break, in the issue's words: "Every sphere, ball and
+//!   torus test (#553, #576 and the turned parts); the corner tests of
+//!   #699." — no test: each is held by its own test, left as it was, but for
+//!   the tilted block's fillet in this file, the one test of #699 that #800
+//!   turns from a decline into a body
 //!
 //! The volumes are arithmetic, measured from the corner along its three
 //! edges: a point stands `(a, b, c)` from it, `a` along the edge whose length
@@ -335,15 +375,18 @@
 //! 5771.06 with flats, 5867.39 with rounds, which the booleans give to the
 //! last digit.
 //!
-//! The rounds there are a broken step for now, and their test holds the
-//! decline. What #800 is to lay, and to hold that test to once it turns it
-//! back into a body test through `closes_with_a_sphere`: a body of 4311.33
-//! at 2, the sphere centred at (28, 2, 13.15), 2 in from the right wall, the
-//! front and the tilted top, touching each at the foot of the centre on it;
-//! each round ending on the plane through that centre square to its edge,
-//! along an arc between two of those feet; the three ways the faces face
-//! spanning 1.4536 of solid angle for the piece of sphere, whose sector the
-//! volume gives back.
+//! The rounds at the corner where no two edges are square, a broken step
+//! until #800, close it with their piece of sphere, held through
+//! `closes_with_a_sphere` as at the slanted prism's corner: a body of
+//! 4311.33 at 2, the sphere centred at (28, 2, 13.15), 2 in from the right
+//! wall, the front and the tilted top, touching each at the foot of the
+//! centre on it; each round ending on the plane through that centre square
+//! to its edge, along an arc between two of those feet; the three ways the
+//! faces face spanning 1.4536 of solid angle for the piece of sphere, whose
+//! sector the volume gives back. Its triangles are held at the tolerance it
+//! is drawn at, which is not its box's: a cut keeps the larger reach of the
+//! part and the tool, and the slab its top is cut off by reaches 90.6, three
+//! times the block's 30.
 //!
 //! At a corner that is not square, the line where the two cuts meet need not
 //! run down to the third edge: it can leave by the face the third edge shares
@@ -1073,18 +1116,10 @@ fn met_from_outside(body: &Body, face: usize, round: &Round, what: &str) {
     }
 }
 
-/// The part with a block standing on the ground between the corners `from`
-/// and `to`, raised from `from_height` by `height`, cut from it as `cao_part`
-/// cuts a step: the tool's faces numbered past the part's, its floor first,
-/// then its top, then its sides from the front round to the left.
-fn cut_from(part: &Body, [from, to]: [DVec2; 2], from_height: f64, height: f64) -> Body {
-    part.difference(&tool_between(part, [from, to], from_height, height))
-        .expect("the cut is built")
-}
-
 /// The part with a block between the corners `from` and `to`, raised from
-/// `from_height` by `height`, joined to it as `cao_part` joins a step,
-/// numbered as [`cut_from`] numbers it.
+/// `from_height` by `height`, joined to it as `cao_part` joins a step: the
+/// tool's faces numbered past the part's, its floor first, then its top, then
+/// its sides from the front round to the left.
 fn joined_to(part: &Body, [from, to]: [DVec2; 2], from_height: f64, height: f64) -> Body {
     part.union(&tool_between(part, [from, to], from_height, height))
         .expect("the join is built")
@@ -1145,22 +1180,6 @@ fn ell() -> Body {
 const ARM_BACK: usize = 4;
 const STEM_RIGHT: usize = 5;
 
-/// A block 30 by 20 by 10 with a pocket 10 by 10 sunk 5 into the middle of
-/// its top: the pocket's floor numbered six, its walls, front, right, back
-/// and left, eight to eleven. Its floor's edges and its uprights meet
-/// inwards, its rim outwards.
-fn pocketed() -> Body {
-    cut_from(
-        &block([30.0, 20.0, 10.0]),
-        [DVec2::new(10.0, 5.0), DVec2::new(20.0, 15.0)],
-        5.0,
-        6.0,
-    )
-}
-const POCKET_FLOOR: usize = 6;
-const POCKET_FRONT: usize = 8;
-const POCKET_RIGHT: usize = 9;
-
 #[test]
 fn a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_declined_as_unsupported()
  {
@@ -1180,7 +1199,6 @@ fn a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_d
             .unwrap_or_else(|declined| panic!("{which}: the chamfer declined, {declined:?}"));
     }
     let ell = ell();
-    let pocketed = pocketed();
     let names = |body: &Body, pairs: &[[usize; 2]]| -> Vec<EdgeName> {
         pairs
             .iter()
@@ -1189,21 +1207,6 @@ fn a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_d
     };
 
     for (what, body, list) in [
-        (
-            "the front and right feet of the standing block, meeting at its front right corner",
-            &stacked,
-            vec![feet[0].clone(), feet[1].clone()],
-        ),
-        (
-            "the right and back feet of the standing block, meeting at its back right corner",
-            &stacked,
-            vec![feet[1].clone(), feet[2].clone()],
-        ),
-        (
-            "the four feet of the standing block, two meeting at each of its corners",
-            &stacked,
-            feet.clone(),
-        ),
         (
             "a foot of the standing block and the upright above it",
             &stacked,
@@ -1222,11 +1225,6 @@ fn a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_d
             ],
         ),
         (
-            "the two top edges at the L's inner corner",
-            &ell,
-            names(&ell, &[[TOP, ARM_BACK], [TOP, STEM_RIGHT]]),
-        ),
-        (
             "a top edge at the L's inner corner and the L's inner upright",
             &ell,
             names(&ell, &[[TOP, ARM_BACK], [ARM_BACK, STEM_RIGHT]]),
@@ -1238,27 +1236,6 @@ fn a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_d
                 &ell,
                 &[[TOP, ARM_BACK], [TOP, STEM_RIGHT], [ARM_BACK, STEM_RIGHT]],
             ),
-        ),
-        (
-            "two edges of the pocket's floor, meeting at its front right corner",
-            &pocketed,
-            names(
-                &pocketed,
-                &[[POCKET_FLOOR, POCKET_FRONT], [POCKET_FLOOR, POCKET_RIGHT]],
-            ),
-        ),
-        (
-            "an edge of the pocket's floor and the upright it meets",
-            &pocketed,
-            names(
-                &pocketed,
-                &[[POCKET_FLOOR, POCKET_FRONT], [POCKET_FRONT, POCKET_RIGHT]],
-            ),
-        ),
-        (
-            "two edges of the pocket's rim, meeting above its front right upright",
-            &pocketed,
-            names(&pocketed, &[[TOP, POCKET_FRONT], [TOP, POCKET_RIGHT]]),
         ),
     ] {
         let filleted = body.fillet_edges(&list, value).err();
@@ -2549,13 +2526,22 @@ fn tilted_up() -> DVec3 {
 fn tilted_block() -> Body {
     let block = block([LENGTH, BREADTH, HEIGHT]);
     block
-        .difference(&beyond(
-            &block,
-            DVec3::new(15.0, 5.0, 14.5),
-            tilted_up(),
-            60.0,
-        ))
+        .difference(&tilted_slab(&block))
         .expect("the tilted top is cut")
+}
+
+/// The slab the tilted block's top is cut off by: beyond the tilted plane,
+/// 60 each way across it and 60 deep.
+fn tilted_slab(block: &Body) -> Body {
+    beyond(block, DVec3::new(15.0, 5.0, 14.5), tilted_up(), 60.0)
+}
+
+/// The reach the tilted block is drawn at: a cut keeps the larger reach of
+/// the part and of the tool cut from it, and the slab's far corners reach
+/// past the block's box, three times as far.
+fn tilted_reach() -> f64 {
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    reach_of(&block).max(reach_of(&tilted_slab(&block)))
 }
 
 /// The tilted block's corner at (30, 0, 15), where no two of the three edges
@@ -2811,13 +2797,15 @@ fn closes_with_a_triangle(
 /// Holds that the fillet on the three edges at `corner`, named in `order`, at
 /// `radius`, closes the corner with a piece of sphere one radius from its
 /// three faces, each round ending on the plane through the sphere's centre
-/// square to its edge, and leaves `promised`.
+/// square to its edge, and leaves `promised`, its triangles within the
+/// drawing's tolerance at `drawn_at`, the reach the part is drawn at.
 fn closes_with_a_sphere(
     part: &Body,
     corner: &Trihedral,
     order: [usize; 3],
     radius: f64,
     promised: f64,
+    drawn_at: f64,
 ) {
     let what = format!(
         "the fillet on {}, {} and {}",
@@ -2846,7 +2834,7 @@ fn closes_with_a_sphere(
         .map(|&edge| edges[edge].round(r).area())
         .sum::<f64>()
         + corner.spread() * r * r;
-    sound_drawn_within(body, promised, DRAWN * reach_of(part) * area, &what);
+    sound_drawn_within(body, promised, DRAWN * drawn_at * area, &what);
     let steps_end = part.faces_end();
     let piece = steps_end + 3;
     let round_of = |edge: usize| {
@@ -3037,7 +3025,14 @@ fn a_fillet_on_the_three_edges_of_a_corner_that_is_not_square_closes_it_with_a_p
     let prism = slanted_prism();
     let corner = slanted_trihedral();
     for order in ORDERS_OF_THREE {
-        closes_with_a_sphere(&prism, &corner, order, 2.0, slanted_sphere(2.0));
+        closes_with_a_sphere(
+            &prism,
+            &corner,
+            order,
+            2.0,
+            slanted_sphere(2.0),
+            reach_of(&prism),
+        );
     }
 }
 
@@ -3053,25 +3048,13 @@ fn a_chamfer_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_closes
 }
 
 #[test]
-fn a_fillet_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_is_a_broken_step_until_its_sphere_can_be_drawn()
+fn a_fillet_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces()
  {
     let block = tilted_block();
     let corner = tilted_trihedral();
     let promised = sphere_by_booleans(&block, &corner, 2.0);
     for order in ORDERS_OF_THREE {
-        let names = order.map(|edge| corner.edge(edge).name(&block));
-
-        let filleted = block.fillet_edges(&names, 2.0).err();
-
-        assert_eq!(
-            filleted,
-            Some(Declined::Undrawn),
-            "the fillet on {}, {} and {}: a broken step and its reason, and no body, until #800 \
-             draws the sphere of the body that would hold {promised}",
-            corner.called[order[0]],
-            corner.called[order[1]],
-            corner.called[order[2]]
-        );
+        closes_with_a_sphere(&block, &corner, order, 2.0, promised, tilted_reach());
     }
 }
 

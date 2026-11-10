@@ -206,10 +206,37 @@ It can:
   the faces it meets at its ends. That last one checks what the cut left:
   no face of the prism but its chamfer, the chamfer in one piece, each of
   its corners on one of the edge's faces, and every face the body held
-  still there but the edge's two, which the chamfer may consume. So an
-  edge ending at a concave corner where a flat wall leaves it — an arm's
-  edge running into the stem of an L, a pocket's rim — is declined: the
-  cut carried along the line would run on along that wall. A round leaving
+  still there but the edge's two, which the chamfer may consume. An edge
+  ending where matter lies past it, behind the one flat face it runs into
+  there — an arm's edge running into the stem of an L, a pocket's rim, an
+  upright of a block standing on another — stops flush instead (#801,
+  `Exact::laid_flush` in `body/exact/wedge/flush.rs`): the prism is trimmed
+  on that face's plane as a fill's is, and that face grows by the cut's end
+  section and keeps its number. Where the face it runs into is curved, or
+  is not one face, the cut is carried along the line and the check
+  declines what it takes. Two such edges of one step meeting at a corner
+  whose third edge is concave and left out of the list — the L's two top
+  edges at its inner corner, two edges of a pocket's rim — each stop flush
+  there, and the later takes with it what both prisms, carried past the
+  corner, hold beyond both faces they stop on (`wedge/overlap.rs`): the two
+  flats or rounds run on into a mitre, a line among flats and an ellipse
+  among rounds, down to the concave edge, left sharp and one value short of
+  the corner, and no face is laid there. An edge between two such corners
+  shorter than its set-backs reach along it — the chamfer's foot round a
+  chamfered upright, the fill's top edge at a filled inner corner — has the
+  two overlaps at its ends meet across it, and alone it ends in a point on
+  both faces it stops on, off its own two. Laid before an edge it meets, its
+  face may end on the plane it stops on there, and an overlap laid before
+  the other leaves a face standing on one end plane past the other until
+  that one is laid: an overlap's faces are numbered apart, from `OVERLAPS`,
+  so that the check of each edge passes over them, and the step is declined
+  should one still stand once every edge is laid. A known limit: a hair past
+  the value at which the short edge's two trims meet — a fillet of 0.7072 on
+  the chamfered upright's three feet, or on the filled L's three top edges,
+  just past √2/2 — the rounds the step leaves fail the check that each
+  stands as a face of its own (`Exact::filleted`), and the step is declined
+  `Distance` in the two orders that name the short edge between the other
+  two; 0.70711 and 0.7075 are laid. A round leaving
   the edge's end at a few degrees inwards trims the chamfer like any other
   end face; one leaving it outwards dips outside the edge's face past the
   end corner, and is covered only while the prism's side, a margin out,
@@ -351,22 +378,54 @@ It can:
   handed back to the boolean's step 8 as cleared, and the edges either side of
   each are joined. The check is the cut's: one new face, in one piece, its
   corners on the edge's two faces, nothing else of the prism left, and no face
-  of the body gone but those two. Declined `Unsupported`: an end where no face
-  but the edge's two meets the edge, or several do; a flat one facing back
+  of the body gone but those two. A flat face facing back along the edge,
+  matter lying past it — the floor a pocket's upright stands on, the plate's
+  top under a boss's inner corner, a pocket's wall at the end of its floor
+  edge, where three concave edges meet at one corner — trims the fill flush
+  as well (#801): the box stands on its plane in the matter, the fill's end
+  lies on the face, and the join swallows it, the face giving up the fill's
+  section and keeping its number. Declined `Unsupported`: an end where no
+  face but the edge's two meets the edge, or several do; a flat one lying
   along the edge; a round the edge runs into at its end rather than out of,
   or one that turns away short of the fill's reach, or a cone a long edge of
   the prism misses — a drafted slot's round end, the margin sunk into its
-  wall passing outside the cone (#807); and one leaning so far that its plane misses the prism's
-  long edges between the prism's two ends. Facing back along the edge is what
-  the vertical inner corner of a pocket, or of a boss standing on a plate,
-  meets at its foot: the pocket's floor or the plate's top faces up the edge,
-  where three edges meet at one corner, which the chains and the corners
-  (#698, #699) are to take. And a wall too thin for the prism: its sides sink
+  wall passing outside the cone (#807); and one leaning so far that its
+  plane misses the prism's long edges between the prism's two ends. And a
+  wall too thin for the prism: its sides sink
   the margin into the matter — an eighth of the set-back, or the least margin
   where that is larger, and further in where a sharp corner's sunk sides meet
   — so behind a wall thinner than that the prism comes out the other side, a
   face of it is left standing alone, and the check finds it stray: a bracket a
-  millimetre thick, rounded on its inner corner by more than 8.
+  millimetre thick, rounded on its inner corner by more than 8. Two such edges
+  of one step meeting at a corner whose third edge is convex and left out of
+  the list — two feet of a block standing on another — mirror the two cuts
+  beside a concave edge (#801): each fill is trimmed flush there, the later
+  read on the body as given, since the earlier's end has grown the wall it
+  runs into, and the later takes with it what both prisms, carried past the
+  corner, hold beyond both faces they stop on (`wedge/overlap.rs`), joined
+  where the cuts' is cut. The two flats or rounds run on into a mitre outside
+  the convex edge, a line among flats and an ellipse among rounds, and no
+  face is laid there. Two fills meeting where the third edge is concave too
+  — two edges of a pocket's floor, or one and the upright it meets — need
+  nothing past the corner: each is trimmed flush into the matter on the face
+  the other runs along, the later read on the body as given, and their join
+  is the valley, a line among flats and an ellipse among rounds, the third
+  edge left sharp and ending one value short. All three edges of such a
+  corner, a pocket's bottom, are laid so and closed as #699 closes a convex
+  corner, mirrored (`wedge/triangle.rs`, `wedge/sphere.rs`): the three fills
+  leave a hollow behind the point where they would meet, which chamfers fill
+  with the prism `across` raises, its floor the triangle through where each
+  two fills' set-backs cross, joined where a convex corner's is cut. Fillets
+  fill the corner up to the three planes through the centre, one radius out
+  from the three faces, square to the edges, and replace the three quarter
+  discs that leaves, facing the centre, with the hollow piece of sphere their
+  arcs bound, facing its centre: the matter lies outside the ball. What
+  either joins is cut back to an eighth of the value past the corner's three
+  faces (`Corner::sunk` in `wedge/closing.rs`), so that a wall or a floor
+  thicker than that holds it — a tray with walls of 2 chamfered 2 at its
+  bottom corners — and a thinner one leaves a face of it standing, which the
+  check declines. Each patch is numbered after the edges' faces, as #699's
+  are.
 - **decline**, with a reason (`Declined`), and never hand back a solid it could
   not verify. A declined step is a broken step: the part stands as before it,
   the screen says so and the tree marks it, and the step still moves the face
@@ -417,10 +476,9 @@ Left, in the order #497 set:
   or square to it (#571), and two cylinders, elliptic walls or cones at any
   angle (#577);
 - an exact STEP;
-- fillets on a straight edge, then on a circular one, then where fillets
-  meet at a corner; a chamfer on one straight edge is done (#696), and a
-  chamfer on several edges at once, on a curved edge, or stopping at the
-  wall of a concave corner is still to come;
+- a chamfer and a fillet on a curved edge: on straight edges both are done
+  — one edge (#696, #697), several at once (#698), edges meeting at a convex
+  corner (#699), and stopping at the wall of a concave corner (#801);
 - draft, shell, loft.
 
 Known and still open:

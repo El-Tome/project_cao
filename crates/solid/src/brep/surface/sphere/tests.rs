@@ -127,6 +127,47 @@ fn a_latitude_circle_is_held_and_a_meridian_is_told_from_it() {
 }
 
 #[test]
+fn a_circle_lying_on_the_sphere_is_carried_whatever_line_it_turns_about_and_one_off_it_is_not() {
+    let sphere = slanted();
+    let eps = 1e-8;
+    let middle = sphere.middle();
+    let tilted = DVec3::new(0.3, -0.5, 0.8).normalize();
+    let great = Circle::about(middle, tilted, 3.0);
+    assert!(
+        !sphere.holds(&great, eps) && !sphere.meridian(&great, eps),
+        "the great circle is tilted across the axis, neither a latitude nor a meridian"
+    );
+    assert!(sphere.carries(&great, eps), "a tilted great circle");
+    let h: f64 = 1.2;
+    let rho = (9.0 - h * h).sqrt();
+    let small = Circle::about(middle + tilted * h, tilted, rho);
+    assert!(
+        !sphere.holds(&small, eps),
+        "the small circle is no latitude"
+    );
+    assert!(sphere.carries(&small, eps), "a tilted small circle");
+
+    let off = Circle::about(middle + tilted * (h + 10.0 * eps), tilted, rho);
+    assert!(
+        !sphere.carries(&off, eps),
+        "a circle moved off the sphere along its own axis"
+    );
+    let wider = Circle::about(middle + tilted * h, tilted, rho + 10.0 * eps);
+    assert!(!sphere.carries(&wider, eps), "a circle of the wrong radius");
+    let aside = tilted.any_orthonormal_vector() * 10.0 * eps;
+    let beside = Circle::about(middle + tilted * h + aside, tilted, rho);
+    assert!(
+        !sphere.carries(&beside, eps),
+        "a circle whose centre stands off the line through the sphere's centre"
+    );
+    let great_beside = Circle::about(middle + aside, tilted, 3.0);
+    assert!(
+        !sphere.carries(&great_beside, eps),
+        "a great circle off-centre"
+    );
+}
+
+#[test]
 fn a_line_crosses_a_ball_twice_touches_it_once_and_passes_it_by() {
     let sphere = slanted();
     let middle = sphere.middle();

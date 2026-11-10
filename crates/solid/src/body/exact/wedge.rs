@@ -7,7 +7,10 @@
 mod chain;
 mod closing;
 mod corners;
+mod end;
 mod fill;
+mod flush;
+mod overlap;
 mod pairs;
 mod reach;
 mod reading;
@@ -27,10 +30,12 @@ use crate::brep::{self, Declined, EdgeId, EdgeName, FaceId, Scale, VertexId};
 use crate::profile::{Contour, Frame};
 
 pub(super) use closing::Closing;
+use flush::{Flush, Stop};
+use overlap::OVERLAPS;
 pub(super) use pairs::Together;
 pub(super) use section::Side;
-pub(super) use sphere::rounded_across;
-pub(super) use triangle::cut_across;
+pub(super) use sphere::{hollowed_across, rounded_across};
+pub(super) use triangle::{cut_across, joined_across};
 
 /// A straight edge between two flat faces: a point of it, the way it runs, its
 /// two faces and the numbers they answer to on the body it was read on, for
@@ -71,40 +76,51 @@ impl Exact {
     /// share, what keeps the set-backs they make on it from crossing, by the
     /// set-back of a value of one `set_back` says, and, for any two edges not
     /// meeting at a corner, what keeps their set-backs from reaching one point
-    /// of a straight edge of the body bounding a face of each — the edge
-    /// where the face one ends on meets a face of the other, or the edge
-    /// between two that are not parallel on a face they share — each read on
-    /// the body as given. Set-backs that would meet only on a curved edge are
-    /// not measured: the laying declines them where they meet.
-    /// The pairs whose set-backs meet across their face that `meeting` lays
-    /// together, the earlier first, are each laid as one, the face they
-    /// shared gone — by the prism it raises, or as one slope at the value
-    /// their set-backs meet at, as [`Exact::sloped`] lays it; every other
-    /// edge is laid alone.
-    /// Two edges meeting at a convex corner are laid in turn as any two
-    /// are, each prism carried past the corner along its edge's line, so that
-    /// the later trims the earlier's face there: two flats or two rounds meet
-    /// in a mitre, and the later edge is laid from its wedge on the body as
-    /// given, its prism cut from what the earlier cuts left, as
+    /// of a straight edge of the body bounding a face of each — the edge where
+    /// the face one ends on meets a face of the other, or the edge between two
+    /// that are not parallel on a face they share — each read on the body as
+    /// given. Set-backs that would meet only on a curved edge are not measured:
+    /// the laying declines them where they meet. The pairs whose set-backs meet
+    /// across their face that `meeting` lays together, the earlier first, are each laid as one, the face they shared
+    /// gone — by the prism it raises, or as one slope at the value their
+    /// set-backs meet at, as [`Exact::sloped`] lays it; every other edge is
+    /// laid alone. Two edges meeting at a convex corner are laid in turn as any
+    /// two are, each prism carried past the corner along its edge's line, so
+    /// that the later trims the earlier's face there: two flats or two rounds
+    /// meet in a mitre, and the later edge is laid from its wedge on the body
+    /// as given, its prism cut from what the earlier cuts left, as
     /// [`Exact::laid_as`] lays it, so that the matter of every edge's prism
-    /// goes whatever the order. A corner three of the edges meet at is closed
-    /// once all are laid, as `meeting` closes it, read where each two's
-    /// set-backs cross on the face they share, as [`Exact::closed`] closes it,
-    /// its face numbered past the edges'. The wall an edge's prism lays is
-    /// numbered where the steps' numbers ended, plus the edge's rank in the
-    /// list; a pair is laid at its later edge's turn, so that every number laid
-    /// before stands below those a prism lays, as [`Exact::cut_along`] reads
-    /// them. A value shorter than the kernel can set a cut back from an edge is
-    /// declined first; a list of no edge `Unsupported`; an edge its name no
-    /// longer finds `Lost`; an edge that is not a wedge, one edge two names
-    /// find, two edges meeting at a corner that is not convex — an edge ending
-    /// there that is no wedge, or whose faces meet inwards —, more than three
-    /// edges meeting at a corner, or three where another edge ends too, where
+    /// goes whatever the order. Two edges of one sense meeting at a corner
+    /// beside an edge of the other sense left out of the list, as
+    /// [`corners::admit`] admits it — two cuts beside a concave edge, two fills
+    /// beside a convex one — each stop flush there, and the later takes with it
+    /// what both prisms hold past both faces they stop on, as [`Flush::beside`]
+    /// reads it, cut with a cut and joined with a fill: their flats or rounds
+    /// run on into a mitre, down to the third edge or outside it, left sharp.
+    /// Two fills meeting where the third edge is concave too, at a pocket's
+    /// bottom corner, are each trimmed flush on the face the other runs along
+    /// and meet in a valley, the third edge left sharp one value short. A
+    /// corner three of the edges meet at, all convex or all concave, is closed
+    /// once all are laid, as `meeting` closes it by the way they meet, read
+    /// where each two's set-backs cross on the face they share, as
+    /// [`Exact::closed`] closes it, its face numbered past the edges'. The wall
+    /// an edge's prism lays is numbered where the steps' numbers ended, plus
+    /// the edge's rank in the list; a pair is laid at its later edge's turn, so
+    /// that every number laid before stands below those a prism lays, as
+    /// [`Exact::cut_along`] reads them. A value shorter than the kernel can set
+    /// a cut back from an edge is declined first; a list of no edge
+    /// `Unsupported`; an edge its name no longer finds `Lost`; an edge that is
+    /// not a wedge, one edge two names find, two edges meeting at a corner that
+    /// is neither convex — every edge ending there a wedge whose faces meet
+    /// outwards — nor two of one sense beside an edge of the other left out of
+    /// the list, nor two concave beside a third concave, more than three edges
+    /// meeting at a corner, or three where another edge ends too, where
     /// `meeting` lays two together an edge meeting two others, or one of two
-    /// laid together that meets another edge of the list at a corner, and a cut
-    /// or a fill that left something else than its one face, as
-    /// [`Exact::cut_along`] reads it, are declined `Unsupported`; a prism the
-    /// tool cannot raise, as the tool says.
+    /// laid together that meets another edge of the list at a corner, a cut or
+    /// a fill that left something else than its one face, as
+    /// [`Exact::cut_along`] reads it, and a face of an overlap no edge covered,
+    /// are declined `Unsupported`; a prism the tool cannot raise, as the tool
+    /// says.
     pub(super) fn cut_off(
         &self,
         names: &[EdgeName],
@@ -128,9 +144,10 @@ impl Exact {
                 .collect::<Result<Vec<(EdgeId, Wedge)>, Declined>>()?;
             let edges: Vec<EdgeId> = found.iter().map(|&(edge, _)| edge).collect();
             let once = edges.iter().collect::<BTreeSet<_>>().len() == edges.len();
-            if !once || !corners::convex(&self.brep, &edges) {
+            if !once {
                 return Err(Declined::Unsupported);
             }
+            let beside = corners::admit(&self.brep, &edges)?;
             let three = corners::of_three(&self.brep, &edges)?;
             let wedges: Vec<Wedge> = found.into_iter().map(|(_, wedge)| wedge).collect();
             let facing = pairs::facing(&wedges);
@@ -160,6 +177,7 @@ impl Exact {
                 taken,
                 meeting.closing,
             )?;
+            let given: Vec<(EdgeId, &Wedge)> = edges.iter().copied().zip(&wedges).collect();
             let start = self.next;
             let mut cut = self.clone();
             for rank in 0..names.len() {
@@ -187,14 +205,19 @@ impl Exact {
                             })
                             .map(|earlier| start + earlier as u32)
                             .collect();
+                        let open = flush::open(&self.brep, rank, &given, &beside);
                         if mitred.is_empty() {
-                            cut.laid(&names[rank], taken, &tool, &mitred)?
+                            cut.laid(&names[rank], taken, &tool, &mitred, &open)?
                         } else {
-                            cut.laid_as(None, &wedges[rank], taken, &tool, &mitred)?
+                            let flush = Flush::beside(
+                                &self.brep, rank, &given, &beside, taken, &set_back, &tool,
+                            )?;
+                            cut.laid_as(&flush, &wedges[rank], taken, &tool, &mitred, &open)?
                         }
                     }
                 };
             }
+            cut.overlaps_covered()?;
             cut.next = start + names.len() as u32;
             Ok((cut.closed(&closes, start)?, taken, pairs))
         })
@@ -221,35 +244,39 @@ impl Exact {
     /// The wedge is read again on the body the edges before it were laid on,
     /// as [`Wedge::read`] reads it: whether the edge is on a tangent chain was
     /// read on the body as given. `mitred` numbers the faces laid before it at
-    /// a corner it shares, which its own face meets in a mitre.
+    /// a corner it shares, which its own face meets in a mitre, and `open`
+    /// holds where it stops at a corner an edge laid after it completes, as
+    /// [`flush::open`] reads them.
     fn laid(
         &self,
         name: &EdgeName,
         taken: f64,
         tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
         mitred: &[u32],
+        open: &[Stop],
     ) -> Result<Exact, Declined> {
         let (edge, wedge) = self.wedge(name, Wedge::read)?;
-        self.laid_as(Some(edge), &wedge, taken, tool, mitred)
+        let flush = Flush::at(&self.brep, edge);
+        self.laid_as(&flush, &wedge, taken, tool, mitred, open)
     }
 
     /// The body with the edge of `wedge` cut off, or filled in, as
-    /// [`Exact::laid`] lays it: `edge` that edge on this body, or none where
-    /// an earlier edge of the step was laid at a corner it shares and `wedge`
-    /// was read on the body as given, its prism then cut from what the earlier
-    /// cuts left of it, even nothing — the matter of every edge's prism goes
-    /// whatever the order. Declined `Unsupported` where such an edge is to be
-    /// filled in, which a convex corner never asks.
+    /// [`Exact::laid`] lays it, its ends read where `flush` says `wedge` was
+    /// read: on this body, or on the body as given where an earlier edge of
+    /// the step was laid at a corner it shares, its prism then cut from, or
+    /// joined to, what the earlier edges left — the matter of every edge's
+    /// prism goes or comes whatever the order.
     fn laid_as(
         &self,
-        edge: Option<EdgeId>,
+        flush: &Flush,
         wedge: &Wedge,
         taken: f64,
         tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
         mitred: &[u32],
+        open: &[Stop],
     ) -> Result<Exact, Declined> {
-        let cut = self.cut_or_filled(edge, wedge, taken, tool)?;
-        if cut.cut_along(&[wedge], self, 1, mitred) {
+        let cut = self.cut_or_filled(flush, wedge, taken, tool)?;
+        if cut.cut_along(&[wedge], self, 1, mitred, open) {
             Ok(cut)
         } else {
             Err(Declined::Unsupported)
@@ -258,10 +285,11 @@ impl Exact {
 
     /// The body with the edge of `wedge` cut off, or filled in, by the prism
     /// `tool` raises over it for `taken`, its wall numbered where the steps'
-    /// numbers ended, as [`Exact::laid_as`] lays it but for the check.
+    /// numbers ended, as [`Exact::laid_as`] lays it but for the check, its
+    /// ends read as `flush` says, as [`Exact::laid_flush`] lays it.
     fn cut_or_filled(
         &self,
-        edge: Option<EdgeId>,
+        flush: &Flush,
         wedge: &Wedge,
         taken: f64,
         tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
@@ -278,12 +306,7 @@ impl Exact {
             }),
             ..raised
         };
-        if wedge.inwards {
-            let edge = edge.ok_or(Declined::Unsupported)?;
-            self.filled(&[(edge, wedge)], &prism, tool)
-        } else {
-            self.cut_by(&Exact { next: 1, ..tool })
-        }
+        self.laid_flush(flush, wedge, &prism, tool)
     }
 
     /// Whether the prism left its face alone on the body, numbered where the
@@ -292,9 +315,19 @@ impl Exact {
     /// — where the faces met at the edges' ends trim it — or a corner of a
     /// face numbered in `mitred`, where a mitre with it ends — at a corner
     /// that is not square, on a face of the other edge, short of the third —
-    /// and every face `before` held but the edges' still there: no face, nor
-    /// piece of a face, of the prism but that one.
-    fn cut_along(&self, wedges: &[&Wedge], before: &Exact, laid: u32, mitred: &[u32]) -> bool {
+    /// or on the plane of one of `open`, where an edge laid after it completes
+    /// it, and every face `before` held but the edges' still there: no face,
+    /// nor piece of a face, of the prism but that one — but an overlap's,
+    /// numbered from [`OVERLAPS`], which an edge laid after it may cover, and
+    /// [`Exact::overlaps_covered`] holds once every edge is laid.
+    fn cut_along(
+        &self,
+        wedges: &[&Wedge],
+        before: &Exact,
+        laid: u32,
+        mitred: &[u32],
+        open: &[Stop],
+    ) -> bool {
         let made = before.next;
         let eps = self.brep.scale().eps();
         let numbers = |body: &brep::Body, face: FaceId| body.numbers(face).to_vec();
@@ -302,7 +335,7 @@ impl Exact {
             .brep
             .face_ids()
             .flat_map(|face| numbers(&self.brep, face))
-            .any(|number| number >= made + laid && number < PIECES);
+            .any(|number| number >= made + laid && number < OVERLAPS);
         let parted = self
             .roots
             .values()
@@ -317,6 +350,7 @@ impl Exact {
         let on_a_side = corners(made).all(|corner| {
             let point = self.brep.vertex(corner).point;
             mitres.contains(&corner)
+                || open.iter().any(|stop| stop.holds(point, eps))
                 || wedges.iter().any(|wedge| {
                     let at = point - wedge.point;
                     wedge.outward.iter().any(|side| side.dot(at).abs() <= eps)
@@ -329,7 +363,7 @@ impl Exact {
             .brep
             .face_ids()
             .flat_map(|face| numbers(&before.brep, face))
-            .filter(|number| !consumable.contains(number))
+            .filter(|number| !consumable.contains(number) && !(OVERLAPS..PIECES).contains(number))
             .all(|number| self.has_face(number as usize));
         !stray && !parted && self.has_face(made as usize) && on_a_side && kept
     }

@@ -175,9 +175,11 @@ fn crossing_at_its_seam(degrees: f64, component: u8, theta: f64) -> Meet {
 
 fn found_at_its_seam(meet: &Meet, theta: f64) -> Vec<f64> {
     let found = meet.at_angle(false, theta);
+    let at_the_seam = found.iter().filter(|&&t| t.min(TAU - t) < 1e-9).count();
     assert!(
-        found.iter().any(|&t| t.min(TAU - t) < 1e-9),
-        "the lap stands at {} at its start and {} at its end, and crosses {theta} there; found {found:?}",
+        at_the_seam == 1,
+        "the lap stands at {} at its start and {} at its end, and crosses {theta} there once; \
+         found {at_the_seam} roots at its seam in {found:?}",
         meet.seen_on(false, 0.0)[0].x,
         meet.seen_on(false, TAU)[0].x,
     );
@@ -200,4 +202,10 @@ fn at_an_angle_neither_end_step_of_its_table_holds_a_ruled_meet_is_found_at_its_
 fn a_ruled_meet_found_a_hair_before_the_end_of_its_lap_is_kept_at_its_seam() {
     let theta = 2.7058540406527594;
     found_at_its_seam(&crossing_at_its_seam(10.5, 0, theta), theta);
+}
+
+#[test]
+fn a_ruled_meet_crossing_an_angle_at_its_seam_is_found_there_once() {
+    let theta = 0.22615065610152887;
+    found_at_its_seam(&crossing_at_its_seam(147.9, 1, theta), theta);
 }

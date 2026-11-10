@@ -54,14 +54,16 @@
 //!   `seed_354000000009148_an_elliptic_bar_cut_by_two_bores_crossing_square_one_6e_8_off_keeps_every_rule_through_the_application_s_body`;
 //!   the one rule is held beside its code, in
 //!   `crates/solid/src/brep/tessellation/sampling/meet/outside/tests.rs`, by
-//!   `a_chord_dipping_into_a_pierced_wall_no_deeper_than_its_triangles_sag_is_left_whole`
-//!   and
+//!   `a_chord_dipping_into_a_pierced_wall_no_deeper_than_its_triangles_sag_is_left_whole`,
 //!   `a_chord_dipping_into_a_wall_deeper_than_its_triangles_sag_is_halved_only_until_it_dips_no_deeper_than_they_sag`
+//!   and
+//!   `a_chord_dipping_into_a_pierced_wall_deeper_than_its_triangles_sag_where_it_is_bored_away_is_left_whole`
 //! - A unit test pins the seam case of point 4, red before — no test: in this
 //!   file; held by
 //!   `at_an_angle_between_the_two_ends_of_its_table_a_ruled_meet_is_found_at_its_seam`,
-//!   `at_an_angle_neither_end_step_of_its_table_holds_a_ruled_meet_is_found_at_its_seam`
-//!   and `a_ruled_meet_found_a_hair_before_the_end_of_its_lap_is_kept_at_its_seam`,
+//!   `at_an_angle_neither_end_step_of_its_table_holds_a_ruled_meet_is_found_at_its_seam`,
+//!   `a_ruled_meet_found_a_hair_before_the_end_of_its_lap_is_kept_at_its_seam`
+//!   and `a_ruled_meet_crossing_an_angle_at_its_seam_is_found_there_once`,
 //!   in `crates/solid/src/brep/meet/tests/ruled.rs`
 //! - No draw regresses against `main`, seed by seed, in the walls sets 352,
 //!   353, 354 and the turned set; the measurement is recorded in

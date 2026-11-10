@@ -96,10 +96,15 @@ impl Layout {
     }
 }
 
-fn a_quarter_meet_and_a_wall_touching_the_stock_inside_at_its_top(
+/// [`Layout::quarter`], its wall holding a face the whole height of the stock.
+fn a_quarter_meet_and_a_faced_wall_touching_the_stock_inside_at_its_top(
     radius: f64,
 ) -> (Body, EdgeId, Meet, Vec<Wall>) {
-    let laid = Layout::quarter(radius).laid();
+    let laid = Layout {
+        faced: Some([0.0, fixtures::HEIGHT]),
+        ..Layout::quarter(radius)
+    }
+    .laid();
     (laid.body, laid.edge, laid.meet, vec![laid.wall])
 }
 
@@ -125,7 +130,7 @@ fn deepest_inside(wall: &Cylinder, start: DVec3, end: DVec3) -> f64 {
 fn a_meet_s_chord_passing_inside_a_wall_its_end_stands_on_deeper_than_its_triangles_sag_is_cut_until_it_dips_no_deeper_than_they_sag()
  {
     let (body, edge, meet, walls) =
-        a_quarter_meet_and_a_wall_touching_the_stock_inside_at_its_top(10.0);
+        a_quarter_meet_and_a_faced_wall_touching_the_stock_inside_at_its_top(10.0);
     let eps = body.scale().eps();
     let wall = &walls[0].1;
     let angles = sampled_angles(
@@ -144,7 +149,7 @@ fn a_meet_s_chord_passing_inside_a_wall_its_end_stands_on_deeper_than_its_triang
         edge,
         &meet,
         &walls,
-        TOLERANCE,
+        (TOLERANCE, span(&body)),
         Vec::new(),
         (&walls, &zones, &contacts),
     );
@@ -178,9 +183,10 @@ fn a_meet_s_chord_passing_inside_a_wall_its_end_stands_on_deeper_than_its_triang
 #[test]
 fn a_meet_s_chords_ending_within_the_tolerance_of_a_wall_a_hair_inside_its_own_are_left_alone() {
     let hair = 1e-3;
-    let (body, edge, meet, walls) = a_quarter_meet_and_a_wall_touching_the_stock_inside_at_its_top(
-        fixtures::STOCK_RADIUS - hair,
-    );
+    let (body, edge, meet, walls) =
+        a_quarter_meet_and_a_faced_wall_touching_the_stock_inside_at_its_top(
+            fixtures::STOCK_RADIUS - hair,
+        );
     let eps = body.scale().eps();
     let wall = &walls[0].1;
     let points: Vec<DVec3> = (1..4)
@@ -210,7 +216,7 @@ fn a_meet_s_chords_ending_within_the_tolerance_of_a_wall_a_hair_inside_its_own_a
         edge,
         &meet,
         &walls,
-        TOLERANCE,
+        (TOLERANCE, span(&body)),
         points.clone(),
         (&walls, &zones, &contacts),
     );
@@ -221,7 +227,7 @@ fn a_meet_s_chords_ending_within_the_tolerance_of_a_wall_a_hair_inside_its_own_a
 #[test]
 fn a_meet_s_own_samples_stand_bit_for_bit_among_those_the_wall_adds() {
     let (body, edge, meet, walls) =
-        a_quarter_meet_and_a_wall_touching_the_stock_inside_at_its_top(10.0);
+        a_quarter_meet_and_a_faced_wall_touching_the_stock_inside_at_its_top(10.0);
     let points: Vec<DVec3> = [0.5, 0.75]
         .map(|share| meet.point(FRAC_PI_2 + FRAC_PI_2 * share) + DVec3::X * 1e-10)
         .to_vec();
@@ -233,7 +239,7 @@ fn a_meet_s_own_samples_stand_bit_for_bit_among_those_the_wall_adds() {
         edge,
         &meet,
         &walls,
-        TOLERANCE,
+        (TOLERANCE, span(&body)),
         points.clone(),
         (&walls, &zones, &contacts),
     );
@@ -431,6 +437,7 @@ fn a_wall_whose_triangles_sag_further_than_the_chord_dips_is_not_pierced() {
 fn a_wall_no_end_of_the_edge_lies_on_keeps_no_chord_of_it_outside() {
     let laid = Layout {
         off: 1e-6,
+        faced: Some([0.0, fixtures::HEIGHT]),
         ..Layout::quarter(10.0)
     }
     .laid();
@@ -450,7 +457,7 @@ fn a_wall_no_end_of_the_edge_lies_on_keeps_no_chord_of_it_outside() {
         laid.edge,
         &laid.meet,
         &walls,
-        TOLERANCE,
+        (TOLERANCE, span(&laid.body)),
         Vec::new(),
         (&walls, &zones, &contacts),
     );
@@ -462,6 +469,7 @@ fn a_wall_no_end_of_the_edge_lies_on_keeps_no_chord_of_it_outside() {
 fn a_chord_dipping_into_a_wall_no_deeper_than_the_kernel_s_tolerance_is_left_alone() {
     let laid = Layout {
         to: FRAC_PI_2 + 4.733e-4,
+        faced: Some([0.0, fixtures::HEIGHT]),
         ..Layout::quarter(10.0)
     }
     .laid();
@@ -484,7 +492,7 @@ fn a_chord_dipping_into_a_wall_no_deeper_than_the_kernel_s_tolerance_is_left_alo
         laid.edge,
         &laid.meet,
         &walls,
-        0.0,
+        (0.0, span(&laid.body)),
         Vec::new(),
         (&walls, &zones, &contacts),
     );
@@ -496,6 +504,7 @@ fn a_chord_dipping_into_a_wall_no_deeper_than_the_kernel_s_tolerance_is_left_alo
 fn a_chord_passing_inside_a_wall_the_curve_itself_runs_along_is_left_alone() {
     let laid = Layout {
         to: FRAC_PI_2 + 0.02,
+        faced: Some([0.0, fixtures::HEIGHT]),
         ..Layout::quarter(fixtures::STOCK_RADIUS - 1e-3)
     }
     .laid();
@@ -517,7 +526,7 @@ fn a_chord_passing_inside_a_wall_the_curve_itself_runs_along_is_left_alone() {
         laid.edge,
         &laid.meet,
         &walls,
-        0.0,
+        (0.0, span(&laid.body)),
         Vec::new(),
         (&walls, &zones, &contacts),
     );
@@ -561,7 +570,7 @@ fn kept_outside_in(laid: &Laid, tolerance: f64, points: Vec<DVec3>) -> Vec<DVec3
         laid.edge,
         &laid.meet,
         &pierced,
-        tolerance,
+        (tolerance, span(&laid.body)),
         points,
         (&walls, &zones, &contacts),
     )
@@ -669,4 +678,61 @@ fn a_chord_dipping_into_a_wall_deeper_than_its_triangles_sag_is_halved_only_unti
             );
         }
     }
+}
+
+#[test]
+fn a_chord_dipping_into_a_pierced_wall_deeper_than_its_triangles_sag_where_it_is_bored_away_is_left_whole()
+ {
+    let face_from = 6.0;
+    let laid = Layout {
+        to: 3.0 * FRAC_PI_2,
+        faced: Some([face_from, fixtures::HEIGHT]),
+        ..Layout::quarter(10.0)
+    }
+    .laid();
+    let points = vec![laid.meet.point(PI)];
+    let eps = laid.body.scale().eps();
+    let (_, wall) = laid.wall;
+    let angles = sampled_angles(
+        divisions_in(wall.radius, TOLERANCE, span(&laid.body)),
+        Vec::new(),
+    );
+    let (top, middle, foot) = (FRAC_PI_2, PI, 3.0 * FRAC_PI_2);
+    for (from, to) in [(top, middle), (middle, foot)] {
+        assert!(
+            deeper_than_the_sag(&laid.meet, &wall, &angles, eps, from, to) > 0.0,
+            "the chord from {from} to {to} dips no deeper than the wall's triangles sag"
+        );
+    }
+    let (start, end) = (laid.meet.point(top), laid.meet.point(middle));
+    assert!(
+        (1..PROBES).any(|part| {
+            let chord = start.lerp(end, part as f64 / PROBES as f64);
+            let sag = sag_at(
+                &angles,
+                wall.radius,
+                wall.parameters(chord).x.rem_euclid(TAU),
+            );
+            -wall.distance(chord) > sag && chord.z > face_from
+        }),
+        "the chord from the top dips deeper than the wall's triangles sag nowhere its face holds"
+    );
+    for t in [middle, foot] {
+        assert!(
+            laid.meet.point(t).z < face_from,
+            "the chord to the foot reaches the wall's face"
+        );
+    }
+
+    let kept = kept_outside_in(&laid, TOLERANCE, points);
+
+    assert!(
+        !parameters_between(&laid.meet, &kept, top, middle).is_empty(),
+        "the chord from the top, dipping where the wall holds a face, is left whole"
+    );
+    let cut = parameters_between(&laid.meet, &kept, middle, foot);
+    assert!(
+        cut.is_empty(),
+        "the chord to the foot, dipping where the wall is bored away, is cut at {cut:?}"
+    );
 }

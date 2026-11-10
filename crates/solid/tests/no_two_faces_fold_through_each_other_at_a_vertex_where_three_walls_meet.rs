@@ -1,13 +1,18 @@
 //! Two faces meeting at a vertex where three walls meet never fold through
 //! each other, whatever a chord near it carries (#821, part of #755).
 //!
-//! 354000000011719 holds on `main` and fails `Uncrossed` with #811's guard.
-//! Near the vertex where the base cone, a cone leaning 27 degrees and a bore's
-//! cylinder meet, at (2.75, 3.5, 1.0), a triangle of the base cone on the
-//! chord of an edge from that vertex crosses a triangle of the bore's
-//! cylinder. The chord sags under the tolerance, so dropping the spurious
-//! sample the guard removes is legitimate; the sample only happened to split
-//! the chord that crosses the other face.
+//! A meet ending at a vertex where a third wall's cylinder stands leaves that
+//! cylinder there and stays outside it, but a chord of it can pass inside,
+//! deeper than the cylinder's own triangles sag. The chord bounds the faces
+//! either side of it, so a triangle of one crosses the cylinder's, and no cut
+//! of either face undoes it: the meet is sampled until its chords stay outside
+//! wherever it does.
+//!
+//! In 354000000011719 a cone, a cone leaning 27 degrees joined to it and a
+//! bore at 40 degrees meet at (2.75, 3.5, 1.0). The meet of the two cones
+//! once held there only because a sample its rulings read wrongly split the
+//! chord; read rightly (#811), the base cone's triangle on that chord crossed
+//! the bore's.
 //!
 //! Closes #821.
 //! - 354000000011719's shrunk case is pinned and holds through the body with

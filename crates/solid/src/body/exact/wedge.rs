@@ -90,12 +90,11 @@ impl Exact {
     /// meet in a mitre, and the later edge is laid from its wedge on the body
     /// as given, its prism cut from what the earlier cuts left, as
     /// [`Exact::laid_as`] lays it, so that the matter of every edge's prism
-    /// goes whatever the order — and an edge ending at convex corners on the
-    /// face two cuts laid together meet across meets their one prism the same
-    /// way, as [`pairs::cornered`] admits it, at their value, as
-    /// [`pairs::value_at`] reads it, the two read on the body as given where it
-    /// was laid before them. Two edges of one sense meeting at a corner beside
-    /// an edge of the other sense left out of the list, as
+    /// goes whatever the order — and an edge bounding the face two cuts laid
+    /// together meet across, meeting both at a corner, meets their one prism
+    /// the same way, at their value, as [`pairs::at_their_ends`] reads it, the
+    /// two read on the body as given. Two edges of one sense meeting at a
+    /// corner beside an edge of the other sense left out of the list, as
     /// [`corners::admit`] admits it — two cuts beside a concave edge, two fills
     /// beside a convex one — each stop flush there, and the later takes with it
     /// what both prisms hold past both faces they stop on, as [`Flush::beside`]
@@ -163,9 +162,7 @@ impl Exact {
                 .min(set_backs::bound(&self.brep, &edges, &wedges, &set_back));
             let pairs =
                 pairs::meeting(&wedges, &facing, taken, &set_back, meeting.together, scale)?;
-            if pairs::cornered(&self.brep, &edges, &wedges, &pairs, &beside) {
-                return Err(Declined::Unsupported);
-            }
+            let ends = pairs::at_their_ends(&self.brep, &edges, &wedges, &pairs)?;
             let closes = closing::closings(
                 three,
                 &wedges,
@@ -184,13 +181,8 @@ impl Exact {
                 let partner = pairs.iter().find(|&&(_, later, _)| later == rank);
                 cut = match (partner, meeting.together) {
                     (Some(&(earlier, _, _)), Together::Raised(raise)) => {
-                        let number = start + earlier as u32;
-                        if pairs::met_before(&self.brep, &edges, [earlier, rank]) {
-                            let pair = [given[earlier], given[rank]];
-                            cut.laid_together_as(&self.brep, pair, number, raise)?
-                        } else {
-                            cut.laid_together([&names[earlier], &names[rank]], number, raise)?
-                        }
+                        let pair = [given[earlier], given[rank]];
+                        cut.laid_together(&self.brep, pair, start + earlier as u32, raise)?
                     }
                     (Some(&(earlier, _, value)), Together::Sloped) => cut.sloped(
                         [&names[earlier], &names[rank]],
@@ -206,7 +198,7 @@ impl Exact {
                             .map(|earlier| start + earlier as u32)
                             .collect();
                         let open = flush::open(&self.brep, rank, &given, &beside);
-                        let value = pairs::value_at(&self.brep, &edges, &pairs, rank, taken);
+                        let value = ends.get(&rank).copied().unwrap_or(taken);
                         if mitred.is_empty() {
                             cut.laid(&names[rank], value, &tool, &mitred, &open)?
                         } else {

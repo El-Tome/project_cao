@@ -303,11 +303,29 @@
 //!   floor's edge on its end wall, until #838; and the four top edges of a
 //!   block 6 by 6, two full rounds meeting at its corners. Each is declined
 //!   `Unsupported` in every order the list can name its edges in, the pair
-//!   alone laid; the chamfer too on the full round's edges, the end edge and
-//!   both uprights, where on the other three lists the chamfer is built. Green
-//!   before this branch and after, a pin of the guard rather than a red
-//!   test —
-//!   `a_fillet_on_a_full_round_meeting_an_upright_or_another_full_round_and_on_a_round_bottom_meeting_the_edge_at_its_end_is_declined_as_unsupported_whatever_the_order`
+//!   alone laid. Green before this branch and after, a pin of the guard rather
+//!   than a red test —
+//!   `a_fillet_on_a_full_round_meeting_an_upright_or_another_full_round_and_on_a_round_bottom_meeting_the_edge_at_its_end_is_declined_as_unsupported_whatever_the_order`;
+//!   and, until #843, a full round ending on a pointed end, a plate 6 wide
+//!   whose right end comes to a point at (33, 3) seen from above, filleted at
+//!   3 on the top's front and back edges and the two edges of the point, each
+//!   of which meets one edge of the pair alone, the pair alone laid as a full
+//!   round. No order of the four mitres a full round against the point: the
+//!   step is declined `Unsupported` where the value it takes is the full
+//!   round's, and elsewhere stops short of it, 6 − 3√2, the top kept, and no
+//!   pair laid together. Which of the two an order gets is the order's doing,
+//!   a reduction this branch does not touch —
+//!   `a_fillet_on_a_full_round_pair_and_the_two_edges_of_a_pointed_end_each_meeting_one_of_the_pair_mitres_no_full_round_against_them_whatever_the_order`.
+//!   A bevelled end, its corners cut off upright, does not reach that far:
+//!   with the end edge or a bevel edge in the list, the step takes a value
+//!   short of the full round, where the rounds would meet through an end
+//!   face, and no pair is laid together
+//! - What stays declined beside, though no guard of this branch holds it:
+//!   the chamfer on the full round's edges, the end edge and both uprights,
+//!   `Unsupported` in every order until #837, where on the other lists above
+//!   the chamfer is built. Its two flats are laid edge by edge, never as one
+//!   pair, so the decline comes from elsewhere in the step —
+//!   `a_chamfer_on_a_full_round_pair_s_edges_the_edge_at_their_end_and_both_uprights_there_is_declined_as_unsupported_whatever_the_order`
 //!
 //! The volumes are arithmetic, measured from the corner along its three
 //! edges: a point stands `(a, b, c)` from it, `a` along the edge whose length
@@ -4257,7 +4275,6 @@ fn a_fillet_on_a_full_round_meeting_an_upright_or_another_full_round_and_on_a_ro
             &narrow,
             [TOP_FRONT, TOP_BACK],
             vec![FRONT_RIGHT],
-            false,
         ),
         (
             "the full round of the top's front and back edges, the top's right edge and the two \
@@ -4265,7 +4282,6 @@ fn a_fillet_on_a_full_round_meeting_an_upright_or_another_full_round_and_on_a_ro
             &narrow,
             [TOP_FRONT, TOP_BACK],
             vec![TOP_RIGHT, FRONT_RIGHT, BACK_RIGHT],
-            true,
         ),
         (
             "the round bottom of the pocket's floor edges on its front and back walls, and its \
@@ -4273,19 +4289,17 @@ fn a_fillet_on_a_full_round_meeting_an_upright_or_another_full_round_and_on_a_ro
             &pocket,
             [[POCKET_FLOOR, POCKET_FRONT], [POCKET_FLOOR, POCKET_BACK]],
             vec![[POCKET_FLOOR, POCKET_RIGHT]],
-            false,
         ),
         (
             "the four top edges of a block 6 by 6, two full rounds meeting at its four corners",
             &square,
             [TOP_FRONT, TOP_BACK],
             vec![TOP_RIGHT, TOP_LEFT],
-            false,
         ),
     ];
 
     let mut laid = Vec::new();
-    for (called, part, pair, others, chamfer_too) in &cases {
+    for (called, part, pair, others) in &cases {
         let name = |[one, other]: [usize; 2]| edge_between(part, one, other);
         part.fillet_edges(&pair.map(name), FULL_ROUND)
             .unwrap_or_else(|declined| {
@@ -4297,10 +4311,6 @@ fn a_fillet_on_a_full_round_meeting_an_upright_or_another_full_round_and_on_a_ro
             let names: Vec<EdgeName> = faces.iter().map(|&edge| name(edge)).collect();
             let filleted = part.fillet_edges(&names, FULL_ROUND).map(|_| ());
             laid.push((format!("{called}, the fillet on {faces:?}"), filleted));
-            if *chamfer_too {
-                let chamfered = part.chamfer_edges(&names, FULL_ROUND).map(|_| ());
-                laid.push((format!("{called}, the chamfer on {faces:?}"), chamfered));
-            }
         }
     }
 
@@ -4318,6 +4328,122 @@ fn a_fillet_on_a_full_round_meeting_an_upright_or_another_full_round_and_on_a_ro
          a round bottom meeting any, and a full round meeting another, are each a broken step \
          and its reason, whatever the order, the pair alone laid; not so:\n{}",
         not_declined.join("\n")
+    );
+}
+
+#[test]
+fn a_chamfer_on_a_full_round_pair_s_edges_the_edge_at_their_end_and_both_uprights_there_is_declined_as_unsupported_whatever_the_order()
+ {
+    let narrow = block([LENGTH, NARROW, HEIGHT]);
+    let name = |[one, other]: [usize; 2]| edge_between(&narrow, one, other);
+    narrow
+        .chamfer_edges(&[TOP_FRONT, TOP_BACK].map(name), FULL_ROUND)
+        .unwrap_or_else(|declined| {
+            panic!("the top's front and back edges alone are chamfered, their flats meeting in a ridge; declined, {declined:?}")
+        });
+    let list = [TOP_FRONT, TOP_BACK, TOP_RIGHT, FRONT_RIGHT, BACK_RIGHT];
+
+    let not_declined: Vec<String> = every_order(list.len())
+        .into_iter()
+        .filter_map(|order| {
+            let faces: Vec<[usize; 2]> = order.iter().map(|&edge| list[edge]).collect();
+            let names: Vec<EdgeName> = faces.iter().map(|&edge| name(edge)).collect();
+            match narrow.chamfer_edges(&names, FULL_ROUND) {
+                Err(Declined::Unsupported) => None,
+                Ok(_) => Some(format!("the chamfer on {faces:?}: a body")),
+                Err(declined) => Some(format!("the chamfer on {faces:?}: declined, {declined:?}")),
+            }
+        })
+        .collect();
+    assert!(
+        not_declined.is_empty(),
+        "the chamfer at {FULL_ROUND} on the top's front and back edges of a block {NARROW} wide, \
+         its top's right edge and the two uprights at that end is a broken step and its reason, \
+         whatever the order, until #837; not so:\n{}",
+        not_declined.join("\n")
+    );
+}
+
+/// The face numbers of [`pointed_plate`]: its front, the two walls of its
+/// point, front then back, and its back.
+const POINTED_FRONT: usize = 2;
+const POINT_FRONT: usize = 3;
+const POINT_BACK: usize = 4;
+const POINTED_BACK: usize = 5;
+
+/// A plate [`NARROW`] wide and [`HEIGHT`] high whose right end comes to a
+/// point seen from above, from the ends of its front and back, 30 long, to
+/// its tip at (33, 3): its floor numbered nought, its top one, then its
+/// front, the two walls of its point and its back, two to five, and its left
+/// end six. Each edge of the point's top meets one of the top's front and
+/// back edges, whose rounds at [`FULL_ROUND`] meet across the top in one full
+/// round, and the other edge of the point.
+fn pointed_plate() -> Body {
+    raised(
+        Contour::straight(vec![
+            DVec2::new(0.0, 0.0),
+            DVec2::new(LENGTH, 0.0),
+            DVec2::new(LENGTH + FULL_ROUND, FULL_ROUND),
+            DVec2::new(LENGTH, NARROW),
+            DVec2::new(0.0, NARROW),
+        ]),
+        HEIGHT,
+    )
+}
+
+#[test]
+fn a_fillet_on_a_full_round_pair_and_the_two_edges_of_a_pointed_end_each_meeting_one_of_the_pair_mitres_no_full_round_against_them_whatever_the_order()
+ {
+    let pointed = pointed_plate();
+    let name = |[one, other]: [usize; 2]| edge_between(&pointed, one, other);
+    let pair = [[TOP, POINTED_FRONT], [TOP, POINTED_BACK]];
+    let alone = pointed
+        .fillet_edges(&pair.map(name), FULL_ROUND)
+        .unwrap_or_else(|declined| {
+            panic!("the top's front and back edges alone make a full round; declined, {declined:?}")
+        });
+    assert!(
+        !alone.body.has_face(TOP) && (alone.taken - FULL_ROUND).abs() < PLACE,
+        "the top's front and back edges alone make a full round of {FULL_ROUND}, the top gone: \
+         took {}",
+        alone.taken
+    );
+    let list = [pair[0], pair[1], [TOP, POINT_FRONT], [TOP, POINT_BACK]];
+
+    let mitred: Vec<String> = every_order(list.len())
+        .into_iter()
+        .filter_map(|order| {
+            let faces: Vec<[usize; 2]> = order.iter().map(|&edge| list[edge]).collect();
+            let names: Vec<EdgeName> = faces.iter().map(|&edge| name(edge)).collect();
+            match pointed.fillet_edges(&names, FULL_ROUND) {
+                Err(Declined::Unsupported) => None,
+                Ok(filleted)
+                    if filleted.body.has_face(TOP)
+                        && filleted.taken < FULL_ROUND - MEETING_HAIR =>
+                {
+                    None
+                }
+                Ok(filleted) => Some(format!(
+                    "the fillet on {faces:?}: a body of {}, taken {}, the top {}",
+                    filleted.body.volume(),
+                    filleted.taken,
+                    if filleted.body.has_face(TOP) {
+                        "kept"
+                    } else {
+                        "gone"
+                    }
+                )),
+                Err(declined) => Some(format!("the fillet on {faces:?}: declined, {declined:?}")),
+            }
+        })
+        .collect();
+    assert!(
+        mitred.is_empty(),
+        "the fillet at {FULL_ROUND} on the top's front and back edges of a plate {NARROW} wide and \
+         on the two edges of its pointed end, each meeting one edge of the pair, mitres no full \
+         round against them, whatever the order, until #843: it is a broken step and its reason, \
+         or a body whose value stops short of the full round, the top kept; not so:\n{}",
+        mitred.join("\n")
     );
 }
 

@@ -1,19 +1,19 @@
 //! Two edges of one step facing each other across a face they share
 //! (#698): the bound they set on the one value, so that their set-backs do
 //! not cross on it, the pairs whose set-backs meet across it, which are laid
-//! as one, and the one edge of the list such a pair is mitred against at a
-//! corner (#803): the edge at its end, on the face that is gone.
+//! as one, and the edges of the list such a pair is mitred against at a
+//! corner (#803): each edge at its end, bounding the face that is gone.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use glam::DVec3;
 
 use super::chain::TANGENT;
-use super::corners::{self, Beside};
+use super::corners;
 use super::slope::one_plane;
 use super::{MADE, Prism, Wedge, too_short};
 use crate::body::exact::Exact;
-use crate::brep::{self, Declined, EdgeId, EdgeName, FaceId, Scale};
+use crate::brep::{self, Declined, EdgeId, FaceId, Scale};
 
 /// What raises the one prism two edges whose set-backs meet are taken off
 /// with, the earlier edge's wedge first, at the value whose set-backs meet
@@ -118,106 +118,61 @@ pub(super) fn meeting(
     Ok(pairs)
 }
 
-/// Whether an edge of one of `pairs` meets another of `edges` at a corner
-/// where the step does not mitre the two: any but an edge of no pair ending
-/// on the face two edges whose faces meet outwards meet across, the edge at
-/// their end, at a convex corner — none of `beside` — whose cut is laid in
-/// turn against the one prism they are taken off with. A full round meeting
-/// an upright (#837), a round bottom meeting any edge (#838), and a slope
-/// meeting any, are not mitred.
-pub(super) fn cornered(
+/// Each edge of `edges` bounding the face a pair of `pairs` whose faces meet
+/// outwards meet across, of no pair itself, that meets both of the pair at a
+/// corner — the edge at their end, whose cut is laid in turn against the one
+/// prism they are taken off with — by its rank, with the pair's value, the
+/// radius that prism is raised at, so that its cut meets theirs where they
+/// meet across the face even where the value taken stands a hair short of
+/// it. Declined `Unsupported` where an edge of a pair meets another of
+/// `edges` at a corner any other way: a full round meeting an upright
+/// (#837), or one of its edges alone, a round bottom meeting any edge
+/// (#838), a slope meeting any.
+pub(super) fn at_their_ends(
     body: &brep::Body,
     edges: &[EdgeId],
     wedges: &[Wedge],
     pairs: &[Pair],
-    beside: &[Beside],
-) -> bool {
+) -> Result<BTreeMap<usize, f64>, Declined> {
     let members: BTreeSet<usize> = pairs
         .iter()
         .flat_map(|&(one, other, _)| [one, other])
         .collect();
-    pairs.iter().any(|&(one, other, _)| {
+    let meets = |member: usize, rank: usize| {
+        rank != member && corners::meet(body, [edges[member], edges[rank]])
+    };
+    let mut ends = BTreeMap::new();
+    for &(one, other, value) in pairs {
         let [first, second] = [&wedges[one], &wedges[other]];
         let outwards = !first.inwards && !second.inwards;
         let across = first.faces.iter().find(|face| second.faces.contains(face));
-        let at_their_end = |member: usize, rank: usize| {
-            let convex =
-                !(beside.iter()).any(|(_, two)| two.contains(&member) && two.contains(&rank));
-            outwards
-                && convex
+        for rank in (0..edges.len()).filter(|&rank| meets(one, rank) || meets(other, rank)) {
+            let at_their_end = outwards
+                && meets(one, rank)
+                && meets(other, rank)
                 && !members.contains(&rank)
-                && across.is_some_and(|face| wedges[rank].faces.contains(face))
-        };
-        [one, other].into_iter().any(|member| {
-            (0..edges.len())
-                .filter(|&rank| rank != member && corners::meet(body, [edges[member], edges[rank]]))
-                .any(|rank| !at_their_end(member, rank))
-        })
-    })
-}
-
-/// Whether an edge of `edges` laid before the two of ranks `earlier` and
-/// `later`, laid together at the later's turn, meets either at a corner.
-pub(super) fn met_before(
-    body: &brep::Body,
-    edges: &[EdgeId],
-    [earlier, later]: [usize; 2],
-) -> bool {
-    (0..later)
-        .filter(|&before| before != earlier)
-        .any(|before| {
-            [earlier, later]
-                .into_iter()
-                .any(|member| corners::meet(body, [edges[before], edges[member]]))
-        })
-}
-
-/// The value the edge of rank `rank` in `edges`, of no pair, is laid at: the
-/// value of the pairs of `pairs` it meets at a corner, the radius their one
-/// prism is raised at, so that its cut meets theirs where they meet across
-/// their face, even where `taken` stands a hair short of it; `taken` where
-/// it meets none.
-pub(super) fn value_at(
-    body: &brep::Body,
-    edges: &[EdgeId],
-    pairs: &[Pair],
-    rank: usize,
-    taken: f64,
-) -> f64 {
-    let meets = |member: usize| corners::meet(body, [edges[member], edges[rank]]);
-    (pairs.iter())
-        .filter(|&&(one, other, _)| meets(one) || meets(other))
-        .map(|&(_, _, value)| value)
-        .reduce(f64::min)
-        .unwrap_or(taken)
+                && across.is_some_and(|face| wedges[rank].faces.contains(face));
+            if !at_their_end {
+                return Err(Declined::Unsupported);
+            }
+            ends.insert(rank, value);
+        }
+    }
+    Ok(ends)
 }
 
 impl Exact {
-    /// The body with the edges `earlier` and `later` find, whose set-backs
-    /// meet across the face they share, cut off as one by the prism `raise`
-    /// raises over both at the value they meet at — or filled in as one,
-    /// where their faces meet inwards, as [`Exact::filled`] fills: its first
-    /// two walls, the later edge's then the earlier's, laid as one face where
-    /// they lie on one surface, numbered as [`Exact::paired`] numbers it.
-    /// Declined as [`Exact::cut_off`] says.
-    pub(super) fn laid_together(
-        &self,
-        [earlier, later]: [&EdgeName; 2],
-        number: u32,
-        raise: Raise,
-    ) -> Result<Exact, Declined> {
-        let (first_edge, first) = self.wedge(earlier, Wedge::read)?;
-        let (second_edge, second) = self.wedge(later, Wedge::read)?;
-        let pair = [(first_edge, &first), (second_edge, &second)];
-        self.laid_together_as(&self.brep, pair, number, raise)
-    }
-
     /// The body with the two edges of `pair`, each with its wedge as read on
-    /// `on`, laid as one, as [`Exact::laid_together`] lays them: `on` is this
-    /// body, or the body as given where an edge laid before meets either at a
-    /// corner, as [`met_before`] reads it — there an end round may have moved
-    /// both their ends, and their names find neither.
-    pub(super) fn laid_together_as(
+    /// `on`, the body as given, the earlier first, whose set-backs meet
+    /// across the face they share, cut off as one by the prism `raise` raises
+    /// over both at the value they meet at — or filled in as one, where their
+    /// faces meet inwards, as [`Exact::filled`] fills: its first two walls,
+    /// the later edge's then the earlier's, laid as one face where they lie on
+    /// one surface, numbered as [`Exact::paired`] numbers it. The edges laid
+    /// before move none of their planes, and the rounds at their ends may
+    /// have moved both ends of each, so that no name finds them. Declined as
+    /// [`Exact::cut_off`] says.
+    pub(super) fn laid_together(
         &self,
         on: &brep::Body,
         pair: [(EdgeId, &Wedge); 2],

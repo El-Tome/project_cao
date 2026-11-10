@@ -52,9 +52,10 @@ impl Body {
     /// way, and two filled in beside a concave edge left sharp, at a pocket's
     /// bottom corner, meet in a valley; at any other corner where an edge meets
     /// inwards they are declined `Unsupported`. The edge at the end of a full
-    /// round, on the face that is gone, is rounded at the full round's own
-    /// radius and mitred against it on two ellipses up to the crown, as
-    /// against any round at a convex corner; an edge of a
+    /// round, bounding the face that is gone and meeting both its edges at a
+    /// corner, is rounded at the full round's own radius and mitred against it
+    /// on two ellipses up to the crown, as against any round at a convex
+    /// corner; an edge of a
     /// full round meeting any other edge of the list at a corner, or one of a
     /// round bottom meeting any, is declined `Unsupported`. Rounds
     /// that would meet only on a curved edge are not measured, and declined

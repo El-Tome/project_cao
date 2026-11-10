@@ -15,7 +15,7 @@ use crate::brep::{self, Curve, EdgeId};
 type Depths = [f64; 2];
 
 /// A listed edge by its rank, and the side of its wedge a face is on.
-type Side = (usize, usize);
+type Ranked = (usize, usize);
 
 /// The least value at which the set-backs of two of `edges` that do not meet
 /// at a corner — of their wedges in `wedges`, at their ranks, by the set-back
@@ -33,7 +33,7 @@ pub(super) fn bound(
     wedges: &[Wedge],
     set_back: impl Fn(&Wedge) -> f64,
 ) -> f64 {
-    let mut bounding: BTreeMap<EdgeId, Vec<Side>> = BTreeMap::new();
+    let mut bounding: BTreeMap<EdgeId, Vec<Ranked>> = BTreeMap::new();
     for (rank, wedge) in wedges.iter().enumerate() {
         for (side, &face) in wedge.faces.iter().enumerate() {
             for coedge in body.face(face).loops.iter().flatten() {
@@ -50,7 +50,7 @@ pub(super) fn bound(
             continue;
         };
         let ends = ends.map(|end| body.vertex(end).point);
-        let depths = |&(rank, side): &Side| {
+        let depths = |&(rank, side): &Ranked| {
             let wedge = &wedges[rank];
             let per = set_back(wedge);
             (
@@ -106,11 +106,12 @@ fn reached(lines: [(Depths, f64); 2], eps: f64) -> Option<f64> {
 /// the face all three share: the point where the pair's set-backs cross runs
 /// from where their lines meet, behind `between`, in proportion to the value,
 /// and once past its own set-back the two meet beyond its cut. None where the
-/// pair do not share that face with it, are parallel, or their crossing never
-/// outruns its set-back — the step is then left to the laying's checks.
+/// pair are parallel — left to [`super::pairs::bound`] where they face each
+/// other, to the laying's checks otherwise —, do not share that face with it,
+/// or their crossing never outruns its set-back, left to the laying's checks.
 fn closing(
     wedges: &[Wedge],
-    [(one, one_side), (other, other_side)]: [Side; 2],
+    [(one, one_side), (other, other_side)]: [Ranked; 2],
     between: usize,
     set_back: &impl Fn(&Wedge) -> f64,
 ) -> Option<f64> {

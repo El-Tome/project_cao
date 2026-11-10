@@ -5,6 +5,7 @@
 
 use std::collections::BTreeMap;
 
+use super::chain::TANGENT;
 use super::{Wedge, corners};
 use crate::brep::{self, Curve, EdgeId};
 
@@ -13,11 +14,16 @@ use crate::brep::{self, Curve, EdgeId};
 /// the edge, square to it along the face, over its set-back of one.
 type Depths = [f64; 2];
 
+/// A listed edge by its rank, and the side of its wedge a face is on.
+type Side = (usize, usize);
+
 /// The least value at which the set-backs of two of `edges` that do not meet
 /// at a corner — of their wedges in `wedges`, at their ranks, by the set-back
 /// of a value of one `set_back` says — reach one point of a straight edge of
-/// the body bounding a face of each. An edge of the list laid before the
-/// later of the two takes that point away first, and bounds nothing for them.
+/// the body bounding a face of each. Where that edge is itself one of the
+/// list, neither of the two, and laid before the later of them, its own cut
+/// takes the point away first: the two meet only once its own set-back closes
+/// between theirs, which bounds them instead, as [`closing`] reads it.
 /// Where a straight edge joins two parallel edges facing each other across a
 /// face, it is [`super::pairs::bound`]'s; across a face whose sides between
 /// them are curved, only that one sees them.
@@ -27,7 +33,7 @@ pub(super) fn bound(
     wedges: &[Wedge],
     set_back: impl Fn(&Wedge) -> f64,
 ) -> f64 {
-    let mut bounding: BTreeMap<EdgeId, Vec<(usize, usize)>> = BTreeMap::new();
+    let mut bounding: BTreeMap<EdgeId, Vec<Side>> = BTreeMap::new();
     for (rank, wedge) in wedges.iter().enumerate() {
         for (side, &face) in wedge.faces.iter().enumerate() {
             for coedge in body.face(face).loops.iter().flatten() {
@@ -38,13 +44,13 @@ pub(super) fn bound(
     let eps = body.scale().eps();
     let mut most = f64::INFINITY;
     for (edge, sides) in bounding {
-        let listed = edges.iter().position(|&listed| listed == edge);
+        let listed = edges.iter().position(|&named| named == edge);
         let stretch = body.edge(edge);
         let (Curve::Line(_), Some(ends)) = (body.curve(stretch.curve), stretch.ends) else {
             continue;
         };
         let ends = ends.map(|end| body.vertex(end).point);
-        let depths = |&(rank, side): &(usize, usize)| {
+        let depths = |&(rank, side): &Side| {
             let wedge = &wedges[rank];
             let per = set_back(wedge);
             (
@@ -54,14 +60,17 @@ pub(super) fn bound(
         };
         for (index, one) in sides.iter().enumerate() {
             for other in &sides[index + 1..] {
-                let taken_first = listed.is_some_and(|rank| rank != one.0 && rank < other.0);
-                if one.0 == other.0
-                    || taken_first
-                    || corners::meet(body, [edges[one.0], edges[other.0]])
-                {
+                let (first, second) = (one.0, other.0);
+                if first == second || corners::meet(body, [edges[first], edges[second]]) {
                     continue;
                 }
-                if let Some(value) = reached([depths(one), depths(other)], eps) {
+                let between = listed
+                    .filter(|&rank| rank != first && rank != second && rank < first.max(second));
+                let value = match between {
+                    Some(rank) => closing(wedges, [*one, *other], rank, &set_back),
+                    None => reached([depths(one), depths(other)], eps),
+                };
+                if let Some(value) = value {
                     most = most.min(value);
                 }
             }
@@ -90,4 +99,36 @@ fn reached(lines: [(Depths, f64); 2], eps: f64) -> Option<f64> {
             Some(one?.max(other?))
         })
         .reduce(f64::min)
+}
+
+/// The value at which the set-back of the listed edge `between`, laid before
+/// the later of a pair whose set-backs cross on it, closes between theirs on
+/// the face all three share: the point where the pair's set-backs cross runs
+/// from where their lines meet, behind `between`, in proportion to the value,
+/// and once past its own set-back the two meet beyond its cut. None where the
+/// pair do not share that face with it, are parallel, or their crossing never
+/// outruns its set-back — the step is then left to the laying's checks.
+fn closing(
+    wedges: &[Wedge],
+    [(one, one_side), (other, other_side)]: [Side; 2],
+    between: usize,
+    set_back: &impl Fn(&Wedge) -> f64,
+) -> Option<f64> {
+    let [first, second, third] = [one, other, between].map(|rank| &wedges[rank]);
+    let face = first.faces[one_side];
+    let side = third.faces.iter().position(|&theirs| theirs == face)?;
+    if second.faces[other_side] != face || first.along.cross(second.along).length() <= TANGENT {
+        return None;
+    }
+    let [a, b] = [first.into[one_side], second.into[other_side]];
+    let [per_first, per_second, per_between] = [first, second, third].map(set_back);
+    let met = first.point + first.along * (b.dot(second.point - first.point) / b.dot(first.along));
+    let cosine = a.dot(b);
+    let square = 1.0 - cosine * cosine;
+    let running = a * ((per_first - cosine * per_second) / square)
+        + b * ((per_second - cosine * per_first) / square);
+    let into = third.into[side];
+    let behind = into.dot(met - third.point);
+    let outrunning = into.dot(running) - per_between;
+    (behind < 0.0 && outrunning > 0.0).then(|| -behind / outrunning)
 }

@@ -47,7 +47,13 @@
 //!   and where the edge they would cross on is in the list too, laid after
 //!   both, as the last criterion has it —
 //!   `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_named_with_the_middle_one_last_asked_past_where_the_outer_two_would_cross_take_the_value_at_which_they_touch`,
-//!   `a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_in_ring_order_asked_past_where_alternate_edges_would_cross_take_the_value_at_which_they_touch`
+//!   `a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_in_ring_order_asked_past_where_alternate_edges_would_cross_take_the_value_at_which_they_touch`;
+//!   and where that edge is laid before the later of the two but its own
+//!   set-back closes between its two mitres first — a trapezoid's short top
+//!   edge between its two sides, which converge below it — the step takes
+//!   the value at which it closes, the three set-backs meeting in one point,
+//!   past which the two sides' would cross on the top beyond its strip —
+//!   `a_fillet_and_a_chamfer_on_a_trapezoid_s_short_top_edge_and_its_two_sides_named_between_them_asked_past_where_its_set_back_closes_take_the_value_at_which_it_closes`
 //! - Every step #698 lays — held by the suite of #698 in
 //!   `a_chamfer_and_a_fillet_take_several_edges_in_one_step.rs`, left as it
 //!   was but for the two tests that held these meetings declined. The one on
@@ -1397,7 +1403,7 @@ fn a_fillet_and_a_chamfer_on_two_edges_whose_rounds_would_meet_on_a_leaning_wall
 /// the line from `start` along `along` for `length`, that line standing in
 /// the air the two faces leave between them. The round turns from facing the
 /// way the edge's first face does to facing the way its second does, and
-/// everywhere faces its axis, a radius away against the way it faces.
+/// everywhere faces its axis, which stands a radius along the way it faces.
 struct Hollow {
     start: DVec3,
     along: DVec3,
@@ -2213,5 +2219,242 @@ fn a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_in_ring_orde
             EXACT * promised
         };
         sound_drawn_within(&body, promised, drawn, &what);
+    }
+}
+
+/// The trapezoid's short side, its two sides, the angle they lean from the
+/// short side's line — so that each meets it at 95 degrees, and the two
+/// converge 10 degrees apart below it — and its height.
+const TRAPEZOID_SHORT: f64 = 10.0;
+const TRAPEZOID_SIDE: f64 = 20.0;
+const TRAPEZOID_LEAN_DEGREES: f64 = 85.0;
+const TRAPEZOID_HEIGHT: f64 = 10.0;
+
+/// The numbers the trapezoid's walls answer to, from its short side round:
+/// the short side two, the right side three, the long side four, the left
+/// side five.
+const TRAPEZOID_SHORT_WALL: usize = 2;
+const TRAPEZOID_RIGHT: usize = 3;
+const TRAPEZOID_LEFT: usize = 5;
+
+/// What is asked of the trapezoid's three top edges past where the short
+/// one's set-back closes, which each alone gives.
+const TRAPEZOID_ASKED: f64 = 6.0;
+
+/// The trapezoid's corners, from the short side's left end round.
+fn trapezoid_corners() -> [DVec2; 4] {
+    let lean = TRAPEZOID_LEAN_DEGREES.to_radians();
+    let side = DVec2::new(lean.cos(), lean.sin()) * TRAPEZOID_SIDE;
+    [
+        DVec2::ZERO,
+        DVec2::new(TRAPEZOID_SHORT, 0.0),
+        DVec2::new(TRAPEZOID_SHORT, 0.0) + side,
+        DVec2::new(-side.x, side.y),
+    ]
+}
+
+/// The trapezoid of [`trapezoid_corners`], raised [`TRAPEZOID_HEIGHT`].
+fn trapezoid() -> Body {
+    raised_with(
+        &Body::default(),
+        Contour::straight(trapezoid_corners().to_vec()),
+        TRAPEZOID_HEIGHT,
+    )
+}
+
+/// The three top edges, in the order the step names them: the left side's,
+/// the short side's between, and the right side's.
+fn trapezoid_edges(part: &Body) -> [EdgeName; 3] {
+    [
+        edge_between(part, TOP, TRAPEZOID_LEFT),
+        edge_between(part, TOP, TRAPEZOID_SHORT_WALL),
+        edge_between(part, TOP, TRAPEZOID_RIGHT),
+    ]
+}
+
+/// The value at which the short top edge's set-back closes between its two
+/// mitres. Each side's set-back crosses the short edge's the value times the
+/// cotangent of half the corner, 95 degrees, in from its end; the two fill
+/// the short edge at half its length times the tangent of half the corner.
+/// There the three set-backs meet in one point; past it the sides' cross on
+/// the top beyond the short edge's strip.
+fn trapezoid_closing() -> f64 {
+    let corner = 180.0 - TRAPEZOID_LEAN_DEGREES;
+    TRAPEZOID_SHORT / 2.0 * (corner / 2.0).to_radians().tan()
+}
+
+/// A top edge of the trapezoid, from `from` to `to` round the outline: the
+/// way along it and the way its wall faces, out of the matter.
+fn trapezoid_edge(from: DVec2, to: DVec2) -> (DVec2, DVec2) {
+    let along = (to - from).normalize();
+    (along, DVec2::new(along.y, -along.x))
+}
+
+/// Where two lines cross, each a point and a way along it.
+fn crossing((point, way): (DVec2, DVec2), (other, other_way): (DVec2, DVec2)) -> DVec2 {
+    let off = other - point;
+    let along =
+        (off.x * other_way.y - off.y * other_way.x) / (way.x * other_way.y - way.y * other_way.x);
+    point + way * along
+}
+
+/// Holds what a step at `value` on the trapezoid's three top edges, numbered
+/// `laid` in the order of [`trapezoid_edges`], leaves: each edge's round on
+/// its cylinder, or its flat facing halfway between the top and its wall;
+/// each of the three walls cut down by the value; the top set back by it
+/// from all three, mitred at the short edge's ends and running on to the
+/// long one; the two sides' faces sharing no edge; every face kept; and the
+/// matter, at a height where the cuts stand `w` in, losing a strip along the
+/// three edges, `50 w`, less `cot 47.5° w²` at each mitre and
+/// `cot 85° w² / 2` where each side's strip runs on to the long edge.
+fn trapezoid_laid(
+    part: &Body,
+    body: &Body,
+    laid: [usize; 3],
+    value: f64,
+    fillet: bool,
+    what: &str,
+) {
+    let [c0, c1, c2, c3] = trapezoid_corners();
+    let top = TRAPEZOID_HEIGHT;
+    let edges = [
+        (c3, c0, TRAPEZOID_LEFT),
+        (c0, c1, TRAPEZOID_SHORT_WALL),
+        (c1, c2, TRAPEZOID_RIGHT),
+    ];
+    for ((from, to, wall), number) in edges.into_iter().zip(laid) {
+        let (along, out) = trapezoid_edge(from, to);
+        let which = format!("{what}: face {number}, wall {wall}'s top edge");
+        if fillet {
+            let round = |past: f64, middle: bool| {
+                let length = (to - from).length();
+                let start = if middle {
+                    from + along * (length / 2.0 - past)
+                } else {
+                    from - along * past
+                };
+                Round {
+                    start: (start - out * value).extend(top - value),
+                    along: along.extend(0.0),
+                    length: if middle {
+                        2.0 * past
+                    } else {
+                        length + 2.0 * past
+                    },
+                    radius: value,
+                    facing: [DVec3::Z, out.extend(0.0)],
+                }
+            };
+            drawn_on(body, number, &round(2.0 * value, false), &which);
+            let middle = if wall == TRAPEZOID_SHORT_WALL {
+                0.5
+            } else {
+                2.0
+            };
+            met_from_outside(body, number, &round(middle, true), &which);
+        } else {
+            faces_toward(
+                body,
+                number,
+                (out.extend(0.0) + DVec3::Z).normalize(),
+                &which,
+            );
+        }
+        corners_are(
+            body,
+            wall,
+            &[
+                from.extend(0.0),
+                to.extend(0.0),
+                to.extend(top - value),
+                from.extend(top - value),
+            ],
+            &format!("{what}: wall {wall}, cut down by the value"),
+        );
+    }
+    do_not_meet(body, [laid[0], laid[2]], what);
+    kept_every_face_and_laid(part, body, &laid, what);
+    let inset = |from: DVec2, to: DVec2, by: f64| {
+        let (along, out) = trapezoid_edge(from, to);
+        (from - out * by, along)
+    };
+    let [left, short, right, long] = [
+        inset(c3, c0, value),
+        inset(c0, c1, value),
+        inset(c1, c2, value),
+        inset(c2, c3, 0.0),
+    ];
+    corners_are(
+        body,
+        TOP,
+        &[
+            crossing(left, short),
+            crossing(short, right),
+            crossing(right, long),
+            crossing(long, left),
+        ]
+        .map(|corner| corner.extend(top)),
+        &format!("{what}: the top, set back by the value from all three edges"),
+    );
+    let mitre = (90.0 - TRAPEZOID_LEAN_DEGREES / 2.0)
+        .to_radians()
+        .tan()
+        .recip();
+    let run_on = TRAPEZOID_LEAN_DEGREES.to_radians().tan().recip();
+    let (first, second) = if fillet {
+        (
+            value * value * (1.0 - PI / 4.0),
+            value.powi(3) * (5.0 / 3.0 - PI / 2.0),
+        )
+    } else {
+        (value * value / 2.0, value.powi(3) / 3.0)
+    };
+    let strips = TRAPEZOID_SHORT + 2.0 * TRAPEZOID_SIDE;
+    let taken_off = strips * first - (2.0 * mitre + run_on) * second;
+    let area = (c1.x - c0.x + c2.x - c3.x) / 2.0 * c2.y;
+    let promised = area * top - taken_off;
+    let drawn = if fillet {
+        DRAWN * reach_of(part) * PI / 2.0 * value * (strips + 4.0 * value)
+    } else {
+        EXACT * promised
+    };
+    sound_drawn_within(body, promised, drawn, what);
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_a_trapezoid_s_short_top_edge_and_its_two_sides_named_between_them_asked_past_where_its_set_back_closes_take_the_value_at_which_it_closes()
+ {
+    let part = trapezoid();
+    let names = trapezoid_edges(&part);
+    let laid = [0, 1, 2].map(|rank| part.faces_end() + rank);
+    let closing = trapezoid_closing();
+    let hair = 20.0 * 1e-9 * reach_of(&part);
+
+    for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
+        for asked in [TRAPEZOID_ASKED, closing + hair] {
+            alone_each_takes(
+                |name| {
+                    if fillet {
+                        part.fillet(name, asked).map(|single| single.taken)
+                    } else {
+                        part.chamfer(name, asked).map(|single| single.taken)
+                    }
+                },
+                &names,
+                asked,
+                &format!("the {kind} on one of the trapezoid's three top edges, asked {asked}"),
+            );
+            let what = format!(
+                "the {kind} on the trapezoid's left, short and right top edges, asked {asked}: \
+                 the short one laid before the right, the two sides' set-backs crossing past \
+                 its own once it closes"
+            );
+
+            let (reported, taken, body) =
+                stepped_on_the_hexagon(&part, &names, asked, fillet, &what);
+
+            reduced_to_touching(reported, taken, [asked, closing], hair, &what);
+            trapezoid_laid(&part, &body, laid, taken, fillet, &what);
+        }
     }
 }

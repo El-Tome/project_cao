@@ -86,6 +86,21 @@
 //!   it; the L's top edge at its inner corner and the inner upright — for
 //!   #846 — no test: each is held by its own file, left as it was but for the
 //!   one list the decline test gives up
+//! - Not in the issue's wording, a guard held until slice 3: a foot corner
+//!   named with the top corner of its upright — both feet, the upright and
+//!   the standing block's two top edges at its top — is declined
+//!   `Unsupported`, chamfered or filleted, whatever the order, so that no
+//!   shape ships before a test holds it. Slice 3 turns it into a body test —
+//!   `a_fillet_and_a_chamfer_on_a_foot_corner_and_the_top_corner_of_its_upright_are_declined_as_unsupported_until_slice_3_builds_them`
+//! - Not in the issue's wording: where the odd edges, laid first, close a
+//!   corner of their own, each face is still numbered as the fourth
+//!   criterion reads it. A triangular pyramid standing on a plate, each
+//!   slanted edge the odd one at its foot corner and the three meeting at
+//!   the apex, chamfered on its six edges: each edge's flat at its rank, then
+//!   the apex's triangle and the three fills along the slanted flats' feet,
+//!   by the lowest ranks of their edges, in every order; and the body the two
+//!   steps build, the slanted edges then the six feet —
+//!   `a_chamfer_on_a_triangular_pyramid_s_slanted_edges_and_feet_numbers_each_face_by_its_rank_the_apex_s_triangle_among_the_patches`
 //!
 //! The volumes are arithmetic. The lower block is 30 by 20 by 10 and the
 //! block standing on it 10 by 10 by 10, 7000 together. The corner is the
@@ -227,21 +242,43 @@ fn profile(outline: Contour) -> Profile<'static> {
     }
 }
 
-/// The part joined to an outline raised from `from` by `height`, as
-/// `cao_part` raises a step: its faces numbered past the part's, its floor
+/// The tool an outline drawn on the ground raises from `from` by `height`,
+/// as `cao_part` raises a step: its faces numbered past the part's, its floor
 /// first, then its top, then its walls, one for each run of the outline.
+fn tool_raised(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
+    part.tool_raised(
+        &profile(outline),
+        Frame {
+            origin: DVec3::Z * from,
+            ..ground()
+        },
+        DVec3::Z * height,
+    )
+    .expect("the tool raises")
+}
+
+/// The part joined to an outline raised from `from` by `height`, numbered as
+/// [`tool_raised`] numbers it.
 fn joined(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
-    let tool = part
-        .tool_raised(
-            &profile(outline),
-            Frame {
-                origin: DVec3::Z * from,
-                ..ground()
-            },
-            DVec3::Z * height,
-        )
-        .expect("the tool raises");
-    part.union(&tool).expect("the part is built")
+    part.union(&tool_raised(part, outline, from, height))
+        .expect("the part is built")
+}
+
+/// The slab beyond the plane through `through` square to `away`, on the side
+/// `away` points to: `size` each way across it, and `size` deep.
+fn beyond(part: &Body, through: DVec3, away: DVec3, size: f64) -> Body {
+    let away = away.normalize();
+    let u = away.any_orthonormal_vector();
+    part.tool_raised(
+        &profile(Contour::rectangle(DVec2::splat(-size), DVec2::splat(size))),
+        Frame {
+            origin: through,
+            u,
+            v: away.cross(u),
+        },
+        away * size,
+    )
+    .expect("the slab raises")
 }
 
 /// A block 30 by 20 by 10 with another, 10 by 10 by 10, standing on the
@@ -1916,5 +1953,256 @@ fn a_chamfer_and_a_fillet_on_the_four_feet_and_four_uprights_of_a_standing_block
             &to_first,
             &format!("{} and {}", first.what, case.what),
         );
+    }
+}
+
+/// The five edges at both ends of [`stacked`]'s front right upright, by the
+/// faces each lies between: the front and right feet at its foot, the
+/// upright itself, and the standing block's top front and top right edges at
+/// its top.
+const BOTH_ENDS_OF_AN_UPRIGHT: [[usize; 2]; 5] = [
+    [TOP, STANDING_FRONT],
+    [TOP, STANDING_RIGHT],
+    [STANDING_FRONT, STANDING_RIGHT],
+    [STANDING_TOP, STANDING_FRONT],
+    [STANDING_TOP, STANDING_RIGHT],
+];
+
+#[test]
+fn a_fillet_and_a_chamfer_on_a_foot_corner_and_the_top_corner_of_its_upright_are_declined_as_unsupported_until_slice_3_builds_them()
+ {
+    let part = stacked();
+    let names = BOTH_ENDS_OF_AN_UPRIGHT.map(|[first, second]| edge_between(&part, first, second));
+    for order in [[0, 1, 2, 3, 4], [4, 3, 2, 1, 0], [2, 3, 0, 4, 1]] {
+        let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
+        for cut in [Cut::Flat, Cut::Round] {
+            assert_eq!(
+                cut.laid_on(&part, &list, 1.0).err(),
+                Some(Declined::Unsupported),
+                "the {} of 1 on both feet, the front right upright and the two top edges at its \
+                 top, named {order:?}: a broken step and its reason, and no body, until slice 3 \
+                 holds what both its ends make",
+                cut.called()
+            );
+        }
+    }
+}
+
+/// A plate 30 by 30 by 10, its top numbered one, with a triangular pyramid
+/// standing on it: its base the equilateral triangle of side 10 from (0, 0)
+/// along X, on the plate's top, its apex 8 above the base's centre. Its three
+/// slanted faces, front, right and left, are numbered eleven, seventeen and
+/// twenty-three, as the planes that cut them from a prism number them. Its
+/// feet, where they meet the plate's top, meet inwards, its slanted edges
+/// outwards: at each foot corner the slanted edge above two feet is the odd
+/// one, and the three slanted edges meet at the apex, a convex corner.
+fn pyramid_on_a_plate() -> Body {
+    let plate = joined(
+        &Body::default(),
+        Contour::rectangle(DVec2::splat(-10.0), DVec2::splat(20.0)),
+        0.0,
+        10.0,
+    );
+    let base = PYRAMID_BASE.map(|[x, y]| DVec2::new(x, y));
+    let centre = (base[0] + base[1] + base[2]) / 3.0;
+    let apex = DVec3::new(centre.x, centre.y, LOWER_TOP + PYRAMID_HEIGHT);
+    let prism = tool_raised(&plate, Contour::straight(base.to_vec()), 5.0, 20.0);
+    let pyramid = (0..3).fold(prism, |part, side| {
+        let [from, to] = [base[side], base[(side + 1) % 3]];
+        let along = (to - from).normalize().extend(0.0);
+        let at = from.extend(LOWER_TOP);
+        let out = DVec3::new(along.y, -along.x, 0.0);
+        let leaning = (apex - at).cross(along).normalize();
+        let away = if leaning.dot(out) > 0.0 {
+            leaning
+        } else {
+            -leaning
+        };
+        part.difference(&beyond(&part, at, away, 60.0))
+            .expect("a plane through the apex cuts the prism")
+    });
+    plate
+        .union(&pyramid)
+        .expect("the pyramid stands on the plate")
+}
+
+/// The corners of the base of [`pyramid_on_a_plate`], on the plate's top.
+const PYRAMID_BASE: [[f64; 2]; 3] = [[0.0, 0.0], [10.0, 0.0], [5.0, 8.660254037844386]];
+
+/// How high the apex of [`pyramid_on_a_plate`] stands over the plate's top.
+const PYRAMID_HEIGHT: f64 = 8.0;
+
+/// The numbers of [`pyramid_on_a_plate`]'s slanted faces, front, right and
+/// left.
+const PYRAMID_FACES: [usize; 3] = [11, 17, 23];
+
+/// The six edges of [`pyramid_on_a_plate`] a list names, by the faces each
+/// lies between: its three slanted edges, front right, right left and left
+/// front, then its three feet, front, right and left.
+const PYRAMID_EDGES: [[usize; 2]; 6] = [
+    [11, 17],
+    [17, 23],
+    [23, 11],
+    [TOP, 11],
+    [TOP, 17],
+    [TOP, 23],
+];
+
+/// The four corners of [`pyramid_on_a_plate`] three of [`PYRAMID_EDGES`] meet
+/// at, each by its three edges' places: the apex, then the foot of each
+/// slanted edge in turn, with the two feet beside it.
+const PYRAMID_CORNERS: [[usize; 3]; 4] = [[0, 1, 2], [0, 3, 4], [1, 4, 5], [2, 5, 3]];
+
+/// The orders the six edges are named in: the slanted edges first, the feet
+/// first, each slanted edge followed by a foot, and reversed.
+const PYRAMID_ORDERS: [[usize; 6]; 4] = [
+    [0, 1, 2, 3, 4, 5],
+    [3, 4, 5, 0, 1, 2],
+    [0, 3, 1, 4, 2, 5],
+    [5, 4, 3, 2, 1, 0],
+];
+
+/// [`pyramid_on_a_plate`] chamfered at `value` in two steps: its three
+/// slanted edges first, their flats numbered twenty-nine to thirty-one and
+/// the apex closed by a triangle numbered thirty-two; then its three feet and
+/// the feet of those three flats, numbered thirty-three to thirty-eight in
+/// that order.
+fn pyramid_chamfered_in_two_steps(value: f64) -> Body {
+    let part = pyramid_on_a_plate();
+    let slanted: Vec<EdgeName> = PYRAMID_EDGES[..3]
+        .iter()
+        .map(|&[first, second]| edge_between(&part, first, second))
+        .collect();
+    let first = part
+        .chamfer_edges(&slanted, value)
+        .unwrap_or_else(|declined| panic!("the three slanted edges are chamfered: {declined:?}"));
+    taken_as_asked(first.asked, first.taken, value, "the three slanted edges");
+    let flats = part.faces_end();
+    let chamfered = first.body;
+    let feet: Vec<EdgeName> = PYRAMID_EDGES[3..]
+        .iter()
+        .map(|&[first, second]| edge_between(&chamfered, first, second))
+        .chain((0..3).map(|flat| edge_between(&chamfered, TOP, flats + flat)))
+        .collect();
+    let filled = chamfered
+        .chamfer_edges(&feet, value)
+        .unwrap_or_else(|declined| panic!("the six feet are filled: {declined:?}"));
+    taken_as_asked(filled.asked, filled.taken, value, "the six feet");
+    filled.body
+}
+
+#[test]
+fn a_chamfer_on_a_triangular_pyramid_s_slanted_edges_and_feet_numbers_each_face_by_its_rank_the_apex_s_triangle_among_the_patches()
+ {
+    let part = pyramid_on_a_plate();
+    let start = part.faces_end();
+    let tetrahedron = 100.0 * 3f64.sqrt() / 4.0 * PYRAMID_HEIGHT / 3.0;
+    assert!(
+        (part.volume() - (9000.0 + tetrahedron)).abs() <= EXACT * part.volume(),
+        "the pyramid on its plate holds {}",
+        part.volume()
+    );
+    let facing = PYRAMID_FACES.map(|face| {
+        part.plane_of(face)
+            .unwrap_or_else(|| panic!("the pyramid's slanted face {face} is flat"))
+            .normal
+    });
+    let slanted =
+        [[0, 1], [1, 2], [2, 0]].map(|[one, other]| (facing[one] + facing[other]).normalize());
+    let edges_facing: Vec<DVec3> = (slanted.iter().copied())
+        .chain(facing.map(|way| (DVec3::Z + way).normalize()))
+        .collect();
+    let patches_facing: Vec<DVec3> = std::iter::once(DVec3::Z)
+        .chain(slanted.map(|flat| (DVec3::Z + flat).normalize()))
+        .collect();
+    let names = PYRAMID_EDGES.map(|[first, second]| edge_between(&part, first, second));
+    for value in [0.5, 1.0] {
+        let two_steps = pyramid_chamfered_in_two_steps(value);
+        for order in PYRAMID_ORDERS {
+            let what =
+                format!("the chamfer of {value} on the pyramid's six edges, named {order:?}");
+            let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
+            let step = part
+                .chamfer_edges(&list, value)
+                .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+            let case = Case {
+                order: order.to_vec(),
+                cut: Cut::Flat,
+                value,
+                step: Laid {
+                    body: step.body,
+                    asked: step.asked,
+                    taken: step.taken,
+                },
+                what,
+            };
+            let Case { step, what, .. } = &case;
+            let body = &step.body;
+            taken_as_asked(step.asked, step.taken, value, what);
+            sound_drawn_within(body, two_steps.volume(), EXACT * body.volume(), what);
+            assert_eq!(
+                faces_made(&part, body),
+                (start..start + 10).collect::<Vec<_>>(),
+                "{what}: one flat for each edge, and a patch at each of the four corners: {:?}",
+                numbers(body)
+            );
+            assert_eq!(
+                body.faces_end(),
+                start + 10,
+                "{what}: the next step numbers its own faces past the four patches"
+            );
+            let patches = case.patches(&part, &PYRAMID_CORNERS);
+            for (edge, way) in edges_facing.iter().enumerate() {
+                faces_toward(
+                    body,
+                    case.laid_on(&part, edge),
+                    *way,
+                    &format!(
+                        "{what}: the flat on {:?}, numbered by its rank",
+                        PYRAMID_EDGES[edge]
+                    ),
+                );
+            }
+            for (corner, way) in patches_facing.iter().enumerate() {
+                faces_toward(
+                    body,
+                    patches[corner],
+                    *way,
+                    &format!(
+                        "{what}: the patch at the corner of {:?}, numbered after every edge's \
+                         flat by the lowest ranks of its edges",
+                        PYRAMID_CORNERS[corner].map(|edge| PYRAMID_EDGES[edge])
+                    ),
+                );
+            }
+            let to_two_steps: Vec<(usize, usize)> = (0..6)
+                .map(|edge| {
+                    let in_two_steps = match edge {
+                        slanted @ 0..3 => start + slanted,
+                        foot => start + 4 + foot - 3,
+                    };
+                    (case.laid_on(&part, edge), in_two_steps)
+                })
+                .chain((0..4).map(|corner| {
+                    (
+                        patches[corner],
+                        if corner == 0 {
+                            start + 3
+                        } else {
+                            start + 6 + corner
+                        },
+                    )
+                }))
+                .collect();
+            the_same_bodies(
+                &two_steps,
+                body,
+                &to_two_steps,
+                &format!(
+                    "{what}, and the body two steps leave, the slanted edges chamfered then the six \
+                     feet"
+                ),
+            );
+        }
     }
 }

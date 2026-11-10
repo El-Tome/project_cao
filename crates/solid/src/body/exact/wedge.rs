@@ -39,6 +39,7 @@ use overlap::OVERLAPS;
 pub(super) use pairs::Together;
 pub(super) use section::Side;
 pub(super) use sphere::{hollowed_across, rounded_across};
+use step::Kind;
 pub(super) use triangle::{cut_across, joined_across};
 
 /// A straight edge between two flat faces: a point of it, the way it runs, its
@@ -154,14 +155,19 @@ impl Exact {
             return Err(Declined::Unsupported);
         }
         caught(|| {
+            let kind = Kind {
+                most: &most,
+                set_back: &set_back,
+                tool: &tool,
+                meeting,
+            };
             let step = self.step(names)?;
-            let taken = step.bound(&self.brep, asked, &most, &set_back);
-            let odd = odd::corners(&step)?;
+            let taken = step.bound(&self.brep, asked, &kind);
+            let odd = odd::corners(&self.brep, &step)?;
             if odd.is_empty() {
-                self.in_turn(names, step, taken, &set_back, &tool, meeting)
+                self.in_turn(names, step, taken, &kind)
             } else {
-                let kind = ((&most, &set_back), &tool, meeting);
-                self.round_the_odd(names, &step.wedges, &odd, taken, kind)
+                self.round_the_odd(names, &step.wedges, &odd, taken, &kind)
             }
         })
     }

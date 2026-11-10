@@ -122,7 +122,17 @@
 //! the octagon and its offset out, less the standing block —
 //! `a_chamfer_on_the_eight_feet_round_a_standing_block_s_chamfered_uprights_takes_the_value_asked_their_set_backs_running_no_further_than_their_mitres`.
 //! Every reduction above is the same with either reading: where two
-//! set-backs meet, each runs there.
+//! set-backs meet, each runs there. Where a third edge of the list runs into
+//! a mitre, the value does not hang on which of the mitre's two edges is
+//! laid last: the earlier one runs on past the face it stops on into the
+//! mitre once the later is laid, whichever order the list names them in. An
+//! L whose corner block is cut under its inner corner by a slanted wall, its
+//! two top edges there cut beside the inner upright left out and the
+//! upright where the slant meets the front cut with them, takes the value
+//! at which the arm's edge's set-back, past the stem's plane, meets the
+//! upright's on the slant's top edge — 3.75 chamfered, 5 filleted — in all
+//! six orders —
+//! `a_fillet_and_a_chamfer_on_the_two_top_edges_at_an_l_s_inner_corner_and_an_upright_their_mitre_runs_into_take_the_value_at_which_they_meet_whatever_the_order`.
 
 use std::collections::BTreeSet;
 use std::f64::consts::{FRAC_1_SQRT_2, PI};
@@ -3074,6 +3084,112 @@ fn a_chamfer_and_a_fillet_on_a_standing_block_s_foot_and_an_edge_of_the_lower_bl
                     EXACT * promised
                 };
                 sound_drawn_within(&body, promised, drawn, &what);
+            }
+        }
+    }
+}
+
+/// An L 10 high whose corner block under its inner corner is cut away by a
+/// slanted wall: an arm from (12, 0) to (30, 6) along the front, a stem from
+/// (0, 6) to (12, 14) at its left, and between them the slant from (0, 9) to
+/// (12, 0), its line `3x + 4y = 36`. Its walls are numbered from the arm's
+/// front round: the front two, the arm's right end three, the arm's back
+/// four, the stem's right side five, the stem's back six, its left seven and
+/// the slant eight. The arm's back and the stem's right side meet inwards in
+/// the L's inner corner, (12, 6); the slant and the front meet outwards, at
+/// 143.13°, along the upright at (12, 0).
+fn slanted_ell() -> Body {
+    raised_with(
+        &Body::default(),
+        Contour::straight(vec![
+            DVec2::new(12.0, 0.0),
+            DVec2::new(30.0, 0.0),
+            DVec2::new(30.0, 6.0),
+            DVec2::new(12.0, 6.0),
+            DVec2::new(12.0, 14.0),
+            DVec2::new(0.0, 14.0),
+            DVec2::new(0.0, 9.0),
+        ]),
+        10.0,
+    )
+}
+const SLANTED_ELL_ARM_BACK: usize = 4;
+const SLANTED_ELL_STEM_RIGHT: usize = 5;
+const SLANTED_ELL_SLANT: usize = 8;
+
+/// The three edges of [`slanted_ell`] named together, by the faces each lies
+/// between: the top edge of the arm's back, the upright where the slant meets
+/// the front, and the top edge of the stem's right side.
+const ARM_BACK_UPRIGHT_STEM_RIGHT: [[usize; 2]; 3] = [
+    [TOP, SLANTED_ELL_ARM_BACK],
+    [FRONT, SLANTED_ELL_SLANT],
+    [TOP, SLANTED_ELL_STEM_RIGHT],
+];
+
+/// Every order three edges can be named in.
+const ORDERS_OF_THREE: [[usize; 3]; 6] = [
+    [0, 1, 2],
+    [0, 2, 1],
+    [1, 0, 2],
+    [1, 2, 0],
+    [2, 0, 1],
+    [2, 1, 0],
+];
+
+/// For a chamfer and a fillet on [`ARM_BACK_UPRIGHT_STEM_RIGHT`]: a value
+/// short of where the blends meet, which every order takes whole; the value
+/// at which they meet; and two values asked past it. The two top edges, cut
+/// beside the concave inner upright left out, each stop flush on the other's
+/// wall and run on past it into their mitre, which reaches the slant. Past
+/// the stem's plane the arm's back edge's set-back, `6 − v` across the top,
+/// meets on the slant's top edge the upright's, which reaches `0.6·s` up
+/// that edge for a set-back `s` along it from the front: a chamfer's `s` is
+/// its distance, meeting at `0.6·d = 6 − d`, 3.75; a fillet's is
+/// `r·cot(α/2)`, a third of the radius where the slant and the front meet at
+/// 143.13°, meeting at `0.2·r = 6 − r`, 5.
+const SLANTED_ELL_VALUES: [(&str, bool, f64, f64, [f64; 2]); 2] = [
+    ("chamfer", false, 3.5, 3.75, [3.8, 4.0]),
+    ("fillet", true, 4.8, 5.0, [5.2, 5.5]),
+];
+
+#[test]
+fn a_fillet_and_a_chamfer_on_the_two_top_edges_at_an_l_s_inner_corner_and_an_upright_their_mitre_runs_into_take_the_value_at_which_they_meet_whatever_the_order()
+ {
+    let ell = slanted_ell();
+    let names =
+        ARM_BACK_UPRIGHT_STEM_RIGHT.map(|[first, second]| edge_between(&ell, first, second));
+    let hair = 20.0 * 1e-9 * 30.0;
+    for (kind, fillet, short, meeting, past) in SLANTED_ELL_VALUES {
+        for asked in std::iter::once(short).chain(past) {
+            let laid: Vec<(String, f64, f64, Body)> = ORDERS_OF_THREE
+                .iter()
+                .map(|order| {
+                    let what = format!(
+                        "the {kind} of {asked} on the arm's back top edge, the upright where \
+                         the slant meets the front and the stem's right top edge, named \
+                         {order:?}"
+                    );
+                    let list: Vec<EdgeName> =
+                        order.iter().map(|&edge| names[edge].clone()).collect();
+                    let (reported, taken, body) = stepped(&ell, &list, asked, fillet, &what);
+                    (what, reported, taken, body)
+                })
+                .collect();
+            for (what, reported, taken, _) in &laid {
+                if asked < meeting {
+                    taken_as_asked(*reported, *taken, asked, what);
+                } else {
+                    reduced_to_touching(*reported, *taken, [asked, meeting], hair, what);
+                }
+            }
+            let promised = laid[0].3.volume();
+            let drawn = if fillet {
+                DRAWN * reach_of(&ell) * PI / 2.0 * asked * (18.0 + 8.0 + 10.0 + 2.0 * asked)
+            } else {
+                EXACT * promised
+            };
+            for (what, _, _, body) in &laid {
+                sound_drawn_within(body, promised, drawn, what);
             }
         }
     }

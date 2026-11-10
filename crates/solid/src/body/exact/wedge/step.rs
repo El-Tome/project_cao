@@ -1,9 +1,9 @@
 //! The edges of one step on the body they are laid on: what its names find
-//! there and the corners they meet at, the one value they take, and the
-//! edges laid in turn at that value — two whose set-backs meet across the
-//! face they share as one, a later edge mitred against the earlier ones it
-//! meets at a corner, and the corners three of them meet at closed once all
-//! are laid.
+//! there and the corners they meet at, what a kind lays them with, the one
+//! value they take, and the edges laid in turn at that value — two whose
+//! set-backs meet across the face they share as one, a later edge mitred
+//! against the earlier ones it meets at a corner, and the corners three of
+//! them meet at closed once all are laid.
 
 use std::collections::BTreeSet;
 
@@ -22,7 +22,7 @@ use crate::brep::{self, Declined, EdgeId, EdgeName, Scale};
 /// [`corners::admit`] takes them; and the corners three of them meet at, as
 /// [`corners::of_three`] reads them.
 pub(super) struct Step {
-    edges: Vec<EdgeId>,
+    pub edges: Vec<EdgeId>,
     pub wedges: Vec<Wedge>,
     facing: Vec<(usize, usize, f64)>,
     beside: Vec<Beside>,
@@ -58,44 +58,66 @@ impl Exact {
     }
 }
 
+/// What a kind lays a step's edges with, as [`Exact::cut_off`] takes it:
+/// how far each edge's two faces let it go alone, the set-back along them a
+/// value of one makes, the prism raised over an edge for a value, and how its
+/// edges meet.
+#[derive(Clone, Copy)]
+pub(super) struct Kind<'a> {
+    pub most: &'a dyn Fn(&Wedge) -> f64,
+    pub set_back: &'a dyn Fn(&Wedge) -> f64,
+    pub tool: &'a Tool<'a>,
+    pub meeting: Meeting,
+}
+
+/// What raises the prism over an edge's wedge for a value, at the body's
+/// scale, within its box.
+pub(super) type Tool<'a> =
+    dyn Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined> + 'a;
+
 impl Step {
     /// `asked`, or the most every edge gives, on `body`, as
-    /// [`Exact::cut_off`] reads it: what `most` says each edge's two faces
-    /// give alone, what keeps two facing each other across a face from
-    /// crossing on it, and what keeps two not meeting at a corner from
-    /// reaching one point of an edge of the body, each set back `set_back` of
-    /// a value of one.
-    pub fn bound(
-        &self,
-        body: &brep::Body,
-        asked: f64,
-        most: impl Fn(&Wedge) -> f64,
-        set_back: impl Fn(&Wedge) -> f64,
-    ) -> f64 {
-        let alone = (self.wedges.iter()).fold(asked, |taken, wedge| taken.min(most(wedge)));
+    /// [`Exact::cut_off`] reads it: what the kind's `most` says each edge's
+    /// two faces give alone, what keeps two facing each other across a face
+    /// from crossing on it, and what keeps two not meeting at a corner from
+    /// reaching one point of an edge of the body, each set back the kind's
+    /// `set_back` of a value of one.
+    pub fn bound(&self, body: &brep::Body, asked: f64, kind: &Kind) -> f64 {
+        let alone = (self.wedges.iter()).fold(asked, |taken, wedge| taken.min((kind.most)(wedge)));
+        let set_back = kind.set_back;
         alone
-            .min(pairs::bound(&self.wedges, &self.facing, &set_back))
-            .min(set_backs::bound(body, &self.edges, &self.wedges, &set_back))
+            .min(pairs::bound(&self.wedges, &self.facing, set_back))
+            .min(set_backs::bound(
+                body,
+                &self.edges,
+                &self.wedges,
+                &self.beside,
+                set_back,
+            ))
     }
 }
 
 impl Exact {
     /// The body with the edges of `step`, which `names` found on it, laid in
     /// turn at `taken`, as [`Exact::cut_off`] lays them — with the pairs laid
-    /// as one — each set back `set_back` of the value, by the prisms `tool`
-    /// raises, `meeting` laying the pairs together and closing the corners
-    /// three meet at, the faces numbered from where the steps' numbers ended
-    /// by the edges' ranks, the closings' past them. Declined as
-    /// [`Exact::cut_off`] says.
+    /// as one — each set back the kind's `set_back` of the value, by the
+    /// prisms its `tool` raises, its `meeting` laying the pairs together and
+    /// closing the corners three meet at, the faces numbered from where the
+    /// steps' numbers ended by the edges' ranks, the closings' past them in
+    /// the order of the step's corners. Declined as [`Exact::cut_off`] says.
     pub(super) fn in_turn(
         &self,
         names: &[EdgeName],
         step: Step,
         taken: f64,
-        set_back: &impl Fn(&Wedge) -> f64,
-        tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
-        meeting: Meeting,
+        kind: &Kind,
     ) -> Result<(Exact, f64, Vec<pairs::Pair>), Declined> {
+        let Kind {
+            set_back,
+            tool,
+            meeting,
+            ..
+        } = *kind;
         let Step {
             edges,
             wedges,
@@ -131,7 +153,7 @@ impl Exact {
                     [&names[earlier], &names[rank]],
                     start + earlier as u32,
                     value,
-                    tool,
+                    &tool,
                 )?,
                 (None, _) => {
                     let mitred: Vec<u32> = (0..rank)
@@ -141,12 +163,12 @@ impl Exact {
                     let open = flush::open(&self.brep, rank, &given, &beside);
                     let value = ends.get(&rank).copied().unwrap_or(taken);
                     if mitred.is_empty() {
-                        cut.laid(&names[rank], value, tool, &mitred, &open)?
+                        cut.laid(&names[rank], value, &tool, &mitred, &open)?
                     } else {
                         let flush = Flush::beside(
-                            &self.brep, rank, &given, &beside, value, set_back, tool,
+                            &self.brep, rank, &given, &beside, value, &set_back, &tool,
                         )?;
-                        cut.laid_as(&flush, &wedges[rank], value, tool, &mitred, &open)?
+                        cut.laid_as(&flush, &wedges[rank], value, &tool, &mitred, &open)?
                     }
                 }
             };

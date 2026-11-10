@@ -18,13 +18,14 @@ use std::ops::Range;
 
 use glam::{DVec2, DVec3};
 
-use super::odd::Odd;
+use super::Wedge;
+use super::odd::{Odd, ranked_patches};
 use super::overlap::OVERLAPS;
 use super::pairs::Pair;
 use super::sphere::lap;
-use super::{Meeting, Prism, Wedge};
+use super::step::Kind;
 use crate::body::exact::Exact;
-use crate::brep::{Declined, EdgeName, Face, FaceId, Scale, Surface, SurfaceId, Torus};
+use crate::brep::{Declined, EdgeName, Face, FaceId, Surface, SurfaceId, Torus};
 use crate::profile::{Contour, Frame, Run};
 
 impl Exact {
@@ -34,10 +35,12 @@ impl Exact {
     /// [`filling`] fills it, the filling's faces numbered past the steps'
     /// numbers; every edge then followed onto what that leaves, as
     /// [`Exact::following`] finds it, and laid there, as
-    /// [`Exact::in_turn`] lays them with what `kind` holds, each face laid on
-    /// an edge numbered where the steps' numbers ended plus its rank in the
-    /// list; and each corner closed by its piece of torus, numbered past
-    /// them, corner by corner, as [`Exact::torused`] lays it. Declined
+    /// [`Exact::in_turn`] lays them with `kind`, each face laid on an edge
+    /// numbered where the steps' numbers ended plus its rank in the list;
+    /// and each corner closed by its piece of torus, as [`Exact::torused`]
+    /// lays it, every patch — a piece of torus, or the face closing a corner
+    /// three edges of the list meet at — numbered past them in the order of
+    /// its corner's ranks, as [`ranked_patches`] numbers them. Declined
     /// `Unsupported` where an odd edge is concave, or any face of a filling
     /// is left once every corner is closed; otherwise as the filling, the
     /// laying and the closing decline.
@@ -47,11 +50,7 @@ impl Exact {
         wedges: &[Wedge],
         odd: &[Odd],
         taken: f64,
-        ((_, set_back), tool, meeting): (
-            (&impl Fn(&Wedge) -> f64, &impl Fn(&Wedge) -> f64),
-            &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
-            Meeting,
-        ),
+        kind: &Kind,
     ) -> Result<(Exact, f64, Vec<Pair>), Declined> {
         let start = self.next;
         let mut filled = self.clone();
@@ -65,7 +64,8 @@ impl Exact {
             .map(|(name, wedge)| filled.following(name, wedge))
             .collect::<Result<Vec<_>, Declined>>()?;
         let step = filled.step(&followed)?;
-        let (laid, _, pairs) = filled.in_turn(&followed, step, taken, set_back, tool, meeting)?;
+        let closings: Vec<[usize; 3]> = step.three.iter().map(|&(_, ranks, _)| ranks).collect();
+        let (laid, _, pairs) = filled.in_turn(&followed, step, taken, kind)?;
         let lent = filled.next - start;
         let laid_on = filled.next..laid.next;
         let set_aside = laid.renamed_by(|number| {
@@ -82,13 +82,20 @@ impl Exact {
             next: laid_on.end - lent,
             ..set_aside
         };
+        let after = start + names.len() as u32;
+        let mut patches: Vec<([usize; 3], u32)> = (closings.into_iter().enumerate())
+            .map(|(index, ranks)| (ranks, after + index as u32))
+            .collect();
         for (index, corner) in odd.iter().enumerate() {
             let rounds = corner.ranks.map(|rank| start + rank as u32);
             let left = OVERLAPS + index as u32;
+            patches.push((corner.ranks, closed.next));
             closed = closed.torused(left, corner, &wedges[corner.lone], taken, rounds)?;
         }
         closed.overlaps_covered()?;
-        Ok((closed, taken, pairs))
+        let moved = ranked_patches(patches, after);
+        let renamed = closed.renamed_by(|number| moved.get(&number).copied().unwrap_or(number));
+        Ok((renamed, taken, pairs))
     }
 
     /// The body with the faces answering to `left`, which a filling left at

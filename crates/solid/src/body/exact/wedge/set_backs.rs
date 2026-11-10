@@ -2,17 +2,20 @@
 //! the body (#792): the edge where the face one ends on meets a face of the
 //! other, or the edge between two that are not parallel on a face they share.
 //! The bound they set on the one value, so that they do not. A set-back
-//! reaches only where its blend runs, between the faces its edge ends on or
-//! the mitres an edge laid before cuts it to (#829): two fills on the lower
-//! block's top round a standing block's chamfered uprights, whose lines would
-//! cross far out on that top, never reach its far edge.
+//! reaches only where its blend runs (#829): between the faces its edge ends
+//! on, or the mitres an edge laid before cuts it to, or that two edges beside
+//! one of the other sense run on into whatever their order. Two fills on the
+//! lower block's top round a standing block's chamfered uprights, whose lines
+//! would cross far out on that top, never reach its far edge.
 
 use std::collections::BTreeMap;
 
 use glam::DVec3;
 
 use super::chain::TANGENT;
+use super::corners::Beside;
 use super::end::end_face;
+use super::flush::stops;
 use super::{Wedge, corners};
 use crate::brep::{self, Curve, EdgeId, Surface};
 
@@ -42,6 +45,7 @@ pub(super) fn bound(
     body: &brep::Body,
     edges: &[EdgeId],
     wedges: &[Wedge],
+    beside: &[Beside],
     set_back: impl Fn(&Wedge) -> f64,
 ) -> f64 {
     let mut bounding: BTreeMap<EdgeId, Vec<Ranked>> = BTreeMap::new();
@@ -82,7 +86,7 @@ pub(super) fn bound(
                     None => {
                         let later = first.max(second);
                         let held = [one, other].map(|&ranked| {
-                            runs(body, edges, wedges, ranked, later, &set_back)
+                            runs(body, (edges, wedges), beside, ranked, later, &set_back)
                                 .into_iter()
                                 .map(|(normal, offset)| ends.map(|at| normal.dot(at) - offset))
                         });
@@ -143,23 +147,30 @@ fn narrowed([low, high]: [f64; 2], past: [f64; 2], eps: f64) -> Option<[f64; 2]>
 
 /// Where the set-back of the listed edge `ranked` runs on its face on that
 /// side once the edge of rank `later` is laid, as the half-spaces that hold
-/// it, each on the side the middle of the edge stands on: at an end one
-/// other edge of the list laid before that one meets, sharing that face,
-/// where that edge's set-back crosses its own at every value, the plane
-/// through the corner the two mitre on; at any other end, the plane of the
-/// flat face it ends on there, which trims its blend until an edge laid later
-/// mitres it. Nothing holds it at an end where the face it ends on is curved
-/// or not one face, several edges of the list meet it, or the one meeting it
-/// does not share the face.
+/// it, each on the side the middle of the edge stands on, beyond `eps` of
+/// it. At an end one other edge of the list meets, sharing that face, where
+/// that edge's set-back crosses its own at every value, the plane through the
+/// corner the two mitre on: where the other is laid before that one, or
+/// where the two meet beside an edge of the other sense, as `beside` holds
+/// them, and the edge stops flush there, as [`stops`] reads it — whichever
+/// is laid later then takes their overlap and carries this one on past the
+/// face it stops on into the mitre, in any order. At any other end, the
+/// plane of the flat face it ends on there, which trims its blend until an
+/// edge laid later mitres it, back from that plane at a convex corner.
+/// Nothing holds it at an end where the face it ends on is curved or not one
+/// face, several edges of the list meet it, or the one meeting it does not
+/// share the face.
 fn runs(
     body: &brep::Body,
-    edges: &[EdgeId],
-    wedges: &[Wedge],
+    (edges, wedges): (&[EdgeId], &[Wedge]),
+    beside: &[Beside],
     (rank, side): Ranked,
     later: usize,
     set_back: &impl Fn(&Wedge) -> f64,
 ) -> Vec<Within> {
     let wedge = &wedges[rank];
+    let eps = body.scale().eps();
+    let stopping = stops(body, edges[rank], wedge);
     let Some(ends) = body.edge(edges[rank]).ends else {
         return Vec::new();
     };
@@ -184,8 +195,12 @@ fn runs(
             };
             Some((plane.normal, plane.normal.dot(body.vertex(end).point)))
         };
+        let carried = |neighbour: usize| {
+            beside.contains(&(end, [rank.min(neighbour), rank.max(neighbour)]))
+                && stopping.iter().any(|stop| stop.end == end)
+        };
         let half = match meeting[..] {
-            [neighbour] if neighbour < later => {
+            [neighbour] if neighbour < later || carried(neighbour) => {
                 let theirs = &wedges[neighbour];
                 let on = theirs
                     .faces
@@ -201,7 +216,7 @@ fn runs(
         };
         if let Some((normal, offset)) = half {
             let inside = normal.dot(middle) - offset;
-            if inside != 0.0 {
+            if inside.abs() > eps {
                 let toward = -inside.signum();
                 held.push((normal * toward, offset * toward));
             }

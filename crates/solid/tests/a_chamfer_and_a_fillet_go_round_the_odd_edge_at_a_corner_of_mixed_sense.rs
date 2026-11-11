@@ -264,7 +264,11 @@
 //! through a piece of torus cut out about the fill's axis, its tube of the
 //! value's radius, its centre circle twice the value from that axis and the
 //! value below the top, tangent to both rounds, to the top face and to the
-//! fill's cylinder. A corner of the L that is not square is out of its scope.
+//! fill's cylinder. The issue sets a corner of the L that is not square out
+//! of its scope, but such a corner builds all the same — every three-edge
+//! corner of mixed sense is taken, and nothing in the filling, its axis or
+//! its piece of torus is held to a square — so it is held below, as slice 1
+//! held its trapezoid, rather than left to ship untested.
 //!
 //! - The three edges at the top of the L's inner corner — the two top edges
 //!   and the inner upright — leave a closed, sound, drawn body when chamfered
@@ -296,7 +300,24 @@
 //!   and a block standing on the L's top where the corner's patch cuts, but
 //!   no top edge's cut reaches, never cut away, the value reduced to where
 //!   the patch first touches it, or the step declined —
-//!   `a_chamfer_and_a_fillet_on_the_top_of_the_l_s_inner_corner_never_cut_a_block_standing_where_the_corner_s_patch_sweeps`
+//!   `a_chamfer_and_a_fillet_on_the_top_of_the_l_s_inner_corner_never_cut_a_block_standing_where_the_corner_s_patch_sweeps`.
+//!   Beside that block #801's chamfer path declines between about 1.05 and
+//!   1.44, short of where anything reaches the block, tracked as #863; the
+//!   test asks 0.5, 1 and 2.5
+//! - Not in the issue's wording, which sets it out of scope: the same at an
+//!   inner corner that is not square, an L whose stem's right side leans
+//!   from the corner so that the notch between it and the arm's back is
+//!   105°, 75° or 50° wide — below 60° too, where it was read to decline and
+//!   builds, right. Chamfered, the body two steps leave, the volume the
+//!   arithmetic's; filleted, the rounds, the fill's cylinder and the piece of
+//!   torus turning through 180° less the notch, on their surfaces; every
+//!   order, at 1 and 2 —
+//!   `a_chamfer_and_a_fillet_on_the_top_of_an_inner_corner_that_is_not_square_go_round_its_upright_in_every_order`.
+//!   At 2.5 the 105° corner's chamfer is declined, and #801's own step on the
+//!   three edges round the fill takes 2.48: the cut along the top of the
+//!   fill's flat reads the stem's back left corner, (0, 14), as far as its
+//!   face runs, 2.48 along the way it sets back, though it runs only by the
+//!   inner corner
 //!
 //! The L, an arm 30 by 6 and a stem 12 by 8 raised 10, holds 2760. The
 //! corner stands at (12, 6, 10): its top edge on the arm's back runs to the
@@ -329,6 +350,21 @@
 //! across the plane halfway up it, so its `∫ρ dA` is the same
 //! `r³(11/6 − π/2)`, and the piece takes `(π/2)·r³(11/6 − π/2)`. The body
 //! holds `2760 + 10·r²(1 − π/4) − (26 − 2r)·r²(1 − π/4) − (π/2)·r³(11/6 − π/2)`.
+//!
+//! At a notch `β` that is not square, the leaning side runs from the corner
+//! at `β` from the arm's back, `8/sin β` up to the stem's back at 14, which
+//! leans across it, and the L holds `10·(180 + 4·(24 + 8·cot β))`. The
+//! formulas of slice 1's trapezoid hold with every term's sign turned — the
+//! fill's flat adds `5d²·sin β`, the round's kite less its sector
+//! `10·(r²·cot(β/2) − (π − β)·r²/2)`, the piece of torus takes
+//! `(π − β)·r³(11/6 − π/2)`, the mitres turn `(π − β)/2` each — but one: the
+//! term a face leaning across an edge's far end brings, the section's first
+//! moment times `cot β`, keeps its sign. A fill's lines along the edge stand
+//! out from the wall, a cut's inside it, so the lean that shortens the one
+//! lengthens the other: the stem's back, leaning across the leaning side's
+//! far end, gives the part the moment times `cot β` whether that edge is
+//! filled or cut. Held another way in the test itself: the body two steps
+//! build, to a hair at 1 and 2.
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -594,19 +630,22 @@ impl FootCorner {
         )
     }
 
-    /// What a fill whose section is `section`, its first moment about either
-    /// face `moment`, adds along the two feet, from `from` along each from the
-    /// corner to the wall at its far end: the section times that length, less,
-    /// where that wall leans across the foot, the moment times how far the
-    /// lines along the foot shrink a unit out from its wall, as #801's
-    /// arithmetic reads it.
+    /// What a blend whose section is `section`, its first moment about either
+    /// face `moment`, gives along the two like edges, from `from` along each
+    /// from the corner to the face at its far end — a fill adds it, a cut
+    /// takes it, as [`FootCorner::sense`] signs it: the section times that
+    /// length, and where that face leans across the edge, the moment times how
+    /// far the lines along the edge shrink a unit out from its wall, as #801's
+    /// arithmetic reads it. A fill's lines stand out from the wall and a cut's
+    /// inside it, so the lean shortens the one where it lengthens the other:
+    /// that term is signed again, to keep its sign once the whole is.
     fn along_the_feet(&self, from: f64, section: f64, moment: f64) -> f64 {
         self.feet
             .iter()
             .map(|foot| {
                 let length = (foot.far.at - self.at).dot(foot.along) - from;
                 let lean = foot.facing.dot(foot.far.facing) / foot.along.dot(foot.far.facing);
-                section * length - moment * lean
+                section * length - moment * lean * self.sense()
             })
             .sum()
     }
@@ -1480,20 +1519,31 @@ fn joined_through_a_piece_of_torus(corner: &FootCorner, part: &Body, case: &Case
     piece_held(body, piece, &corner.torus(r), &laid, what);
 }
 
+/// Holds what [`round_the_upright_in_every_order_at`] holds at every one of
+/// [`VALUES`].
+fn round_the_upright_in_every_order(corners: &[FootCorner], cuts: &[Cut], called: &str) {
+    round_the_upright_in_every_order_at(corners, cuts, &VALUES, called);
+}
+
 /// Holds that the three edges of each of `corners`, named in every one of
 /// [`ORDERS_OF_THREE`] and blended by each of `cuts` at every one of
-/// [`VALUES`] in one step, go round the upright: a chamfer as
+/// `values` in one step, go round the upright: a chamfer as
 /// [`went_round_the_upright`] holds it, against the body two steps leave,
 /// whose matter the arithmetic gives too; a fillet as
 /// [`joined_through_a_piece_of_torus`] holds it; and the same body whatever
 /// the order, the face laid on each edge answering to the number its rank
 /// gives it. Every list is laid before any body is read, so that a decline
 /// names every case that declines.
-fn round_the_upright_in_every_order(corners: &[FootCorner], cuts: &[Cut], called: &str) {
+fn round_the_upright_in_every_order_at(
+    corners: &[FootCorner],
+    cuts: &[Cut],
+    values: &[f64],
+    called: &str,
+) {
     let parts: Vec<Body> = corners.iter().map(|corner| (corner.part)()).collect();
     let mut in_two_steps = Vec::new();
     for corner in corners.iter().filter(|_| cuts.contains(&Cut::Flat)) {
-        for value in VALUES {
+        for &value in values {
             let promised = corner.chamfered(value);
             let two_steps = chamfered_in_two_steps(corner, value);
             assert!(
@@ -1512,7 +1562,7 @@ fn round_the_upright_in_every_order(corners: &[FootCorner], cuts: &[Cut], called
         let edges = corner.edges();
         let names = edges.map(|(_, [first, second])| edge_between(part, first, second));
         for &cut in cuts {
-            for value in VALUES {
+            for &value in values {
                 for order in ORDERS_OF_THREE {
                     let list: Vec<EdgeName> =
                         order.iter().map(|&edge| names[edge].clone()).collect();
@@ -3631,4 +3681,129 @@ fn a_chamfer_and_a_fillet_on_the_top_of_the_l_s_inner_corner_and_its_left_top_ed
             piece_held(body, patch, &corner.torus(value), &rounds, what);
         }
     }
+}
+
+/// An L like [`ell`] whose stem's right side leans from the inner corner at
+/// (12, 6) at `notch` from the arm's back, the air between the two `notch`
+/// wide, up to the stem's back at 14; numbered as [`ell`] is.
+fn ell_whose_notch_is(notch: f64) -> Body {
+    let reach = 12.0 + 8.0 / notch.tan();
+    joined(
+        &Body::default(),
+        Contour::straight(vec![
+            DVec2::new(0.0, 0.0),
+            DVec2::new(30.0, 0.0),
+            DVec2::new(30.0, 6.0),
+            DVec2::new(12.0, 6.0),
+            DVec2::new(reach, 14.0),
+            DVec2::new(0.0, 14.0),
+        ]),
+        0.0,
+        STANDING_HEIGHT,
+    )
+}
+
+/// The notch of [`ell_opening_wider`], obtuse: 105°.
+const WIDER_NOTCH: f64 = 105.0 * PI / 180.0;
+
+/// The notch of [`ell_closing_in`], acute: 75°.
+const NARROWER_NOTCH: f64 = 75.0 * PI / 180.0;
+
+/// The notch of [`ell_closing_in_further`], acute and below 60°: 50°.
+const NARROWEST_NOTCH: f64 = 50.0 * PI / 180.0;
+
+/// [`ell_whose_notch_is`] at [`WIDER_NOTCH`].
+fn ell_opening_wider() -> Body {
+    ell_whose_notch_is(WIDER_NOTCH)
+}
+
+/// [`ell_whose_notch_is`] at [`NARROWER_NOTCH`].
+fn ell_closing_in() -> Body {
+    ell_whose_notch_is(NARROWER_NOTCH)
+}
+
+/// [`ell_whose_notch_is`] at [`NARROWEST_NOTCH`].
+fn ell_closing_in_further() -> Body {
+    ell_whose_notch_is(NARROWEST_NOTCH)
+}
+
+/// What [`ell_whose_notch_is`] holds: the arm 30 by 6, and the stem between
+/// the left at 0 and the leaning side, 12 wide at the arm's back and
+/// `12 + 8·cot notch` at its own back, 8 deep, raised 10.
+fn ell_volume_whose_notch_is(notch: f64) -> f64 {
+    let reach = 12.0 + 8.0 / notch.tan();
+    (30.0 * 6.0 + (12.0 + reach) / 2.0 * 8.0) * STANDING_HEIGHT
+}
+
+/// The top of the inner corner of [`ell_whose_notch_is`], (12, 6, 10): its
+/// top edge on the arm's back, to the arm's right end, square to it; its top
+/// edge on the leaning side, to the stem's back, which leans across it; and
+/// the inner upright below them, the odd edge, filled first.
+fn inner_top_corner_whose_notch_is(
+    notch: f64,
+    called: &'static str,
+    part: fn() -> Body,
+) -> FootCorner {
+    let along = DVec3::new(notch.cos(), notch.sin(), 0.0);
+    let facing = DVec3::new(notch.sin(), -notch.cos(), 0.0);
+    FootCorner {
+        called,
+        part,
+        volume: ell_volume_whose_notch_is(notch),
+        at: DVec3::new(12.0, 6.0, STANDING_HEIGHT),
+        feet: [
+            Foot {
+                called: "the L's top edge on the arm's back",
+                wall: ARM_BACK,
+                facing: DVec3::Y,
+                along: DVec3::X,
+                far: FarEnd {
+                    on: ARM_END,
+                    at: DVec3::new(30.0, 6.0, STANDING_HEIGHT),
+                    facing: DVec3::X,
+                },
+            },
+            Foot {
+                called: "the L's top edge on the leaning side",
+                wall: STEM_RIGHT,
+                facing,
+                along,
+                far: FarEnd {
+                    on: STEM_BACK,
+                    at: DVec3::new(12.0 + 8.0 / notch.tan(), 14.0, STANDING_HEIGHT),
+                    facing: DVec3::Y,
+                },
+            },
+        ],
+        upright: "the L's inner upright",
+        odd_filled: true,
+        odd_ends_on: FLOOR,
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_the_top_of_an_inner_corner_that_is_not_square_go_round_its_upright_in_every_order()
+ {
+    round_the_upright_in_every_order_at(
+        &[
+            inner_top_corner_whose_notch_is(
+                WIDER_NOTCH,
+                "the top of an L's inner corner opening to 105°",
+                ell_opening_wider,
+            ),
+            inner_top_corner_whose_notch_is(
+                NARROWER_NOTCH,
+                "the top of an L's inner corner closing in to 75°",
+                ell_closing_in,
+            ),
+            inner_top_corner_whose_notch_is(
+                NARROWEST_NOTCH,
+                "the top of an L's inner corner closing in to 50°",
+                ell_closing_in_further,
+            ),
+        ],
+        &[Cut::Flat, Cut::Round],
+        &[1.0, 2.0],
+        "the top of an L's inner corner that is not square chamfered and filleted",
+    );
 }

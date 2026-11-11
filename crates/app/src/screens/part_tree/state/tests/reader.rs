@@ -229,3 +229,61 @@ fn the_boxes_and_arrows_after_the_reading_point_are_not_applied() {
         "the last box clicked does not bring every box and every arrow back applied",
     );
 }
+
+/// How far the part is read, as the counter « n / total » says it: the boxes
+/// played.
+fn played(document: &PartDocument, viewport: &ViewportState) -> usize {
+    StepReader::seen(document, viewport, &french())
+        .boxes
+        .iter()
+        .filter(|step| step.applied)
+        .count()
+}
+
+#[test]
+fn the_arrows_move_the_reading_point_one_box_and_stop_at_either_end() {
+    let document = a_part_with_every_kind_of_key_step_and_a_section();
+    let boxes = StepReader::of(&document, &french()).boxes.len();
+    assert_eq!(boxes, 6, "the fixture wants six boxes");
+    let mut viewport = ViewportState::default();
+
+    let mut counted = vec![played(&document, &viewport)];
+    viewport.read_next(boxes);
+    counted.push(played(&document, &viewport));
+    for _ in 0..boxes {
+        viewport.read_previous(boxes);
+        counted.push(played(&document, &viewport));
+    }
+    for _ in 0..boxes {
+        viewport.read_next(boxes);
+        counted.push(played(&document, &viewport));
+    }
+    assert_eq!(
+        counted,
+        [6, 6, 5, 4, 3, 2, 1, 1, 2, 3, 4, 5, 6, 6],
+        "unread, then ▶ once, ◀ six times and ▶ six times: the counter does not go back one \
+         box at a time to the first and on to the last, or goes past either",
+    );
+
+    viewport.read_to(2);
+    viewport.read_next(boxes);
+    let after_the_third = played(&document, &viewport);
+    viewport.read_to(5);
+    viewport.read_previous(boxes);
+    let before_the_last = played(&document, &viewport);
+    assert_eq!(
+        (after_the_third, before_the_last),
+        (4, 5),
+        "▶ after a click on the third box, and ◀ after a click on the last, do not move one \
+         box from the box clicked",
+    );
+
+    let mut on_a_part_with_no_box = ViewportState::default();
+    on_a_part_with_no_box.read_previous(0);
+    on_a_part_with_no_box.read_next(0);
+    assert_eq!(
+        played(&document, &on_a_part_with_no_box),
+        6,
+        "◀ and ▶ on a part with no box set a reading point, which there is no box to set",
+    );
+}

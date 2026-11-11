@@ -429,8 +429,8 @@ fn a_frustum_s_cap_an_elliptic_shaft_of_its_radius_as_minor_half_axis_nearly_sha
 }
 
 #[test]
-#[ignore = "a cone's cap beside an elliptic shaft 1e-4 off across its major axis, #866"]
-fn a_frustum_s_cap_an_elliptic_shaft_of_its_radius_as_major_half_axis_stands_1e_4_off_across_is_cut_and_drawn_closed()
+#[ignore = "a cone's wall, not its cap, beside an elliptic shaft 1e-4 off across its major axis, #871"]
+fn a_frustum_s_wall_beside_an_elliptic_shaft_of_its_radius_as_major_half_axis_1e_4_off_across_is_cut_and_drawn_closed()
  {
     for minor in [1.5, 0.6] {
         let beside = Beside {

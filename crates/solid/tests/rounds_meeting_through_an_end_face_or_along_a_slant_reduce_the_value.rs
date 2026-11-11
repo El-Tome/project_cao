@@ -171,11 +171,36 @@
 //! `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_asked_past_where_the_outer_two_would_cross_take_the_value_asked_the_middle_one_named_before_the_last`
 //! derives them, the six's as the ring's test does, at the value asked
 //! rather than where alternate edges touch.
+//!
+//! Closes #823.
+//!
+//! - Where the set-backs of two edges of one step would meet on a curved
+//!   edge of the part — an arc of a circle, or of a conic — the value is
+//!   reduced to the largest at which they do not, as #792 reduces it on a
+//!   straight one. The arched plate asked 3 takes 2 —
+//!   `a_fillet_and_a_chamfer_on_the_two_sides_of_an_arched_plate_asked_past_where_their_set_backs_meet_on_its_arc_take_the_value_at_which_they_touch`.
+//!   Read as: the issue's plate, its two sides leaning 30° in from the
+//!   upright at 7 from the arc's centre, and the one whose sides lean 10° at
+//!   3; both orders, chamfer and fillet; asked past the touch — 3 and 3.158,
+//!   1.4635 and 1.91 — the value taken where the two set-backs touch on the
+//!   arc, 2 and 1.2635, or at most a few hairs under it; asked short of it,
+//!   1.9 and 1.2, the value taken whole; the body sound, drawn within the
+//!   tolerance over the arc's wall and the rounds, and holding what the same
+//!   step laid directly at the value taken holds
+//! - Every step #698, #699 and #792 lay — no test: held by their suites, left
+//!   as they are
+//!
+//! Each side's set-back on the top is its line moved in by the value, the
+//! fillet's radius over the tangent of half a square, the value again. The
+//! two lines `n·p = c − v`, mirrors of each other about the arc's middle,
+//! cross on that middle at `(c − v)/sin a` up it, `a` the side's lean, and
+//! touch the arc of radius `R` where that is `R`: at `v = c − R·sin a`, 2 for
+//! the issue's plate and 1.2635 for the other.
 
 use std::collections::BTreeSet;
 use std::f64::consts::{FRAC_1_SQRT_2, PI};
 
-use cao_solid::profile::{Contour, Frame, Profile};
+use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
 use cao_solid::{Body, Declined, EdgeName, Loop};
 use glam::{DVec2, DVec3};
@@ -3398,6 +3423,198 @@ fn a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_asked_past_w
          cross, {}: the value asked whatever the order, as no two set-backs meet once all six are \
          laid:\n{}",
         hexagon_touching(),
+        wrong.join("\n")
+    );
+}
+
+/// A plate raised 10 whose top is bounded by two sides on the lines
+/// `−x·cos a + y·sin a = c` and its mirror, converging up the plan to an arc
+/// of [`ARCH_RADIUS`] about the origin between them, and by a straight bottom
+/// at [`ARCH_BOTTOM`]: the issue's fixture at `c` 7 and `a` 30°, and the one
+/// nearer to diameters at `c` 3 and `a` 10°. Asked `below` the touch and
+/// each of `past` beyond it.
+struct Arched {
+    distance: f64,
+    degrees: f64,
+    below: f64,
+    past: [f64; 2],
+}
+
+const ARCH_RADIUS: f64 = 10.0;
+const ARCH_BOTTOM: f64 = -5.0;
+const ARCH_HEIGHT: f64 = 10.0;
+
+/// The arched plate's faces, as [`raised_with`] numbers them: its bottom
+/// wall two, its right side three, its arc four and its left side five.
+const ARCH_RIGHT: usize = 3;
+const ARCH_WALL: usize = 4;
+const ARCH_LEFT: usize = 5;
+
+const ARCHED: [Arched; 2] = [
+    Arched {
+        distance: 7.0,
+        degrees: 30.0,
+        below: 1.9,
+        past: [3.0, 3.158],
+    },
+    Arched {
+        distance: 3.0,
+        degrees: 10.0,
+        below: 1.2,
+        past: [1.4635, 1.91],
+    },
+];
+
+impl Arched {
+    /// Where the two sides' set-backs touch on the arc: `c − R·sin a`, as the
+    /// module's documentation derives it.
+    fn touching(&self) -> f64 {
+        self.distance - ARCH_RADIUS * self.degrees.to_radians().sin()
+    }
+
+    /// The plate's corners, from the bottom's left end round: the bottom's
+    /// two ends, then where the right side and the left side meet the arc.
+    fn corners(&self) -> [DVec2; 4] {
+        let lean = self.degrees.to_radians();
+        let (c, s) = (lean.cos(), lean.sin());
+        let up_the_side = (ARCH_RADIUS * ARCH_RADIUS - self.distance * self.distance).sqrt();
+        let on_the_arc = DVec2::new(-c, s) * self.distance + DVec2::new(s, c) * up_the_side;
+        let bottom = -(self.distance - ARCH_BOTTOM * s) / c;
+        [
+            DVec2::new(bottom, ARCH_BOTTOM),
+            DVec2::new(-bottom, ARCH_BOTTOM),
+            DVec2::new(-on_the_arc.x, on_the_arc.y),
+            on_the_arc,
+        ]
+    }
+
+    /// The turn the arc makes about the origin, from the right side's end to
+    /// the left side's.
+    fn arc_turn(&self) -> f64 {
+        let [_, _, right, _] = self.corners();
+        2.0 * right.x.atan2(right.y)
+    }
+
+    fn plate(&self) -> Body {
+        let corners = self.corners();
+        raised_with(
+            &Body::default(),
+            Contour {
+                corners: corners.to_vec(),
+                runs: vec![
+                    Run::Straight,
+                    Run::Straight,
+                    Run::Round {
+                        center: DVec2::ZERO,
+                        turn: self.arc_turn(),
+                    },
+                    Run::Straight,
+                ],
+            },
+            ARCH_HEIGHT,
+        )
+    }
+
+    /// The curved faces a step of `value` leaves on the plate, which the
+    /// drawing's tolerance is reckoned over: the arc's wall, and among
+    /// rounds the two sides' rounds along their length and a radius past.
+    fn curved(&self, value: f64, fillet: bool) -> f64 {
+        let [low, _, _, high] = self.corners();
+        let side = (high - low).length() + value;
+        ARCH_RADIUS * self.arc_turn() * ARCH_HEIGHT
+            + if fillet {
+                2.0 * PI / 2.0 * value * side
+            } else {
+                0.0
+            }
+    }
+}
+
+/// The step of `value` on `names`, a fillet's if `fillet`, a chamfer's if not:
+/// what it reports asked and taken, and the body it lays, or why it declined.
+fn laid_on(
+    part: &Body,
+    names: &[EdgeName],
+    value: f64,
+    fillet: bool,
+) -> Result<(f64, f64, Body), Declined> {
+    if fillet {
+        part.fillet_edges(names, value)
+            .map(|done| (done.asked, done.taken, done.body))
+    } else {
+        part.chamfer_edges(names, value)
+            .map(|done| (done.asked, done.taken, done.body))
+    }
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_the_two_sides_of_an_arched_plate_asked_past_where_their_set_backs_meet_on_its_arc_take_the_value_at_which_they_touch()
+ {
+    let mut wrong = Vec::new();
+    for arched in ARCHED {
+        let part = arched.plate();
+        assert!(
+            part.has_face(ARCH_WALL),
+            "the arched plate has its arc's wall, face {ARCH_WALL}"
+        );
+        let sides = [
+            edge_between(&part, TOP, ARCH_LEFT),
+            edge_between(&part, TOP, ARCH_RIGHT),
+        ];
+        let touching = arched.touching();
+        let hair = 20.0 * 1e-9 * reach_of(&part);
+        for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
+            for order in [[0, 1], [1, 0]] {
+                let names: Vec<EdgeName> = order.iter().map(|&side| sides[side].clone()).collect();
+                for asked in [arched.below].into_iter().chain(arched.past) {
+                    let what = format!(
+                        "the {kind} of {asked} on the two sides of the arched plate whose sides \
+                         lean {} degrees at {}, named {order:?}, their set-backs touching on the \
+                         arc at {touching}",
+                        arched.degrees, arched.distance
+                    );
+                    let (reported, taken, body) = match laid_on(&part, &names, asked, fillet) {
+                        Ok(laid) => laid,
+                        Err(reason) => {
+                            wrong.push(format!("{what}: declined, {reason:?}"));
+                            continue;
+                        }
+                    };
+                    let expected = asked.min(touching);
+                    let least = expected
+                        - if asked > touching {
+                            SHORT_BY * hair
+                        } else {
+                            PLACE
+                        };
+                    if (reported - asked).abs() > PLACE || taken > expected + PLACE || taken < least
+                    {
+                        wrong.push(format!(
+                            "{what}: reports {reported} asked and took {taken}, where {expected} \
+                             fits"
+                        ));
+                        continue;
+                    }
+                    let (_, _, direct) =
+                        laid_on(&part, &sides, taken, fillet).unwrap_or_else(|declined| {
+                            panic!(
+                                "{what}: the step laid directly at {taken}: declined, {declined:?}"
+                            )
+                        });
+                    sound_drawn_within(
+                        &body,
+                        direct.volume(),
+                        DRAWN * reach_of(&part) * arched.curved(taken, fillet),
+                        &format!("{what}, and the same step laid directly at {taken}"),
+                    );
+                }
+            }
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "the two sides of an arched plate whose set-backs would meet on its arc take the value \
+         asked short of where they touch, and that value past it:\n{}",
         wrong.join("\n")
     );
 }

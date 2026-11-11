@@ -3,13 +3,14 @@
 //! At every parameter where it crosses a grid angle of either wall, so
 //! that on both it has a point at every grid angle as a circle has; wherever
 //! it turns back in the angle of either, so that between two of its points it
-//! runs one way on both; at its ends. At the angle of every ray the circles
-//! of either cylinder take, so that it stands on the same rays as a wall a
-//! hair inside its own, whose chords would otherwise stand shallower than
-//! its own between two of its points. Then, between two of those, wherever
-//! the chord would stand further from the curve than the tolerance. A line
-//! two walls sharing their rays cross along is sampled at its ends alone
-//! (`crossing.rs`).
+//! runs one way on both — but a turn within a hair of an end's ray is that
+//! end, so between two points it may run back by up to a hair; at its ends.
+//! At the angle of every ray the circles of either cylinder take, so that it
+//! stands on the same rays as a wall a hair inside its own, whose chords
+//! would otherwise stand shallower than its own between two of its points.
+//! Then, between two of those, wherever the chord would stand further from
+//! the curve than the tolerance. A line two walls sharing their rays cross
+//! along is sampled at its ends alone (`crossing.rs`).
 //!
 //! An elliptic wall (#571) is divided as a circle of its major half-axis,
 //! as its rims are, its grid an eccentric angle's; it takes the angles its
@@ -64,8 +65,9 @@ enum Reason {
 /// no turn between them: the angle runs one way from that end but for a
 /// hair, and a triangle on the turn would lie on a face the end lies on
 /// (354000000000132). An edge standing within the kernel's tolerance of the
-/// chord between its ends — a meet run along a line two walls touch along — is a line to the
-/// kernel, sampled at its ends alone as a line is (354000000008476).
+/// chord between its ends — a meet run along a line two walls touch along —
+/// is a line to the kernel, sampled at its ends alone as a line is
+/// (354000000008476).
 fn on_meet_by(
     meet: &Meet,
     edge: &Edge,

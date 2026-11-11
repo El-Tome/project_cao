@@ -245,6 +245,7 @@ use crate::screens::viewport::ViewportState;
 use crate::wording::part_tree as said;
 
 mod history;
+mod reader;
 
 fn at(text: &str) -> DateTime<Utc> {
     text.parse().expect("a date")

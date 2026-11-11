@@ -71,6 +71,16 @@
 //! - the rest of #578 is the kernel's, under its own `Closes #578` in
 //!   `crates/solid/tests/the_section_of_an_exact_part_is_filled.rs` — no test:
 //!   here; this block holds only what the view decides
+//!
+//! Closes #356 — the whole transcription is in
+//! `crates/app/src/screens/part_tree/state/tests/reader.rs`; this bullet is
+//! the half of a criterion the canvas draws.
+//! - A click sets the reading point. Clicking a box makes the part computed up
+//!   to that step included; the boxes after it are marked as not applied, and
+//!   so are the arrows between them. Clicking the last box brings the part
+//!   back whole — the part drawn up to the step read to, and whole again from
+//!   the last box —
+//!   `a_part_read_to_a_step_is_drawn_up_to_it_and_whole_again_from_the_last`
 
 use cao_render::CubeFace;
 use cao_render::camera::CubeZone;

@@ -287,3 +287,94 @@ fn the_arrows_move_the_reading_point_one_box_and_stop_at_either_end() {
         "◀ and ▶ on a part with no box set a reading point, which there is no box to set",
     );
 }
+
+/// `a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin` — a shaft raised from
+/// a circle, a slice turned out of it so thin it is built unstably — then a
+/// sketch laid on a face the part does not have, and a rectangle drawn away
+/// from the shaft, raised 4, one of its sides then erased. Seven boxes: the
+/// shaft's sketch, the shaft, the slice's sketch, the slice, unstable, the
+/// sketch off its face, the rectangle's sketch, and the block whose area is
+/// gone.
+fn a_part_with_alerts_of_both_levels() -> PartDocument {
+    let mut document = a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: Some(FaceAnchor {
+            face: 404,
+            up: DVec3::Y,
+        }),
+    });
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 3,
+        corner: PointRef::New(DVec2::new(100.0, 100.0)),
+        opposite: PointRef::New(DVec2::new(110.0, 120.0)),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 3,
+        areas: document.areas_at(3, &[DVec2::new(105.0, 110.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::EraseMany {
+        sketch: 3,
+        elements: vec![Element::Segment(SegmentId(0))],
+        dimensions: Vec::new(),
+        constraints: Vec::new(),
+    });
+    document
+}
+
+/// Each box as the user tells its alert: its name, and the level of the worst
+/// alert of its own step, the colour it is drawn in.
+fn alerts(reader: &StepReader) -> Vec<(&str, Option<Level>)> {
+    reader
+        .boxes
+        .iter()
+        .map(|step| (step.name.as_str(), step.alert))
+        .collect()
+}
+
+#[test]
+fn a_box_wears_the_worst_alert_of_its_own_step_even_past_the_reading_point() {
+    let lang = french();
+    let document = a_part_with_alerts_of_both_levels();
+    let mut viewport = ViewportState::default();
+    let expected = [
+        ("Esquisse 1", None),
+        ("Extrusion 1", None),
+        ("Esquisse 2", None),
+        ("Révolution 2", Some(Level::Warning)),
+        ("Esquisse 3", Some(Level::Warning)),
+        ("Esquisse 4", None),
+        ("Extrusion 3", Some(Level::Error)),
+    ];
+
+    assert_eq!(
+        alerts(&StepReader::seen(&document, &viewport, &lang)),
+        expected,
+        "read to its end, a box does not wear the level of its own step's alert — the slice \
+         built unstably and the sketch off its face warn, the block whose area is gone is in \
+         error — or wears one its step has not, or one of the step before it",
+    );
+
+    viewport.read_to(0);
+    let read_to_the_first = StepReader::seen(&document, &viewport, &lang);
+    assert!(
+        read_to_the_first
+            .boxes
+            .iter()
+            .skip(1)
+            .all(|step| !step.applied),
+        "the fixture wants every box after the first read as not applied",
+    );
+    assert_eq!(
+        alerts(&read_to_the_first),
+        expected,
+        "read to the first box, a box past the reading point loses or changes its alert",
+    );
+}

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use cao_part::PartDocument;
+use cao_part::{History, PartDocument};
 
 use crate::lang::Catalogue;
 use crate::screens::part_tree::TreeAction;
@@ -25,11 +25,29 @@ pub struct TitleBar<'a> {
 }
 
 /// What the title bar holds from one frame to the next: the error on its
-/// pill, and whether the list of alerts is open.
+/// pill, whether the list of alerts is open, and the part's alerts with the
+/// history they were read from.
 #[derive(Debug, Default)]
 pub struct Held {
     pub covering: Option<Covering>,
     pub alerts_open: bool,
+    alerts: Option<(History, Vec<Alert>)>,
+}
+
+impl Held {
+    /// The part's alerts, read again only once its history has moved: they
+    /// are read off the whole tree of the part, which a frame cannot afford,
+    /// and the history is all they follow — the catalogue is the session's.
+    pub fn alerts(&mut self, document: &PartDocument, lang: &Catalogue) -> Vec<Alert> {
+        if let Some((history, alerts)) = &self.alerts
+            && *history == document.history
+        {
+            return alerts.clone();
+        }
+        let alerts = alerts_of(document, lang);
+        self.alerts = Some((document.history.clone(), alerts.clone()));
+        alerts
+    }
 }
 
 /// One element of the part wearing a badge in the tree, at the level of the
@@ -102,11 +120,27 @@ pub enum Said<'a> {
 }
 
 impl<'a> TitleBar<'a> {
-    /// A sketch is ranked by its place among the part's drawings and a kept
-    /// section by its id, both from one, as the Part tree names them.
+    /// The bar with the part's alerts read afresh, which only the tests ask
+    /// for: the shell reads them through its `Held`, which keeps them.
+    #[cfg(test)]
     pub fn of(
         document: &'a PartDocument,
         path: &'a Path,
+        editor: &'a SketchEditor,
+        viewport: &ViewportState,
+        error: Option<&'a str>,
+        lang: &Catalogue,
+    ) -> Self {
+        let alerts = alerts_of(document, lang);
+        Self::listing(alerts, (document, path), editor, viewport, error, lang)
+    }
+
+    /// The bar over the part's alerts. A sketch is ranked by its place among
+    /// the part's drawings and a kept section by its id, both from one, as the
+    /// Part tree names them.
+    pub(super) fn listing(
+        alerts: Vec<Alert>,
+        (document, path): (&'a PartDocument, &'a Path),
         editor: &'a SketchEditor,
         viewport: &ViewportState,
         error: Option<&'a str>,
@@ -118,10 +152,6 @@ impl<'a> TitleBar<'a> {
             kept_section_rank: viewport.kept_sections.cutting().map(|id| id + 1),
             plane: viewport.mode().plane(),
         };
-        let alerts: Vec<Alert> = PartTree::of(document, lang)
-            .problems()
-            .map(|flagged| Alert::of(flagged, lang))
-            .collect();
         Self {
             name: document.name(),
             path,
@@ -133,6 +163,14 @@ impl<'a> TitleBar<'a> {
             alerts,
         }
     }
+}
+
+/// One alert for each element of the part wearing a badge in its tree.
+fn alerts_of(document: &PartDocument, lang: &Catalogue) -> Vec<Alert> {
+    PartTree::of(document, lang)
+        .problems()
+        .map(|flagged| Alert::of(flagged, lang))
+        .collect()
 }
 
 fn counted(alerts: &[Alert], lang: &Catalogue) -> Option<AlertsButton> {

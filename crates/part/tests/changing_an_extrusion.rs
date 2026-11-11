@@ -29,6 +29,17 @@
 //!   the code it holds, and passing from the first run: the compaction reads
 //!   `applied_as_raised`, and reading `applied_operations` there instead is
 //!   the one-line change it fails on
+//! - found in review: a change of a step undone since names no step in
+//!   effect, records nothing, and leaves the redo that would bring the step
+//!   back — `a_change_of_a_step_undone_since_records_nothing_and_keeps_the_redo`
+//! - found in review: a change is taken only for a step of matter, one naming
+//!   a sketch recording nothing and leaving the drawing whole —
+//!   `a_change_naming_a_sketch_rather_than_a_step_of_matter_records_nothing`
+//! - decided in review: a step keeps its shape, a change turning an extrusion
+//!   into a revolution, or back, recording nothing —
+//!   `a_change_of_a_step_of_matter_into_another_shape_records_nothing`; and one
+//!   a file carries anyway does not replace the step, which replays as it was
+//!   raised — `a_change_into_another_shape_read_from_a_file_does_not_replace_its_step`
 //!
 //! The change is an operation of its own, `Operation::EditMatter`, rather than
 //! the first operation rewritten in place: undo, redo and going back to a step
@@ -430,4 +441,180 @@ fn compacting_the_history_keeps_the_change_of_an_extrusion() {
          blocks raised 10 and 2 hold {as_if_raised_so}, and reads {first_block_reads:?}",
         document.body().volume(),
     );
+}
+
+/// The number of the second block's extrusion in `two_blocks`.
+const THE_SECOND_BLOCK: usize = 4;
+
+/// The second block raised `height`, as an extrusion of `two_blocks` asks it.
+fn the_second_block_raised(document: &PartDocument, height: f64) -> Operation {
+    Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[IN_THE_SECOND]),
+        distance: height.into(),
+        mode: ExtrusionMode::Add,
+    }
+}
+
+#[test]
+fn a_change_of_a_step_undone_since_records_nothing_and_keeps_the_redo() {
+    let mut document = two_blocks(4.0);
+    let raised = number_of(&document, THE_SECOND_BLOCK);
+    let changed = the_second_block_raised(&document, 5.0);
+    document.undo();
+    let held = document.history.clone();
+
+    document.apply(Operation::EditMatter {
+        raised_by: raised,
+        to: Box::new(changed),
+    });
+
+    let recorded_nothing = document.history == held;
+    let redone = document.redo();
+    let as_raised = two_blocks(4.0).body().volume();
+    assert!(
+        recorded_nothing && redone && same_volume(document.body().volume(), as_raised),
+        "a change of the second block, undone since, moved the history ({}), or took the redo \
+         with it: redone {redone}, the part holding {} where both blocks hold {as_raised}",
+        !recorded_nothing,
+        document.body().volume(),
+    );
+}
+
+#[test]
+fn a_change_naming_a_sketch_rather_than_a_step_of_matter_records_nothing() {
+    let mut document = two_blocks(4.0);
+    let sketch = number_of(&document, 0);
+    let raised_instead = the_first_block_raised(&document, 10.0);
+    let held = document.history.clone();
+    let before = document.body().volume();
+
+    document.apply(Operation::EditMatter {
+        raised_by: sketch,
+        to: Box::new(raised_instead),
+    });
+
+    assert!(
+        document.history == held
+            && document.sketches().len() == 1
+            && same_volume(document.body().volume(), before),
+        "a change naming the sketch the blocks are drawn on was taken: the history moved ({}), \
+         {} sketches are left, and the part holds {} where it held {before}",
+        document.history != held,
+        document.sketches().len(),
+        document.body().volume(),
+    );
+}
+
+#[test]
+fn a_change_of_a_step_of_matter_into_another_shape_records_nothing() {
+    let mut document = two_blocks(4.0);
+    let raised = number_of(&document, THE_FIRST_BLOCK);
+    let as_raised = document.raised_as(raised).cloned();
+    let turned_instead = Operation::Revolve {
+        sketch: 0,
+        areas: document.areas_at(0, &[IN_THE_FIRST]),
+        axis: RevolutionAxis::Sketch(SketchAxis::U),
+        angle: 90.0.into(),
+        mode: ExtrusionMode::Add,
+    };
+    let held = document.history.clone();
+
+    document.apply(Operation::EditMatter {
+        raised_by: raised,
+        to: Box::new(turned_instead),
+    });
+
+    assert!(
+        document.history == held && document.raised_as(raised).cloned() == as_raised,
+        "the first block's extrusion, changed into a revolution, was taken: the history moved \
+         ({}), and the step reads {:?}",
+        document.history != held,
+        document.raised_as(raised),
+    );
+}
+
+#[test]
+fn a_change_into_another_shape_read_from_a_file_does_not_replace_its_step() {
+    let mut document = two_blocks(4.0);
+    let raised = number_of(&document, THE_FIRST_BLOCK);
+    let as_raised = document.raised_as(raised).cloned();
+    let changed = the_first_block_raised(&document, 10.0);
+    document.apply(Operation::EditMatter {
+        raised_by: raised,
+        to: Box::new(changed),
+    });
+    let files = Memory::default();
+    let path = Path::new("/parts/changed.caopart");
+    document
+        .save(&files, path, Utc::now())
+        .expect("the part is saved");
+    let turned = serde_json::to_value(Operation::Revolve {
+        sketch: 0,
+        areas: document.areas_at(0, &[IN_THE_FIRST]),
+        axis: RevolutionAxis::Sketch(SketchAxis::U),
+        angle: 90.0.into(),
+        mode: ExtrusionMode::Add,
+    })
+    .expect("an operation writes out");
+    let written = files.read(path).expect("the part is there");
+    files
+        .write(path, &with_every_change_turned_into(&written, &turned))
+        .expect("the part is written over");
+
+    let reopened = PartDocument::load(&files, path).expect("the part opens again");
+
+    let as_first_raised = two_blocks(4.0).body().volume();
+    assert!(
+        reopened.raised_as(raised).cloned() == as_raised
+            && same_volume(reopened.body().volume(), as_first_raised),
+        "the first block's change, turned into a revolution in its file, replaced the step: it \
+         reads {:?}, and the part holds {} where the blocks as first raised hold {as_first_raised}",
+        reopened.raised_as(raised),
+        reopened.body().volume(),
+    );
+}
+
+/// The part file `written`, every change of a step of matter in it made to
+/// replay as `turned` instead.
+fn with_every_change_turned_into(written: &[u8], turned: &serde_json::Value) -> Vec<u8> {
+    use std::io::{Read, Write};
+
+    let mut archive =
+        zip::ZipArchive::new(std::io::Cursor::new(written)).expect("a part file is an archive");
+    let mut rewritten = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    let mut turned_any = false;
+    for rank in 0..archive.len() {
+        let mut entry = archive.by_index(rank).expect("an entry of the archive");
+        let name = entry.name().to_owned();
+        let mut content = Vec::new();
+        entry
+            .read_to_end(&mut content)
+            .expect("an entry of the archive reads");
+        if name.ends_with("steps.json") {
+            let mut step: serde_json::Value =
+                serde_json::from_slice(&content).expect("a step is JSON");
+            if let Some(operations) = step["operations"].as_array_mut() {
+                for operation in operations {
+                    if let Some(change) = operation.get_mut("EditMatter") {
+                        change["to"] = turned.clone();
+                        turned_any = true;
+                    }
+                }
+            }
+            content = serde_json::to_vec_pretty(&step).expect("a step writes out");
+        }
+        rewritten
+            .start_file(name, zip::write::SimpleFileOptions::default())
+            .expect("an entry starts");
+        rewritten.write_all(&content).expect("an entry is written");
+    }
+    assert!(
+        turned_any,
+        "the part file holds no change of a step of matter to turn"
+    );
+    rewritten
+        .finish()
+        .expect("the archive is closed")
+        .into_inner()
 }

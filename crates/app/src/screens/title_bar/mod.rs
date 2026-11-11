@@ -28,7 +28,8 @@ pub fn run(
     held: &mut Held,
     lang: &Catalogue,
 ) -> (bool, TreeAction) {
+    let alerts = held.alerts(document, lang);
     let error = held.covering.as_ref().map(|lying| lying.error.as_str());
-    let bar = TitleBar::of(document, path, editor, viewport, error, lang);
+    let bar = TitleBar::listing(alerts, (document, path), editor, viewport, error, lang);
     show(ui, &bar, &mut held.alerts_open, (&viewport.theme, lang))
 }

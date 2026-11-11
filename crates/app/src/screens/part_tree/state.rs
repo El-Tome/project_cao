@@ -173,9 +173,14 @@ impl PartTree {
             ..Self::default()
         };
         let mut sketches = 0;
+        let changed = document.history.changes_in_effect();
 
         for (step, operation) in document.history.applied_operations().iter().enumerate() {
             let number = document.history.number_at(step);
+            // A step of matter changed since it was raised reads as it stands.
+            let operation = number
+                .and_then(|number| changed.get(&number).copied())
+                .unwrap_or(operation);
             let declined = number.is_some_and(|number| document.is_declined(number));
             let unstable = number
                 .and_then(|number| document.unstable_at(number))

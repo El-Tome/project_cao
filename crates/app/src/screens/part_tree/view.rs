@@ -3,12 +3,12 @@ use cao_part::VolumeState;
 use cao_part::history::ExtrusionMode;
 
 use crate::lang::Catalogue;
-use crate::screens::level_colours;
 use crate::screens::part_tree::state::{
     self, Body, Drawn, Kept, PartTree, Points, Row, TreeAction, Variable, clickable, clicked,
     marked,
 };
 use crate::screens::sketch::SketchEditor;
+use crate::screens::theme_colours;
 use crate::screens::viewport::ViewportState;
 use crate::ui::icon;
 use crate::ui::question::{Question, ask};
@@ -158,7 +158,7 @@ fn section(ui: &mut egui::Ui, kept: &Kept, asked: &mut Asked<'_>, lang: &Catalog
 
 /// The patch and the ink of a badge saying `found`, as the theme has its level.
 fn worn(asked: &Asked<'_>, found: Problem) -> (egui::Color32, egui::Color32) {
-    level_colours::worn(&asked.viewport.theme, found.level())
+    theme_colours::worn(&asked.viewport.theme, found.level())
 }
 
 /// The question asked before deleting a section a drawing stands on.

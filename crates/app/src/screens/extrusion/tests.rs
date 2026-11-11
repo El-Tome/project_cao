@@ -49,6 +49,15 @@
 //!   `an_extrusion_not_built_or_unstable_is_an_alert_and_no_message`. It
 //!   replaces the two tests that held the pill's sentences under #526 and
 //!   #552, whose assertions are what this changes
+//! - found in review: a panel reopened on a step the history has undone since
+//!   applies nothing, and leaves the redo that brings the step back —
+//!   `applying_a_panel_reopened_on_a_step_undone_since_changes_nothing`
+//! - found in review: a step changed from its panel is judged by what it does
+//!   to the part without it, so that a cut deepened through a plate it already
+//!   went through is not said to remove nothing —
+//!   `a_through_cut_deepened_from_its_panel_is_not_said_to_remove_nothing`;
+//!   and applied as it was, it records no change and says nothing —
+//!   `a_reopened_extrusion_applied_unchanged_records_nothing_and_says_nothing`
 //!
 //! A step is reopened by its place in the history, as the Part panel and the
 //! alerts name a volume, and reopens on what the part now replays it as,
@@ -591,5 +600,107 @@ fn applying_a_reopened_extrusion_changes_its_step_rather_than_raising_another() 
         wrong.is_empty(),
         "the square's raise, reopened and applied at 12, did not change its own step:\n  {}",
         wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn applying_a_panel_reopened_on_a_step_undone_since_changes_nothing() {
+    let mut document = a_square_raised_then_cut_the_other_way();
+    let mut extrusion =
+        ExtrusionState::reopened(&document, THE_CUT).expect("the square's cut reopens");
+    extrusion.distance_input = "4".to_owned();
+    document.undo();
+    let held = document.history.clone();
+
+    let applied = apply_extrusion(
+        &mut document,
+        &mut extrusion,
+        &mut None,
+        &Catalogue::french(),
+    );
+
+    let untouched = document.history == held;
+    let redone = document.redo();
+    assert!(
+        !applied && untouched && redone,
+        "the square's cut, reopened then undone, was applied all the same: applied {applied}, \
+         the history moved {}, the cut redone {redone}",
+        !untouched,
+    );
+}
+
+/// The square raised 10 with a round hole of radius 3 cut through it, 20
+/// deep from the square's plane: a plate with a through hole.
+fn a_plate_with_a_through_hole() -> PartDocument {
+    let mut document = a_part_with_a_square();
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 3.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(7.0, 7.0), DVec2::ZERO]),
+        distance: 10.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::ZERO]),
+        distance: 20.0.into(),
+        mode: ExtrusionMode::Cut,
+    });
+    let hole = std::f64::consts::PI * 3.0 * 3.0 * 10.0;
+    assert!(
+        (20.0 * 20.0 * 10.0 - hole - document.body().volume()).abs() < hole / 10.0,
+        "the fixture wants a plate 20 by 20 and 10 thick with a hole of radius 3 through it, and \
+         holds {}",
+        document.body().volume(),
+    );
+    document
+}
+
+/// Where the hole is cut in the history of `a_plate_with_a_through_hole`.
+const THE_HOLE: usize = 4;
+
+#[test]
+fn a_through_cut_deepened_from_its_panel_is_not_said_to_remove_nothing() {
+    let lang = Catalogue::french();
+    let mut document = a_plate_with_a_through_hole();
+    let mut extrusion = ExtrusionState::reopened(&document, THE_HOLE).expect("the hole reopens");
+    extrusion.distance_input = "30".to_owned();
+    let mut said = None;
+
+    assert!(apply_extrusion(
+        &mut document,
+        &mut extrusion,
+        &mut said,
+        &lang
+    ));
+
+    assert_eq!(
+        said, None,
+        "the hole through the plate, deepened from 20 to 30, is said to remove nothing, though \
+         the plate without it holds more",
+    );
+}
+
+#[test]
+fn a_reopened_extrusion_applied_unchanged_records_nothing_and_says_nothing() {
+    let lang = Catalogue::french();
+    let mut document = a_square_raised_then_cut_the_other_way();
+    let mut extrusion =
+        ExtrusionState::reopened(&document, THE_RAISE).expect("the square's raise reopens");
+    let held = document.history.clone();
+    let mut said = None;
+
+    apply_extrusion(&mut document, &mut extrusion, &mut said, &lang);
+
+    assert!(
+        document.history == held && said.is_none(),
+        "the square's raise, reopened and applied as it was, moved the history ({}) or said {said:?}",
+        document.history != held,
     );
 }

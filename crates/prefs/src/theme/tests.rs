@@ -99,8 +99,6 @@ fn a_theme_saved_before_the_alert_colour_existed_still_reads() {
     assert_eq!(read.going, Theme::default().going);
 }
 
-/// The colours of the two levels of a part's alerts landed after themes were
-/// on disk: a file that predates them reads as a theme with neither set.
 #[test]
 fn a_theme_saved_before_the_warning_and_error_colours_existed_still_reads() {
     let mut saved = serde_json::to_value(Theme::default()).expect("a theme writes out");

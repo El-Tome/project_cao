@@ -277,8 +277,12 @@ impl History {
 
     /// Records a new operation. Anything that had been undone is dropped: the
     /// part has taken a different turn, and keeping the old branch would leave
-    /// a redo that no longer follows from what is on screen.
+    /// a redo that no longer follows from what is on screen. A change no step
+    /// in effect can take records nothing, and drops nothing.
     pub fn push(&mut self, operation: Operation) {
+        if !self.takes(&operation) {
+            return;
+        }
         self.drop_what_was_undone();
         if matches!(operation, Operation::Variable(_)) {
             let number = self.number(operation);

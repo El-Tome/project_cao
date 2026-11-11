@@ -336,7 +336,10 @@ pub fn is_enabled(
         | Command::RuleFixed
         | Command::RuleConcentric => drawing,
         Command::ExtrusionAdd | Command::ExtrusionCut => extrusion.sketch.is_some(),
-        Command::ExtrusionStraight | Command::ExtrusionRevolution => extrusion.is_active(),
+        // A step of matter reopened keeps its shape.
+        Command::ExtrusionStraight | Command::ExtrusionRevolution => {
+            extrusion.is_active() && extrusion.reopened.is_none()
+        }
         Command::ExtrusionApply => extrusion.is_ready(document.variables()),
         Command::ExtrusionCancel => extrusion.is_active(),
         Command::ExportStlCoarse

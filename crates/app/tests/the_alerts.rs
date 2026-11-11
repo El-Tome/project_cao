@@ -129,7 +129,8 @@
 //!   reopens the extrusion, its panel filled with its values, where no
 //!   extrusion could be reopened before — on the circle the kernel declines,
 //!   the panel opens on its height and its direction, the list closed;
-//!   « Annuler » leaves the part as it was; turned the other way and applied,
+//!   « Annuler » closes the panel and leaves the part and its history as they
+//!   were — strengthened in review, the alert alone being no proof; turned the other way and applied,
 //!   the part keeps its steps, the step reads its new values and the alert and
 //!   its count go — `modify_on_an_extrusion_s_alert_reopens_it_with_its_values`.
 //!   Held apart besides: the part's half, a step of matter changed after it
@@ -145,6 +146,13 @@
 //!   in `crates/app/src/screens/part_tree/state/tests.rs`. Through the alert
 //!   only the extrusion is driven: a revolution reopens through the same panel
 //!   and the same step, held below the screen
+//! - found in review: the panel « Modifier » reopened closes when the history
+//!   moves under it — an undo, a redo, going back to a line of the history, a
+//!   compaction — since the step it names may no longer be the one in effect —
+//!   `the_panel_reopened_on_a_step_closes_when_the_history_moves`. What applying
+//!   one left open anyway does is held in
+//!   `crates/app/src/screens/extrusion/tests.rs`, and what the part does with a
+//!   change of a step undone since in `crates/part/tests/changing_an_extrusion.rs`
 //! - decided by Tom when the work opened: « Montrer » on a volume's alert
 //!   selects the volume and lights it in the view — its row in the tree stands
 //!   selected, for a volume not built and for one built unstably, the list
@@ -599,6 +607,8 @@ fn modify_on_an_extrusion_s_alert_reopens_it_with_its_values() {
         the_title_bar(&app),
     );
 
+    driver::open_the_history(&mut app);
+    let lines_before = driver::steps(&app);
     reopen_the_circle(&mut app);
     let mut wrong = not_reopened_on_ten_the_other_way(&app);
     if driver::reads(&app, HEADING) {
@@ -613,6 +623,16 @@ fn modify_on_an_extrusion_s_alert_reopens_it_with_its_values() {
     );
 
     driver::click_the_button(&mut app, "Annuler");
+    if driver::says(&app, "Hauteur :") {
+        wrong.push("« Annuler » left the extrusion panel open".to_owned());
+    }
+    let lines_after = driver::steps(&app);
+    if lines_after != lines_before {
+        wrong.push(format!(
+            "closed with « Annuler », the extrusion moved the history from {lines_before:?} to \
+             {lines_after:?}"
+        ));
+    }
     if the_button_reading(&app, "1 alerte").is_none() {
         wrong.push(format!(
             "closed with « Annuler », the extrusion changed the part all the same: {:?}",
@@ -794,6 +814,64 @@ fn alerted_as_wanted(app: &driver::App, when: &str, wanted: bool) -> Option<Stri
 
 /// The start of what the pill said of an extrusion the kernel declines.
 const DECLINED: &str = "Le noyau exact ne sait pas encore construire";
+
+#[test]
+fn the_panel_reopened_on_a_step_closes_when_the_history_moves() {
+    let mut app = a_part_opened_from(
+        "the_panel_reopened_on_a_step_closes_when_the_history_moves",
+        a_ball_under_a_slanted_circle_raised,
+    );
+    driver::open_the_history(&mut app);
+    reopen_the_circle(&mut app);
+    driver::type_beside(&mut app, "Hauteur :", "12");
+    driver::click_the_button(&mut app, "Appliquer");
+    assert!(
+        the_button_reading(&app, "1 alerte").is_some() && driver::steps(&app).len() >= 2,
+        "the circle changed to 12 down, still declined, does not keep its alert, or the history \
+         shows {:?}",
+        driver::steps(&app),
+    );
+
+    let ways: [(&str, Gesture); 4] = [
+        ("an undo", |app| {
+            driver::press_with_command(app, egui::Key::Z)
+        }),
+        ("a redo", |app| {
+            driver::press_with(
+                app,
+                egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
+                egui::Key::Z,
+            );
+        }),
+        ("going back to a line of the history", |app| {
+            let lines = driver::steps(app);
+            let back_to = lines[lines.len() - 2].clone();
+            press_brought_into_view(app, &back_to);
+        }),
+        ("a compaction", |app| {
+            driver::click_the_button(app, "Compacter l'historique…");
+            driver::click_the_button(app, "Compacter");
+        }),
+    ];
+    let mut wrong = Vec::new();
+    for (way, move_the_history) in ways {
+        reopen_the_circle(&mut app);
+        if !driver::says(&app, "Hauteur :") {
+            wrong.push(format!("the circle's panel did not reopen before {way}"));
+            continue;
+        }
+        move_the_history(&mut app);
+        if driver::says(&app, "Hauteur :") {
+            wrong.push(format!("{way} left the panel reopened on the circle open"));
+        }
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "the panel reopened on a step stays open while the history moves under it:\n  {}",
+        wrong.join("\n  "),
+    );
+}
 
 /// What the slanted circle's step is alerted for.
 const NOT_BUILT: &str = "Extrusion 2 · non construite";
@@ -1107,7 +1185,7 @@ fn the_alert_colours_are_set_and_reset_in_preferences_appearance() {
         wrong.join("\n  "),
     );
 
-    press_in_the_preferences(&mut app, "↺ Couleurs par défaut");
+    press_brought_into_view(&mut app, "↺ Couleurs par défaut");
 
     let reset =
         serde_json::to_value(driver::saved_settings(test).theme).expect("a theme writes out");
@@ -1182,9 +1260,10 @@ fn not_shown_in(app: &mut driver::App, row: &str, wanted: egui::Color32) -> Opti
     })
 }
 
-/// Clicks the button of Préférences reading `label`, brought into view first:
-/// the page scrolls, and much of it stands below the window's edge.
-fn press_in_the_preferences(app: &mut driver::App, label: &str) {
+/// Clicks the button reading `label`, brought into view first: the page of
+/// Préférences and the history both scroll, and a click aimed at a point of
+/// a list half scrolled away lands on what stands over it.
+fn press_brought_into_view(app: &mut driver::App, label: &str) {
     let Some(button) = app.query_all_by_label(label).next() else {
         panic!(
             "no « {label} » in the preferences: {:?}",

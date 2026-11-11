@@ -1,5 +1,4 @@
-//! The rows of « VOLUMES »: one per step of matter, read off its operation as
-//! the part now replays it.
+//! The rows of « VOLUMES »: one per step of matter, read off its operation.
 
 use cao_part::PartDocument;
 use cao_part::VolumeState;
@@ -20,10 +19,6 @@ pub(super) fn volume(
     (declined, unstable): (bool, Option<String>),
 ) -> Option<Body> {
     let variables = document.variables();
-    let number = document.history.number_at(step);
-    let operation = number
-        .and_then(|number| document.raised_as(number))
-        .unwrap_or(operation);
     let (reads, sketch, areas, mode) = match operation {
         Operation::Extrude {
             sketch,

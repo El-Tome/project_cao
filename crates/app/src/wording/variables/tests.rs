@@ -7,6 +7,13 @@
 //!   `what_still_uses_a_variable_is_listed_by_the_names_the_panels_use`,
 //!   `what_a_change_would_break_is_said_by_the_value_on_the_drawing`,
 //!   `a_change_that_would_renumber_a_step_or_set_a_sketch_adrift_says_so`
+//!
+//! Closes #736 — the whole transcription is in `crates/app/tests/the_alerts.rs`;
+//! this bullet is the one the variables' wording holds.
+//! - found in review: a step of matter changed to lean on a variable is
+//!   named, among what uses that variable, as it now stands rather than as it
+//!   was first raised —
+//!   `a_step_changed_to_lean_on_a_variable_is_named_as_it_now_stands`
 
 use cao_part::VariableChange;
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
@@ -169,5 +176,63 @@ fn a_change_that_would_renumber_a_step_or_set_a_sketch_adrift_says_so() {
     assert!(
         adrift.contains("esquisse 1") && adrift.contains("face"),
         "{adrift}"
+    );
+}
+
+#[test]
+fn a_step_changed_to_lean_on_a_variable_is_named_as_it_now_stands() {
+    let lang = Catalogue::french();
+    let mut document = PartDocument::new("plate", Utc::now());
+    let seven = document.variables().read("7").expect("it reads");
+    document
+        .change_variable(VariableChange::Added {
+            name: "depth".to_string(),
+            formula: seven,
+        })
+        .expect("nothing to refuse");
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(100.0, 30.0)),
+        construction: false,
+    });
+    let areas = document.areas_at(0, &[DVec2::new(50.0, 15.0)]);
+    let raised_as_first = Operation::Extrude {
+        sketch: 0,
+        areas: areas.clone(),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Add,
+    };
+    document.apply(raised_as_first.clone());
+    let raised = document
+        .history
+        .number_at(document.history.applied() - 1)
+        .expect("the plate is raised");
+    let depth = document.variables().read("depth").expect("it reads");
+    document.apply(Operation::EditMatter {
+        raised_by: raised,
+        to: Box::new(Operation::Extrude {
+            sketch: 0,
+            areas,
+            distance: depth,
+            mode: ExtrusionMode::Add,
+        }),
+    });
+
+    let sentence = said(&document, &Refused::InUse(document.uses_of(VariableId(0))));
+
+    let now = document
+        .raised_as(raised)
+        .map(|operation| history::label(&lang, document.variables(), operation))
+        .expect("the plate reads as changed");
+    let first = history::label(&lang, document.variables(), &raised_as_first);
+    assert!(
+        sentence.contains(&now) && !sentence.contains(&first),
+        "the plate, raised 4 then changed to lean on `depth`, is named among what uses `depth` \
+         otherwise than « {now} »: {sentence}",
     );
 }

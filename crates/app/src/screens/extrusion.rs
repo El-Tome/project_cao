@@ -1,5 +1,8 @@
+use std::collections::BTreeMap;
+
 use cao_part::{
     ExtrusionMode, Formula, Operation, PartDocument, RevolutionAxis, Unusable, Variables,
+    VolumeState,
 };
 use cao_sketch::{Area, SketchAxis};
 use glam::DVec2;
@@ -157,6 +160,15 @@ impl ExtrusionState {
         *self = Self::default();
     }
 
+    /// A panel reopened on a step closes once the history moves under it: the
+    /// step it names may no longer be the one in effect. One armed afresh
+    /// stays.
+    pub fn history_moved(&mut self) {
+        if self.reopened.is_some() {
+            self.close();
+        }
+    }
+
     /// The value typed, in millimetres, as written and as what it comes to,
     /// signed by the chosen direction.
     pub fn distance(&self, variables: &Variables) -> Option<(Formula, f64)> {
@@ -234,11 +246,19 @@ pub fn apply_extrusion(
         return false;
     }
 
+    // A panel reopened on a step the history has undone since names nothing
+    // in effect, and applies nothing.
+    let as_raised = match &extrusion.reopened {
+        None => None,
+        Some(reopened) => match doc.raised_as(reopened.raised_by) {
+            Some(raised) => Some(raised.clone()),
+            None => return false,
+        },
+    };
     let reopened = extrusion.reopened.take();
     let step = reopened
         .as_ref()
         .map_or_else(|| doc.history.next_number(), |reopened| reopened.raised_by);
-    let before = doc.body().volume();
     // The areas are named here and never worked out again: what the click
     // meant is what the drawing said at the moment of the click.
     let picks = std::mem::take(&mut extrusion.picks);
@@ -266,6 +286,20 @@ pub fn apply_extrusion(
             mode,
         }
     };
+    extrusion.mode = None;
+    if as_raised.as_ref() == Some(&operation) {
+        *notice = None;
+        return false;
+    }
+    // A change is judged by what it does to the part without the step it
+    // changes, as a new step is by what it does to the part as it stands.
+    let before = match &reopened {
+        Some(reopened) => {
+            let left_out = BTreeMap::from([(reopened.raised_by, VolumeState::Invisible)]);
+            doc.shown(&left_out).body.volume()
+        }
+        None => doc.body().volume(),
+    };
     doc.apply(match reopened {
         Some(reopened) => Operation::EditMatter {
             raised_by: reopened.raised_by,
@@ -288,7 +322,6 @@ pub fn apply_extrusion(
             (ExtrusionMode::Cut, false) => "extrusion.nothing_removed",
         })
     });
-    extrusion.mode = None;
     true
 }
 

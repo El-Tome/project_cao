@@ -87,6 +87,13 @@
 //!   `the_constraints_split_runs_the_last_rule_used_from_its_menu`
 //! - the chevron is pressable while any entry is —
 //!   `a_chevron_is_offered_while_any_entry_can_be_carried_out`
+//!
+//! Closes #736 — the whole transcription is in `crates/app/tests/the_alerts.rs`;
+//! this bullet is the one the ribbon's presenter holds.
+//! - found in review: a step of matter reopened from its alert keeps its
+//!   shape, an extrusion staying one and a revolution one; « Extrusion
+//!   droite » and « Révolution » are offered on a panel armed afresh and not
+//!   on one reopened — `the_shape_of_a_reopened_step_is_not_offered_for_change`
 
 use super::*;
 use cao_sketch::WorkPlane;
@@ -777,5 +784,26 @@ fn a_toggle_never_pairs_with_the_menu_after_it() {
     assert!(
         takes_a_menu(Command::ToolCircle),
         "« Cercle » is a tool with variants, and pairs with its menu",
+    );
+}
+
+#[test]
+fn the_shape_of_a_reopened_step_is_not_offered_for_change() {
+    let part = a_raised_block();
+    let editor = SketchEditor::default();
+    let mut afresh = ExtrusionState::default();
+    afresh.offer(0);
+    afresh.arm(cao_part::ExtrusionMode::Add);
+    let reopened = ExtrusionState::reopened(&part, 2).expect("the block's extrusion reopens");
+    let offered = |extrusion: &ExtrusionState| {
+        [Command::ExtrusionStraight, Command::ExtrusionRevolution]
+            .map(|shape| is_enabled(shape, &part, &editor, extrusion))
+    };
+
+    assert_eq!(
+        [offered(&afresh), offered(&reopened)],
+        [[true, true], [false, false]],
+        "« Extrusion droite » and « Révolution » offered, on a panel armed afresh then on one \
+         reopened on the block's extrusion",
     );
 }

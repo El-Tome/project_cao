@@ -1,13 +1,13 @@
 use std::f64::consts::TAU;
 
-use glam::{DVec2, DVec3};
+use glam::{DQuat, DVec2, DVec3};
 
 use super::super::sampling::{Samples, divisions_in};
 use crate::brep::curve::Curve;
 use crate::brep::surface::Surface;
 use crate::brep::tessellation::Cut;
 use crate::brep::topology::Body;
-use crate::profile::Frame;
+use crate::profile::{Contour, Frame, Run};
 use crate::soundness::{closed, enclosed, uncrossed};
 use crate::turning::{Axis, Corner, Straight, Turn};
 
@@ -329,6 +329,101 @@ fn a_countersink_s_narrow_rim_shares_its_bore_s_samples() {
                 every_angle(&points, divisions_in(7.0, tolerance, body.scale().reach())),
                 "the cone's grid"
             );
+        }
+    }
+}
+
+/// A frustum about Y, of radius `foot` at y 0 and `cap` at y `height`,
+/// and an elliptic shaft along Y from y -20 to 25 of half-axes `major`
+/// along `u` and `minor`, its axis `hair` off the frustum's along `away`,
+/// joined to it or cut from it.
+struct Beside {
+    foot: f64,
+    cap: f64,
+    height: f64,
+    major: f64,
+    minor: f64,
+    u: DVec3,
+    away: DVec3,
+    hair: f64,
+}
+
+impl Beside {
+    fn frustum(&self, join: bool) -> Body {
+        let frustum = turned(
+            &[
+                [0.0, 0.0],
+                [self.height, 0.0],
+                [self.height, self.cap],
+                [0.0, self.foot],
+            ],
+            360.0,
+        );
+        let oval = Contour {
+            corners: vec![DVec2::X * self.major],
+            runs: vec![Run::Oval {
+                center: DVec2::ZERO,
+                first: DVec2::X * self.major,
+                second: self.minor,
+                turn: TAU,
+            }],
+        };
+        let ground = Frame {
+            origin: DVec3::NEG_Y * 20.0 + self.away.normalize() * self.hair,
+            u: self.u,
+            v: DVec3::Y.cross(self.u),
+        };
+        let shaft = Body::raised(&oval, &[], ground, DVec3::Y * 45.0).expect("the shaft raises");
+        let combined = if join {
+            frustum.joined(&shaft)
+        } else {
+            frustum.cut_by(&shaft)
+        };
+        combined.expect("the shaft and the frustum combine")
+    }
+}
+
+#[test]
+fn a_frustum_s_cap_an_elliptic_shaft_of_its_radius_as_major_half_axis_nearly_shares_is_cut_and_drawn_closed()
+ {
+    for hair in [1e-6, 1.83e-5, 1e-4, 1e-3] {
+        let beside = Beside {
+            foot: 1.0,
+            cap: 2.0,
+            height: 5.0,
+            major: 2.0,
+            minor: 1.5,
+            u: DVec3::X,
+            away: DVec3::X,
+            hair,
+        };
+        for join in [true, false] {
+            let body = beside.frustum(join);
+            for share in [1e-3, 2e-4] {
+                held(&body, share * body.scale().reach(), body.volume());
+            }
+        }
+    }
+}
+
+#[test]
+fn a_frustum_s_cap_an_elliptic_shaft_of_its_radius_as_minor_half_axis_nearly_shares_is_cut_and_drawn_closed()
+ {
+    for (turn, hair) in [(7.5_f64, 3.4e-6), (7.5, 1e-4), (37.0, 3.4e-6)] {
+        let u = DQuat::from_rotation_y(turn.to_radians()) * DVec3::X;
+        let beside = Beside {
+            foot: 0.5,
+            cap: 5.0,
+            height: 6.5,
+            major: 2.0,
+            minor: 0.5,
+            u,
+            away: u.cross(DVec3::Y),
+            hair,
+        };
+        let body = beside.frustum(false);
+        for share in [1e-3, 2e-4] {
+            held(&body, share * body.scale().reach(), body.volume());
         }
     }
 }

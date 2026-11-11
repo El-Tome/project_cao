@@ -30,6 +30,10 @@ use crate::brep::topology::{Body, Edge, SurfaceId};
 /// For each wall of the body, the samples of the curves not parallel to it
 /// standing inside it closer than twice a chord's sag where it holds a face:
 /// circles about another axis and the curves two other cylinders meet along.
+/// A wall that is no surface of the body — under a cone's rim, or under the
+/// circles a swallowed cylinder left on a cap — holds no face, and takes
+/// those on the plane of one of its circles: that circle's chords sag there
+/// as a cylinder's rim's do.
 pub(super) fn walls(
     body: &Body,
     walls: &[Wall],
@@ -39,18 +43,8 @@ pub(super) fn walls(
     let eps = body.scale().eps();
     let mut beneath: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
     for (id, cylinder) in walls {
-        if id.0 as usize >= body.surfaces.len() {
-            continue;
-        }
         let sag = cylinder.radius
             * (1.0 - (PI / divisions_in(cylinder.radius, tolerance, samples.span) as f64).cos());
-        let holds = |point: DVec3| {
-            let at = cylinder.parameters(point);
-            body.face_ids().any(|face| {
-                body.face(face).surface == *id
-                    && !matches!(body.locate(face, at, eps), Ok(Location::Outside))
-            })
-        };
         let rims: Vec<DVec3> = body
             .edge_ids()
             .filter_map(|edge| match body.curve(body.edge(edge).curve) {
@@ -58,6 +52,19 @@ pub(super) fn walls(
                 _ => None,
             })
             .collect();
+        let held = (id.0 as usize) < body.surfaces.len();
+        let holds = |point: DVec3| {
+            if !held {
+                return rims
+                    .iter()
+                    .any(|centre| (point - *centre).dot(cylinder.axis).abs() <= eps);
+            }
+            let at = cylinder.parameters(point);
+            body.face_ids().any(|face| {
+                body.face(face).surface == *id
+                    && !matches!(body.locate(face, at, eps), Ok(Location::Outside))
+            })
+        };
         for edge in body.edge_ids() {
             if let Curve::Line(line) = body.curve(body.edge(edge).curve) {
                 for point in through_rims(line, body.edge(edge), &rims, cylinder) {

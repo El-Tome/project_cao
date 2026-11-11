@@ -18,6 +18,9 @@
 //!   `adding_a_step_while_read_to_step_three_brings_the_reading_point_back_to_the_end`
 //! - Forty steps scroll sideways in the row rather than overflowing the panel
 //!   — `forty_steps_scroll_sideways_in_the_row_rather_than_overflowing_the_panel`
+//! - found in review, and seen in the app on a part of eight steps read to its
+//!   end, its last box out of view: the row scrolls to the box read to, unread,
+//!   clicked or moved to by ◀ ▶ — `the_row_scrolls_to_the_box_read_to`
 //!
 //! A box is found by the name it gives whoever cannot see its icon, « Étape
 //! n », its place in the row counting from one; ◀ and ▶ by theirs, « Étape
@@ -421,5 +424,57 @@ fn forty_steps_scroll_sideways_in_the_row_rather_than_overflowing_the_panel() {
         "of forty boxes, {} stand between ◀ and ▶: the row does not scroll sideways with \
          some of them in view and the rest out of it",
         forty.seen.len(),
+    );
+}
+
+/// The box the part is read to, as the counter of a part of `boxes` boxes
+/// says it.
+fn the_box_read_to(app: &driver::App, boxes: usize) -> Option<usize> {
+    (1..=boxes).find(|played| driver::reads(app, &format!("{played} / {boxes}")))
+}
+
+#[test]
+fn the_row_scrolls_to_the_box_read_to() {
+    let mut app = driver::open("the_row_scrolls_to_the_box_read_to");
+    driver::create_a_part(&mut app, "Platine");
+    for _ in 0..40 {
+        add_a_sketch(&mut app);
+    }
+
+    let mut out_of_view = Vec::new();
+    let mut look = |app: &driver::App, after: &str| match the_box_read_to(app, 40) {
+        None => out_of_view.push(format!("{after}: no counter « n / 40 »")),
+        Some(read_to) => {
+            let in_view = the_reader_s_row(app, 40).seen;
+            if !in_view.contains(&read_to) {
+                out_of_view.push(format!(
+                    "{after}: « Étape {read_to} » out of view, {in_view:?} in view"
+                ));
+            }
+        }
+    };
+    look(&app, "unread");
+    for press in 1..40 {
+        driver::click_the_button(&mut app, "Étape précédente");
+        look(&app, &format!("◀ pressed {press} times"));
+    }
+    driver::click_the_button(&mut app, "Étape 2");
+    look(&app, "« Étape 2 » clicked");
+    for press in 1..39 {
+        driver::click_the_button(&mut app, "Étape suivante");
+        look(&app, &format!("▶ pressed {press} times"));
+    }
+
+    assert!(
+        out_of_view.is_empty(),
+        "the box the part is read to is not in view between ◀ and ▶ {} times out of 79, \
+         first:\n{}",
+        out_of_view.len(),
+        out_of_view
+            .iter()
+            .take(5)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n"),
     );
 }

@@ -1,11 +1,13 @@
 //! The step reader's card, P7 of `docs/redesign/part-screen.md`: ◀ and ▶ at
 //! the ends of a row of boxes, which scrolls sideways once it outgrows the
-//! card; under the row a line and a counter, then the legend of the alerts'
-//! colours. Plain values in, what was clicked out.
+//! card, to the box read to whenever that one changes; under the row a line
+//! and a counter, then the legend of the alerts' colours. Plain values in,
+//! what was clicked out.
 
+use egui::text::TextWrapping;
 use egui::{
-    Align, Align2, Color32, Frame, Label, Layout, Margin, Response, RichText, ScrollArea, Sense,
-    Stroke, TextStyle, TextWrapMode, Ui, Vec2, WidgetInfo, WidgetText, WidgetType, vec2,
+    Align, Align2, Color32, Frame, Id, Label, Layout, Margin, Response, RichText, ScrollArea,
+    Sense, Stroke, TextStyle, TextWrapMode, Ui, Vec2, WidgetInfo, WidgetText, WidgetType, vec2,
 };
 
 use crate::ui::icon::{self, Icon, IconSize};
@@ -20,6 +22,8 @@ use crate::ui::theme::tokens::{
 const GAP: f32 = 2.0;
 /// The width of ◀ and ▶.
 const END: f32 = 18.0;
+/// How many lines the line under the row may take before it is cut short.
+const LINE_ROWS: usize = 2;
 
 /// What the card shows.
 pub struct ReaderCard<'a> {
@@ -61,9 +65,15 @@ pub fn reader_card(ui: &mut Ui, card: &ReaderCard<'_>) -> Asked {
         .inner
 }
 
-/// ◀, the boxes in the middle of what room is left, then ▶.
+/// ◀, the boxes in the middle of what room is left, then ▶. The row is
+/// brought to the box read to on the first frame and whenever that box
+/// changes, and left where the hand scrolled it otherwise.
 fn row(ui: &mut Ui, card: &ReaderCard<'_>) -> Asked {
     let mut asked = Asked::Nothing;
+    let current = card.boxes.iter().position(|step| step.current);
+    let remembered = Id::new("step_reader_row").with("current");
+    let moved = ui.data(|data| data.get_temp::<Option<usize>>(remembered)) != Some(current);
+    ui.data_mut(|data| data.insert_temp(remembered, current));
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = GAP;
         if end(ui, icon::STEP_PREVIOUS, card.previous).clicked() {
@@ -84,7 +94,11 @@ fn row(ui: &mut Ui, card: &ReaderCard<'_>) -> Asked {
                         if rank > 0 {
                             step_arrow(ui, card.arrows.get(rank - 1).copied().unwrap_or(false));
                         }
-                        if step_box(ui, step).clicked() {
+                        let response = step_box(ui, step);
+                        if moved && step.current {
+                            response.scroll_to_me(None);
+                        }
+                        if response.clicked() {
                             asked = Asked::Box(rank);
                         }
                     }
@@ -117,10 +131,11 @@ fn end(ui: &mut Ui, icon: Icon, name: &str) -> Response {
     response.on_hover_text(name)
 }
 
-/// The line, cut short when the card is too narrow for it but read whole by
-/// whoever reads the screen without seeing it, and the counter on its right.
+/// The line, wrapped on two lines at most and cut short past them, but read
+/// whole by whoever reads the screen without seeing it; the counter on the
+/// right of its first line.
 fn line(ui: &mut Ui, (text, ink, counter): (&str, Color32, &str)) {
-    ui.horizontal(|ui| {
+    ui.horizontal_top(|ui| {
         let counter = WidgetText::from(RichText::new(counter).color(TEXT_QUIET)).into_galley(
             ui,
             Some(TextWrapMode::Extend),
@@ -128,16 +143,22 @@ fn line(ui: &mut Ui, (text, ink, counter): (&str, Color32, &str)) {
             TextStyle::Monospace,
         );
         let room = (ui.available_width() - counter.size().x - ui.spacing().item_spacing.x).max(0.0);
-        let height = ui.spacing().interact_size.y;
-        ui.allocate_ui_with_layout(
-            vec2(room, height),
-            Layout::left_to_right(Align::Center),
-            |ui| {
-                ui.set_min_width(room);
-                let said = RichText::new(text).size(TYPOGRAPHY_SIZES_BUTTON).color(ink);
-                ui.add(Label::new(said).truncate().selectable(false));
-            },
-        );
+        ui.allocate_ui_with_layout(vec2(room, 0.0), Layout::top_down(Align::Min), |ui| {
+            ui.set_min_width(room);
+            let wrapping = TextWrapping {
+                max_rows: LINE_ROWS,
+                ..TextWrapping::wrap_at_width(room)
+            };
+            let said = RichText::new(text).size(TYPOGRAPHY_SIZES_BUTTON).color(ink);
+            let galley = WidgetText::from(said).into_galley_impl(
+                ui.ctx(),
+                ui.style(),
+                wrapping,
+                TextStyle::Body.into(),
+                ui.text_valign(),
+            );
+            ui.add(Label::new(galley).selectable(false));
+        });
         ui.add(Label::new(counter).selectable(false));
     });
 }

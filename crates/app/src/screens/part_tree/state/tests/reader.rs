@@ -75,7 +75,9 @@
 //!   `adding_a_step_while_read_to_step_three_brings_the_reading_point_back_to_the_end`
 //! - Forty steps scroll sideways in the row rather than overflowing the panel
 //!   — no test: here; held in `crates/app/tests/the_step_reader.rs` by
-//!   `forty_steps_scroll_sideways_in_the_row_rather_than_overflowing_the_panel`
+//!   `forty_steps_scroll_sideways_in_the_row_rather_than_overflowing_the_panel`;
+//!   and, found in review, the row scrolls to the box read to, by
+//!   `the_row_scrolls_to_the_box_read_to` in the same file
 //! - Visible: the To try it above works in the app (Tom's check) — no test:
 //!   it is Tom's check in the app, with the « To try it » of the pull request
 

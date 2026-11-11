@@ -266,7 +266,11 @@
 //!   `seed_353000000005017_an_elliptic_shaft_bored_by_a_cone_leaning_1e_7_degrees_is_declined_and_excused`,
 //!   `the_same_bore_leaning_1_5e_6_degrees_past_what_decision_11_lays_is_built_and_not_excused`,
 //!   and the seed as drawn, judged by the campaign's own check,
-//!   `seed_353000000005017_as_drawn_is_counted_as_declined_on_both_kernels`
+//!   `seed_353000000005017_as_drawn_is_counted_as_declined_on_both_kernels`;
+//!   the axes read apart where the kernel turns the cone, the middle of the
+//!   two leaves' overlap, not on the elliptic wall's sketch plane:
+//!   `a_cone_whose_axis_crosses_the_elliptic_wall_s_on_its_sketch_plane_far_from_the_cone_is_built_and_not_excused`,
+//!   `a_cone_whose_axis_crosses_the_elliptic_wall_s_at_the_cone_s_middle_is_declined_as_coaxial_and_excused`
 //! - The walls sets 352, 353, 354 and the turned set, run against `main`:
 //!   every seed that leaves the failures is one the kernel declines as
 //!   coaxial cone and elliptic wall, and no seed joins them; recorded in
@@ -2710,6 +2714,60 @@ fn seed_353000000005017_as_drawn_is_counted_as_declined_on_both_kernels() {
     let applied = random_solids::held_to_arithmetic(&case, &Application)
         .unwrap_or_else(|flaw| panic!("through the application's body: {flaw:?}\n{case}"));
     assert_eq!(applied.declined, 1, "{case}");
+}
+
+fn an_elliptic_shaft_60_long_bored_at_50_by_a_cone_leaning(radians: f64, crossing: f64) -> Case {
+    Case::new(
+        Leaf::prism(
+            Plane::xz(0.0),
+            Outline::ellipse([0.0, 0.0], [3.0, 0.0], 2.0),
+            -60.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::yz(0.0),
+            Axis::first(-crossing * radians.tan()).leaning(radians.to_degrees()),
+            Section::bands(48.0, &[[4.0, 0.0, 1.5]]).sloping_to(&[[0.0, 2.5]]),
+            360.0,
+        ))],
+    )
+}
+
+#[test]
+fn a_cone_whose_axis_crosses_the_elliptic_wall_s_on_its_sketch_plane_far_from_the_cone_is_built_and_not_excused()
+ {
+    let case = an_elliptic_shaft_60_long_bored_at_50_by_a_cone_leaning(2.5e-7, 0.0);
+    if let Err(declined) = answered(&case, &Exact) {
+        panic!(
+            "turned about the cone's middle, 50 from where the axes cross, the axes stand \
+             1.25e-5 apart, ten hairs: not coaxial, and built: {declined:?}\n{case}"
+        );
+    }
+    assert!(
+        !case.asks_beyond_the_conics(),
+        "the axes meet on the sketch plane, but the kernel reads them where it turns \
+         the cone, ten hairs apart: a pair it builds is held to every rule\n{case}"
+    );
+}
+
+#[test]
+fn a_cone_whose_axis_crosses_the_elliptic_wall_s_at_the_cone_s_middle_is_declined_as_coaxial_and_excused()
+ {
+    let case = an_elliptic_shaft_60_long_bored_at_50_by_a_cone_leaning(2.5e-7, 50.0);
+    assert_eq!(
+        answered(&case, &Exact).err(),
+        Some(Declined::Unsupported),
+        "{case}"
+    );
+    assert_eq!(
+        answered(&case, &Application).err(),
+        Some(Declined::Unsupported),
+        "{case}"
+    );
+    assert!(
+        case.asks_beyond_the_conics(),
+        "the axes stand ten hairs apart on the sketch plane, but meet where the kernel \
+         turns the cone, which lays them coaxial and declines the pair\n{case}"
+    );
 }
 
 /// The campaigns, compiled only when asked for — `--features campaigns` —

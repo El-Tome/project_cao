@@ -901,13 +901,13 @@ fn cones(leaf: &Leaf) -> Vec<(Cone, bool)> {
 /// Whether the kernel declines a cone against `wall`, off its axis (#577):
 /// a cylinder or a cone about the cone's very axis is built as before; one
 /// within a hair of it, the hair `HAIR` tolerances, is declined; so is an
-/// elliptic wall about it, its axis within a hair of the cone's and leaning
-/// no more than decision 11 lays exactly along it — a sine up to a hair
-/// over `lever`, half the diagonal of the box of the later leaf, the operand
-/// it turns (#857); so is a pair no ruling meets in a true quadratic all
-/// round, `A` reaching nought — a wall's axis along a ruling, or two cones
-/// each with rulings within the other's slope; an apex of either
-/// standing on the other wall, `on_the_apex`; a curve on a cone face
+/// elliptic wall about it once decision 11 has laid the two exactly along —
+/// a sine up to a hair over the `turning`'s lever — the axes within a hair
+/// of each other where it turns the later leaf (#857), assuming the turn
+/// succeeds; so is a pair no ruling meets in a true quadratic all round, `A`
+/// reaching nought — a wall's axis along a ruling, or two cones each with
+/// rulings within the other's slope; an apex of either standing on the
+/// other wall, `on_the_apex`; a curve on a cone face
 /// holding its apex, `pointed`, a component of which does not go round the
 /// cone's axis (`goes_round`), as `combine/related.rs`'s
 /// `on_a_pointed_face` reads it; two walls in #552's band closer than a
@@ -921,7 +921,7 @@ fn declines(
     low: DVec3,
     high: DVec3,
     reach: f64,
-    lever: f64,
+    turning: &Turning,
 ) -> bool {
     let (origin, axis) = wall.origin_and_axis();
     let sine = cone.axis.cross(axis).length();
@@ -934,13 +934,16 @@ fn declines(
     if coaxial(reach * HAIR) {
         return true;
     }
-    let laid = sine * lever <= HAIR * TOLERANCE * reach;
-    if matches!(wall, Exact::Oval(_)) && laid && off <= TOLERANCE * reach * HAIR {
-        return true;
+    let eps = TOLERANCE * reach;
+    if matches!(wall, Exact::Oval(_)) && sine * turning.lever() <= HAIR * eps {
+        let about = turning.about(sine, eps);
+        let apart = cone.origin + cone.axis * cone.axis.dot(about - cone.origin) - origin;
+        if (apart - axis * axis.dot(apart)).length() <= HAIR * eps {
+            return true;
+        }
     }
     let steady = steadiness(cone, wall) > STEADY
         || matches!(wall, Exact::Pointed(other) if steadiness(other, &Exact::Pointed(*cone)) > STEADY);
-    let eps = TOLERANCE * reach;
     let on_the_apex = wall.gap(cone.apex()) <= eps
         || matches!(wall, Exact::Pointed(other) if cone.distance(other.apex()).abs() <= eps);
     !steady
@@ -949,6 +952,40 @@ fn declines(
         || (sine < BAND && closer_than_a_sag(&Exact::Pointed(*cone), wall, low, high, reach))
         || grazing(cone, wall, low, high, reach)
 }
+/// Where decision 11 turns the later of two leaves: `met`, the middle of
+/// where their boxes overlap, and the later leaf's own box (`squared.rs`).
+struct Turning {
+    met: DVec3,
+    low: DVec3,
+    high: DVec3,
+}
+
+impl Turning {
+    /// Half the diagonal of the turned leaf's box: the furthest a turn about
+    /// its middle moves a point of it, per radian.
+    fn lever(&self) -> f64 {
+        (self.high - self.low).length() / 2.0
+    }
+
+    /// The point a turn by `sine` is made about: `met`, or the middle of the
+    /// turned leaf's box where turning about `met` would sweep a point of it
+    /// further than a hair.
+    fn about(&self, sine: f64, eps: f64) -> DVec3 {
+        let sweep = |about: DVec3| {
+            sine.asin()
+                * (about - self.low)
+                    .abs()
+                    .max((self.high - about).abs())
+                    .length()
+        };
+        if sweep(self.met) <= HAIR * eps {
+            self.met
+        } else {
+            (self.low + self.high) / 2.0
+        }
+    }
+}
+
 /// The barrels of a leaf: every round or elliptic wall of a prism — a
 /// circle, a ring's two, a rounded rectangle's four corners, a slot's two
 /// ends, the arcs an ellipse bounds — and of a turned leaf each edge off the
@@ -1409,12 +1446,27 @@ impl Case {
                     let (shared_low, shared_high) =
                         (low.max(*other_low) - margin, high.min(*other_high) + margin);
                     let reach = reach_up_to(index.max(other_index));
-                    let lever = leaves[index.max(other_index)]
-                        .1
-                        .map_or(0.0, |(low, high)| (high - low).length() / 2.0);
+                    let (turned_low, turned_high) = if index > other_index {
+                        (*low, *high)
+                    } else {
+                        (*other_low, *other_high)
+                    };
+                    let turning = Turning {
+                        met: (low.max(*other_low) + high.min(*other_high)) / 2.0,
+                        low: turned_low,
+                        high: turned_high,
+                    };
                     cones(one).iter().any(|(cone, pointed)| {
                         walls(other).iter().any(|wall| {
-                            declines(cone, *pointed, wall, shared_low, shared_high, reach, lever)
+                            declines(
+                                cone,
+                                *pointed,
+                                wall,
+                                shared_low,
+                                shared_high,
+                                reach,
+                                &turning,
+                            )
                         })
                     })
                 })

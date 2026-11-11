@@ -95,9 +95,13 @@ impl Ribbon {
         }
     }
 
+    /// A sketch left any other way than « Terminer » leaves no tab to go
+    /// back to.
     pub fn follow_the_canvas(&mut self, before: Option<usize>, after: Option<usize>) {
-        if after.is_some() && after != before {
-            self.enter_sketch();
+        match after {
+            None => self.tab_before_sketch = None,
+            Some(_) if after != before => self.enter_sketch(),
+            Some(_) => {}
         }
     }
 

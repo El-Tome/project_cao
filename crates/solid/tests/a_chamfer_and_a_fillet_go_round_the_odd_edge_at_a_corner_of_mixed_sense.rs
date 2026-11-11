@@ -397,6 +397,15 @@
 //!   feet, the upright and the two top edges at its top, which slice 1's
 //!   guard declined — held the same way, every order —
 //!   `a_chamfer_and_a_fillet_on_a_foot_corner_and_the_top_corner_of_its_upright_close_both_in_one_step`
+//! - Not in the issue's wording, what the guard still declines beside it: an
+//!   upright odd at its foot whose top meets an edge of the list alone, that
+//!   edge closing a corner of one sense elsewhere but none with the upright —
+//!   the standing block's two front foot corners, its three feet there and
+//!   its two front uprights, with the top front edge and the top left edge,
+//!   which close the front left top corner while the front right upright's
+//!   top meets the top front edge alone: declined `Unsupported`, chamfered or
+//!   filleted, whatever the order —
+//!   `a_fillet_and_a_chamfer_on_two_foot_corners_and_the_top_corner_of_one_upright_are_declined_as_unsupported_where_the_other_upright_s_top_meets_a_top_edge_alone`
 //! - Found on the way, not in the issue's wording: every edge of an L
 //!   standing on a plate, its eighteen edges filleted at one value in one
 //!   step, each of its twelve corners closed by its kind — a piece of sphere
@@ -2938,6 +2947,40 @@ fn a_fillet_and_a_chamfer_on_a_post_s_upright_and_the_feet_at_both_its_ends_are_
                 "the {} of 1 on the post's front right upright and the feet at both its ends, \
                  named {order:?}: a broken step and its reason, and no body, until #847 holds \
                  what an upright odd at both its ends makes",
+                cut.called()
+            );
+        }
+    }
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_two_foot_corners_and_the_top_corner_of_one_upright_are_declined_as_unsupported_where_the_other_upright_s_top_meets_a_top_edge_alone()
+ {
+    let part = stacked();
+    let seven = [
+        [TOP, STANDING_FRONT],
+        [TOP, STANDING_RIGHT],
+        [TOP, STANDING_LEFT],
+        [STANDING_FRONT, STANDING_RIGHT],
+        [STANDING_LEFT, STANDING_FRONT],
+        [STANDING_TOP, STANDING_FRONT],
+        [STANDING_TOP, STANDING_LEFT],
+    ]
+    .map(|[first, second]| edge_between(&part, first, second));
+    for order in [
+        [0, 1, 2, 3, 4, 5, 6],
+        [6, 5, 4, 3, 2, 1, 0],
+        [5, 3, 0, 6, 2, 4, 1],
+    ] {
+        let list: Vec<EdgeName> = order.iter().map(|&edge| seven[edge].clone()).collect();
+        for cut in [Cut::Flat, Cut::Round] {
+            assert_eq!(
+                cut.laid_on(&part, &list, 1.0).err(),
+                Some(Declined::Unsupported),
+                "the {} of 1 on the standing block's two front foot corners and the top corner \
+                 of its front left upright, named {order:?}: the front right upright's top meets \
+                 the top front edge, which closes the front left top corner but no corner with \
+                 that upright, and the step is declined",
                 cut.called()
             );
         }

@@ -89,6 +89,12 @@ impl Ribbon {
         self.tab = 0;
     }
 
+    pub fn leave_sketch(&mut self) {
+        if let Some(tab) = self.tab_before_sketch.take() {
+            self.tab = tab;
+        }
+    }
+
     pub fn follow_the_canvas(&mut self, before: Option<usize>, after: Option<usize>) {
         if after.is_some() && after != before {
             self.enter_sketch();

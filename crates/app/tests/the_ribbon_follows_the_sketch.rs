@@ -118,3 +118,61 @@ fn starting_a_sketch_by_its_shortcut_puts_the_ribbon_on_its_tab() {
         driver::on_screen(&app)
     );
 }
+
+type Finish = fn(&mut driver::App);
+
+fn finish_with_the_ribbon(app: &mut driver::App) {
+    driver::click_in_the_ribbon(app, "Terminer (Entrée)");
+}
+
+fn finish_with_enter(app: &mut driver::App) {
+    driver::press(app, egui::Key::Enter);
+}
+
+/// What is wrong with the ribbon once a sketch, entered by ⌘N while it showed
+/// « Export », is finished this way: nothing, when the sketch is closed and
+/// « Export » is the tab shown again.
+fn what_finishing_left_wrong(test: &str, finish: Finish) -> Option<String> {
+    let mut app = driver::open_held_with(test, driver::the_moved_commands_put_back());
+    driver::create_a_part(&mut app, "Platine");
+    turn_the_ribbon_to(&mut app, "Export");
+    driver::press_with_command(&mut app, egui::Key::N);
+    driver::click_at_world_point(&mut app, driver::ON_THE_YZ_PLANE);
+    driver::draw_a_segment(&mut app);
+    assert!(
+        driver::a_sketch_is_open(&app),
+        "⌘N then a click on the plane YZ opened no sketch: {:?}",
+        driver::on_screen(&app)
+    );
+
+    finish(&mut app);
+
+    if driver::a_sketch_is_open(&app) {
+        return Some("the sketch is still open".to_owned());
+    }
+    let shown = the_tab_shown(&app);
+    (shown != ["Export"]).then(|| format!("the ribbon shows {shown:?}"))
+}
+
+#[test]
+fn finishing_a_sketch_brings_back_the_tab_it_was_entered_from() {
+    let finishes: [(&str, Finish); 3] = [
+        ("the pill's « Terminer ↵ »", driver::finish_the_sketch),
+        ("the ribbon's « Terminer »", finish_with_the_ribbon),
+        ("↵", finish_with_enter),
+    ];
+
+    let wrong: Vec<(&str, String)> = finishes
+        .into_iter()
+        .enumerate()
+        .filter_map(|(rank, (by, finish))| {
+            let test = format!("finishing_a_sketch_brings_back_the_tab_{rank}");
+            what_finishing_left_wrong(&test, finish).map(|wrong| (by, wrong))
+        })
+        .collect();
+
+    assert!(
+        wrong.is_empty(),
+        "a sketch entered from « Export » and finished was not left on « Export »: {wrong:?}"
+    );
+}

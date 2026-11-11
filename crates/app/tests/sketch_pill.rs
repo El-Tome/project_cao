@@ -108,8 +108,9 @@
 //!
 //! Finishing as the ribbon does is read off what the screen is left showing:
 //! every button by its name, whether it can be pressed and whether it is on,
-//! and every field — which holds the ribbon turned to its Extrusion tab and
-//! whatever the extrusion offered shows — besides the sketch closed and the
+//! and every field — which holds the ribbon back on the tab the sketch was
+//! entered from (#779) and whatever the extrusion offered shows — besides the
+//! sketch closed and the
 //! pill gone. The pill's button is clicked by a pointer at its middle, as a
 //! hand would, so that the drawing beneath would hear the click if the pill let
 //! it through. A line begun and a click just below the pill lays a trait, the
@@ -899,8 +900,8 @@ fn end_state(app: &driver::App) -> EndState {
 }
 
 /// What keeps a screen from being one a finished sketch leaves: the sketch
-/// closed, the pill gone, the sketch kept in the tree, and the ribbon turned to
-/// its Extrusion tab, where `Command::FinishSketch` offers to raise it.
+/// closed, the pill gone, the sketch kept in the tree, and the ribbon back on
+/// « Esquisse », the tab `finished_by` entered the sketch from (#779).
 fn what_a_finish_left_wrong(left: &EndState) -> Vec<String> {
     let mut wrong = Vec::new();
     if left.sketch_open {
@@ -914,9 +915,13 @@ fn what_a_finish_left_wrong(left: &EndState) -> Vec<String> {
     if !a_button(&|read| read == "Esquisse 1") {
         wrong.push("the tree keeps no « Esquisse 1 »".to_owned());
     }
-    if !a_button(&|read| read.starts_with("Ajout de matière")) {
+    let back_on_the_sketch_tab = left
+        .buttons
+        .iter()
+        .any(|(read, _, on)| read == "Esquisse" && *on == Some(egui::accesskit::Toggled::True));
+    if !back_on_the_sketch_tab {
         wrong.push(format!(
-            "the ribbon is not turned to its Extrusion tab: {:?}",
+            "the ribbon is not back on its « Esquisse » tab: {:?}",
             left.buttons
         ));
     }

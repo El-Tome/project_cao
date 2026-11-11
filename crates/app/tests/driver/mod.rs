@@ -948,10 +948,16 @@ pub fn the_bar_s_coordinates(app: &App) -> String {
 }
 
 /// The button of the tree, or of a panel, that reads exactly this — never a
-/// text of the title bar or of the pill, which may carry the same words.
+/// text of the title bar or of the pill, which may carry the same words, nor a
+/// button of a ribbon laid above the view: its « Contraintes » reads as the
+/// tree's row does.
 pub fn the_row<'a>(app: &'a App, name: &str) -> Option<egui_kittest::Node<'a>> {
+    let view = drawing_area(app);
     app.query_all_by_role(egui::accesskit::Role::Button)
-        .find(|node| node.accesskit_node().label().as_deref() == Some(name))
+        .find(|node| {
+            node.accesskit_node().label().as_deref() == Some(name)
+                && !view.is_some_and(|view| node.rect().bottom() <= view.top())
+        })
 }
 
 pub fn in_the_tree(app: &App, name: &str) -> bool {

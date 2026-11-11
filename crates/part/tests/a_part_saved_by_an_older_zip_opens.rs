@@ -10,11 +10,14 @@
 //!   in this workspace reads
 //! - every existing part test passes unchanged, including the ones that build
 //!   archives by hand (`a_section_keeps_its_tilt`, `changing_an_extrusion`) —
-//!   no test: it is the suite of `cao_part` as it stands, held by the diff
-//!   touching none of it. The archives built by hand are in
-//!   `a_section_keeps_its_tilt.rs`, `document/tests.rs` and
-//!   `document/geometry_cache/tests.rs`; no test or file of the repository
-//!   goes by `changing_an_extrusion`
+//!   no test: it is the suite of `cao_part` as it stands, and the diff changes
+//!   no assertion of it. Four helpers that list or copy the entries of an
+//!   archive, in `document/tests.rs`, `document/design/tests.rs` and
+//!   `document/geometry_cache/tests.rs`, read an entry's name through zip 9's
+//!   API, where a name is a `Result`; what they hand back is unchanged. The
+//!   archives built by hand are in `a_section_keeps_its_tilt.rs`,
+//!   `document/tests.rs` and `document/geometry_cache/tests.rs`; no test or
+//!   file of the repository goes by `changing_an_extrusion`
 //! - a part saved before the bump opens after it —
 //!   `a_part_written_by_zip_8_opens_and_replays_to_the_same_bracket`,
 //!   `a_part_written_by_zip_8_hands_back_its_picture_whichever_way_it_is_read`

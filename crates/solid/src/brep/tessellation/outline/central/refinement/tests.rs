@@ -3,36 +3,40 @@
 //! sweep would: where a triangle stands nearest the centre — at the foot of
 //! the centre on its plane, or on one of its sides —, how far the chord of a
 //! side on the boundary lets it stand off the sphere, where a triangle cut
-//! inside is cut, that a fine tolerance gets every point it needs, and that a
+//! inside is cut, that a fine tolerance on a large sphere is met everywhere,
+//! that a hair from a tie a side is kept however large the sphere, and that a
 //! cut which can go no further, or a triangle turning clockwise, gives the
 //! face up.
 //!
 //! What `cargo mutants` changes in the chart and its refinement, run against
 //! these tests, the rest of `cao_solid --lib` and the corner test file, is
-//! caught (#828) — the refusal at `FRONT` by
-//! `the_sphere_face_of_a_sector_whose_corners_stand_eighty_eight_degrees_from_its_middle_is_left_open_rather_than_laid_out_where_its_chart_runs_off`
-//! in `tessellation/tests/rounds.rs` — but for these, which change nothing
-//! drawn:
+//! caught (#828). Two the issue names were caught before it: `Sphere::carries`
+//! by `a_circle_lying_on_the_sphere_is_carried_whatever_line_it_turns_about_and_one_off_it_is_not`
+//! in `surface/sphere/tests.rs` and by the sectors of `tessellation/tests/rounds.rs`;
+//! `refine`'s `%` → `/` by
+//! `a_triangle_whose_middle_stands_further_off_than_its_three_boundary_sides_is_cut_inside`.
+//! The refusal at `FRONT` is caught by
+//! `the_sphere_face_of_a_sector_whose_corners_stand_a_hair_short_of_ninety_degrees_from_its_middle_is_left_open_rather_than_drawn_inside_out`
+//! in `tessellation/tests/rounds.rs`. These live, and change nothing drawn:
 //!
 //! - `reach`, `>` → `>=`: the other branch serves a side whose two ends are
 //!   one point. The NaN it then gives is dropped by the `max` of the allowance
 //!   and the `min` of `nearest`, which would never have picked the radius the
 //!   branch gives over the other sides either.
 //! - `most`, `/ 2.0` turned to `* 2.0`, a side of the triangle summed rather
-//!   than subtracted, and the two sums of the last line turned to products:
-//!   each makes the budget larger. `BUDGET * area` turned to a
-//!   sum makes it smaller, but still over a point for each area of the radius
-//!   by the tolerance, where a refinement takes about a third — measured on
-//!   an ellipse like this file's, at `1e-3`, `5e-4` and `2e-4` of the
-//!   radius. Either way unreachable: only a refinement that would never end
-//!   meets the budget, and it is given up all the same — which takes a
-//!   boundary chord the sampling let sag past the tolerance.
+//!   than subtracted, the two sums of the last line turned to products, and
+//!   `BUDGET * area` turned to a sum: each moves the budget, and the budget is
+//!   unreachable — only a refinement that would never end meets it, which it
+//!   gives up all the same, and that takes a boundary chord the sampling let
+//!   sag past the tolerance. A refinement that ends takes about a third of a
+//!   point for each area of the radius by the tolerance, measured on an
+//!   ellipse like this file's at `1e-3`, `5e-4` and `2e-4` of the radius. Not
+//!   every one makes the budget larger: a side summed shrinks a triangle's
+//!   term where its corners span over some ninety degrees, and `64 + room`
+//!   turned to a product shrinks the budget where its room is under two
+//!   points.
 //! - `beyond`, `>` → `>=`: differs only where the triple product equals its
-//!   margin exactly. Each `*` of the margin turned to `/`: scales the margin by
-//!   the triangle's lengths, which moves only how near a tie a side is left
-//!   uncut; the sign read anywhere else is the same. Either way the side left
-//!   bounds two triangles that turn, refined within the tolerance all the
-//!   same.
+//!   margin exactly.
 //! - `unplace` → `()`: a cut fails only where the middle of a side between two
 //!   triangles turning counterclockwise, or of one triangle, rounds past a
 //!   corner a hair from that side. The point then left behind lies in no
@@ -51,7 +55,8 @@
 //!   `a_chord_comes_nearest_the_centre_at_its_middle_whichever_way_it_is_asked`,
 //!   `a_triangle_cut_inside_is_cut_at_its_middle_on_the_chart`,
 //!   `a_triangle_turning_clockwise_on_the_chart_gives_the_face_up`,
-//!   `an_ellipse_on_a_large_sphere_refined_finely_takes_every_point_its_tolerance_needs`,
+//!   `an_ellipse_on_a_large_sphere_refined_finely_stands_within_its_tolerance_everywhere`,
+//!   `four_points_a_hair_off_one_circle_of_a_large_sphere_keep_the_side_they_are_handed`,
 //!   and the reasons above
 //! - No production behaviour changes — no test: the branch touches test files
 //!   only
@@ -272,12 +277,17 @@ fn a_chord_comes_nearest_the_centre_at_its_middle_whichever_way_it_is_asked() {
     }
 }
 
-#[test]
-fn an_ellipse_on_a_large_sphere_refined_finely_takes_every_point_its_tolerance_needs() {
-    let chart = Chart {
+/// The chart of a sphere far larger than the chart's points are apart.
+fn large() -> Chart {
+    Chart {
         radius: 10_000.0,
         ..chart()
-    };
+    }
+}
+
+#[test]
+fn an_ellipse_on_a_large_sphere_refined_finely_stands_within_its_tolerance_everywhere() {
+    let chart = large();
     let count = 40;
     let points: Vec<DVec2> = (0..count)
         .map(|rank| {
@@ -297,14 +307,57 @@ fn an_ellipse_on_a_large_sphere_refined_finely_takes_every_point_its_tolerance_n
         "every chord of the boundary sags within the tolerance, as the sampling holds it"
     );
 
-    let refined = refined(&chart, (&points, &places), &round_it, fan, tolerance);
+    let (added, triangles) = refined(&chart, (&points, &places), &round_it, fan, tolerance)
+        .expect("an ellipse whose boundary is sampled within the tolerance is refined");
+
+    let every: Vec<DVec3> = places
+        .iter()
+        .copied()
+        .chain(added.iter().map(|&at| chart.lifted(at)))
+        .collect();
+    for corners in &triangles {
+        let [a, b, c] = corners.map(|id| every[id]);
+        for one in 0..=8 {
+            for other in 0..=8 - one {
+                let (s, t) = (one as f64 / 8.0, other as f64 / 8.0);
+                let point = a * (1.0 - s - t) + b * s + c * t;
+                let off = chart.radius - point.length();
+                assert!(
+                    off <= tolerance * (1.0 + 1e-9),
+                    "{corners:?} stands {off} off the sphere at {point}, within {tolerance}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn four_points_a_hair_off_one_circle_of_a_large_sphere_keep_the_side_they_are_handed() {
+    let chart = large();
+    let round = |degrees: f64, reach: f64| {
+        let (sin, cos) = degrees.to_radians().sin_cos();
+        DVec2::new(cos, sin) * reach
+    };
+    let reach = 0.05;
+    let mut points = [DVec2::ZERO; 4];
+    points[A] = round(200.0, reach);
+    points[Y] = round(300.0, reach);
+    points[B] = round(20.0, reach);
+    points[X] = round(110.0, reach * (1.0 - 1e-9));
+    let places = places(&chart, &points);
+
+    let (added, triangles) = refined(
+        &chart,
+        (&points, &places),
+        &ROUND_IT,
+        CUT_ALONG_A_B.to_vec(),
+        chart.radius,
+    )
+    .expect("the quadrilateral is cut");
 
     assert!(
-        refined
-            .as_ref()
-            .is_some_and(|(added, _)| added.len() > 64 + count),
-        "the ellipse is refined, with more points inside than its outline holds and than a \
-         piece too small to need any is allowed: {:?}",
-        refined.map(|(added, _)| added.len())
+        added.is_empty() && triangles == CUT_ALONG_A_B.to_vec(),
+        "x stands inside the circle through a, y and b by a billionth of its distance from \
+         the middle, a tie however large the sphere: a–b is kept, {triangles:?}"
     );
 }

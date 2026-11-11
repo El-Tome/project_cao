@@ -69,10 +69,14 @@ fn narrowed([low, high]: [f64; 2], past: [f64; 2], eps: f64) -> Option<[f64; 2]>
 /// edge laid later mitres it, back from that plane at a convex corner — and
 /// where several edges of the list meet it there, at a corner whose three
 /// edges are named, which every laying cuts back within that plane or mitres
-/// short of it. Nothing holds it at an end where the face it ends on is
-/// curved or not one face, or where the one edge mitring it there does not
-/// share its face. Each half-space says whether it is a mitre's, as [`End`]
-/// reads it.
+/// short of it. At an end where it is one of the two edges of one sense at a
+/// corner of mixed sense, which go round the odd edge once it is laid (#829),
+/// the plane through the corner square to the edge, past which their blends
+/// never run: they mitre past it with the edge where the odd edge's face
+/// meets the one they share (#863). Nothing holds it at an end where the
+/// face it ends on is curved or not one face, or where the one edge mitring
+/// it there does not share its face. Each half-space says whether it is a
+/// mitre's, as [`End`] reads it.
 pub(super) fn runs(
     body: &brep::Body,
     (edges, wedges): (&[EdgeId], &[Wedge]),
@@ -112,7 +116,15 @@ pub(super) fn runs(
             beside.contains(&(end, [rank.min(neighbour), rank.max(neighbour)]))
                 && stopping.iter().any(|stop| stop.end == end)
         };
+        let gone_round = |others: [usize; 2]| {
+            let [mine, one, other] = [rank, others[0], others[1]].map(|at| wedges[at].inwards);
+            (one != other) && (mine == one || mine == other)
+        };
         let half = match meeting[..] {
+            [one, other] if gone_round([one, other]) => {
+                let at = body.vertex(end).point;
+                Some(((wedge.along, wedge.along.dot(at)), true))
+            }
             [neighbour] if neighbour < later || carried(neighbour) => {
                 let theirs = &wedges[neighbour];
                 let on = theirs

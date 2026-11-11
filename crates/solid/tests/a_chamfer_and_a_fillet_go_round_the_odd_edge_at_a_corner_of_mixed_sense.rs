@@ -6249,3 +6249,68 @@ fn a_chamfer_on_the_top_of_an_l_s_inner_corner_opening_wider_takes_the_value_who
         wrong.join("\n")
     );
 }
+
+/// [`ell`] bored through behind its inner corner by a square hole from
+/// (11.2, 5.2) to (11.7, 5.7), where [`ell_with_a_block_behind_its_inner_corner`]
+/// stands its block: the hole's near corner, (11.7, 5.7), 0.3 behind both the
+/// arm's back wall and the stem's right wall, is a corner of the top's own
+/// outline. The arm's and the stem's top edges' cuts stop at the inner
+/// corner and never reach it; the cut along the fill's top edge, between its
+/// two mitres, reaches it at `0.6/(√2 − 1)`.
+fn ell_bored_behind_its_inner_corner() -> Body {
+    let part = ell();
+    part.difference(&tool_raised(
+        &part,
+        Contour::rectangle(DVec2::new(11.2, 5.2), DVec2::new(11.7, 5.7)),
+        -1.0,
+        STANDING_HEIGHT + 2.0,
+    ))
+    .expect("the hole is cut")
+}
+
+#[test]
+fn a_chamfer_on_the_top_of_an_l_s_inner_corner_bored_behind_it_takes_the_value_whole_short_of_where_the_fill_s_cut_reaches_the_hole_and_that_value_past_it()
+ {
+    let corner = ell_s_inner_top_corner();
+    let part = ell_bored_behind_its_inner_corner();
+    let hole = 0.5 * 0.5 * STANDING_HEIGHT;
+    let reached = 0.6 / (2f64.sqrt() - 1.0);
+    let hair = 20.0 * 1e-9 * 30.0;
+    let names = corner
+        .edges()
+        .map(|(_, [first, second])| edge_between(&part, first, second));
+    let mut wrong = Vec::new();
+    for asked in [1.2, 2.5] {
+        for order in [[0, 1, 2], [2, 1, 0], [2, 0, 1]] {
+            let what = format!(
+                "the chamfer of {asked} on the top of the L's inner corner bored behind it, named \
+                 {order:?}, the cut along the fill's top edge reaching the hole at {reached}"
+            );
+            let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
+            let step = match part.chamfer_edges(&list, asked) {
+                Ok(step) => step,
+                Err(declined) => {
+                    wrong.push(format!("{what}: declined, {declined:?}"));
+                    continue;
+                }
+            };
+            let expected = asked.min(reached);
+            if step.taken > expected + PLACE || step.taken < expected - 10.0 * hair {
+                wrong.push(format!(
+                    "{what}: took {}, where nothing meets the hole short of {reached}",
+                    step.taken
+                ));
+                continue;
+            }
+            let promised = corner.chamfered(step.taken) - hole;
+            sound_drawn_within(&step.body, promised, EXACT * promised, &what);
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "the three top edges round the L's filled inner upright, a hole behind the corner, take \
+         the value whole short of where the fill's cut reaches the hole, its near corner read \
+         between the fill's two mitres and past the top edges' ends, which never run on to it:\n{}",
+        wrong.join("\n")
+    );
+}

@@ -15,6 +15,7 @@ use crate::body::exact::Exact;
 use crate::body::exact::wedge::flush::Held;
 use crate::body::exact::wedge::overlap::{ENDS, STRIDE};
 use crate::body::exact::wedge::step::{Kind, Step};
+use crate::body::exact::wedge::too_short;
 use crate::brep::{Declined, EdgeId, EdgeName};
 
 /// The ranks of the edges of a step laid first, ascending: each odd edge of
@@ -43,6 +44,16 @@ fn laid_first(step: &Step, odd: &[Odd]) -> Vec<usize> {
 /// closing faces are numbered.
 type Laid = (Exact, Vec<[usize; 3]>);
 
+/// What laying at a value gives: what it lays, or the most the edges give
+/// there, short of the value.
+type Tried<T> = Result<T, f64>;
+
+/// How many times the way round is laid again lower before it is declined:
+/// the second list's bound runs in proportion to the value the first was
+/// laid at, so two tries find where it meets the value, and a few more
+/// where it bends.
+const ROUNDS: usize = 6;
+
 impl Exact {
     /// The body with the edges `names` find laid at `taken`, each corner of
     /// mixed sense `odd` holds gone round its odd edge: the odd edges first,
@@ -64,7 +75,15 @@ impl Exact {
     /// the body it is laid on, an edge cannot be followed, the odd edge's
     /// face meets the face its two others share along no edge or several, or
     /// an edge no name finds is of a corner the second list closes; otherwise
-    /// as [`Exact::cut_off`] declines either list.
+    /// as [`Exact::cut_off`] declines either list. Where a list gives less
+    /// than `taken`, as [`Step::bound`] reads it on the body it is laid on,
+    /// the whole is laid again at the value where what it gives meets the
+    /// value laid (#863): the second list stands on what the first laid at
+    /// that value, so that the cut along a fill's top edge reaches what lies
+    /// behind the corner sooner the further the fill stands out. Read from
+    /// the first shortfall, then through the last two, and declined
+    /// `Unsupported` where that does not come lower, comes too short to set a
+    /// cut back by, or is not found in [`ROUNDS`] tries.
     pub(super) fn round_the_edge(
         &self,
         names: &[EdgeName],
@@ -73,6 +92,44 @@ impl Exact {
         taken: f64,
         kind: &Kind,
     ) -> Result<(Exact, f64), Declined> {
+        let mut value = taken;
+        let mut before: Option<[f64; 2]> = None;
+        for _ in 0..ROUNDS {
+            let gives = match self.round_the_edge_at(names, step, odd, value, kind)? {
+                Ok(laid) => return Ok(laid),
+                Err(gives) => gives,
+            };
+            let next = match before {
+                Some([then, gave]) if then != value => {
+                    let slope = (gives - gave) / (value - then);
+                    let meeting = (gives - slope * value) / (1.0 - slope);
+                    if slope < 1.0 && meeting.is_finite() {
+                        meeting
+                    } else {
+                        gives
+                    }
+                }
+                _ => gives,
+            };
+            if next.is_nan() || next >= value || too_short(next, self.brep.scale()) {
+                return Err(Declined::Unsupported);
+            }
+            before = Some([value, gives]);
+            value = next;
+        }
+        Err(Declined::Unsupported)
+    }
+
+    /// The body [`Exact::round_the_edge`] lays at `taken`, or what the list
+    /// that gives less than `taken` gives there.
+    fn round_the_edge_at(
+        &self,
+        names: &[EdgeName],
+        step: &Step,
+        odd: &[Odd],
+        taken: f64,
+        kind: &Kind,
+    ) -> Result<Tried<(Exact, f64)>, Declined> {
         let start = self.next;
         let wedges = &step.wedges;
         let first = laid_first(step, odd);
@@ -82,7 +139,10 @@ impl Exact {
         let named = |ranks: &[usize]| -> Vec<EdgeName> {
             ranks.iter().map(|&rank| names[rank].clone()).collect()
         };
-        let (laid, closed_first) = self.laid_at(&named(&first), taken, kind, &[])?;
+        let (laid, closed_first) = match self.laid_at(&named(&first), taken, kind, &[])? {
+            Ok(laid) => laid,
+            Err(gives) => return Ok(Err(gives)),
+        };
         let mut held = Vec::new();
         let mut edges_on = Vec::new();
         for corner in odd {
@@ -99,7 +159,10 @@ impl Exact {
             .map(|&rank| laid.following(&names[rank], &wedges[rank]))
             .collect::<Result<Vec<_>, Declined>>()?;
         let following: Vec<EdgeName> = followed.into_iter().chain(edges_on).collect();
-        let (round, closed_after) = laid.laid_at(&following, taken, kind, &held)?;
+        let (round, closed_after) = match laid.laid_at(&following, taken, kind, &held)? {
+            Ok(laid) => laid,
+            Err(gives) => return Ok(Err(gives)),
+        };
         let back = |ranks: &[usize], corner: [usize; 3]| -> Result<[usize; 3], Declined> {
             let mut back = [0; 3];
             for (into, rank) in back.iter_mut().zip(corner) {
@@ -138,7 +201,7 @@ impl Exact {
             None => number,
         });
         let next = ends + held.len() as u32;
-        Ok((Exact { next, ..renamed }, taken))
+        Ok(Ok((Exact { next, ..renamed }, taken)))
     }
 
     /// Where the fill or the cut along the edge `edge` of this body ends at
@@ -159,26 +222,27 @@ impl Exact {
     /// The body with the edges `names` find on it laid in turn at `taken`, as
     /// [`Exact::in_turn`] lays them with `kind`, and the corners three of them
     /// meet at, by their ranks, in the order their closing faces are
-    /// numbered. Declined `Unsupported` where they give less than `taken`, as
-    /// [`Step::bound`] reads it on this body, by more than the body's
-    /// tolerance — a limit the value was taken at, read again through a
-    /// mitre, comes back a rounding short of it; otherwise as
-    /// [`Exact::cut_off`] declines them.
+    /// numbered; or, where they give less than `taken`, as [`Step::bound`]
+    /// reads it on this body, by more than the body's tolerance — a limit the
+    /// value was taken at, read again through a mitre, comes back a rounding
+    /// short of it — what they give. Declined as [`Exact::cut_off`] declines
+    /// them.
     fn laid_at(
         &self,
         names: &[EdgeName],
         taken: f64,
         kind: &Kind,
         held: &[Held],
-    ) -> Result<Laid, Declined> {
+    ) -> Result<Tried<Laid>, Declined> {
         let mut step = self.step(names, kind)?;
         step.held = held.to_vec();
-        if taken - step.bound(&self.brep, taken, kind) > self.brep.scale().eps() {
-            return Err(Declined::Unsupported);
+        let gives = step.bound(&self.brep, taken, kind);
+        if taken - gives > self.brep.scale().eps() {
+            return Ok(Err(gives));
         }
         let closed = step.three.iter().map(|&(_, ranks, _)| ranks).collect();
         let (laid, _, _) = self.in_turn(names, step, taken, kind)?;
-        Ok((laid, closed))
+        Ok(Ok((laid, closed)))
     }
 
     /// The name of the one edge where the face laid answering to `laid`

@@ -900,10 +900,13 @@ fn cones(leaf: &Leaf) -> Vec<(Cone, bool)> {
 }
 /// Whether the kernel declines a cone against `wall`, off its axis (#577):
 /// a cylinder or a cone about the cone's very axis is built as before; one
-/// within a hair of it, the hair `HAIR` tolerances, and an elliptic wall
-/// about it, are declined; so is a pair no ruling meets in a true quadratic
-/// all round, `A` reaching nought — a wall's axis along a ruling, or two
-/// cones each with rulings within the other's slope; an apex of either
+/// within a hair of it, the hair `HAIR` tolerances, is declined; so is an
+/// elliptic wall about it, its axis within a hair of the cone's and leaning
+/// no more than decision 11 lays exactly along it — a sine up to a hair
+/// over `lever`, half the diagonal of the box of the later leaf, the operand
+/// it turns (#857); so is a pair no ruling meets in a true quadratic all
+/// round, `A` reaching nought — a wall's axis along a ruling, or two cones
+/// each with rulings within the other's slope; an apex of either
 /// standing on the other wall, `on_the_apex`; a curve on a cone face
 /// holding its apex, `pointed`, a component of which does not go round the
 /// cone's axis (`goes_round`), as `combine/related.rs`'s
@@ -911,7 +914,15 @@ fn cones(leaf: &Leaf) -> Vec<(Cone, bool)> {
 /// chord's sag in the box `[low, high]`; and a cone and a wall grazing each
 /// other closer than a sag without meeting. As `relation/conical.rs` and
 /// `relation/nearly_parallel.rs` read it.
-fn declines(cone: &Cone, pointed: bool, wall: &Exact, low: DVec3, high: DVec3, reach: f64) -> bool {
+fn declines(
+    cone: &Cone,
+    pointed: bool,
+    wall: &Exact,
+    low: DVec3,
+    high: DVec3,
+    reach: f64,
+    lever: f64,
+) -> bool {
     let (origin, axis) = wall.origin_and_axis();
     let sine = cone.axis.cross(axis).length();
     let between = origin - cone.origin;
@@ -921,6 +932,10 @@ fn declines(cone: &Cone, pointed: bool, wall: &Exact, low: DVec3, high: DVec3, r
         return false;
     }
     if coaxial(reach * HAIR) {
+        return true;
+    }
+    let laid = sine * lever <= HAIR * TOLERANCE * reach;
+    if matches!(wall, Exact::Oval(_)) && laid && off <= TOLERANCE * reach * HAIR {
         return true;
     }
     let steady = steadiness(cone, wall) > STEADY
@@ -1394,9 +1409,12 @@ impl Case {
                     let (shared_low, shared_high) =
                         (low.max(*other_low) - margin, high.min(*other_high) + margin);
                     let reach = reach_up_to(index.max(other_index));
+                    let lever = leaves[index.max(other_index)]
+                        .1
+                        .map_or(0.0, |(low, high)| (high - low).length() / 2.0);
                     cones(one).iter().any(|(cone, pointed)| {
                         walls(other).iter().any(|wall| {
-                            declines(cone, *pointed, wall, shared_low, shared_high, reach)
+                            declines(cone, *pointed, wall, shared_low, shared_high, reach, lever)
                         })
                     })
                 })

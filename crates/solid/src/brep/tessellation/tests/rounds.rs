@@ -560,6 +560,27 @@ fn a_sector_of_a_ball_over_a_wide_triangle_whose_corners_stand_eighty_degrees_fr
 }
 
 #[test]
+fn the_sphere_face_of_a_sector_whose_corners_stand_a_hair_short_of_ninety_degrees_from_its_middle_is_left_open_rather_than_drawn_inside_out()
+ {
+    let middle = DVec3::new(0.3, -0.4, 1.0);
+    let corners = round_about(middle, 89.95, [0.0, 110.0, 230.0]);
+    for axis in round_about(middle, 90.0, [40.0, 100.0]) {
+        let body = wedge(SECTOR_CENTRE, SECTOR_RADIUS, corners, axis, Kept::Sector);
+        let what = format!("the sector over {corners:?} read about {axis}");
+        let piece = piece_of(&body, corners, &what);
+        for tolerance in TOLERANCES {
+            let cut = body.triangles_by_face(tolerance);
+            assert_eq!(
+                cut.uncut,
+                vec![piece],
+                "{what}: at {tolerance}, the sphere face alone is left open, its corners so near \
+                 square to the axis of its cap that its chart would turn it inside out"
+            );
+        }
+    }
+}
+
+#[test]
 fn the_sphere_face_of_a_ball_less_a_sector_in_front_of_no_one_direction_is_left_open_and_never_drawn_inside_out()
  {
     let corners = [

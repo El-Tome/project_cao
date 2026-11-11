@@ -117,11 +117,13 @@ impl Exact {
     /// once all are laid, as `meeting` closes it by the way they meet, read
     /// where each two's set-backs cross on the face they share, as
     /// [`Exact::closed`] closes it, its face numbered past the edges'. A corner
-    /// three of them meet at, two concave and the convex upright above them,
-    /// is gone round its odd edge as `meeting` says, as
+    /// three of them meet at, two of one sense and the odd one of the other —
+    /// two feet and the upright above them, two top edges and the upright
+    /// below them — is gone round its odd edge as `meeting` says, as
     /// [`Exact::round_the_odd`] lays it — the two others following the outline
-    /// it leaves, with the foot of its face or through a piece of torus about
-    /// its round — what closes it numbered past the edges'. The wall an edge's
+    /// it leaves, with the edge of its face on the face they share or through
+    /// a piece of torus about its round — what closes it numbered past the
+    /// edges'. The wall an edge's
     /// prism lays is numbered where the steps' numbers ended, plus the edge's
     /// rank in the list; a pair is laid at its later edge's turn, so
     /// that every number laid before stands below those a prism lays, as
@@ -131,8 +133,8 @@ impl Exact {
     /// not a wedge, one edge two names find, two edges meeting at a corner that
     /// is neither convex — every edge ending there a wedge whose faces meet
     /// outwards — nor two of one sense beside an edge of the other left out of
-    /// the list, nor two concave beside a third concave or the convex upright
-    /// above them, more than three edges meeting at a corner, or three where
+    /// the list, nor two concave beside a third concave, nor three of mixed
+    /// sense, more than three edges meeting at a corner, or three where
     /// another edge ends too, where `meeting` lays two together an edge
     /// meeting two others, or one of two laid together that meets another
     /// edge of the list at a corner any other way, a cut or a fill that left

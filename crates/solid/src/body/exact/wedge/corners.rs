@@ -7,9 +7,10 @@
 //! into a mitre. Two concave edges beside a third concave one, at a pocket's
 //! bottom corner, are each trimmed flush and meet in a valley, and the three
 //! there are closed as three convex ones are, the closing joined. The three
-//! at a standing block's foot corner, two concave feet and the convex upright
-//! above them, are gone round the upright (#829). Any other corner is
-//! declined.
+//! at a corner of mixed sense — a standing block's foot corner, two concave
+//! feet and the convex upright above them, or the top of an L's inner corner,
+//! two convex top edges and the concave upright below them — are gone round
+//! the upright (#829). Any other corner is declined.
 
 use std::collections::BTreeMap;
 
@@ -30,12 +31,15 @@ pub(super) type Beside = (VertexId, [usize; 2]);
 /// upright, two meeting inwards beside one meeting outwards at the feet of a
 /// block standing on another — or, the two meeting inwards, inwards too, at
 /// a pocket's bottom corner, which takes its three edges too, closed as
-/// [`of_three`] reads it; and three of them ending at a standing block's foot
-/// corner, two meeting inwards and the third outwards, gone round that third
-/// edge as [`super::odd`] lays it. Every other corner two of them meet at is
-/// to be convex: each edge ending there straight between two flat faces that
-/// meet outwards, whatever those faces hold past the corner. Declined
-/// `Unsupported` where one is none of these.
+/// [`of_three`] reads it; and three of them ending at a corner of mixed
+/// sense, two meeting one way and the third the other — a standing block's
+/// foot corner, two feet meeting inwards and the upright above them outwards,
+/// or the top of an L's inner corner, two top edges meeting outwards and the
+/// upright below them inwards — gone round that third edge as [`super::odd`]
+/// lays it. Every other corner two of them meet at is to be convex: each
+/// edge ending there straight between two flat faces that meet outwards,
+/// whatever those faces hold past the corner. Declined `Unsupported` where
+/// one is none of these.
 pub(super) fn admit(body: &brep::Body, edges: &[EdgeId]) -> Result<Vec<Beside>, Declined> {
     let meeting = |edge, inwards| Wedge::faced(body, edge).is_ok_and(|w| w.inwards == inwards);
     let mut beside = Vec::new();
@@ -60,8 +64,7 @@ pub(super) fn admit(body: &brep::Body, edges: &[EdgeId]) -> Result<Vec<Beside>, 
                 beside.push((corner, [one, other]));
             }
             (&[_, _, _], 3)
-                if (ending.iter()).all(|&edge| meeting(edge, true) || meeting(edge, false))
-                    && (ending.iter()).filter(|&&edge| meeting(edge, true)).count() > 1 => {}
+                if (ending.iter()).all(|&edge| meeting(edge, true) || meeting(edge, false)) => {}
             _ => return Err(Declined::Unsupported),
         }
     }

@@ -64,7 +64,11 @@ impl Exact {
     /// to its wall — and the corner closed by a piece of torus about that
     /// axis, its tube of the radius and its centre circle twice the radius
     /// from the axis, tangent to the four faces it meets and numbered after
-    /// the rounds. Rounds that would meet only on a curved edge are not
+    /// the rounds; and the three at the top of an L's inner corner, its
+    /// mirror: the inner upright's fill ending one radius below the top, each
+    /// top edge's round on the plane through the fill's axis square to its
+    /// wall, and the corner closed by a piece of torus cut out about that
+    /// axis, its centre circle one radius below the top. Rounds that would meet only on a curved edge are not
     /// measured, and declined where they meet. The rounds are numbered, in the
     /// order the names come, where the steps' numbers ended; a full round
     /// answers to both its edges' numbers. Declined `Distance`: a radius that
@@ -79,8 +83,8 @@ impl Exact {
     /// an edge meets inwards, an edge whose set-backs meet those of two others
     /// — rounds closing on themselves, #790 — an edge of a full round meeting
     /// another edge of the list at a corner but the edge at its end, one of a
-    /// round bottom meeting any, and a cut
-    /// that left anything but its round — a face of the prism, the round in two
+    /// round bottom meeting any, and a cut that left anything but its round —
+    /// a face of the prism, the round in two
     /// pieces or with a corner on neither of the edge's faces, a face the body
     /// held, but the edge's two, taken away whole — as where a round leaving
     /// the edge's end outwards bulges past the edge's face, and the prism's

@@ -54,8 +54,12 @@ impl Exact {
     /// then the feet filled along the outline it left with the foot of that
     /// flat, which no name finds, numbered after the flats, the three fills
     /// meeting in mitres — the body the upright chamfered alone and then the
-    /// three feet leave. Flats that would meet only on a curved edge are not
-    /// measured, and declined where they meet.
+    /// three feet leave; and the three at the top of an L's inner corner, its
+    /// mirror, the inner upright filled first, its fill stopping flush on the
+    /// top, then the two top edges cut along the outline it left with the top
+    /// edge of its flat, numbered after them, the three flats mitred at the
+    /// top's two reflex corners. Flats that would meet only on a curved edge
+    /// are not measured, and declined where they meet.
     /// A distance shorter than the kernel can set a cut back from an edge is
     /// declined first; `Lost`, an edge its name no longer finds. Unsupported: a
     /// list of no edge, an edge that is not straight between two flat faces,
@@ -88,7 +92,7 @@ impl Exact {
                     outwards: cut_across,
                     inwards: joined_across,
                 },
-                around: Around::Foot,
+                around: Around::Edge,
             },
         )?;
         Ok((cut, taken))

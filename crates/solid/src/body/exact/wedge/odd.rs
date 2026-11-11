@@ -1,21 +1,25 @@
 //! A corner three edges of one step meet at, two of one sense and the odd one
 //! of the other (#829): the foot corner of a block standing on another, two
-//! concave feet and the convex upright above them. A cut and a fill laid in
-//! turn there meet in nothing, so the two others go round the outline the
-//! odd edge leaves, as the kind says. Among flats the odd edge is laid first,
-//! as it is laid alone, stopping flush on the face the two others share; the
-//! two others then follow the outline it left, as they would in a later
-//! step, the edge where the odd edge's face meets that face laid with them —
-//! the foot of a chamfer's flat, filled among the feet and mitred with them,
-//! as #801 fills it. Among rounds the corner is filled up to where the odd
-//! edge's round leaves the others, every edge is then laid against that as
-//! alone, and a piece of torus replaces what the filling left, as
-//! [`super::torus`] lays it. Either way each named edge's face is numbered
-//! by its rank, and every patch — a fill no name finds, a piece of torus, a
-//! corner closed on the way — past them by its corner's ranks. A foot corner
-//! whose upright's other end meets an edge of the list laid after it is
-//! declined: slice 3 of #829 builds a standing block's top corner, #847 a
-//! post whose upright is odd at both ends.
+//! concave feet and the convex upright above them, and its mirror, the top
+//! of an L's inner corner, two convex top edges and the concave upright below
+//! them. A cut and a fill laid in turn there meet in nothing, so the two
+//! others go round the outline the odd edge leaves, as the kind says. Among
+//! flats the odd edge is laid first, as it is laid alone, stopping flush on
+//! the face the two others share; the two others then follow the outline it
+//! left, as they would in a later step, the edge where the odd edge's face
+//! meets that face laid with them — the foot of a chamfer's flat, filled
+//! among the feet, or the top of a fill's flat, cut among the top edges —
+//! and mitred with them, as #801 lays it. Among rounds a foot corner is
+//! filled up to where the upright's round leaves the feet, every edge is then
+//! laid against that as alone, and a piece of torus replaces what the filling
+//! left, as [`super::torus`] lays it; the top of an L's inner corner, the
+//! mirror, is propped, laid, cleared and closed by a piece of torus cut out.
+//! Either way each named edge's
+//! face is numbered by its rank, and every patch — a flat no name finds, a
+//! piece of torus, a corner closed on the way — past them by its corner's
+//! ranks. A corner whose odd edge's other end meets an edge of the list laid
+//! after it is declined: slice 3 of #829 builds a standing block's top
+//! corner, #847 a post whose upright is odd at both ends.
 
 use std::collections::BTreeMap;
 
@@ -42,15 +46,17 @@ pub(super) struct Odd {
 /// What a kind lays round the odd edge of a corner of mixed sense.
 #[derive(Clone, Copy)]
 pub(in crate::body::exact) enum Around {
-    /// The odd edge laid first, alone, then the others with the foot of the
-    /// face it laid, an edge of their sense: a chamfer's flat, whose foot is
-    /// straight.
-    Foot,
+    /// The odd edge laid first, alone, then the others with the edge where
+    /// the face it laid meets the face they share, an edge of their sense: a
+    /// chamfer's flat, whose edge there is straight — its foot, or its top.
+    Edge,
     /// The corner filled up to the planes through the odd edge's round's axis
     /// square to the others, every edge then laid against it, and what the
     /// filling left replaced by a piece of torus about that axis, as
-    /// [`Exact::through_a_torus`] lays it: a fillet's round, whose foot is
-    /// curved.
+    /// [`Exact::through_a_torus`] lays it: a fillet's round, whose edge there
+    /// is curved. At a concave odd edge, the mirror: the corner propped, every
+    /// edge laid, the sector cut away and a piece of torus cut out about the
+    /// fill's axis.
     Torus,
 }
 
@@ -119,11 +125,12 @@ pub(super) fn ranked_patches(
 impl Exact {
     /// The body with the edges `names` find laid at `taken`, each corner of
     /// mixed sense `odd` holds gone round its odd edge as the kind's
-    /// `meeting` says: by its foot, as [`Exact::round_the_foot`] lays it, or
-    /// through a piece of torus, as [`Exact::through_a_torus`] lays it, each
-    /// edge's wedge on this body by its rank in `wedges`. The pairs laid as
+    /// `meeting` says: by the edge of the face it laid, as
+    /// [`Exact::round_the_edge`] lays it, or through a piece of torus, as
+    /// [`Exact::through_a_torus`] lays it, each edge's wedge on this body by
+    /// its rank in `wedges`. The pairs laid as
     /// one are handed back through a piece of torus alone, where the fillet
-    /// reads them; the chamfer, which goes round by the foot, reads none, and
+    /// reads them; the chamfer, which goes round by that edge, reads none, and
     /// none is handed back that way. Declined as those decline.
     pub(super) fn round_the_odd(
         &self,
@@ -134,7 +141,7 @@ impl Exact {
         kind: &Kind,
     ) -> Result<(Exact, f64, Vec<Pair>), Declined> {
         match kind.meeting.around {
-            Around::Foot => (self.round_the_foot(names, wedges, odd, taken, kind))
+            Around::Edge => (self.round_the_edge(names, wedges, odd, taken, kind))
                 .map(|(round, taken)| (round, taken, Vec::new())),
             Around::Torus => self.through_a_torus(names, wedges, odd, taken, kind),
         }
@@ -149,8 +156,9 @@ impl Exact {
     /// lays each of the two lists with `kind`. The face laid on each named
     /// edge is numbered where the steps' numbers ended plus its rank in the
     /// list, and every patch past them, in the order of its corner's ranks
-    /// in the list, as [`ranked_patches`] numbers them: the fill laid on each
-    /// edge no name finds, at its corner of mixed sense, and the face closing
+    /// in the list, as [`ranked_patches`] numbers them: the flat laid on each
+    /// edge no name finds, at its corner of mixed sense — the fill along a
+    /// flat's foot, the cut along a fill's top — and the face closing
     /// a corner three edges of either list meet at — the apex of a pyramid
     /// whose slanted edges are laid first. Declined `Unsupported` where
     /// either list gives less than `taken`, as [`Step::bound`] reads it on
@@ -158,7 +166,7 @@ impl Exact {
     /// face meets the face its two others share along no edge or several, or
     /// an edge no name finds is of a corner the second list closes; otherwise
     /// as [`Exact::cut_off`] declines either list.
-    fn round_the_foot(
+    fn round_the_edge(
         &self,
         names: &[EdgeName],
         wedges: &[Wedge],
@@ -173,18 +181,18 @@ impl Exact {
             ranks.iter().map(|&rank| names[rank].clone()).collect()
         };
         let (laid, closed_first) = self.laid_at(&named(&first), taken, kind)?;
-        let feet = (odd.iter())
+        let edges_on = (odd.iter())
             .map(|corner| {
                 let at = first
                     .binary_search(&corner.lone)
                     .map_err(|_| Declined::Unsupported)?;
-                laid.foot(start + at as u32, &corner.on)
+                laid.edge_on(start + at as u32, &corner.on)
             })
             .collect::<Result<Vec<_>, Declined>>()?;
         let followed = (rest.iter())
             .map(|&rank| laid.following(&names[rank], &wedges[rank]))
             .collect::<Result<Vec<_>, Declined>>()?;
-        let following: Vec<EdgeName> = followed.into_iter().chain(feet).collect();
+        let following: Vec<EdgeName> = followed.into_iter().chain(edges_on).collect();
         let (round, closed_after) = laid.laid_at(&following, taken, kind)?;
         let back = |ranks: &[usize], corner: [usize; 3]| -> Result<[usize; 3], Declined> {
             let mut back = [0; 3];
@@ -266,14 +274,14 @@ impl Exact {
     /// The name of the one edge where the face laid answering to `laid`
     /// meets the face answering to `on` alone. Declined `Unsupported` where
     /// they meet along no edge, or several.
-    fn foot(&self, laid: u32, on: &[u32]) -> Result<EdgeName, Declined> {
-        let mut feet = (self.named(laid as usize))
+    fn edge_on(&self, laid: u32, on: &[u32]) -> Result<EdgeName, Declined> {
+        let mut edges = (self.named(laid as usize))
             .flat_map(|face| self.brep.face(face).loops.iter().flatten())
             .map(|coedge| coedge.edge)
             .filter(|&edge| {
                 (self.brep.uses(edge).iter()).any(|&(face, _)| self.brep.numbers(face) == on)
             });
-        match (feet.next(), feet.next()) {
+        match (edges.next(), edges.next()) {
             (Some(edge), None) => Ok(self.edges[edge.0 as usize].clone()),
             _ => Err(Declined::Unsupported),
         }

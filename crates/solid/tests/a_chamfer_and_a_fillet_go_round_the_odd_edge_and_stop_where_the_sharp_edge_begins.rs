@@ -47,6 +47,20 @@
 //!   fillet's end section a square less a quarter disc cut into the top and
 //!   down the sharp edge's wall; the sharp top edge one edge from the stem's
 //!   back, or the arm's end, to the end face
+//! - Found on the way, not in the issue's wording, #829's rule where the
+//!   fill ends in the air: a low block standing beside the sharp foot's wall,
+//!   across the plane the fill along the front foot ends on, is never buried.
+//!   Below the value at which that end first reaches the block, the value is
+//!   taken whole, the block's faces kept as they were and the body holding
+//!   the blend's matter and the whole block's; past it, the value is reduced
+//!   to that touch or the step declined —
+//!   `a_chamfer_and_a_fillet_on_a_foot_and_the_upright_above_it_never_bury_a_block_standing_across_where_the_fill_ends`
+//! - Found on the way, not in the issue's wording: two corners left sharp in
+//!   one step, the front right with its right foot and the back left with
+//!   its left foot, number their end faces after their patches, corner by
+//!   corner by the lowest ranks of their edges in the list, then the next, as
+//!   the patches are numbered — whatever order the list names them in —
+//!   `a_chamfer_and_a_fillet_on_two_corners_each_left_sharp_number_their_end_faces_after_the_patches_by_their_corners_ranks`
 //! - The decline test
 //!   `a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_declined_as_unsupported`
 //!   loses its last two lists, which become the body tests above; if nothing
@@ -479,6 +493,43 @@ fn stacked_s_front_right() -> SharpCorner {
             },
         },
         upright: "the standing block's front right upright",
+        odd_filled: false,
+        odd_ends_on: STANDING_TOP,
+    }
+}
+
+/// [`stacked`]'s back left foot corner, (10, 15, 10), square: its back foot
+/// named, running to the right wall, and its left foot left sharp, running to
+/// the front wall.
+fn stacked_s_back_left() -> SharpCorner {
+    SharpCorner {
+        called: "the standing block's back left foot corner",
+        part: stacked,
+        volume: STACKED_VOLUME,
+        at: DVec3::new(10.0, 15.0, LOWER_TOP),
+        named: Foot {
+            called: "the standing block's back foot",
+            wall: STANDING_BACK,
+            facing: DVec3::Y,
+            along: DVec3::X,
+            far: FarEnd {
+                on: STANDING_RIGHT,
+                at: DVec3::new(20.0, 15.0, LOWER_TOP),
+                facing: DVec3::X,
+            },
+        },
+        sharp: Foot {
+            called: "the standing block's left foot",
+            wall: STANDING_LEFT,
+            facing: -DVec3::X,
+            along: -DVec3::Y,
+            far: FarEnd {
+                on: STANDING_FRONT,
+                at: DVec3::new(10.0, 5.0, LOWER_TOP),
+                facing: -DVec3::Y,
+            },
+        },
+        upright: "the standing block's back left upright",
         odd_filled: false,
         odd_ends_on: STANDING_TOP,
     }
@@ -1561,5 +1612,269 @@ fn a_fillet_on_a_top_edge_at_the_l_s_inner_corner_and_the_upright_below_it_cuts_
             Cut::Round,
             stopped_round_the_round_where_the_sharp_edge_begins,
         );
+    }
+}
+
+/// How high the blocks [`ACROSS_THE_END`] stand on the lower block's top.
+const BLOCK_HEIGHT: f64 = 0.3;
+
+/// A block [`BLOCK_HEIGHT`] high standing on [`stacked`]'s lower block beside
+/// the standing block's right wall, from `from` to `to`, its front across the
+/// plane the fill along the front foot ends on at the front right foot
+/// corner, `y = 5 + v` at the value `v`: its top and walls numbered thirteen
+/// to seventeen, its front fourteen, its floor gone into the lower block's
+/// top.
+struct AcrossTheEnd {
+    from: [f64; 2],
+    to: [f64; 2],
+    called: &'static str,
+}
+
+impl AcrossTheEnd {
+    /// The value at which the fill first reaches the block, either kind:
+    /// where its end, on the plane `y = 5 + v`, reaches the block's front.
+    /// Short of it the fill stands in front of that plane and reaches nothing
+    /// past it; at it, the end section stands higher than the block over the
+    /// whole of its front — the chamfer's fill `v − s` high a distance `s`
+    /// out from the upright's flat, the fillet's `r − √(r² − (2r − ρ)²)` high
+    /// a distance `ρ` from the upright round's axis, at least 0.75 for these
+    /// blocks.
+    fn touched(&self) -> f64 {
+        self.from[1] - 5.0
+    }
+
+    fn holds(&self) -> f64 {
+        (self.to[0] - self.from[0]) * (self.to[1] - self.from[1]) * BLOCK_HEIGHT
+    }
+}
+
+/// The two blocks the review read across the fill's end: one 0.2 off the
+/// right wall, under the fill along the foot of the upright's flat, and one
+/// about 3 from the upright round's axis, under the piece of torus.
+const ACROSS_THE_END: [AcrossTheEnd; 2] = [
+    AcrossTheEnd {
+        from: [20.2, 7.3],
+        to: [20.6, 7.8],
+        called: "a block 0.2 off the right wall",
+    },
+    AcrossTheEnd {
+        from: [20.5, 7.3],
+        to: [21.0, 7.8],
+        called: "a block 0.5 off the right wall",
+    },
+];
+
+/// Whether the face numbered `face` lies where it did on `part`: flat, facing
+/// the same way, with the same corners.
+fn as_it_was(part: &Body, body: &Body, face: usize) -> bool {
+    match (part.plane_of(face), body.plane_of(face)) {
+        (Some(was), Some(is)) => {
+            let among = |corners: &[DVec3], point: &DVec3| {
+                corners.iter().any(|corner| corner.distance(*point) < PLACE)
+            };
+            was.normal.distance(is.normal) < PLACE
+                && was.corners.iter().all(|point| among(&is.corners, point))
+                && is.corners.iter().all(|point| among(&was.corners, point))
+        }
+        _ => false,
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_foot_and_the_upright_above_it_never_bury_a_block_standing_across_where_the_fill_ends()
+ {
+    let corner = stacked_s_front_right();
+    let hair = 20.0 * 1e-9 * 30.0;
+    let mut wrong = Vec::new();
+    for block in ACROSS_THE_END {
+        let part = joined(
+            &stacked(),
+            Contour::rectangle(DVec2::from(block.from), DVec2::from(block.to)),
+            LOWER_TOP,
+            BLOCK_HEIGHT,
+        );
+        let start = part.faces_end();
+        let faces: Vec<usize> = (start - 5..start).collect();
+        let front = start - 4;
+        let names = corner
+            .edges()
+            .map(|(_, [first, second])| edge_between(&part, first, second));
+        let touched = block.touched();
+        for cut in [Cut::Flat, Cut::Round] {
+            for asked in [2.0, 2.5] {
+                for order in ORDERS_OF_TWO {
+                    let what = format!(
+                        "the {} of {asked} on the front foot and the front right upright, the \
+                         right foot left sharp, beside {}, named {order:?}, the fill's end \
+                         reaching the block at {touched}",
+                        cut.called(),
+                        block.called
+                    );
+                    let list: Vec<EdgeName> =
+                        order.iter().map(|&edge| names[edge].clone()).collect();
+                    let step = match cut.laid_on(&part, &list, asked) {
+                        Ok(step) => step,
+                        Err(_) if asked > touched => continue,
+                        Err(reason) => {
+                            wrong.push(format!("{what}: declined, {reason:?}"));
+                            continue;
+                        }
+                    };
+                    let body = &step.body;
+                    let reduced = step.taken < asked - PLACE;
+                    let moved: Vec<usize> = (faces.iter().copied())
+                        .filter(|&face| !(reduced && face == front))
+                        .filter(|&face| !as_it_was(&part, body, face))
+                        .collect();
+                    if !moved.is_empty() {
+                        wrong.push(format!(
+                            "{what}: took {} and laid a body without the block whole, its faces \
+                             {moved:?} gone or moved, holding {}",
+                            step.taken,
+                            body.volume()
+                        ));
+                        continue;
+                    }
+                    let expected = asked.min(touched);
+                    if (step.asked - asked).abs() > PLACE
+                        || step.taken > expected + PLACE
+                        || step.taken < expected - 10.0 * hair
+                    {
+                        wrong.push(format!(
+                            "{what}: asked {} and took {}, where the fill's end first reaches \
+                             the block at {touched}",
+                            step.asked, step.taken
+                        ));
+                        continue;
+                    }
+                    let taken = step.taken;
+                    let (promised, drawn) = match cut {
+                        Cut::Flat => {
+                            let promised = corner.chamfered(taken) + block.holds();
+                            (promised, EXACT * promised)
+                        }
+                        Cut::Round => (
+                            corner.filleted(taken) + block.holds(),
+                            corner.drawn_within(&part, taken),
+                        ),
+                    };
+                    sound_drawn_within(body, promised, drawn, &what);
+                    assert_eq!(
+                        faces_made(&part, body),
+                        (start..start + 4).collect::<Vec<_>>(),
+                        "{what}: one face for each named edge, then the patch, then the end face"
+                    );
+                }
+            }
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "a foot and the upright above it beside a block across where the fill ends keep the \
+         block whole, the value reduced to where the fill's end first reaches it, or the step \
+         declined:\n{}",
+        wrong.join("\n")
+    );
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_two_corners_each_left_sharp_number_their_end_faces_after_the_patches_by_their_corners_ranks()
+ {
+    let corners = [stacked_s_front_right(), stacked_s_back_left()];
+    let part = stacked();
+    let start = part.faces_end();
+    let edges: Vec<[usize; 2]> = (corners.iter())
+        .flat_map(|corner| corner.edges().map(|(_, faces)| faces))
+        .collect();
+    let names: Vec<EdgeName> = (edges.iter())
+        .map(|&[first, second]| edge_between(&part, first, second))
+        .collect();
+    let value = 1.0;
+    for order in [[0, 1, 2, 3], [2, 3, 0, 1], [3, 0, 2, 1]] {
+        let rank = |edge: usize| {
+            (order.iter())
+                .position(|&named| named == edge)
+                .expect("every edge is named")
+        };
+        let mut by_ranks: Vec<(usize, [usize; 2])> = (0..2)
+            .map(|place| {
+                let mut ranks = [rank(2 * place), rank(2 * place + 1)];
+                ranks.sort();
+                (place, ranks)
+            })
+            .collect();
+        by_ranks.sort_by_key(|&(_, ranks)| ranks);
+        for cut in [Cut::Flat, Cut::Round] {
+            let what = format!(
+                "the {} of {value} on the front foot and the front right upright, the right \
+                 foot left sharp, and on the back foot and the back left upright, the left \
+                 foot left sharp, named {order:?}",
+                cut.called()
+            );
+            let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
+            let step = cut
+                .laid_on(&part, &list, value)
+                .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+            taken_as_asked(step.asked, step.taken, value, &what);
+            let body = &step.body;
+            let (promised, drawn) = match cut {
+                Cut::Flat => {
+                    let promised = STACKED_VOLUME
+                        + (corners.iter())
+                            .map(|corner| corner.chamfered(value) - corner.volume)
+                            .sum::<f64>();
+                    (promised, EXACT * promised)
+                }
+                Cut::Round => (
+                    STACKED_VOLUME
+                        + (corners.iter())
+                            .map(|corner| corner.filleted(value) - corner.volume)
+                            .sum::<f64>(),
+                    (corners.iter())
+                        .map(|corner| corner.drawn_within(&part, value))
+                        .sum(),
+                ),
+            };
+            sound_drawn_within(body, promised, drawn, &what);
+            assert_eq!(
+                faces_made(&part, body),
+                (start..start + 8).collect::<Vec<_>>(),
+                "{what}: one face for each named edge, then the two patches, then the two end \
+                 faces"
+            );
+            for (place, &(index, ranks)) in by_ranks.iter().enumerate() {
+                let corner = &corners[index];
+                let patch = start + 4 + place;
+                let end = start + 6 + place;
+                let which = format!(
+                    "{what}: at {}, its edges ranked {ranks:?}, the patch {patch} and the end \
+                     face {end}",
+                    corner.called
+                );
+                match cut {
+                    Cut::Flat => {
+                        let laid = corner.round_the_flat(value);
+                        let up = corner.up() * value;
+                        faces_toward(body, end, corner.sharp.along * corner.sense(), &which);
+                        corners_are(
+                            body,
+                            end,
+                            &[laid.leaves_sharp, laid.end, laid.leaves_sharp + up],
+                            &which,
+                        );
+                        assert_eq!(
+                            sides_met(body, end),
+                            sides(&[TOP, corner.sharp.wall, patch]),
+                            "{which}: the end face meets the lower block's top, the sharp \
+                             foot's wall and its corner's patch, one edge each"
+                        );
+                    }
+                    Cut::Round => {
+                        let from = corner.at + corner.sharp.along * corner.tangent(value);
+                        section_held(body, end, corner, (from, value, patch), &which);
+                    }
+                }
+            }
+        }
     }
 }

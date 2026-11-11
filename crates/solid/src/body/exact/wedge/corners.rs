@@ -88,14 +88,16 @@ pub(super) type Sharp = (DVec3, [usize; 2], EdgeId);
 /// The corners [`Sharp`] reads among those two of `edges` meet at, from the
 /// lowest ranks.
 pub(super) fn sharp(body: &brep::Body, edges: &[EdgeId]) -> Vec<Sharp> {
-    ranked(body, edges)
+    let mut corners: Vec<Sharp> = ranked(body, edges)
         .into_iter()
         .filter_map(|(corner, ranks)| match ranks[..] {
             [one, other] => sharp_at(body, corner, [edges[one], edges[other]])
                 .map(|third| (body.vertex(corner).point, [one, other], third)),
             _ => None,
         })
-        .collect()
+        .collect();
+    corners.sort_by_key(|&(_, ranks, _)| ranks);
+    corners
 }
 
 /// The third edge ending at `corner` where `pair` end there too, the three

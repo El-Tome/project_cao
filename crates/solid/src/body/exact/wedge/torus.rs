@@ -26,6 +26,8 @@
 //! corner and facing along the sharp edge, dug into the top at the L's and
 //! facing back along it — and what the piece replaces.
 
+mod loops;
+
 use std::f64::consts::FRAC_1_SQRT_2;
 use std::ops::Range;
 
@@ -39,8 +41,7 @@ use super::sphere::lap;
 use super::step::Kind;
 use crate::body::exact::Exact;
 use crate::brep::{
-    self, Circle, Coedge, Curve, Declined, EdgeName, Face, FaceId, Plane, Surface, SurfaceId,
-    Torus, VertexId,
+    Circle, Coedge, Declined, EdgeName, Face, FaceId, Plane, Surface, SurfaceId, Torus,
 };
 use crate::profile::{Contour, Frame, Run};
 
@@ -216,9 +217,10 @@ impl Exact {
         };
         let eps = self.brep.scale().eps();
         let on_the_end = |at: DVec3| away.dot(at - axis).abs() <= eps;
-        let (round, flat) = parted(&self.brep, &lap, on_the_end).ok_or(Declined::Unsupported)?;
+        let (round, flat) =
+            loops::parted(&self.brep, &lap, on_the_end).ok_or(Declined::Unsupported)?;
         let [from, to] = [round.last(), round.first()]
-            .map(|coedge| coedge.and_then(|&coedge| ends(&self.brep, coedge)));
+            .map(|coedge| coedge.and_then(|&coedge| loops::ends(&self.brep, coedge)));
         let (Some([_, from]), Some([to, _])) = (from, to) else {
             return Err(Declined::Unsupported);
         };
@@ -347,42 +349,4 @@ fn framed(corner: &Odd, wedge: &Wedge, value: f64) -> (Frame, DVec2) {
         v: corner.up.cross(first),
     };
     (frame, DVec2::new(second.dot(frame.u), second.dot(frame.v)))
-}
-
-/// The loop `lap` parted where it runs on a plane: the stretch of it whose
-/// edges lie on the plane, as `on_the_end` reads their ends, and the rest,
-/// each in the loop's order, the rest first, so that each runs on into the
-/// other. None where no edge, or every edge, lies on it, or those that do are
-/// not one stretch.
-fn parted(
-    body: &brep::Body,
-    lap: &[Coedge],
-    on_the_end: impl Fn(DVec3) -> bool,
-) -> Option<(Vec<Coedge>, Vec<Coedge>)> {
-    let lying = |coedge: &Coedge| {
-        let stretch = body.edge(coedge.edge);
-        matches!(body.curve(stretch.curve), Curve::Line(_))
-            && (stretch.ends.into_iter().flatten()).all(|end| on_the_end(body.vertex(end).point))
-    };
-    let on: Vec<bool> = lap.iter().map(lying).collect();
-    let starts = (0..lap.len()).filter(|&at| on[at] && !on[(at + lap.len() - 1) % lap.len()]);
-    let [start] = starts.collect::<Vec<_>>()[..] else {
-        return None;
-    };
-    let turned: Vec<Coedge> = (0..lap.len())
-        .map(|at| lap[(start + at) % lap.len()])
-        .collect();
-    let length = on.iter().filter(|&&lies| lies).count();
-    let (flat, round) = turned.split_at(length);
-    Some((round.to_vec(), flat.to_vec()))
-}
-
-/// Where a coedge starts and ends, the way its face runs it.
-fn ends(body: &brep::Body, coedge: Coedge) -> Option<[VertexId; 2]> {
-    let [from, to] = body.edge(coedge.edge).ends?;
-    Some(if coedge.forward {
-        [from, to]
-    } else {
-        [to, from]
-    })
 }

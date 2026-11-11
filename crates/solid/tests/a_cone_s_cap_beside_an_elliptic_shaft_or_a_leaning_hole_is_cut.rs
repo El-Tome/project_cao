@@ -3,8 +3,9 @@
 //! kernel (#861, after #858, part of #497). The third wall's caps are #866's.
 //!
 //! Closes #861.
-//! - One shrunk case of each sorted shape is pinned and holds on both
-//!   kernels; each is red before —
+//! - One shrunk case of each cone's-cap shape (beside an elliptic shaft,
+//!   beside a leaning hole) is pinned and holds on both kernels; each is red
+//!   before —
 //!   `seed_352000000002235_a_cone_s_cap_an_elliptic_shaft_of_its_radius_nearly_shares_keeps_every_rule`,
 //!   `seed_352000000002235_the_same_cone_and_shaft_keep_every_rule_through_the_application_s_body`,
 //!   `seed_352000000001257_a_frustum_s_caps_a_round_hole_leaning_3_degrees_crosses_keep_every_rule`,

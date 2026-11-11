@@ -4195,3 +4195,39 @@ more, a turn solved over several pairs can fail, and the scope reads the
 earlier leaf's box where the kernel reads the body built so far. A cylinder
 or a cone about the cone's axis is still read as drawn: none of the failures
 is such a pair.
+
+## #858: the caps of an elliptic shaft a round wall nearly runs along
+
+Group C of #857's sort: 59 walls seeds declined `Undrawn` through the body
+(`Open` on the exact kernel) because a plane cap could not be cut — an
+elliptic shaft and a round wall of its smaller half-axis nearly parallel.
+The cap is a crescent whose two rims cross at a near-zero angle at each tip.
+`leaving_together` made the two rims take each other's samples as rays;
+read from an axis a hair off the other's, each hand-off between the two caps
+landed further from the tip, and the last round's samples had no partner on
+the elliptic rim, whose long chord there passed inside them: the outline
+crossed itself and the sweep refused it, rightly.
+`sampling/conic/rays.rs` now keeps an elliptic rim and a leaning one from
+handing samples when their drift — how far the axes part over the walls'
+heights, against the rims' radius — is under a tenth of the coarsest grid's
+step (`ADRIFT`). A sweep of the bored shaft over heights, radii, leans from
+0.01° to 30° and three tolerances failed exactly below a drift of 0.025, never
+above; the rims of a true lean keep sharing samples. A first version cut at
+#552's band instead and left the leans from 0.06° to 1° uncut.
+
+**How it was measured.** The walls and turned sets on `main` (a8d5d063, with
+#857's scope) and on the branch rebased onto it, compared seed by seed.
+
+| Set | Exact, `main` | Exact, #858 | Body, `main` | Body, #858 |
+| --- | --- | --- | --- | --- |
+| walls 352… | 32 | 28 | 58 | 47 |
+| walls 353… | 14 | 12 | 58 | 47 |
+| walls 354… | 30 | 23 | 57 | 46 |
+| turned 533300000… | 20 | 20 | 40 | 40 |
+
+No regression. The walls failures go from 249 to 203; every gain is a group C
+seed — 33 of the 59 through the body, and 13 on the exact kernel. **Gains:**
+352000000003487, 352000000003907, 352000000004149, 352000000004787, 352000000007705, 352000000007967, 352000000008662, 352000000009898, 352000000014538, 352000000017026, 352000000017999, 353000000000723, 353000000004007, 353000000006477, 353000000008940, 353000000009079, 353000000010889, 353000000013407, 353000000014629, 353000000015295, 353000000015375, 353000000015858, 354000000000100, 354000000000499, 354000000001920, 354000000003001, 354000000003826, 354000000004526, 354000000005614, 354000000008253, 354000000008282, 354000000009390, 354000000012106.
+
+**Left**, to #861: a cone's plane cap instead of a round rim (eight seeds),
+#858's pair with a third wall beside it (three), and the rest of the 26.

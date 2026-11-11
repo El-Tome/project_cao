@@ -102,7 +102,21 @@
 //!   the apex's triangle and the three fills along the slanted flats' feet,
 //!   by the lowest ranks of their edges, in every order; and the body the two
 //!   steps build, the slanted edges then the six feet —
-//!   `a_chamfer_on_a_triangular_pyramid_s_slanted_edges_and_feet_numbers_each_face_by_its_rank_the_apex_s_triangle_among_the_patches`
+//!   `a_chamfer_on_a_triangular_pyramid_s_slanted_edges_and_feet_numbers_each_face_by_its_rank_the_apex_s_triangle_among_the_patches`.
+//!   The same where the odd edges close two corners, two pyramids standing on
+//!   one plate, set where no foot's line reaches the other's feet —
+//!   `a_chamfer_on_two_triangular_pyramids_slanted_edges_and_feet_numbers_both_apexes_triangles_among_the_patches_by_their_ranks`;
+//!   and where the edges laid after the odd ones close corners of their own:
+//!   a foot corner named with the convex corner at the top of another
+//!   upright and one of the lower block's top, chamfered or filleted, each
+//!   patch at its own corner, the volume the three corners' added —
+//!   `a_chamfer_and_a_fillet_on_a_foot_corner_and_two_convex_corners_number_every_patch_after_the_edges_faces_by_their_ranks`
+//! - Not in the issue's wording: each edge laid after the odd ones is found
+//!   again on what they left as the straight edge between its own sides on
+//!   its own line, never another edge lying on that line — a second block's
+//!   front foot on the line of the first's, its front right foot corner the
+//!   body as alone —
+//!   `a_chamfer_and_a_fillet_on_a_foot_corner_follow_each_foot_and_not_another_block_s_foot_on_the_same_line`
 //!
 //! The volumes are arithmetic. The lower block is 30 by 20 by 10 and the
 //! block standing on it 10 by 10 by 10, 7000 together. The corner is the
@@ -603,8 +617,8 @@ fn leaning_s_acute_corner() -> FootCorner {
 }
 
 /// The corner's part chamfered at `value` in two steps, as #801 builds it:
-/// the upright alone first, the flat laid on it answering to
-/// [`UPRIGHT_FLAT`] and stopping flush on the lower block's top; then, in one
+/// the upright alone first, the flat laid on it answering to where the part's
+/// numbers ended and stopping flush on the lower block's top; then, in one
 /// step, the two feet and the foot of that flat, numbered in that order past
 /// it, as [`IN_TWO_STEPS`] says.
 fn chamfered_in_two_steps(corner: &FootCorner, value: f64) -> Body {
@@ -623,7 +637,7 @@ fn chamfered_in_two_steps(corner: &FootCorner, value: f64) -> Body {
     let feet = [
         edge_between(&chamfered, TOP, one),
         edge_between(&chamfered, TOP, other),
-        edge_between(&chamfered, TOP, UPRIGHT_FLAT),
+        edge_between(&chamfered, TOP, part.faces_end()),
     ];
     let filled = chamfered
         .chamfer_edges(&feet, value)
@@ -640,12 +654,10 @@ fn chamfered_in_two_steps(corner: &FootCorner, value: f64) -> Body {
 }
 
 /// The numbers the flats on a corner's three edges answer to in the body
-/// [`chamfered_in_two_steps`] leaves, in the order of [`FootCorner::edges`],
-/// and the number of the fill along the foot of the upright's flat.
-const IN_TWO_STEPS: ([usize; 3], usize) = (
-    [UPRIGHT_FLAT + 1, UPRIGHT_FLAT + 2, UPRIGHT_FLAT],
-    UPRIGHT_FLAT + 3,
-);
+/// [`chamfered_in_two_steps`] leaves, past where the part's numbers ended, in
+/// the order of [`FootCorner::edges`], and that of the fill along the foot of
+/// the upright's flat.
+const IN_TWO_STEPS: ([usize; 3], usize) = ([1, 2, 0], 3);
 
 /// The names of every edge between the faces numbered `first` and `second`.
 fn edges_between(body: &Body, first: usize, second: usize) -> Vec<EdgeName> {
@@ -971,8 +983,8 @@ fn went_round_the_upright(corner: &FootCorner, part: &Body, case: &Case, two_ste
     );
     let (edges_in_two_steps, foot_in_two_steps) = IN_TWO_STEPS;
     let to_two_steps: Vec<(usize, usize)> = (0..3)
-        .map(|edge| (case.laid_on(part, edge), edges_in_two_steps[edge]))
-        .chain([(patch, foot_in_two_steps)])
+        .map(|edge| (case.laid_on(part, edge), start + edges_in_two_steps[edge]))
+        .chain([(patch, start + foot_in_two_steps)])
         .collect();
     the_same_bodies(
         two_steps,
@@ -2005,10 +2017,18 @@ fn pyramid_on_a_plate() -> Body {
         0.0,
         10.0,
     );
-    let base = PYRAMID_BASE.map(|[x, y]| DVec2::new(x, y));
+    standing_on(&plate, PYRAMID_BASE.map(|[x, y]| DVec2::new(x, y)))
+}
+
+/// `plate` with a triangular pyramid standing on its top: its base the
+/// triangle `base`, its corners counter-clockwise, its apex
+/// [`PYRAMID_HEIGHT`] above the base's centre. A prism raised over the base
+/// is cut by the planes through each side of the base and the apex, their
+/// faces numbered six apart past the prism's, then joined to the plate.
+fn standing_on(plate: &Body, base: [DVec2; 3]) -> Body {
     let centre = (base[0] + base[1] + base[2]) / 3.0;
     let apex = DVec3::new(centre.x, centre.y, LOWER_TOP + PYRAMID_HEIGHT);
-    let prism = tool_raised(&plate, Contour::straight(base.to_vec()), 5.0, 20.0);
+    let prism = tool_raised(plate, Contour::straight(base.to_vec()), 5.0, 20.0);
     let pyramid = (0..3).fold(prism, |part, side| {
         let [from, to] = [base[side], base[(side + 1) % 3]];
         let along = (to - from).normalize().extend(0.0);
@@ -2205,6 +2225,395 @@ fn a_chamfer_on_a_triangular_pyramid_s_slanted_edges_and_feet_numbers_each_face_
                      feet"
                 ),
             );
+        }
+    }
+}
+
+/// [`stacked`] with a second block, 2.5 by 4 by 5, standing on the lower
+/// block's top to the right of the first, from (27, 5) to (29.5, 9): its
+/// front wall on the plane of the first's, so that its front foot lies on the
+/// line the first block's front foot runs along, and far enough that no fill
+/// of the first's front right foot corner reaches it at 2.5. Its faces are
+/// numbered twelve to seventeen; it holds 7050.
+fn stacked_beside_a_block_on_its_front_line() -> Body {
+    joined(
+        &stacked(),
+        Contour::rectangle(DVec2::new(27.0, 5.0), DVec2::new(29.5, 9.0)),
+        LOWER_TOP,
+        5.0,
+    )
+}
+
+/// [`stacked_beside_a_block_on_its_front_line`]'s front right foot corner,
+/// as [`stacked_s_front_right`] reads it.
+fn front_right_beside_a_block_on_its_front_line() -> FootCorner {
+    FootCorner {
+        part: stacked_beside_a_block_on_its_front_line,
+        volume: STACKED_VOLUME + 2.5 * 4.0 * 5.0,
+        ..stacked_s_front_right()
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_foot_corner_follow_each_foot_and_not_another_block_s_foot_on_the_same_line()
+ {
+    round_the_upright_in_every_order(
+        &[front_right_beside_a_block_on_its_front_line()],
+        &[Cut::Flat, Cut::Round],
+        "the standing block's front right foot corner, a second block's front foot on the line \
+         of its own",
+    );
+}
+
+/// Nine edges of [`stacked`] named together, by the faces each lies between:
+/// the standing block's back left foot corner — its back foot, its left foot
+/// and the upright above them — then the convex corner at the top of its
+/// front right upright — its top front and top right edges and that upright
+/// — and the convex front right corner of the lower block's top — its top
+/// front and top right edges and its upright there.
+const A_FOOT_CORNER_AND_TWO_CONVEX_ONES: [[usize; 2]; 9] = [
+    [TOP, STANDING_BACK],
+    [TOP, STANDING_LEFT],
+    [STANDING_BACK, STANDING_LEFT],
+    [STANDING_TOP, STANDING_FRONT],
+    [STANDING_TOP, STANDING_RIGHT],
+    [STANDING_FRONT, STANDING_RIGHT],
+    [TOP, 2],
+    [TOP, 3],
+    [2, 3],
+];
+
+/// The three corners of [`A_FOOT_CORNER_AND_TWO_CONVEX_ONES`], by their edges'
+/// places, each with where it stands: the foot corner, the standing block's
+/// top corner, the lower block's top corner.
+const THE_THREE_CORNERS: [([usize; 3], [f64; 3]); 3] = [
+    ([0, 1, 2], [10.0, 15.0, 10.0]),
+    ([3, 4, 5], [20.0, 5.0, 20.0]),
+    ([6, 7, 8], [30.0, 0.0, 10.0]),
+];
+
+/// Where the middle of each of [`A_FOOT_CORNER_AND_TWO_CONVEX_ONES`] stands
+/// on [`stacked`].
+const THE_NINE_MIDDLES: [[f64; 3]; 9] = [
+    [15.0, 15.0, 10.0],
+    [10.0, 10.0, 10.0],
+    [10.0, 15.0, 15.0],
+    [15.0, 5.0, 20.0],
+    [20.0, 10.0, 20.0],
+    [20.0, 5.0, 15.0],
+    [15.0, 0.0, 10.0],
+    [30.0, 10.0, 10.0],
+    [30.0, 0.0, 5.0],
+];
+
+/// What a blend of `value` on a convex corner of three square edges, `along`
+/// long in all and each ending flush on a square face at its far end, takes
+/// from the part, as #699's arithmetic gives it: each edge's section along
+/// its length, less the matter the three hold twice at the corner, which the
+/// triangle or the piece of sphere gives back.
+fn taken_at_a_convex_corner(cut: Cut, along: f64, value: f64) -> f64 {
+    match cut {
+        Cut::Flat => along * value * value / 2.0 - 2.0 * value.powi(3) / 3.0,
+        Cut::Round => {
+            along * value * value * (1.0 - PI / 4.0) - value.powi(3) * (2.0 - 7.0 * PI / 12.0)
+        }
+    }
+}
+
+/// Holds that the face numbered `face` lies about `point`: the middle of the
+/// box its triangles fill within `within` of it.
+fn lies_about(body: &Body, face: usize, point: DVec3, within: f64, what: &str) {
+    let drawn: Vec<DVec3> = body.triangles_of(face).flatten().collect();
+    assert!(!drawn.is_empty(), "{what}: face {face} is drawn");
+    let low = drawn.iter().copied().reduce(DVec3::min).expect("drawn");
+    let high = drawn.iter().copied().reduce(DVec3::max).expect("drawn");
+    let middle = (low + high) / 2.0;
+    assert!(
+        middle.distance(point) <= within,
+        "{what}: face {face} lies about {middle}, not within {within} of {point}"
+    );
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_foot_corner_and_two_convex_corners_number_every_patch_after_the_edges_faces_by_their_ranks()
+ {
+    let part = stacked();
+    let start = part.faces_end();
+    let foot_corner = &stacked_s_foot_corners()[2];
+    let names =
+        A_FOOT_CORNER_AND_TWO_CONVEX_ONES.map(|[first, second]| edge_between(&part, first, second));
+    let corners = THE_THREE_CORNERS.map(|(edges, _)| edges);
+    let mut laid = Vec::new();
+    for cut in [Cut::Flat, Cut::Round] {
+        for value in VALUES {
+            for order in [
+                [0, 1, 2, 3, 4, 5, 6, 7, 8],
+                [8, 7, 6, 5, 4, 3, 2, 1, 0],
+                [6, 0, 3, 7, 1, 4, 8, 2, 5],
+            ] {
+                let what = format!(
+                    "the {} of {value} on the back left foot corner and two convex corners, \
+                     named {order:?}",
+                    cut.called()
+                );
+                let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
+                let step = cut
+                    .laid_on(&part, &list, value)
+                    .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+                laid.push(Case {
+                    order: order.to_vec(),
+                    cut,
+                    value,
+                    step,
+                    what,
+                });
+            }
+        }
+    }
+    for case in &laid {
+        let Case {
+            cut,
+            value,
+            step,
+            what,
+            ..
+        } = case;
+        let (cut, value) = (*cut, *value);
+        taken_as_asked(step.asked, step.taken, value, what);
+        let body = &step.body;
+        let at_the_foot = match cut {
+            Cut::Flat => foot_corner.chamfered(value),
+            Cut::Round => foot_corner.filleted(value),
+        };
+        let promised = at_the_foot
+            - taken_at_a_convex_corner(cut, 30.0, value)
+            - taken_at_a_convex_corner(cut, 60.0, value);
+        let drawn = match cut {
+            Cut::Flat => EXACT * promised,
+            Cut::Round => {
+                foot_corner.drawn_within(&part, value) + DRAWN * reach_of(&part) * PI * value * 90.0
+            }
+        };
+        sound_drawn_within(body, promised, drawn, what);
+        assert_eq!(
+            faces_made(&part, body),
+            (start..start + 12).collect::<Vec<_>>(),
+            "{what}: one face for each edge, and a patch at each of the three corners: {:?}",
+            numbers(body)
+        );
+        assert_eq!(
+            body.faces_end(),
+            start + 12,
+            "{what}: the next step numbers its own faces past the three patches"
+        );
+        let patches = case.patches(&part, &corners);
+        for (edge, middle) in THE_NINE_MIDDLES.iter().enumerate() {
+            lies_about(
+                body,
+                case.laid_on(&part, edge),
+                DVec3::from(*middle),
+                2.0 * value,
+                &format!(
+                    "{what}: the face on {:?}, numbered by its rank",
+                    A_FOOT_CORNER_AND_TWO_CONVEX_ONES[edge]
+                ),
+            );
+        }
+        for (corner, (_, at)) in THE_THREE_CORNERS.iter().enumerate() {
+            lies_about(
+                body,
+                patches[corner],
+                DVec3::from(*at),
+                2.0 * value,
+                &format!(
+                    "{what}: the patch at {at:?}, numbered after every edge's face by the lowest \
+                     ranks of its edges"
+                ),
+            );
+        }
+        match cut {
+            Cut::Flat => {
+                let (facing, foot_facing) = foot_corner.flats_facing();
+                for (edge, way) in facing.into_iter().enumerate() {
+                    faces_toward(
+                        body,
+                        case.laid_on(&part, edge),
+                        way,
+                        &format!("{what}: the flat at the foot corner"),
+                    );
+                }
+                faces_toward(
+                    body,
+                    patches[0],
+                    foot_facing,
+                    &format!("{what}: the fill along the foot of the upright's flat"),
+                );
+                for (corner, way) in [
+                    (1, DVec3::new(1.0, -1.0, 1.0)),
+                    (2, DVec3::new(1.0, -1.0, 1.0)),
+                ] {
+                    faces_toward(
+                        body,
+                        patches[corner],
+                        way.normalize(),
+                        &format!("{what}: the triangle closing a convex corner"),
+                    );
+                }
+            }
+            Cut::Round => {
+                for (edge, round) in foot_corner.rounds(value).iter().enumerate() {
+                    round_held(body, case.laid_on(&part, edge), round, &[patches[0]], what);
+                }
+                let laid: Vec<usize> = (0..3).map(|edge| case.laid_on(&part, edge)).collect();
+                piece_held(body, patches[0], &foot_corner.torus(value), &laid, what);
+            }
+        }
+    }
+    for case in &laid {
+        let first = laid
+            .iter()
+            .find(|other| other.cut == case.cut && other.value == case.value)
+            .expect("the case itself is among them");
+        if std::ptr::eq(first, case) {
+            continue;
+        }
+        let [mine, theirs] = [case, first].map(|one| one.patches(&part, &corners));
+        let to_first: Vec<(usize, usize)> = (0..9)
+            .map(|edge| (case.laid_on(&part, edge), first.laid_on(&part, edge)))
+            .chain(mine.into_iter().zip(theirs))
+            .collect();
+        the_same_bodies(
+            &first.step.body,
+            &case.step.body,
+            &to_first,
+            &format!("{} and {}", first.what, case.what),
+        );
+    }
+}
+
+/// [`pyramid_on_a_plate`]'s plate grown to 50 by 35, from (−10, −15), with a
+/// second pyramid standing on it beside the first, its base pointing away
+/// from it, from (20, −2) through (25, −10.66) to (30, −2): set in the angle
+/// past the first's front right foot corner between the lines of its two
+/// feet there, so that no foot's line reaches the other's feet. Its slanted
+/// faces are numbered thirty-four, forty and forty-six.
+fn two_pyramids_on_a_plate() -> Body {
+    let plate = joined(
+        &Body::default(),
+        Contour::rectangle(DVec2::new(-10.0, -15.0), DVec2::new(40.0, 20.0)),
+        0.0,
+        10.0,
+    );
+    let one = standing_on(&plate, PYRAMID_BASE.map(|[x, y]| DVec2::new(x, y)));
+    standing_on(&one, SECOND_PYRAMID_BASE.map(|[x, y]| DVec2::new(x, y)))
+}
+
+/// The corners of the base of the second pyramid of
+/// [`two_pyramids_on_a_plate`], counter-clockwise.
+const SECOND_PYRAMID_BASE: [[f64; 2]; 3] =
+    [[20.0, -2.0], [25.0, -10.660254037844386], [30.0, -2.0]];
+
+#[test]
+fn a_chamfer_on_two_triangular_pyramids_slanted_edges_and_feet_numbers_both_apexes_triangles_among_the_patches_by_their_ranks()
+ {
+    let part = two_pyramids_on_a_plate();
+    let start = part.faces_end();
+    let lone = pyramid_on_a_plate();
+    let pyramids = [(PYRAMID_BASE, 11), (SECOND_PYRAMID_BASE, 34)];
+    let mut edges: Vec<[usize; 2]> = Vec::new();
+    let mut middles: Vec<DVec3> = Vec::new();
+    let mut corners: Vec<([usize; 3], DVec3)> = Vec::new();
+    for (base, first) in pyramids {
+        let base = base.map(|[x, y]| DVec3::new(x, y, LOWER_TOP));
+        let apex = (base[0] + base[1] + base[2]) / 3.0 + DVec3::Z * PYRAMID_HEIGHT;
+        let face = |side: usize| first + 6 * (side % 3);
+        let from = edges.len();
+        for side in 0..3 {
+            edges.push([face(side), face(side + 1)]);
+            middles.push((base[(side + 1) % 3] + apex) / 2.0);
+        }
+        for side in 0..3 {
+            edges.push([TOP, face(side)]);
+            middles.push((base[side] + base[(side + 1) % 3]) / 2.0);
+        }
+        corners.push(([from, from + 1, from + 2], apex));
+        for side in 0..3 {
+            corners.push((
+                [from + side, from + 3 + side, from + 3 + (side + 1) % 3],
+                base[(side + 1) % 3],
+            ));
+        }
+    }
+    let names: Vec<EdgeName> = edges
+        .iter()
+        .map(|&[first, second]| edge_between(&part, first, second))
+        .collect();
+    let lone_edges: Vec<EdgeName> = PYRAMID_EDGES
+        .iter()
+        .map(|&[first, second]| edge_between(&lone, first, second))
+        .collect();
+    let by_edges: Vec<[usize; 3]> = corners.iter().map(|&(edges, _)| edges).collect();
+    for value in [0.5, 1.0] {
+        let one_alone = lone
+            .chamfer_edges(&lone_edges, value)
+            .unwrap_or_else(|declined| panic!("one pyramid alone: declined, {declined:?}"));
+        let promised = part.volume() + 2.0 * (one_alone.body.volume() - lone.volume());
+        let forward: Vec<usize> = (0..12).collect();
+        let backward: Vec<usize> = (0..12).rev().collect();
+        let apexes_last: Vec<usize> = [3, 4, 5, 9, 10, 11, 0, 6, 1, 7, 2, 8].to_vec();
+        for order in [forward, backward, apexes_last] {
+            let what =
+                format!("the chamfer of {value} on both pyramids' twelve edges, named {order:?}");
+            let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
+            let step = part
+                .chamfer_edges(&list, value)
+                .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+            let case = Case {
+                order,
+                cut: Cut::Flat,
+                value,
+                step: Laid {
+                    body: step.body,
+                    asked: step.asked,
+                    taken: step.taken,
+                },
+                what,
+            };
+            let Case { step, what, .. } = &case;
+            let body = &step.body;
+            taken_as_asked(step.asked, step.taken, value, what);
+            sound_drawn_within(body, promised, EXACT * promised, what);
+            assert_eq!(
+                faces_made(&part, body),
+                (start..start + 20).collect::<Vec<_>>(),
+                "{what}: one flat for each edge, and a patch at each of the eight corners: {:?}",
+                numbers(body)
+            );
+            let patches = case.patches(&part, &by_edges);
+            for (edge, middle) in middles.iter().enumerate() {
+                lies_about(
+                    body,
+                    case.laid_on(&part, edge),
+                    *middle,
+                    2.0 * value,
+                    &format!(
+                        "{what}: the flat on {:?}, numbered by its rank",
+                        edges[edge]
+                    ),
+                );
+            }
+            for (corner, &(_, at)) in corners.iter().enumerate() {
+                lies_about(
+                    body,
+                    patches[corner],
+                    at,
+                    2.0 * value,
+                    &format!(
+                        "{what}: the patch at {at}, numbered after every edge's flat by the lowest \
+                         ranks of its edges"
+                    ),
+                );
+            }
         }
     }
 }

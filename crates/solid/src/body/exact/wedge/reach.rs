@@ -3,8 +3,8 @@
 //! whole face, or, for what stands on the face, only where the edge's blend
 //! runs on it (#829): up to the nearest corner of its foot there, or point
 //! where its foot enters. A corner of the face's own straight outline past
-//! a mitre at the blend's ends, where another edge's blend takes over, is
-//! not read (#863).
+//! a mitre at the blend's ends, where another edge's blend, or a corner's
+//! patch, takes over, is not read (#863).
 
 use std::f64::consts::PI;
 
@@ -34,7 +34,13 @@ use crate::brep::{self, Curve, Edge, FaceId};
 /// corner of a straight edge of it standing past a mitre among `held`: past
 /// a mitre with an edge of the list sharing the face, that edge's blend
 /// takes over, so that such a corner, the far corner of an L's stem beyond
-/// the mitre of its inner corner, is none of this blend's. None where the
+/// the mitre of its inner corner, is none of this blend's. Past the plane
+/// square to the edge at a corner of mixed sense it goes round, as
+/// [`super::extent::runs`] holds it, no edge of the list need read such a
+/// corner, a hole's behind an L's inner corner: the corner is the patch's,
+/// read by the chamfer's second laying through the edge on the odd edge's
+/// face, and declined by the fillet's guards against swallowing or cutting
+/// a face of the body. None where the
 /// boundary holds a curve two walls meet along, which turns back where no
 /// closed form says.
 pub(super) fn reach_within(

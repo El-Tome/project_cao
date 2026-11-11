@@ -20,9 +20,15 @@ use crate::brep::{self, EdgeId, Surface};
 pub(super) type Within = (DVec3, f64);
 
 /// A half-space holding a set-back at one end of its edge, and whether it is
-/// the plane through the corner the edge mitres on there with another edge of
-/// the list sharing its face — past which that edge's blend takes over —
-/// rather than the plane of the face the edge ends on.
+/// a mitre's rather than the plane of the face the edge ends on: the plane
+/// through the corner the edge mitres on there with another edge of the list
+/// sharing its face — past which that edge's blend takes over — or, at a
+/// corner of mixed sense the edge goes round, the plane square to it through
+/// the corner. Past that one no edge of the list need take over: the corner
+/// is the patch's, which the chamfer's second laying reads through the edge
+/// on the odd edge's face, laid again lower where that falls short, and which
+/// the fillet's guards against a filling swallowing, or a clearing cutting, a
+/// face of the body decline.
 pub(super) type End = (Within, bool);
 
 /// A listed edge by its rank, and the side of its wedge a face is on.

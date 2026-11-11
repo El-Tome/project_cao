@@ -574,6 +574,18 @@
 //!   its limit off its face's whole outline, the stem's back left corner
 //!   2.48 from the chord, though it runs only by the inner corner —
 //!   `a_chamfer_on_the_top_of_an_l_s_inner_corner_opening_wider_takes_the_value_whole_its_fill_s_top_edge_reaching_no_further_than_the_corner`
+//! - Found on the way, in review: a square hole bored through the L 0.3
+//!   behind both walls of its inner corner, the corner's three top edges
+//!   chamfered in one step take the value whole short of about 1.449, where
+//!   the cut along the fill's top edge, between its two mitres, first
+//!   reaches the hole's near corner, and that value past it; filleted, they
+//!   take it whole short of about 0.724, where the fill's round first reaches
+//!   it, and are declined past it, the fillet having no second laying to
+//!   reduce its value by — #860's limit, which may one day reduce it to that
+//!   touch instead. The first fix reduced the chamfer to 0.3: the top edges'
+//!   ends at the inner corner, trimmed rather than mitred, read the hole past
+//!   them —
+//!   `a_chamfer_and_a_fillet_on_the_top_of_an_l_s_inner_corner_bored_behind_it_take_the_value_whole_short_of_where_the_fill_s_cut_reaches_the_hole_and_never_cut_the_hole_past_it`
 //! - What must not break: #801's, #792's and #829's tests — no test: each is
 //!   held by its own test, the one above gaining 1.1, 1.2 and 1.4
 
@@ -6256,7 +6268,8 @@ fn a_chamfer_on_the_top_of_an_l_s_inner_corner_opening_wider_takes_the_value_who
 /// arm's back wall and the stem's right wall, is a corner of the top's own
 /// outline. The arm's and the stem's top edges' cuts stop at the inner
 /// corner and never reach it; the cut along the fill's top edge, between its
-/// two mitres, reaches it at `0.6/(√2 − 1)`.
+/// two mitres, reaches it chamfered at `0.6/(√2 − 1)`, and filleted, its
+/// round standing `2r` off the fill's axis, at `0.3·√2/(2 − √2)`.
 fn ell_bored_behind_its_inner_corner() -> Body {
     let part = ell();
     part.difference(&tool_raised(
@@ -6269,26 +6282,37 @@ fn ell_bored_behind_its_inner_corner() -> Body {
 }
 
 #[test]
-fn a_chamfer_on_the_top_of_an_l_s_inner_corner_bored_behind_it_takes_the_value_whole_short_of_where_the_fill_s_cut_reaches_the_hole_and_that_value_past_it()
+fn a_chamfer_and_a_fillet_on_the_top_of_an_l_s_inner_corner_bored_behind_it_take_the_value_whole_short_of_where_the_fill_s_cut_reaches_the_hole_and_never_cut_the_hole_past_it()
  {
     let corner = ell_s_inner_top_corner();
     let part = ell_bored_behind_its_inner_corner();
     let hole = 0.5 * 0.5 * STANDING_HEIGHT;
-    let reached = 0.6 / (2f64.sqrt() - 1.0);
     let hair = 20.0 * 1e-9 * 30.0;
     let names = corner
         .edges()
         .map(|(_, [first, second])| edge_between(&part, first, second));
     let mut wrong = Vec::new();
-    for asked in [1.2, 2.5] {
+    for (cut, asked) in [
+        (Cut::Flat, 1.2),
+        (Cut::Flat, 2.5),
+        (Cut::Round, 0.5),
+        (Cut::Round, 0.7),
+        (Cut::Round, 1.0),
+    ] {
+        let reached = match cut {
+            Cut::Flat => 0.6 / (2f64.sqrt() - 1.0),
+            Cut::Round => 0.3 * 2f64.sqrt() / (2.0 - 2f64.sqrt()),
+        };
         for order in [[0, 1, 2], [2, 1, 0], [2, 0, 1]] {
             let what = format!(
-                "the chamfer of {asked} on the top of the L's inner corner bored behind it, named \
-                 {order:?}, the cut along the fill's top edge reaching the hole at {reached}"
+                "the {} of {asked} on the top of the L's inner corner bored behind it, named \
+                 {order:?}, the cut along the fill's top edge reaching the hole at {reached}",
+                cut.called()
             );
             let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
-            let step = match part.chamfer_edges(&list, asked) {
+            let step = match cut.laid_on(&part, &list, asked) {
                 Ok(step) => step,
+                Err(_) if cut == Cut::Round && asked > reached => continue,
                 Err(declined) => {
                     wrong.push(format!("{what}: declined, {declined:?}"));
                     continue;
@@ -6302,15 +6326,24 @@ fn a_chamfer_on_the_top_of_an_l_s_inner_corner_bored_behind_it_takes_the_value_w
                 ));
                 continue;
             }
-            let promised = corner.chamfered(step.taken) - hole;
-            sound_drawn_within(&step.body, promised, EXACT * promised, &what);
+            let promised = match cut {
+                Cut::Flat => corner.chamfered(step.taken),
+                Cut::Round => corner.filleted(step.taken),
+            } - hole;
+            let drawn = match cut {
+                Cut::Flat => EXACT * promised,
+                Cut::Round => corner.drawn_within(&part, step.taken),
+            };
+            sound_drawn_within(&step.body, promised, drawn, &what);
         }
     }
     assert!(
         wrong.is_empty(),
         "the three top edges round the L's filled inner upright, a hole behind the corner, take \
          the value whole short of where the fill's cut reaches the hole, its near corner read \
-         between the fill's two mitres and past the top edges' ends, which never run on to it:\n{}",
+         between the fill's two mitres and past the top edges' ends, which never run on to it; \
+         past it the chamfer takes that value and the fillet, which #860 cannot yet reduce, is \
+         declined or takes it:\n{}",
         wrong.join("\n")
     );
 }

@@ -11,7 +11,7 @@ test-support = []
 cao_sketch = { path = "../sketch" }
 cao_solid = { path = "../solid" }
 glam.workspace = true
-zip = { version = "8", default-features = false, features = ["deflate"] }
+zip = { version = "9.0.5", default-features = false, features = ["deflate"] }
 serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true

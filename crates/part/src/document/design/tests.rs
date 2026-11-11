@@ -144,7 +144,10 @@ fn each_kind_of_step_is_numbered_in_the_rank_the_operations_already_speak_in() {
     let bytes = files.read(&path).expect("the archive is there");
     let archive = zip::ZipArchive::new(Cursor::new(bytes)).expect("a zip archive");
 
-    let entries: Vec<String> = archive.file_names().map(str::to_string).collect();
+    let entries: Vec<String> = archive
+        .file_names()
+        .map(|name| name.expect("an entry name that reads").into_owned())
+        .collect();
 
     for wanted in [
         "design/sketch-0/steps.json",

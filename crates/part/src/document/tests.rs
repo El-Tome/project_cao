@@ -284,7 +284,8 @@ fn entries_of(files: &InMemoryFiles, path: &Path) -> Vec<String> {
                 .by_index(index)
                 .expect("an entry of the archive")
                 .name()
-                .to_string()
+                .expect("an entry name that reads")
+                .into_owned()
         })
         .collect()
 }
@@ -347,7 +348,7 @@ fn without(files: &InMemoryFiles, path: &Path, name: &str) {
     let options: zip::write::SimpleFileOptions = zip::write::SimpleFileOptions::default();
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index).expect("an entry");
-        let entry_name = entry.name().to_string();
+        let entry_name = entry.name().expect("an entry name that reads").into_owned();
         let mut held = Vec::new();
         entry.read_to_end(&mut held).expect("the entry is read");
         if entry_name != name {

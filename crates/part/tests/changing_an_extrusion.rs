@@ -586,7 +586,7 @@ fn with_every_change_turned_into(written: &[u8], turned: &serde_json::Value) -> 
     let mut turned_any = false;
     for rank in 0..archive.len() {
         let mut entry = archive.by_index(rank).expect("an entry of the archive");
-        let name = entry.name().to_owned();
+        let name = entry.name().expect("an entry name that reads").into_owned();
         let mut content = Vec::new();
         entry
             .read_to_end(&mut content)

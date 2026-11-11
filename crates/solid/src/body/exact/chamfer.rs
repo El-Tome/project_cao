@@ -7,7 +7,7 @@
 mod prism;
 
 use super::Exact;
-use super::wedge::{Closing, Meeting, Together, cut_across, joined_across};
+use super::wedge::{Around, Closing, Meeting, Together, cut_across, joined_across};
 use crate::brep::{Declined, EdgeName};
 
 impl Exact {
@@ -48,8 +48,14 @@ impl Exact {
     /// triangle, its corners where each two flats' edges cross on the face they
     /// share, numbered after the flats, and three at a concave corner, a
     /// pocket's bottom, by that triangle joined, filling the hollow the three
-    /// fills leave, as [`joined_across`] lays it. Flats that would meet only
-    /// on a curved edge are not measured, and declined where they meet.
+    /// fills leave, as [`joined_across`] lays it. The three at a standing
+    /// block's foot corner, two feet and the upright above them, go round the
+    /// upright: its flat laid first, stopping flush on the lower block's top,
+    /// then the feet filled along the outline it left with the foot of that
+    /// flat, which no name finds, numbered after the flats, the three fills
+    /// meeting in mitres — the body the upright chamfered alone and then the
+    /// three feet leave. Flats that would meet only on a curved edge are not
+    /// measured, and declined where they meet.
     /// A distance shorter than the kernel can set a cut back from an edge is
     /// declined first; `Lost`, an edge its name no longer finds. Unsupported: a
     /// list of no edge, an edge that is not straight between two flat faces,
@@ -82,6 +88,7 @@ impl Exact {
                     outwards: cut_across,
                     inwards: joined_across,
                 },
+                around: Around::Foot,
             },
         )?;
         Ok((cut, taken))

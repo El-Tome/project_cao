@@ -9,7 +9,7 @@ use glam::DVec3;
 
 use super::Exact;
 use super::wedge::{
-    Closing, Meeting, Prism, Together, Wedge, hollowed_across, rounded_across, too_short,
+    Around, Closing, Meeting, Prism, Together, Wedge, hollowed_across, rounded_across, too_short,
 };
 use crate::brep::{Declined, EdgeName, Scale, Surface};
 
@@ -56,7 +56,15 @@ impl Exact {
     /// and three at a concave corner, a pocket's bottom, by a hollow piece of
     /// sphere centred one radius out from its three faces, facing its centre,
     /// as [`hollowed_across`] lays it; declined `Undrawn` where the kernel
-    /// cannot draw it. Rounds that would meet only on a curved edge are not
+    /// cannot draw it. The three at a standing block's foot corner, two feet
+    /// and the upright above them, go round the upright's round: the corner
+    /// filled up to the planes through its axis square to the feet, every
+    /// round then laid against that — the upright's ending one radius above
+    /// the lower block's top, each foot's on the plane through the axis square
+    /// to its wall — and the corner closed by a piece of torus about that
+    /// axis, its tube of the radius and its centre circle twice the radius
+    /// from the axis, tangent to the four faces it meets and numbered after
+    /// the rounds. Rounds that would meet only on a curved edge are not
     /// measured, and declined where they meet. The rounds are numbered, in the
     /// order the names come, where the steps' numbers ended; a full round
     /// answers to both its edges' numbers. Declined `Distance`: a radius that
@@ -91,6 +99,7 @@ impl Exact {
                     outwards: rounded_across,
                     inwards: hollowed_across,
                 },
+                around: Around::Torus,
             },
         )?;
         let made = |rank: usize| self.next + rank as u32;

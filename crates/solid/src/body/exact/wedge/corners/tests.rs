@@ -1,12 +1,13 @@
 //! Which corners a step on several edges takes (#801), read on [`admit`]
 //! itself: two edges of one sense beside a third of the other, the inner
 //! corner of an L or the corner two feet of a standing block meet at; two
-//! concave edges beside a third concave one, at a pocket's bottom corner; and
-//! no other corner but a convex one. It is the first guard a step's corners
-//! meet: a list it lets through by mistake — a cut and a fill meeting at a
-//! corner — is declined further on all the same, so a step on the whole body
-//! cannot tell which reading declined it. Here the corner's own answer is
-//! held.
+//! concave edges beside a third concave one, at a pocket's bottom corner; the
+//! three edges at a standing block's foot corner, two feet and the upright
+//! above them (#829); and no other corner but a convex one. It is the first
+//! guard a step's corners meet: a list it lets through by mistake — a cut and
+//! a fill meeting at a corner — is declined further on all the same, so a
+//! step on the whole body cannot tell which reading declined it. Here the
+//! corner's own answer is held.
 
 use glam::{DVec2, DVec3};
 
@@ -245,28 +246,31 @@ fn two_edges_of_a_block_s_convex_corner_are_taken_with_no_corner_beside_a_concav
 }
 
 #[test]
-fn three_edges_at_a_corner_of_mixed_sense_are_declined() {
-    for (part, list, which) in [
-        (
-            ell(),
-            [[TOP, ARM_BACK], [TOP, STEM_RIGHT], [ARM_BACK, STEM_RIGHT]],
-            "the L's two top edges at its inner corner and its inner upright",
-        ),
-        (
-            stacked(),
-            [
-                [TOP, STANDING_FRONT],
-                [TOP, STANDING_RIGHT],
-                [STANDING_FRONT, STANDING_RIGHT],
-            ],
-            "two feet of a standing block and the upright above them",
-        ),
+fn the_three_edges_at_the_top_of_an_l_s_inner_corner_are_declined() {
+    let list = [[TOP, ARM_BACK], [TOP, STEM_RIGHT], [ARM_BACK, STEM_RIGHT]];
+
+    assert_eq!(admitted(&ell(), &list), Err(Declined::Unsupported));
+}
+
+#[test]
+fn two_feet_of_a_standing_block_and_the_upright_above_them_are_taken_with_no_corner_beside_an_edge_whatever_the_order()
+ {
+    let corner = [
+        [TOP, STANDING_FRONT],
+        [TOP, STANDING_RIGHT],
+        [STANDING_FRONT, STANDING_RIGHT],
+    ];
+
+    for [first, second, third] in [
+        [0, 1, 2],
+        [0, 2, 1],
+        [1, 0, 2],
+        [1, 2, 0],
+        [2, 0, 1],
+        [2, 1, 0],
     ] {
-        assert_eq!(
-            admitted(&part, &list),
-            Err(Declined::Unsupported),
-            "{which}"
-        );
+        let list = [corner[first], corner[second], corner[third]];
+        assert_eq!(admitted(&stacked(), &list), Ok(Vec::new()), "{list:?}");
     }
 }
 

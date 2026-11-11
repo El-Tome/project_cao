@@ -102,6 +102,37 @@
 //!   one ending on its top face and the other on its wall, a chain of three
 //!   on the block and on the trapezoid —
 //!   `a_fillet_and_a_chamfer_on_three_edges_in_a_chain_whose_outer_two_reach_the_middle_one_through_its_two_faces_take_the_value_asked`
+//!
+//! #829 narrowed what a set-back is read to reach: only where its blend runs
+//! on its face, up to the plane of the face its edge ends on, or up to the
+//! mitre where an edge of the list laid before the later of the two meets
+//! it. Read along its whole line, a set-back reached points its blend never
+//! does, and two steps it shrank take the value asked since. A standing
+//! block's foot, filled, and an edge of the lower block's top beyond the wall
+//! the foot ends on, cut, whose set-backs' lines would cross on that top past
+//! the foot's end, were declined, the foot's line reaching the far edge at
+//! nearly no value; they are laid each as alone, in either order, the fill
+//! ending flush on the wall —
+//! `a_chamfer_and_a_fillet_on_a_standing_block_s_foot_and_an_edge_of_the_lower_block_s_top_beyond_its_end_take_the_value_asked_the_foot_s_set_back_running_no_further_than_the_wall_it_ends_on`.
+//! And the eight feet round a standing block whose four uprights an earlier
+//! step chamfered, an octagon of fills meeting in mitres at its eight
+//! corners, took `tan(22.5°)` of the value, for lines crossing far out on the
+//! lower block's top; they take it whole, the volume the octagon's
+//! arithmetic gives, whatever the order — the fills are the frustum between
+//! the octagon and its offset out, less the standing block —
+//! `a_chamfer_on_the_eight_feet_round_a_standing_block_s_chamfered_uprights_takes_the_value_asked_their_set_backs_running_no_further_than_their_mitres`.
+//! Every reduction above is the same with either reading: where two
+//! set-backs meet, each runs there. Where a third edge of the list runs into
+//! a mitre, the value does not hang on which of the mitre's two edges is
+//! laid last: the earlier one runs on past the face it stops on into the
+//! mitre once the later is laid, whichever order the list names them in. An
+//! L whose corner block is cut under its inner corner by a slanted wall, its
+//! two top edges there cut beside the inner upright left out and the
+//! upright where the slant meets the front cut with them, takes the value
+//! at which the arm's edge's set-back, past the stem's plane, meets the
+//! upright's on the slant's top edge — 3.75 chamfered, 5 filleted — in all
+//! six orders —
+//! `a_fillet_and_a_chamfer_on_the_two_top_edges_at_an_l_s_inner_corner_and_an_upright_their_mitre_runs_into_take_the_value_at_which_they_meet_whatever_the_order`.
 
 use std::collections::BTreeSet;
 use std::f64::consts::{FRAC_1_SQRT_2, PI};
@@ -129,6 +160,7 @@ const TOP: usize = 1;
 const FRONT: usize = 2;
 const RIGHT: usize = 3;
 const BACK: usize = 4;
+const LEFT: usize = 5;
 
 /// The block the end face is met on: 30 along X, 10 across, 20 high.
 const LENGTH: f64 = 30.0;
@@ -2857,6 +2889,308 @@ fn a_fillet_and_a_chamfer_on_three_edges_in_a_chain_whose_outer_two_reach_the_mi
                 DRAWN * reach_of(part) * 3.0 * PI * value * 30.0,
                 &what,
             );
+        }
+    }
+}
+
+/// A block 30 by 20 by 10 with another, 10 by 10 by 10, standing on the
+/// middle of its top: the lower block's top numbered one, its walls, front,
+/// right, back and left, two to five, and the upper block's walls eight to
+/// eleven in the same turn, its floor gone into the lower block's top. Its
+/// feet, where its walls meet that top, meet inwards, and each ends on the
+/// walls beside its own.
+fn stacked() -> Body {
+    let lower = raised_with(
+        &Body::default(),
+        Contour::rectangle(DVec2::ZERO, DVec2::new(30.0, 20.0)),
+        10.0,
+    );
+    let tool = lower
+        .tool_raised(
+            &profile(Contour::rectangle(
+                DVec2::new(10.0, 5.0),
+                DVec2::new(20.0, 15.0),
+            )),
+            Frame {
+                origin: DVec3::Z * 10.0,
+                ..ground()
+            },
+            DVec3::Z * 10.0,
+        )
+        .expect("the standing block raises");
+    lower.union(&tool).expect("the standing block joins")
+}
+const STACKED_VOLUME: f64 = 30.0 * 20.0 * 10.0 + 10.0 * 10.0 * 10.0;
+
+/// [`stacked`] with its four uprights chamfered by `value` in an earlier
+/// step, each flat stopping flush on the lower block's top: the four flats,
+/// front right, back right, back left and front left, numbered twelve to
+/// fifteen. Its eight feet, the four walls' and the four flats', meet inwards
+/// round an octagon on the lower block's top, four sides `10 − 2·value` and
+/// four `value·√2`, its eight corners of 135°.
+fn stacked_with_its_uprights_chamfered(value: f64) -> Body {
+    let stacked = stacked();
+    let uprights: Vec<EdgeName> = [[8, 9], [9, 10], [10, 11], [11, 8]]
+        .iter()
+        .map(|&[first, second]| edge_between(&stacked, first, second))
+        .collect();
+    let chamfered = stacked
+        .chamfer_edges(&uprights, value)
+        .unwrap_or_else(|declined| panic!("the four uprights are chamfered: {declined:?}"));
+    taken_as_asked(
+        chamfered.asked,
+        chamfered.taken,
+        value,
+        "the four uprights chamfered",
+    );
+    chamfered.body
+}
+
+/// The eight feet round the octagon of [`stacked_with_its_uprights_chamfered`],
+/// by the faces each lies between: the four walls' feet, front, right, back
+/// and left, then the four flats' feet, front right, back right, back left
+/// and front left.
+const OCTAGON_FEET: [[usize; 2]; 8] = [
+    [TOP, 8],
+    [TOP, 9],
+    [TOP, 10],
+    [TOP, 11],
+    [TOP, 12],
+    [TOP, 13],
+    [TOP, 14],
+    [TOP, 15],
+];
+
+/// The orders the octagon's eight feet are named in, by their places in
+/// [`OCTAGON_FEET`]: as given, reversed, and in turn round the octagon from
+/// the front, each wall's foot followed by the flat's at its end.
+const OCTAGON_ORDERS: [[usize; 8]; 3] = [
+    [0, 1, 2, 3, 4, 5, 6, 7],
+    [7, 6, 5, 4, 3, 2, 1, 0],
+    [0, 4, 1, 5, 2, 6, 3, 7],
+];
+
+/// What [`stacked_with_its_uprights_chamfered`] at `value` holds once the
+/// octagon's eight feet are filled at `value`: 7000 less the four flats'
+/// `10·value²/2`, and the frustum between the octagon and its offset `value`
+/// out, less the standing block — the octagon's length times `value²/2`, and
+/// `tan(22.5°)·value³/3` at each of its eight corners.
+fn octagon_filled(value: f64) -> f64 {
+    let d = value;
+    let around = 40.0 - 8.0 * d + 4.0 * 2f64.sqrt() * d;
+    STACKED_VOLUME - 4.0 * 10.0 * d * d / 2.0
+        + around * d * d / 2.0
+        + 8.0 * (PI / 8.0).tan() * d.powi(3) / 3.0
+}
+
+#[test]
+fn a_chamfer_on_the_eight_feet_round_a_standing_block_s_chamfered_uprights_takes_the_value_asked_their_set_backs_running_no_further_than_their_mitres()
+ {
+    for value in [1.0, 2.5] {
+        let part = stacked_with_its_uprights_chamfered(value);
+        let names = OCTAGON_FEET.map(|[first, second]| edge_between(&part, first, second));
+        let laid: Vec<usize> = (0..8).map(|rank| part.faces_end() + rank).collect();
+        for order in OCTAGON_ORDERS {
+            let what = format!(
+                "the chamfer of {value} on the eight feet round the standing block's chamfered \
+                 uprights, named {order:?}"
+            );
+            let list: Vec<EdgeName> = order.iter().map(|&foot| names[foot].clone()).collect();
+
+            let step = part
+                .chamfer_edges(&list, value)
+                .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+            taken_as_asked(step.asked, step.taken, value, &what);
+            kept_every_face_and_laid(&part, &step.body, &laid, &what);
+            let promised = octagon_filled(value);
+            sound_drawn_within(&step.body, promised, EXACT * promised, &what);
+        }
+    }
+}
+
+/// A pair of [`stacked`]'s edges that meet at no corner and whose
+/// set-backs' lines would cross on the lower block's top past where one of
+/// them ends: a foot of the standing block, filled, and an edge of the lower
+/// block's top beyond the wall that foot ends on, cut. The faces each lies
+/// between, in the order the step names them, how long each is, which of
+/// the two is the foot, and what to call them.
+struct FootAndFarEdge {
+    named: [[usize; 2]; 2],
+    lengths: [f64; 2],
+    foot: usize,
+    called: &'static str,
+}
+
+const FOOT_AND_FAR_EDGE: [FootAndFarEdge; 4] = [
+    FootAndFarEdge {
+        named: [[TOP, 8], [TOP, RIGHT]],
+        lengths: [10.0, 20.0],
+        foot: 0,
+        called: "the standing block's front foot and the lower block's top right edge",
+    },
+    FootAndFarEdge {
+        named: [[TOP, RIGHT], [TOP, 8]],
+        lengths: [20.0, 10.0],
+        foot: 1,
+        called: "the lower block's top right edge and the standing block's front foot",
+    },
+    FootAndFarEdge {
+        named: [[TOP, 8], [TOP, LEFT]],
+        lengths: [10.0, 20.0],
+        foot: 0,
+        called: "the standing block's front foot and the lower block's top left edge",
+    },
+    FootAndFarEdge {
+        named: [[TOP, 9], [TOP, FRONT]],
+        lengths: [10.0, 30.0],
+        foot: 0,
+        called: "the standing block's right foot and the lower block's top front edge",
+    },
+];
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_standing_block_s_foot_and_an_edge_of_the_lower_block_s_top_beyond_its_end_take_the_value_asked_the_foot_s_set_back_running_no_further_than_the_wall_it_ends_on()
+ {
+    let part = stacked();
+    let laid = [0, 1].map(|rank| part.faces_end() + rank);
+    for FootAndFarEdge {
+        named,
+        lengths,
+        foot,
+        called,
+    } in FOOT_AND_FAR_EDGE
+    {
+        let names = named.map(|[first, second]| edge_between(&part, first, second));
+        for value in [1.0, 2.5] {
+            for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
+                let what = format!("the {kind} of {value} on {called}");
+
+                let (reported, taken, body) = stepped(&part, &names, value, fillet, &what);
+
+                taken_as_asked(reported, taken, value, &what);
+                kept_every_face_and_laid(&part, &body, &laid, &what);
+                do_not_meet(&body, laid, &what);
+                let section = if fillet {
+                    value * value * (1.0 - PI / 4.0)
+                } else {
+                    value * value / 2.0
+                };
+                let promised =
+                    STACKED_VOLUME + section * lengths[foot] - section * lengths[1 - foot];
+                let drawn = if fillet {
+                    DRAWN * reach_of(&part) * PI / 2.0 * value * (lengths[0] + lengths[1])
+                } else {
+                    EXACT * promised
+                };
+                sound_drawn_within(&body, promised, drawn, &what);
+            }
+        }
+    }
+}
+
+/// An L 10 high whose corner block under its inner corner is cut away by a
+/// slanted wall: an arm from (12, 0) to (30, 6) along the front, a stem from
+/// (0, 6) to (12, 14) at its left, and between them the slant from (0, 9) to
+/// (12, 0), its line `3x + 4y = 36`. Its walls are numbered from the arm's
+/// front round: the front two, the arm's right end three, the arm's back
+/// four, the stem's right side five, the stem's back six, its left seven and
+/// the slant eight. The arm's back and the stem's right side meet inwards in
+/// the L's inner corner, (12, 6); the slant and the front meet outwards, at
+/// 143.13°, along the upright at (12, 0).
+fn slanted_ell() -> Body {
+    raised_with(
+        &Body::default(),
+        Contour::straight(vec![
+            DVec2::new(12.0, 0.0),
+            DVec2::new(30.0, 0.0),
+            DVec2::new(30.0, 6.0),
+            DVec2::new(12.0, 6.0),
+            DVec2::new(12.0, 14.0),
+            DVec2::new(0.0, 14.0),
+            DVec2::new(0.0, 9.0),
+        ]),
+        10.0,
+    )
+}
+const SLANTED_ELL_ARM_BACK: usize = 4;
+const SLANTED_ELL_STEM_RIGHT: usize = 5;
+const SLANTED_ELL_SLANT: usize = 8;
+
+/// The three edges of [`slanted_ell`] named together, by the faces each lies
+/// between: the top edge of the arm's back, the upright where the slant meets
+/// the front, and the top edge of the stem's right side.
+const ARM_BACK_UPRIGHT_STEM_RIGHT: [[usize; 2]; 3] = [
+    [TOP, SLANTED_ELL_ARM_BACK],
+    [FRONT, SLANTED_ELL_SLANT],
+    [TOP, SLANTED_ELL_STEM_RIGHT],
+];
+
+/// Every order three edges can be named in.
+const ORDERS_OF_THREE: [[usize; 3]; 6] = [
+    [0, 1, 2],
+    [0, 2, 1],
+    [1, 0, 2],
+    [1, 2, 0],
+    [2, 0, 1],
+    [2, 1, 0],
+];
+
+/// For a chamfer and a fillet on [`ARM_BACK_UPRIGHT_STEM_RIGHT`]: a value
+/// short of where the blends meet, which every order takes whole; the value
+/// at which they meet; and two values asked past it. The two top edges, cut
+/// beside the concave inner upright left out, each stop flush on the other's
+/// wall and run on past it into their mitre, which reaches the slant. Past
+/// the stem's plane the arm's back edge's set-back, `6 − v` across the top,
+/// meets on the slant's top edge the upright's, which reaches `0.6·s` up
+/// that edge for a set-back `s` along it from the front: a chamfer's `s` is
+/// its distance, meeting at `0.6·d = 6 − d`, 3.75; a fillet's is
+/// `r·cot(α/2)`, a third of the radius where the slant and the front meet at
+/// 143.13°, meeting at `0.2·r = 6 − r`, 5.
+const SLANTED_ELL_VALUES: [(&str, bool, f64, f64, [f64; 2]); 2] = [
+    ("chamfer", false, 3.5, 3.75, [3.8, 4.0]),
+    ("fillet", true, 4.8, 5.0, [5.2, 5.5]),
+];
+
+#[test]
+fn a_fillet_and_a_chamfer_on_the_two_top_edges_at_an_l_s_inner_corner_and_an_upright_their_mitre_runs_into_take_the_value_at_which_they_meet_whatever_the_order()
+ {
+    let ell = slanted_ell();
+    let names =
+        ARM_BACK_UPRIGHT_STEM_RIGHT.map(|[first, second]| edge_between(&ell, first, second));
+    let hair = 20.0 * 1e-9 * 30.0;
+    for (kind, fillet, short, meeting, past) in SLANTED_ELL_VALUES {
+        for asked in std::iter::once(short).chain(past) {
+            let laid: Vec<(String, f64, f64, Body)> = ORDERS_OF_THREE
+                .iter()
+                .map(|order| {
+                    let what = format!(
+                        "the {kind} of {asked} on the arm's back top edge, the upright where \
+                         the slant meets the front and the stem's right top edge, named \
+                         {order:?}"
+                    );
+                    let list: Vec<EdgeName> =
+                        order.iter().map(|&edge| names[edge].clone()).collect();
+                    let (reported, taken, body) = stepped(&ell, &list, asked, fillet, &what);
+                    (what, reported, taken, body)
+                })
+                .collect();
+            for (what, reported, taken, _) in &laid {
+                if asked < meeting {
+                    taken_as_asked(*reported, *taken, asked, what);
+                } else {
+                    reduced_to_touching(*reported, *taken, [asked, meeting], hair, what);
+                }
+            }
+            let promised = laid[0].3.volume();
+            let drawn = if fillet {
+                DRAWN * reach_of(&ell) * PI / 2.0 * asked * (18.0 + 8.0 + 10.0 + 2.0 * asked)
+            } else {
+                EXACT * promised
+            };
+            for (what, _, _, body) in &laid {
+                sound_drawn_within(body, promised, drawn, what);
+            }
         }
     }
 }

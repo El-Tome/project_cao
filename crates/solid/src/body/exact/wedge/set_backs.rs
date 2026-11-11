@@ -1,11 +1,17 @@
 //! Two edges of one step whose set-backs would reach one point of an edge of
 //! the body (#792): the edge where the face one ends on meets a face of the
 //! other, or the edge between two that are not parallel on a face they share.
-//! The bound they set on the one value, so that they do not.
+//! The bound they set on the one value, so that they do not. A set-back
+//! reaches only where its blend runs (#829), as [`super::extent`] holds it:
+//! two fills on the lower block's top round a standing block's chamfered
+//! uprights, whose lines would cross far out on that top, never reach its
+//! far edge.
 
 use std::collections::BTreeMap;
 
 use super::chain::TANGENT;
+use super::corners::Beside;
+use super::extent::{Ranked, Within, runs, span};
 use super::{Wedge, corners};
 use crate::brep::{self, Curve, EdgeId};
 
@@ -14,13 +20,11 @@ use crate::brep::{self, Curve, EdgeId};
 /// the edge, square to it along the face, over its set-back of one.
 type Depths = [f64; 2];
 
-/// A listed edge by its rank, and the side of its wedge a face is on.
-type Ranked = (usize, usize);
-
 /// The least value at which the set-backs of two of `edges` that do not meet
 /// at a corner — of their wedges in `wedges`, at their ranks, by the set-back
 /// of a value of one `set_back` says — reach one point of a straight edge of
-/// the body bounding a face of each. Where that edge is itself one of the
+/// the body bounding a face of each, within where each set-back runs on that
+/// face, as [`runs`] holds it and [`span`] reads it on that edge. Where that edge is itself one of the
 /// list, neither of the two, and laid before the later of them, its own cut
 /// takes the point away first: the two meet only once its own set-back closes
 /// between theirs, which bounds them instead, as [`closing`] reads it.
@@ -31,6 +35,7 @@ pub(super) fn bound(
     body: &brep::Body,
     edges: &[EdgeId],
     wedges: &[Wedge],
+    beside: &[Beside],
     set_back: impl Fn(&Wedge) -> f64,
 ) -> f64 {
     let mut bounding: BTreeMap<EdgeId, Vec<Ranked>> = BTreeMap::new();
@@ -68,7 +73,17 @@ pub(super) fn bound(
                     .filter(|&rank| rank != first && rank != second && rank < first.max(second));
                 let value = match between {
                     Some(rank) => closing(wedges, [*one, *other], rank, &set_back),
-                    None => reached([depths(one), depths(other)], eps),
+                    None => {
+                        let later = first.max(second);
+                        let held: Vec<Within> = [one, other]
+                            .into_iter()
+                            .flat_map(|&ranked| {
+                                runs(body, (edges, wedges), beside, ranked, later, &set_back)
+                            })
+                            .collect();
+                        let within = span(&held, ends, eps);
+                        within.and_then(|within| reached([depths(one), depths(other)], within, eps))
+                    }
                 };
                 if let Some(value) = value {
                     most = most.min(value);
@@ -81,16 +96,17 @@ pub(super) fn bound(
 
 /// The least value at which two set-backs reach one point of a straight
 /// edge, each reaching its ends at the values its [`Depths`] say, with its
-/// set-back of one, and the points between in proportion: at an end, or
-/// where both reach it at one value. A point behind either's edge, by more
-/// than `eps`, is reached by none.
-fn reached(lines: [(Depths, f64); 2], eps: f64) -> Option<f64> {
+/// set-back of one, and the points between in proportion, among the points
+/// whose share of the way along it from its first end `within` holds: at an
+/// end of those, or where both reach it at one value. A point behind
+/// either's edge, by more than `eps`, is reached by none.
+fn reached(lines: [(Depths, f64); 2], within: [f64; 2], eps: f64) -> Option<f64> {
     let [(one, _), (other, _)] = lines;
     let closing = (one[1] - one[0]) - (other[1] - other[0]);
     let level = (other[0] - one[0]) / closing;
-    [0.0, 1.0, level]
+    [within[0], within[1], level]
         .into_iter()
-        .filter(|share| (0.0..=1.0).contains(share))
+        .filter(|share| (within[0]..=within[1]).contains(share))
         .filter_map(|share| {
             let [one, other] = lines.map(|(depths, per)| {
                 let depth = depths[0] + (depths[1] - depths[0]) * share;

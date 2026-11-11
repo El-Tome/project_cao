@@ -29,6 +29,16 @@ impl Body {
         self
     }
 
+    /// The same body, every face's numbers moved to what `moved` makes of
+    /// them, which may change their order, each face's held ascending again,
+    /// as [`Body::rename`] holds them.
+    pub fn renamed_by(mut self, moved: impl Fn(u32) -> u32) -> Body {
+        for face in &mut self.faces {
+            face.numbers = ascending(face.numbers.iter().map(|&number| moved(number)));
+        }
+        self
+    }
+
     /// The faces answering to `number`, in groups that hold together through
     /// the edges they share: a face a cut parted is as many groups as pieces
     /// left apart. Each group in the body's order, the groups in the order of

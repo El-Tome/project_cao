@@ -89,13 +89,7 @@ fn sphered(
         numbers: vec![body.next],
         poles: Vec::new(),
     };
-    let brep = laid.brep.replaced(&walls, Surface::Sphere(sphere), face)?;
-    let drawn = Drawn::of(&brep);
-    if !drawn.is_whole() {
-        return Err(Declined::Undrawn);
-    }
-    let closed = Exact::of(brep, laid.next, laid.pieces, laid.roots);
-    let _ = closed.drawn.set(drawn);
+    let closed = laid.patched(&walls, Surface::Sphere(sphere), face, laid.next)?;
     if closed.cut_along(&[], body, 1, &rounds, &[]) {
         Ok(closed)
     } else {
@@ -166,9 +160,9 @@ fn meeting_at(body: &brep::Body, centre: DVec3, eps: f64) -> Vec<FaceId> {
 }
 
 /// The loop the three `walls` make towards the rest of the body, the way
-/// they run it: three arcs about `centre` of `radius`, each where a wall
-/// meets a face that is none of them, joined end to end. None where there
-/// are not three walls and three such arcs, or they close no loop.
+/// they run it, as [`lap`] reads it: three arcs about `centre` of `radius`.
+/// None where there are not three walls and three such arcs, or they close
+/// no loop.
 fn bounding(
     body: &brep::Body,
     walls: &[FaceId],
@@ -176,19 +170,25 @@ fn bounding(
     radius: f64,
     eps: f64,
 ) -> Option<Vec<Coedge>> {
-    let mut arcs: Vec<Coedge> = (walls.iter())
-        .flat_map(|&wall| body.face(wall).loops.iter().flatten().copied())
-        .filter(|coedge| (body.uses(coedge.edge).iter()).any(|(face, _)| !walls.contains(face)))
-        .collect();
     let about = |coedge: &Coedge| match body.curve(body.edge(coedge.edge).curve) {
         Curve::Circle(circle) => {
             circle.center.distance(centre) <= eps && (circle.radius - radius).abs() <= eps
         }
         _ => false,
     };
-    if walls.len() != 3 || arcs.len() != 3 || !arcs.iter().all(about) {
-        return None;
-    }
+    let lap = lap(body, walls)?;
+    (walls.len() == 3 && lap.len() == 3 && lap.iter().all(about)).then_some(lap)
+}
+
+/// The loop `walls` make towards the rest of the body, the way they run it:
+/// each of their edges a face that is none of them meets them along, joined
+/// end to end — what bounds a face laid in their place. None where those
+/// close no one loop.
+pub(super) fn lap(body: &brep::Body, walls: &[FaceId]) -> Option<Vec<Coedge>> {
+    let mut arcs: Vec<Coedge> = (walls.iter())
+        .flat_map(|&wall| body.face(wall).loops.iter().flatten().copied())
+        .filter(|coedge| (body.uses(coedge.edge).iter()).any(|(face, _)| !walls.contains(face)))
+        .collect();
     let ends = |coedge: &Coedge| {
         let [from, to] = body.edge(coedge.edge).ends?;
         Some(if coedge.forward {
@@ -205,4 +205,27 @@ fn bounding(
     }
     let ([start, _], [_, end]) = (ends(&lap[0])?, ends(lap.last()?)?);
     (start == end).then_some(lap)
+}
+
+impl Exact {
+    /// The body with the faces `walls` replaced by `face`, laid on `surface`,
+    /// its count `next`, drawn again: what closes a corner with a face no
+    /// boolean lays. Declined `Undrawn` where it cannot be drawn whole;
+    /// otherwise as [`crate::brep::Body::replaced`] declines.
+    pub(super) fn patched(
+        &self,
+        walls: &[FaceId],
+        surface: Surface,
+        face: Face,
+        next: u32,
+    ) -> Result<Exact, Declined> {
+        let brep = self.brep.replaced(walls, surface, face)?;
+        let drawn = Drawn::of(&brep);
+        if !drawn.is_whole() {
+            return Err(Declined::Undrawn);
+        }
+        let closed = Exact::of(brep, next, self.pieces, self.roots.clone());
+        let _ = closed.drawn.set(drawn);
+        Ok(closed)
+    }
 }

@@ -19,6 +19,12 @@ use crate::brep::{self, EdgeId, Surface};
 /// A half-space, `normal · p ≤ offset`: one side of where a set-back ends.
 pub(super) type Within = (DVec3, f64);
 
+/// A half-space holding a set-back at one end of its edge, and whether it is
+/// the plane through the corner the edge mitres on there with another edge of
+/// the list sharing its face — past which that edge's blend takes over —
+/// rather than the plane of the face the edge ends on.
+pub(super) type End = (Within, bool);
+
 /// A listed edge by its rank, and the side of its wedge a face is on.
 pub(super) type Ranked = (usize, usize);
 
@@ -65,7 +71,8 @@ fn narrowed([low, high]: [f64; 2], past: [f64; 2], eps: f64) -> Option<[f64; 2]>
 /// edges are named, which every laying cuts back within that plane or mitres
 /// short of it. Nothing holds it at an end where the face it ends on is
 /// curved or not one face, or where the one edge mitring it there does not
-/// share its face.
+/// share its face. Each half-space says whether it is a mitre's, as [`End`]
+/// reads it.
 pub(super) fn runs(
     body: &brep::Body,
     (edges, wedges): (&[EdgeId], &[Wedge]),
@@ -73,7 +80,7 @@ pub(super) fn runs(
     (rank, side): Ranked,
     later: usize,
     set_back: &impl Fn(&Wedge) -> f64,
-) -> Vec<Within> {
+) -> Vec<End> {
     let wedge = &wedges[rank];
     let eps = body.scale().eps();
     let stopping = stops(body, edges[rank], wedge);
@@ -114,16 +121,16 @@ pub(super) fn runs(
                     .position(|&face| face == wedge.faces[side]);
                 on.map(|on| {
                     let [(mine, own), (their, other)] = [depth(wedge, side), depth(theirs, on)];
-                    (their - mine, other - own)
+                    ((their - mine, other - own), true)
                 })
             }
-            _ => trimmed(),
+            _ => trimmed().map(|plane| (plane, false)),
         };
-        if let Some((normal, offset)) = half {
+        if let Some(((normal, offset), mitre)) = half {
             let inside = normal.dot(middle) - offset;
             if inside.abs() > eps {
                 let toward = -inside.signum();
-                held.push((normal * toward, offset * toward));
+                held.push(((normal * toward, offset * toward), mitre));
             }
         }
     }

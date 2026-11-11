@@ -55,7 +55,7 @@ impl Exact {
         let three = corners::of_three(&self.brep, &edges)?;
         let mut wedges: Vec<Wedge> = found.into_iter().map(|(_, wedge)| wedge).collect();
         let reached = |rank: usize, side: usize| {
-            let held = runs(
+            let ends = runs(
                 &self.brep,
                 (&edges, &wedges),
                 &beside,
@@ -65,7 +65,7 @@ impl Exact {
             );
             let wedge = &wedges[rank];
             let from = (wedge.into[side], wedge.point);
-            reach_within(&self.brep, wedge.faces[side], from, &held)
+            reach_within(&self.brep, wedge.faces[side], from, &ends)
         };
         let reaches = (0..wedges.len())
             .map(|rank| Some(reached(rank, 0)?.min(reached(rank, 1)?)))

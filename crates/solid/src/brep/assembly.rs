@@ -7,10 +7,13 @@
 
 mod merged;
 
+use std::f64::consts::TAU;
+
 use glam::DVec3;
 
 use super::Declined;
 use super::combine::Arena;
+use super::curve::{Circle, Curve};
 use super::domain::floor;
 use super::surface::Surface;
 use super::topology::{
@@ -37,49 +40,100 @@ impl Body {
     /// The body with the faces `gone` replaced by `face`, laid on `surface`,
     /// which every corner of its loops then lies on: what a step hands back
     /// that lays a face of its own where others stood, bounded by edges the
-    /// body holds already. Declined `Unverified` where a corner of its loops,
-    /// or a point a quarter, half or three quarters along one of its edges,
-    /// stands further from the surface than the body's tolerance.
+    /// body holds already. Declined as [`Body::replaced_by`] declines.
     pub(crate) fn replaced(
         &self,
         gone: &[FaceId],
         surface: Surface,
-        mut face: Face,
+        face: Face,
+    ) -> Result<Body, Declined> {
+        self.replaced_by(gone, vec![(surface, face)])
+    }
+
+    /// The body with the faces `gone` replaced by each of `faces`, each laid
+    /// on its surface, which every corner of its loops then lies on. Declined
+    /// `Unverified` where a corner of a face's loops, or a point a quarter,
+    /// half or three quarters along one of its edges, stands further from its
+    /// surface than the body's tolerance.
+    pub(crate) fn replaced_by(
+        &self,
+        gone: &[FaceId],
+        faces: Vec<(Surface, Face)>,
     ) -> Result<Body, Declined> {
         let eps = self.scale.eps();
-        let off = face.loops.iter().flatten().any(|coedge| {
-            let edge = self.edge(coedge.edge);
-            let corners = edge.ends.into_iter().flatten();
-            let along = [0.25, 0.5, 0.75].map(|share| edge.from + (edge.to - edge.from) * share);
-            (corners.map(|end| self.vertex(end).point))
-                .chain(along.map(|at| self.point_on(coedge.edge, at)))
-                .any(|point| surface.distance(point).abs() > eps)
+        let off = faces.iter().any(|(surface, face)| {
+            face.loops.iter().flatten().any(|coedge| {
+                let edge = self.edge(coedge.edge);
+                let corners = edge.ends.into_iter().flatten();
+                let along =
+                    [0.25, 0.5, 0.75].map(|share| edge.from + (edge.to - edge.from) * share);
+                (corners.map(|end| self.vertex(end).point))
+                    .chain(along.map(|at| self.point_on(coedge.edge, at)))
+                    .any(|point| surface.distance(point).abs() > eps)
+            })
         });
         if off {
             return Err(Declined::Unverified);
         }
         let mut body = self.clone();
-        face.surface = SurfaceId(body.surfaces.len() as u32);
-        body.surfaces.push(surface);
-        body.arrivals.push(body.scale);
-        for coedge in face.loops.iter().flatten() {
-            for end in body.edges[coedge.edge.0 as usize]
-                .ends
-                .into_iter()
-                .flatten()
-            {
-                let on = &mut body.vertices[end.0 as usize].on;
-                if let Err(at) = on.binary_search(&face.surface) {
-                    on.insert(at, face.surface);
+        let mut laid = Vec::new();
+        for (surface, mut face) in faces {
+            face.surface = SurfaceId(body.surfaces.len() as u32);
+            body.surfaces.push(surface);
+            body.arrivals.push(body.scale);
+            for coedge in face.loops.iter().flatten() {
+                for end in body.edges[coedge.edge.0 as usize]
+                    .ends
+                    .into_iter()
+                    .flatten()
+                {
+                    let on = &mut body.vertices[end.0 as usize].on;
+                    if let Err(at) = on.binary_search(&face.surface) {
+                        on.insert(at, face.surface);
+                    }
                 }
             }
+            laid.push(face);
         }
-        let mut faces: Vec<Face> = (body.face_ids())
+        let mut kept: Vec<Face> = (body.face_ids())
             .filter(|id| !gone.contains(id))
             .map(|id| body.face(id).clone())
             .collect();
-        faces.push(face);
-        tidied(body, faces, &[]).map(|replaced| replaced.noted(self.unstable))
+        kept.extend(laid);
+        tidied(body, kept, &[]).map(|replaced| replaced.noted(self.unstable))
+    }
+
+    /// The body with an edge along `circle` between two of its vertices,
+    /// `ends`, running the way that passes `through` a point of the arc, and
+    /// whether it runs from the first of `ends` to the second: what a face
+    /// laid in place of others is bounded by where no edge of the body runs
+    /// yet. Left out again unless a face uses it.
+    pub(crate) fn with_arc(
+        &self,
+        circle: Circle,
+        ends: [VertexId; 2],
+        through: DVec3,
+    ) -> (Body, EdgeId, bool) {
+        let [first, second] = ends.map(|end| circle.parameter(self.vertex(end).point));
+        let past = |from: f64, to: f64| (to - from).rem_euclid(TAU);
+        let middle = circle.parameter(through);
+        let as_given = past(first, middle) < past(first, second);
+        let (ends, from, turn) = if as_given {
+            (ends, first, past(first, second))
+        } else {
+            ([ends[1], ends[0]], second, past(second, first))
+        };
+        let mut body = self.clone();
+        let curve = CurveId(body.curves.len() as u32);
+        body.curves.push(Curve::Circle(circle));
+        let edge = EdgeId(body.edges.len() as u32);
+        body.edges.push(Edge {
+            curve,
+            ends: Some(ends),
+            from,
+            to: from + turn,
+        });
+        (body, edge, as_given)
     }
 }
 

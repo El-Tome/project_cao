@@ -70,7 +70,11 @@ impl Exact {
     /// wall, and the corner closed by a piece of torus cut out about that
     /// axis, its centre circle one radius below the top. An upright named
     /// with its block's top edges closes its top corner with them by a piece
-    /// of sphere, as above: every edge of a standing block in one step.
+    /// of sphere, as above: every edge of a standing block in one step. A
+    /// foot and the upright above it, the other foot left sharp, go round the
+    /// upright's round the same way, the piece of torus over the whole arc and
+    /// stopping on the plane square to the sharp foot where that foot's wall
+    /// begins, its end section a flat face numbered after the piece.
     /// Rounds that would meet only on a curved edge are not measured, and
     /// declined where they meet. The rounds are numbered, in the
     /// order the names come, where the steps' numbers ended; a full round

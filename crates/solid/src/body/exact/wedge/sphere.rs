@@ -89,7 +89,8 @@ fn sphered(
         numbers: vec![body.next],
         poles: Vec::new(),
     };
-    let closed = laid.patched(&walls, Surface::Sphere(sphere), face, laid.next)?;
+    let brep = laid.brep.replaced(&walls, Surface::Sphere(sphere), face)?;
+    let closed = laid.patched(brep, laid.next)?;
     if closed.cut_along(&[], body, 1, &rounds, &[]) {
         Ok(closed)
     } else {
@@ -208,18 +209,11 @@ pub(super) fn lap(body: &brep::Body, walls: &[FaceId]) -> Option<Vec<Coedge>> {
 }
 
 impl Exact {
-    /// The body with the faces `walls` replaced by `face`, laid on `surface`,
-    /// its count `next`, drawn again: what closes a corner with a face no
-    /// boolean lays. Declined `Undrawn` where it cannot be drawn whole;
-    /// otherwise as [`crate::brep::Body::replaced`] declines.
-    pub(super) fn patched(
-        &self,
-        walls: &[FaceId],
-        surface: Surface,
-        face: Face,
-        next: u32,
-    ) -> Result<Exact, Declined> {
-        let brep = self.brep.replaced(walls, surface, face)?;
+    /// `brep`, this body with faces laid in place of some of its own, as
+    /// [`crate::brep::Body::replaced`] lays them, its pieces and their roots,
+    /// its count `next`, drawn again: what closes a corner with faces no
+    /// boolean lays. Declined `Undrawn` where it cannot be drawn whole.
+    pub(super) fn patched(&self, brep: brep::Body, next: u32) -> Result<Exact, Declined> {
         let drawn = Drawn::of(&brep);
         if !drawn.is_whole() {
             return Err(Declined::Undrawn);

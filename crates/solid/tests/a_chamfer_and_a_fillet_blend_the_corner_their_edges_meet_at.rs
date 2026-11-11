@@ -139,9 +139,12 @@
 //!   inner corner, its two top edges and the inner upright below them, which
 //!   this test declined before, held now in
 //!   `a_chamfer_and_a_fillet_go_round_the_odd_edge_at_a_corner_of_mixed_sense.rs`.
-//!   The lists left here are a cut meeting a fill at a corner, declined at
-//!   the corner itself, each of their edges laid alone — a foot and the
-//!   upright above it, the L's top edge and its inner upright — until #846
+//!   #846 builds a foot and the upright above it, the other foot left sharp,
+//!   which this test declined before, held now in
+//!   `a_chamfer_and_a_fillet_go_round_the_odd_edge_and_stop_where_the_sharp_edge_begins.rs`.
+//!   The list left here is a cut meeting a fill at a corner, declined at the
+//!   corner itself, each of its edges laid alone — the L's top edge and its
+//!   inner upright — until #846 builds it too
 //! - A full round, two parallel edges whose rounds meet across the face they
 //!   share, meeting a third edge of the list at a corner, was not built here:
 //!   the fillet was declined `Unsupported` whichever edge the list names
@@ -1372,42 +1375,25 @@ fn a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_d
             .unwrap_or_else(|declined| panic!("{which}: the chamfer declined, {declined:?}"));
     }
     let ell = ell();
-    let names = |body: &Body, pairs: &[[usize; 2]]| -> Vec<EdgeName> {
-        pairs
-            .iter()
-            .map(|&[first, second]| edge_between(body, first, second))
-            .collect()
-    };
+    let list: Vec<EdgeName> = [[TOP, ARM_BACK], [ARM_BACK, STEM_RIGHT]]
+        .iter()
+        .map(|&[first, second]| edge_between(&ell, first, second))
+        .collect();
+    let what = "a top edge at the L's inner corner and the L's inner upright";
 
-    for (what, body, list) in [
-        (
-            "a foot of the standing block and the upright above it",
-            &stacked,
-            vec![
-                feet[0].clone(),
-                edge_between(&stacked, STANDING[0], STANDING[1]),
-            ],
-        ),
-        (
-            "a top edge at the L's inner corner and the L's inner upright",
-            &ell,
-            names(&ell, &[[TOP, ARM_BACK], [ARM_BACK, STEM_RIGHT]]),
-        ),
-    ] {
-        let filleted = body.fillet_edges(&list, value).err();
-        let chamfered = body.chamfer_edges(&list, value).err();
+    let filleted = ell.fillet_edges(&list, value).err();
+    let chamfered = ell.chamfer_edges(&list, value).err();
 
-        assert_eq!(
-            filleted,
-            Some(Declined::Unsupported),
-            "the fillet on {what}: a broken step and its reason, and no body"
-        );
-        assert_eq!(
-            chamfered,
-            Some(Declined::Unsupported),
-            "the chamfer on {what}: a broken step and its reason, and no body"
-        );
-    }
+    assert_eq!(
+        filleted,
+        Some(Declined::Unsupported),
+        "the fillet on {what}: a broken step and its reason, and no body"
+    );
+    assert_eq!(
+        chamfered,
+        Some(Declined::Unsupported),
+        "the chamfer on {what}: a broken step and its reason, and no body"
+    );
 }
 
 #[test]

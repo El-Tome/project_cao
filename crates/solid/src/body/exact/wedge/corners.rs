@@ -10,7 +10,8 @@
 //! at a corner of mixed sense — a standing block's foot corner, two concave
 //! feet and the convex upright above them, or the top of an L's inner corner,
 //! two convex top edges and the concave upright below them — are gone round
-//! the upright (#829). Any other corner is declined.
+//! the upright (#829), and so are a foot and the upright above it, the other
+//! foot left out and left sharp (#846). Any other corner is declined.
 
 use std::collections::BTreeMap;
 
@@ -36,7 +37,9 @@ pub(super) type Beside = (VertexId, [usize; 2]);
 /// foot corner, two feet meeting inwards and the upright above them outwards,
 /// or the top of an L's inner corner, two top edges meeting outwards and the
 /// upright below them inwards — gone round that third edge as [`super::odd`]
-/// lays it. Every other corner two of them meet at is to be convex: each
+/// lays it; and two of them of opposite sense, at a standing block's foot
+/// corner, a foot and the upright above it, the other foot left out and left
+/// sharp, as [`sharp`] reads it. Every other corner two of them meet at is to be convex: each
 /// edge ending there straight between two flat faces that meet outwards,
 /// whatever those faces hold past the corner. Declined `Unsupported` where
 /// one is none of these.
@@ -65,10 +68,46 @@ pub(super) fn admit(body: &brep::Body, edges: &[EdgeId]) -> Result<Vec<Beside>, 
             }
             (&[_, _, _], 3)
                 if (ending.iter()).all(|&edge| meeting(edge, true) || meeting(edge, false)) => {}
+            (&[one, other], 3) if sharp_at(body, corner, [edges[one], edges[other]]).is_some() => {}
             _ => return Err(Declined::Unsupported),
         }
     }
     Ok(beside)
+}
+
+/// A corner two edges of a step of opposite sense meet at, its third edge,
+/// left out of the list, of the sense of one of them (#846): where it stands,
+/// the two edges' ranks in the list, from the lower, and that third edge,
+/// left sharp.
+pub(super) type Sharp = (DVec3, [usize; 2], EdgeId);
+
+/// The corners [`Sharp`] reads among those two of `edges` meet at, from the
+/// lowest ranks.
+pub(super) fn sharp(body: &brep::Body, edges: &[EdgeId]) -> Vec<Sharp> {
+    ranked(body, edges)
+        .into_iter()
+        .filter_map(|(corner, ranks)| match ranks[..] {
+            [one, other] => sharp_at(body, corner, [edges[one], edges[other]])
+                .map(|third| (body.vertex(corner).point, [one, other], third)),
+            _ => None,
+        })
+        .collect()
+}
+
+/// The third edge ending at `corner` where `pair` end there too, the three
+/// straight between flat faces, the two of opposite sense, and the third
+/// meeting inwards with the one of them that does, beside the convex one: a
+/// foot of a block standing on another and the upright above it, the other
+/// foot left sharp. None at any other corner — the mirror, a top edge of an
+/// L's inner corner and its inner upright, among them.
+fn sharp_at(body: &brep::Body, corner: VertexId, pair: [EdgeId; 2]) -> Option<EdgeId> {
+    let inwards = |edge: EdgeId| Wedge::faced(body, edge).ok().map(|wedge| wedge.inwards);
+    let ending: Vec<EdgeId> = ending(body, corner).collect();
+    let [one, other] = pair.map(inwards);
+    let third = (ending.len() == 3)
+        .then(|| ending.iter().copied().find(|edge| !pair.contains(edge)))
+        .flatten()?;
+    (one? != other? && inwards(third)?).then_some(third)
 }
 
 /// A corner three edges of a step meet at: where it stands, the three edges'

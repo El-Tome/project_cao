@@ -11,7 +11,7 @@ use glam::DVec3;
 
 use super::corners::{self, Beside, Three};
 use super::extent::runs;
-use super::flush::{self, Flush};
+use super::flush::{self, Flush, Held};
 use super::reach::reach_within;
 use super::{Meeting, Prism, Together, Wedge, closing, pairs, set_backs};
 use crate::body::exact::Exact;
@@ -21,14 +21,16 @@ use crate::brep::{self, Declined, EdgeId, EdgeName, Scale};
 /// its wedge, by its rank in the list; each two facing each other across a
 /// face they share, as [`pairs::facing`] reads them; the corners two of them
 /// meet at beside a third that is not convex with them, as
-/// [`corners::admit`] takes them; and the corners three of them meet at, as
-/// [`corners::of_three`] reads them.
+/// [`corners::admit`] takes them; the corners three of them meet at, as
+/// [`corners::of_three`] reads them; and the ends of fills held in the air,
+/// none unless a step going round an odd edge holds them (#846).
 pub(super) struct Step {
     pub edges: Vec<EdgeId>,
     pub wedges: Vec<Wedge>,
     facing: Vec<(usize, usize, f64)>,
     beside: Vec<Beside>,
     pub three: Vec<Three>,
+    pub held: Vec<Held>,
 }
 
 impl Exact {
@@ -78,6 +80,7 @@ impl Exact {
             facing,
             beside,
             three,
+            held: Vec::new(),
         })
     }
 }
@@ -148,6 +151,7 @@ impl Exact {
             facing,
             beside,
             three,
+            held,
         } = step;
         let scale = self.brep.scale();
         let pairs = pairs::meeting(&wedges, &facing, taken, set_back, meeting.together, scale)?;
@@ -187,11 +191,12 @@ impl Exact {
                     let open = flush::open(&self.brep, rank, &given, &beside);
                     let value = ends.get(&rank).copied().unwrap_or(taken);
                     if mitred.is_empty() {
-                        cut.laid(&names[rank], value, &tool, &mitred, &open)?
+                        cut.laid(&names[rank], value, &tool, (&mitred, &open), &held)?
                     } else {
                         let flush = Flush::beside(
                             &self.brep, rank, &given, &beside, value, &set_back, &tool,
-                        )?;
+                        )?
+                        .holding(&held);
                         cut.laid_as(&flush, &wedges[rank], value, &tool, &mitred, &open)?
                     }
                 }

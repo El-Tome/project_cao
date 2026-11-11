@@ -78,6 +78,17 @@ pub(super) struct Flush<'a> {
     on: &'a brep::Body,
     edge: EdgeId,
     overlaps: Vec<Overlap>,
+    held: Vec<Held>,
+}
+
+/// An end a fill stops at in the air (#846), whatever face its edge runs
+/// into there: the corner it ends at, and the way square to the plane through
+/// it the fill is trimmed off towards — the way along the edge left sharp at
+/// a corner of mixed sense, where its wall begins.
+#[derive(Clone, Copy)]
+pub(super) struct Held {
+    pub at: DVec3,
+    pub away: DVec3,
 }
 
 impl<'a> Flush<'a> {
@@ -87,6 +98,15 @@ impl<'a> Flush<'a> {
             on,
             edge,
             overlaps: Vec::new(),
+            held: Vec::new(),
+        }
+    }
+
+    /// The same reading, each end standing at one of `held` held there.
+    pub fn holding(self, held: &[Held]) -> Flush<'a> {
+        Flush {
+            held: held.to_vec(),
+            ..self
         }
     }
 
@@ -123,6 +143,7 @@ impl<'a> Flush<'a> {
             on: given,
             edge,
             overlaps,
+            held: Vec::new(),
         })
     }
 }
@@ -160,7 +181,9 @@ impl Exact {
     /// overlap, and cut, the trimmed ends and the overlaps merged into the
     /// faces they meet, as [`Exact::merged_at`] merges them at the corners the
     /// edge ended at and the points the overlaps clear, and carried past any
-    /// other end. Declined as the trims, the joins and the booleans decline.
+    /// other end. Declined `Unsupported` where a cut has an end held in the
+    /// air, which no cut lays yet; otherwise as the trims, the joins and the
+    /// booleans decline.
     pub(super) fn laid_flush(
         &self,
         flush: &Flush,
@@ -170,7 +193,11 @@ impl Exact {
     ) -> Result<Exact, Declined> {
         let edges = [(flush.edge, wedge)];
         if wedge.inwards {
-            return self.filled(flush.on, &edges, &flush.overlaps, prism, tool);
+            let ends = (&flush.overlaps[..], &flush.held[..]);
+            return self.filled(flush.on, &edges, ends, prism, tool);
+        }
+        if !flush.held.is_empty() {
+            return Err(Declined::Unsupported);
         }
         let stops = stops(flush.on, flush.edge, wedge);
         let mut trimmed = tool;

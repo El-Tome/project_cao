@@ -4,8 +4,9 @@
 //! concave edges beside a third concave one, at a pocket's bottom corner; the
 //! three edges at a corner of mixed sense — a standing block's foot corner,
 //! two feet and the upright above them, and the top of an L's inner corner,
-//! two top edges and the upright below them (#829); and no other corner but
-//! a convex one. It is the first guard a step's corners meet: a list it lets
+//! two top edges and the upright below them (#829); a foot and the upright
+//! above it, the other foot left sharp, the upright gone round as the odd
+//! edge (#846); and no other corner but a convex one. It is the first guard a step's corners meet: a list it lets
 //! through by mistake — a cut and a fill meeting at a corner — is declined
 //! further on all the same, so a step on the whole body cannot tell which
 //! reading declined it. Here the corner's own answer is held.
@@ -194,15 +195,16 @@ fn two_edges_of_a_pocket_s_floor_are_taken_at_its_corner_by_their_ranks() {
 }
 
 #[test]
-fn a_foot_and_the_upright_above_it_are_declined_whichever_the_list_names_first() {
+fn a_foot_and_the_upright_above_it_are_taken_with_no_corner_beside_an_edge_whichever_the_list_names_first()
+ {
     let foot = [TOP, STANDING_FRONT];
     let upright = [STANDING_FRONT, STANDING_RIGHT];
 
     for list in [[foot, upright], [upright, foot]] {
         assert_eq!(
             admitted(&stacked(), &list),
-            Err(Declined::Unsupported),
-            "{list:?}"
+            Ok(Vec::new()),
+            "{list:?}: the other foot left sharp, the upright gone round as the odd edge"
         );
     }
 }

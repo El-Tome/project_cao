@@ -34,7 +34,7 @@ use crate::brep::{self, Declined, EdgeId, EdgeName, FaceId, Scale, VertexId};
 use crate::profile::{Contour, Frame};
 
 pub(super) use closing::Closing;
-use flush::{Flush, Stop};
+use flush::{Flush, Held, Stop};
 pub(super) use odd::Around;
 use overlap::OVERLAPS;
 pub(super) use pairs::Together;
@@ -199,17 +199,18 @@ impl Exact {
     /// read on the body as given. `mitred` numbers the faces laid before it at
     /// a corner it shares, which its own face meets in a mitre, and `open`
     /// holds where it stops at a corner an edge laid after it completes, as
-    /// [`flush::open`] reads them.
+    /// [`flush::open`] reads them; a fill's end standing at one of `held` is
+    /// held there, in the air, as [`Exact::filled`] holds it.
     fn laid(
         &self,
         name: &EdgeName,
         taken: f64,
         tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
-        mitred: &[u32],
-        open: &[Stop],
+        (mitred, open): (&[u32], &[Stop]),
+        held: &[Held],
     ) -> Result<Exact, Declined> {
         let (edge, wedge) = self.wedge(name, Wedge::read)?;
-        let flush = Flush::at(&self.brep, edge);
+        let flush = Flush::at(&self.brep, edge).holding(held);
         self.laid_as(&flush, &wedge, taken, tool, mitred, open)
     }
 

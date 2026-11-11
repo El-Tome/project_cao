@@ -193,7 +193,7 @@ impl Exact {
             ..raised
         };
         let cut = if first.inwards {
-            self.filled(on, &pair, &[], &prism, tool)?
+            self.filled(on, &pair, (&[], &[]), &prism, tool)?
         } else {
             self.cut_by(&Exact { next: 2, ..tool })?
         };

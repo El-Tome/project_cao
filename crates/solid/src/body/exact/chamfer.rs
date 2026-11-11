@@ -61,7 +61,10 @@ impl Exact {
     /// top's two reflex corners. An upright named with its block's top edges
     /// is chamfered with them first, the top corner closed by its triangle,
     /// before the feet go round it: every edge of a standing block in one
-    /// step. A foot and the upright above it, the other foot left sharp, go
+    /// step. A post's upright between a floor plate and a ceiling plate goes
+    /// round at both its ends, the feet under the ceiling the mirror of those
+    /// on the floor, its flat's top filled with them. A foot and the upright
+    /// above it, the other foot left sharp, go
     /// round the upright the same way, the fill along its flat's foot ending
     /// on the plane square to the sharp foot where the flat meets that foot's
     /// wall, its end a small face standing in the air, numbered after the

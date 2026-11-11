@@ -91,10 +91,11 @@
 //!   the standing block's two top edges at its top — was declined
 //!   `Unsupported`, chamfered or filleted, whatever the order, so that no
 //!   shape shipped before a test held it. Slice 3 turns it into the body
-//!   test below. What the guard still declines is a post joining a floor
-//!   plate and a ceiling plate, its upright the odd edge at both its ends,
-//!   which #847 builds —
-//!   `a_fillet_and_a_chamfer_on_a_post_s_upright_and_the_feet_at_both_its_ends_are_declined_as_unsupported_until_847_builds_them`
+//!   test below. The guard declined too a post joining a floor plate and a
+//!   ceiling plate, its upright the odd edge at both its ends, until #847
+//!   built it, held in the `Closes #847.` block at the end of this
+//!   documentation —
+//!   `a_chamfer_and_a_fillet_on_a_post_s_upright_and_the_feet_at_both_its_ends_go_round_it_at_each_end`
 //! - Not in the issue's wording: where the odd edges, laid first, close a
 //!   corner of their own, each face is still numbered as the fourth
 //!   criterion reads it. A triangular pyramid standing on a plate, each
@@ -457,6 +458,60 @@
 //! cancels: `7820 − 40·r²(1 − π/4) − 8r·r²(1 − π/4) + 4r³(2 − 7π/12) +
 //! 2π·r³(11/6 − π/2)`, the twelve edges' form on the plain block, as the
 //! outline still turns once round.
+//!
+//! Closes #847.
+//!
+//! A post between two plates, its uprights odd at both their ends: each end
+//! goes round its upright as the first slice goes round one foot corner — on
+//! the plate below, its two feet round the upright from below; under the
+//! plate above, its two feet round it from above, the mirror through the
+//! post's middle. The chamfer lays the uprights first, then the feet with
+//! the uprights' flats' ends at both plates; the fillet fills each corner
+//! with its sector, the ceiling's hanging down from the plate above, and
+//! replaces each by its piece of torus.
+//!
+//! - A post joining a floor plate and a ceiling plate, one of its uprights
+//!   and the four feet at its two ends, chamfered or filleted at one value,
+//!   leaves a closed, sound, drawn body of exact volume, the same in every
+//!   order the test names. The named edges' faces are at start + rank, then
+//!   the two corners' patches by their sorted ranks —
+//!   `a_chamfer_and_a_fillet_on_a_post_s_upright_and_the_feet_at_both_its_ends_go_round_it_at_each_end`.
+//!   Read as: at 1 and 2.5, in the three orders the decline test named; the
+//!   faces made exactly those seven, the next step's numbers past them, no
+//!   face of the part gone; among flats, each facing the way it lies, the
+//!   ceiling's mirrored, and the body two steps leave — the upright, then
+//!   the four feet and its flat's two ends — the same, face for face; among
+//!   rounds, each foot's round on its cylinder, the upright's from the circle
+//!   the floor's piece of torus meets it at to the one the ceiling's does,
+//!   and each piece of torus on its own torus, the ceiling's hanging from the
+//!   plate above
+//! - The same for the post's four uprights and its eight feet in one step,
+//!   its eight corners closed —
+//!   `a_chamfer_and_a_fillet_on_a_post_s_four_uprights_and_eight_feet_close_its_eight_corners_in_one_step`.
+//!   Read as above, at all eight corners, in three orders: the chamfer
+//!   against the four uprights first and then the eight feet and their
+//!   flats' eight ends; among rounds, each foot's round between the pieces of
+//!   torus at its two ends, below and above
+//! - `a_fillet_and_a_chamfer_on_a_post_s_upright_and_the_feet_at_both_its_ends_are_declined_as_unsupported_until_847_builds_them`
+//!   becomes the body test above, its five edges and its three orders —
+//!   `a_chamfer_and_a_fillet_on_a_post_s_upright_and_the_feet_at_both_its_ends_go_round_it_at_each_end`
+//! - What must not break: #829's tests, its guard on an upright gone round at
+//!   its foot whose top meets one listed edge alone, and #699's and #801's
+//!   corner tests — no test: each is held by its own test, left as it is
+//!
+//! The volumes are arithmetic. The post holds 13000, the two plates 6000
+//! each and the post 1000. Each end of an upright is the first slice's
+//! corner, the ceiling's its mirror, and adds what one adds; the upright's
+//! own flat or round, which each corner counts along the whole post, is
+//! given back once. On one upright, at its square corners:
+//! `13000 − 5d² + 2·(10 − d)·d² + d√2·d² + 4·tan(22.5°)·d³/3` chamfered, and
+//! `13000 − 10·r²(1 − π/4) + 4(10 − r)·r²(1 − π/4) + π·r³(11/6 − π/2)`
+//! filleted. On the whole post, each plate's level as the first slice's four
+//! feet and four uprights give it, the four uprights given back once:
+//! `13000 − 20d² + (40 − 8d + 4d√2)·d² + 16·tan(22.5°)·d³/3` chamfered, and
+//! `13000 − 40·r²(1 − π/4) + 2(40 − 8r)·r²(1 − π/4) + 4π·r³(11/6 − π/2)`
+//! filleted. The fills under the plate above hang from it as those on the
+//! plate below stand on it, so the two levels hold the same.
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -1333,8 +1388,10 @@ impl Cylinder {
 /// matter between the piece and the walls — or under it where it is minus
 /// one — a cut, the matter round the tube's centre — turning from the way
 /// `from` out from the axis, where it meets the first edge's round, to the
-/// way `to`, where it meets the second's; and the number of the face the two
-/// share, which it meets too.
+/// way `to`, where it meets the second's; the number of the face the two
+/// share, which it meets too; and the way that face faces, out of the
+/// matter, which "over" and "under" are read along: up from a lower block's
+/// top or an L's, down from the floor of a plate laid over a post.
 struct Torus {
     axis: DVec3,
     radius: f64,
@@ -1342,6 +1399,7 @@ struct Torus {
     to: DVec3,
     sense: f64,
     shared: usize,
+    over: DVec3,
 }
 
 impl Torus {
@@ -1354,7 +1412,7 @@ impl Torus {
 
     /// The centre of the tube's section the way `out` from the axis.
     fn tube_centre(&self, out: DVec3) -> DVec3 {
-        self.axis + out * 2.0 * self.radius + DVec3::Z * self.radius * self.sense
+        self.axis + out * 2.0 * self.radius + self.over * self.radius * self.sense
     }
 
     /// Whether a point lies on the torus, on the quarter of its tube that
@@ -1364,9 +1422,9 @@ impl Torus {
     /// on.
     fn holds(&self, point: DVec3) -> bool {
         let off = point - self.axis;
-        let level = DVec3::new(off.x, off.y, 0.0);
+        let level = off - self.over * off.dot(self.over);
         let out = level.length();
-        let up = off.z * self.sense;
+        let up = off.dot(self.over) * self.sense;
         let r = self.radius;
         let least = out * self.from.dot(self.to);
         ((out - 2.0 * r).hypot(up - r) - r).abs() < PLACE
@@ -1387,7 +1445,7 @@ impl Torus {
                 let out = self.out(share);
                 [
                     self.axis + out * 2.0 * r,
-                    self.axis + out * r + DVec3::Z * r * self.sense,
+                    self.axis + out * r + self.over * r * self.sense,
                 ]
             })
             .collect()
@@ -1446,6 +1504,7 @@ impl FootCorner {
             to: self.feet[1].facing * sense,
             sense,
             shared: TOP,
+            over: DVec3::Z,
         }
     }
 
@@ -1535,7 +1594,7 @@ fn piece_held(body: &Body, piece: usize, torus: &Torus, rounds: &[usize], what: 
         let from = torus.tube_centre(out);
         for across in [0.1, 0.3, 0.5, 0.7, 0.9] {
             let turn = across * PI / 2.0;
-            let toward = -(out * turn.cos() + DVec3::Z * turn.sin() * torus.sense);
+            let toward = -(out * turn.cos() + torus.over * turn.sin() * torus.sense);
             let facing = -toward * torus.sense;
             let hit = body.ray_hit(from, toward).unwrap_or_else(|| {
                 panic!("{which}: a ray from {from}, on its tube's centre circle, meets nothing")
@@ -2925,31 +2984,715 @@ fn post_between_two_plates() -> Body {
     )
 }
 
-#[test]
-fn a_fillet_and_a_chamfer_on_a_post_s_upright_and_the_feet_at_both_its_ends_are_declined_as_unsupported_until_847_builds_them()
- {
+/// What [`post_between_two_plates`] holds: the two plates, 30 by 20 by 10
+/// each, and the post, 10 by 10 by 10, between them.
+const POST_VOLUME: f64 = 2.0 * 30.0 * 20.0 * 10.0 + 10.0 * 10.0 * 10.0;
+
+/// The number the plate above's floor answers to in
+/// [`post_between_two_plates`]: the face the post's feet under it share.
+const CEILING: usize = 12;
+
+/// How high the post's middle stands, halfway between the plate below's top
+/// and the plate above's floor: each corner under the plate above is the one
+/// on the plate below mirrored through it.
+const POST_MIDDLE: f64 = LOWER_TOP + STANDING_HEIGHT / 2.0;
+
+/// The point `at` mirrored through the post's middle.
+fn hung(at: DVec3) -> DVec3 {
+    DVec3::new(at.x, at.y, 2.0 * POST_MIDDLE - at.z)
+}
+
+/// The way `way` mirrored through the post's middle.
+fn hung_way(way: DVec3) -> DVec3 {
+    DVec3::new(way.x, way.y, -way.z)
+}
+
+/// The face the mirror through the post's middle takes the face numbered
+/// `face` to: the plate below's top to the plate above's floor, every wall of
+/// the post to itself.
+fn hung_face(face: usize) -> usize {
+    if face == TOP { CEILING } else { face }
+}
+
+/// The round `round` mirrored through the post's middle: a foot's round on
+/// the plate below, made the round of the foot above it under the plate
+/// above.
+fn hung_round(round: &Cylinder) -> Cylinder {
+    Cylinder {
+        called: round.called,
+        through: hung(round.through),
+        along: hung_way(round.along),
+        radius: round.radius,
+        toward: round.toward.map(hung_way),
+        ends: round.ends.map(|(at, out)| (hung(at), hung_way(out))),
+        meets: round.meets.iter().map(|&face| hung_face(face)).collect(),
+    }
+}
+
+/// The piece of torus `torus` mirrored through the post's middle: a corner's
+/// on the plate below, made the one hanging from the plate above.
+fn hung_torus(torus: &Torus) -> Torus {
+    Torus {
+        axis: hung(torus.axis),
+        radius: torus.radius,
+        from: torus.from,
+        to: torus.to,
+        sense: torus.sense,
+        shared: hung_face(torus.shared),
+        over: hung_way(torus.over),
+    }
+}
+
+/// [`post_between_two_plates`]'s four corners on the plate below, as
+/// [`stacked_s_foot_corners`] has them, each upright running up to the plate
+/// above, where the mirror of each through the post's middle stands.
+fn post_s_floor_corners() -> [FootCorner; 4] {
+    stacked_s_foot_corners().map(|corner| FootCorner {
+        part: post_between_two_plates,
+        volume: POST_VOLUME,
+        odd_ends_on: CEILING,
+        ..corner
+    })
+}
+
+/// The round a fillet of `radius` lays on the upright of the post's floor
+/// corner `corner`: on its cylinder from the circle where the piece of torus
+/// on the plate below meets it, `radius` over that plate, to the one where
+/// the piece hanging from the plate above meets it, `radius` under that
+/// plate; meeting its two walls, besides the two pieces.
+fn post_upright_round(corner: &FootCorner, radius: f64) -> Cylinder {
+    let axis = corner.axis(radius);
+    let [one, other] = &corner.feet;
+    Cylinder {
+        called: corner.upright,
+        through: axis,
+        along: DVec3::Z,
+        radius,
+        toward: [one.facing, other.facing],
+        ends: [
+            (axis + DVec3::Z * radius, -DVec3::Z),
+            (hung(axis) - DVec3::Z * radius, DVec3::Z),
+        ],
+        meets: vec![one.wall, other.wall],
+    }
+}
+
+/// What the post holds once the upright of its floor corner `corner` and
+/// the four feet at the upright's two ends are blended by `cut` at `value`,
+/// as the module's documentation derives it: each end what the first slice
+/// gives one foot corner, the upright's own flat or round, which each counts
+/// along the whole post, given back once.
+fn post_upright_blended(corner: &FootCorner, cut: Cut, value: f64) -> f64 {
+    let v = value;
+    let (at_one_end, upright) = match cut {
+        Cut::Flat => (
+            corner.chamfered(v),
+            STANDING_HEIGHT * v * v * corner.angle().sin() / 2.0,
+        ),
+        Cut::Round => (
+            corner.filleted(v),
+            STANDING_HEIGHT * (v * corner.tangent(v) - corner.turn() * v * v / 2.0),
+        ),
+    };
+    corner.volume + 2.0 * (at_one_end - corner.volume) + upright
+}
+
+/// What the post holds once its four uprights and eight feet are blended by
+/// `cut` at `value` in one step, as the module's documentation derives it:
+/// each plate's level as [`chamfered_all_round`] or [`filleted_all_round`]
+/// gives the standing block's, the four uprights given back once.
+fn post_blended_all_round(cut: Cut, value: f64) -> f64 {
+    let v = value;
+    let (at_one_level, uprights) = match cut {
+        Cut::Flat => (chamfered_all_round(v), 4.0 * STANDING_HEIGHT * v * v / 2.0),
+        Cut::Round => (
+            filleted_all_round(v),
+            4.0 * STANDING_HEIGHT * v * v * (1.0 - PI / 4.0),
+        ),
+    };
+    POST_VOLUME + 2.0 * (at_one_level - STACKED_VOLUME) + uprights
+}
+
+/// [`post_between_two_plates`] chamfered at `value` in two steps, as #847
+/// lays it: the uprights `uprights` first, each flat stopping flush on both
+/// plates and numbered from where the post's numbers ended by its place in
+/// `uprights`; then, in one step, the feet `feet`, numbered past them in that
+/// order, and for each flat in turn the edges where it meets the plate below
+/// and the plate above, numbered past the feet.
+fn post_chamfered_in_two_steps(value: f64, uprights: &[[usize; 2]], feet: &[[usize; 2]]) -> Body {
     let part = post_between_two_plates();
-    let ceiling = 12;
-    let five = [
-        [TOP, STANDING_FRONT],
-        [TOP, STANDING_RIGHT],
-        [STANDING_FRONT, STANDING_RIGHT],
-        [ceiling, STANDING_FRONT],
-        [ceiling, STANDING_RIGHT],
-    ]
-    .map(|[first, second]| edge_between(&part, first, second));
-    for order in [[0, 1, 2, 3, 4], [4, 3, 2, 1, 0], [2, 3, 0, 4, 1]] {
-        let list: Vec<EdgeName> = order.iter().map(|&edge| five[edge].clone()).collect();
-        for cut in [Cut::Flat, Cut::Round] {
-            assert_eq!(
-                cut.laid_on(&part, &list, 1.0).err(),
-                Some(Declined::Unsupported),
-                "the {} of 1 on the post's front right upright and the feet at both its ends, \
-                 named {order:?}: a broken step and its reason, and no body, until #847 holds \
-                 what an upright odd at both its ends makes",
-                cut.called()
+    let start = part.faces_end();
+    let names: Vec<EdgeName> = (uprights.iter())
+        .map(|&[first, second]| edge_between(&part, first, second))
+        .collect();
+    let flats = part
+        .chamfer_edges(&names, value)
+        .unwrap_or_else(|declined| panic!("the post's uprights are chamfered: {declined:?}"));
+    taken_as_asked(
+        flats.asked,
+        flats.taken,
+        value,
+        "the post's uprights chamfered",
+    );
+    let chamfered = flats.body;
+    let ends: Vec<EdgeName> = (feet.iter())
+        .map(|&[first, second]| edge_between(&chamfered, first, second))
+        .chain((0..uprights.len()).flat_map(|flat| {
+            [TOP, CEILING].map(|plate| edge_between(&chamfered, plate, start + flat))
+        }))
+        .collect();
+    let filled = chamfered
+        .chamfer_edges(&ends, value)
+        .unwrap_or_else(|declined| {
+            panic!("the post's feet and the ends of its uprights' flats are filled: {declined:?}")
+        });
+    taken_as_asked(
+        filled.asked,
+        filled.taken,
+        value,
+        "the post's feet and the ends of its uprights' flats",
+    );
+    filled.body
+}
+
+/// The five edges at both ends of [`post_between_two_plates`]'s front right
+/// upright, by the faces each lies between: its two feet on the plate below,
+/// the upright, and its two feet under the plate above.
+const POST_S_UPRIGHT_AND_ITS_FEET: [[usize; 2]; 5] = [
+    [TOP, STANDING_FRONT],
+    [TOP, STANDING_RIGHT],
+    [STANDING_FRONT, STANDING_RIGHT],
+    [CEILING, STANDING_FRONT],
+    [CEILING, STANDING_RIGHT],
+];
+
+/// The two corners at the ends of that upright, by their three edges' places
+/// in [`POST_S_UPRIGHT_AND_ITS_FEET`], in the order of [`FootCorner::edges`]:
+/// the one on the plate below, then the one under the plate above.
+const AT_BOTH_ENDS: [[usize; 3]; 2] = [[0, 1, 2], [3, 4, 2]];
+
+/// The orders the five are named in, by their places in
+/// [`POST_S_UPRIGHT_AND_ITS_FEET`]: as given, reversed, and the upright first
+/// with the feet below and above mixed.
+const POST_ORDERS: [[usize; 5]; 3] = [[0, 1, 2, 3, 4], [4, 3, 2, 1, 0], [2, 3, 0, 4, 1]];
+
+/// Holds what a step of its blend and value on the post's front right
+/// upright and the four feet at its two ends, named in its order, leaves of
+/// the part, `corner` the upright's corner on the plate below:
+///
+/// - the value taken whole; a sound body holding what
+///   [`post_upright_blended`] promises;
+/// - one face for each edge, answering to where the part's numbers ended
+///   plus the edge's rank in the list, then the two corners' patches,
+///   numbered as [`Case::patches`] says; the next step's numbers past them;
+///   nothing else made, no face of the part gone;
+/// - among flats, each facing the way it lies, the ceiling's the mirror of
+///   the floor's; and `two_steps`, the body the upright chamfered and then
+///   the four feet and its flat's two ends leave, the same body, face for
+///   face;
+/// - among rounds, each foot's round on its cylinder, as
+///   [`FootCorner::rounds`] lays the floor's out and [`hung_round`] mirrors
+///   them; the upright's as [`post_upright_round`] lays it; and each corner's
+///   piece of torus on its own torus, the ceiling's [`hung_torus`] of the
+///   floor's, as [`piece_held`] holds them.
+fn went_round_at_both_ends(corner: &FootCorner, part: &Body, case: &Case, two_steps: &Body) {
+    let Case {
+        cut,
+        value,
+        step,
+        what,
+        ..
+    } = case;
+    let v = *value;
+    taken_as_asked(step.asked, step.taken, v, what);
+    let body = &step.body;
+    let promised = post_upright_blended(corner, *cut, v);
+    let drawn = match cut {
+        Cut::Flat => EXACT * promised,
+        Cut::Round => 2.0 * corner.drawn_within(part, v),
+    };
+    sound_drawn_within(body, promised, drawn, what);
+    let start = part.faces_end();
+    assert_eq!(
+        faces_made(part, body),
+        (start..start + 7).collect::<Vec<_>>(),
+        "{what}: one face for each edge, numbered in the order the step names them, then the two \
+         corners' patches: {:?}",
+        numbers(body)
+    );
+    assert_eq!(
+        body.faces_end(),
+        start + 7,
+        "{what}: the next step numbers its own faces past the two patches"
+    );
+    assert!(
+        numbers(part).is_subset(&numbers(body)),
+        "{what}: a face of the part went: {:?}",
+        numbers(body)
+    );
+    let laid = |edge: usize| case.laid_on(part, edge);
+    let patches = case.patches(part, &AT_BOTH_ENDS);
+    match cut {
+        Cut::Flat => {
+            let (facing, foot_facing) = corner.flats_facing();
+            let ways = [
+                facing[0],
+                facing[1],
+                facing[2],
+                hung_way(facing[0]),
+                hung_way(facing[1]),
+            ];
+            for (edge, way) in ways.into_iter().enumerate() {
+                let which = format!(
+                    "{what}: the flat on {:?}",
+                    POST_S_UPRIGHT_AND_ITS_FEET[edge]
+                );
+                faces_toward(body, laid(edge), way, &which);
+            }
+            for (end, way) in [foot_facing, hung_way(foot_facing)].into_iter().enumerate() {
+                let which = format!(
+                    "{what}: the fill along the end of the upright's flat {}",
+                    ["on the plate below", "under the plate above"][end]
+                );
+                faces_toward(body, patches[end], way, &which);
+            }
+            let to_two_steps: Vec<(usize, usize)> = [(laid(2), start)]
+                .into_iter()
+                .chain(
+                    [0, 1, 3, 4]
+                        .into_iter()
+                        .enumerate()
+                        .map(|(place, edge)| (laid(edge), start + 1 + place)),
+                )
+                .chain((0..2).map(|end| (patches[end], start + 5 + end)))
+                .collect();
+            the_same_bodies(
+                two_steps,
+                body,
+                &to_two_steps,
+                &format!(
+                    "{what}, and the body two steps leave, the upright chamfered then the four \
+                     feet and its flat's two ends"
+                ),
             );
         }
+        Cut::Round => {
+            let [first, second, _] = corner.rounds(v);
+            let above = [hung_round(&first), hung_round(&second)];
+            round_held(body, laid(0), &first, &[patches[0]], what);
+            round_held(body, laid(1), &second, &[patches[0]], what);
+            round_held(body, laid(3), &above[0], &[patches[1]], what);
+            round_held(body, laid(4), &above[1], &[patches[1]], what);
+            round_held(
+                body,
+                laid(2),
+                &post_upright_round(corner, v),
+                &patches,
+                what,
+            );
+            let torus = corner.torus(v);
+            piece_held(
+                body,
+                patches[0],
+                &torus,
+                &[laid(0), laid(1), laid(2)],
+                &format!("{what}, on the plate below"),
+            );
+            piece_held(
+                body,
+                patches[1],
+                &hung_torus(&torus),
+                &[laid(3), laid(4), laid(2)],
+                &format!("{what}, under the plate above"),
+            );
+        }
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_post_s_upright_and_the_feet_at_both_its_ends_go_round_it_at_each_end()
+ {
+    let part = post_between_two_plates();
+    assert!(
+        (part.volume() - POST_VOLUME).abs() <= EXACT * POST_VOLUME,
+        "the post between its two plates holds {}",
+        part.volume()
+    );
+    let [corner, ..] = post_s_floor_corners();
+    let names =
+        POST_S_UPRIGHT_AND_ITS_FEET.map(|[first, second]| edge_between(&part, first, second));
+    let in_two_steps = VALUES.map(|value| {
+        let promised = post_upright_blended(&corner, Cut::Flat, value);
+        let two_steps = post_chamfered_in_two_steps(
+            value,
+            &[[STANDING_FRONT, STANDING_RIGHT]],
+            &[
+                [TOP, STANDING_FRONT],
+                [TOP, STANDING_RIGHT],
+                [CEILING, STANDING_FRONT],
+                [CEILING, STANDING_RIGHT],
+            ],
+        );
+        assert!(
+            (two_steps.volume() - promised).abs() <= EXACT * promised,
+            "the chamfer of {value} in two steps, the post's front right upright then the four \
+             feet and its flat's two ends: the body holds {}, where arithmetic promised {promised}",
+            two_steps.volume()
+        );
+        two_steps
+    });
+    let mut laid = Vec::new();
+    let mut declined = Vec::new();
+    for cut in [Cut::Flat, Cut::Round] {
+        for value in VALUES {
+            for order in POST_ORDERS {
+                let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
+                let what = format!(
+                    "the {} of {value} on the post's front right upright and the feet at both its \
+                     ends, named {order:?}",
+                    cut.called()
+                );
+                match cut.laid_on(&part, &list, value) {
+                    Ok(step) => laid.push(Case {
+                        order: order.to_vec(),
+                        cut,
+                        value,
+                        step,
+                        what,
+                    }),
+                    Err(reason) => declined.push(format!("{what}: {reason:?}")),
+                }
+            }
+        }
+    }
+    assert!(
+        declined.is_empty(),
+        "the post's upright and the feet at both its ends laid in one step, the upright first and \
+         the feet round it at each end; declined:\n{}",
+        declined.join("\n")
+    );
+    for case in &laid {
+        let at = VALUES
+            .iter()
+            .position(|&value| value == case.value)
+            .expect("every case is laid at one of the values");
+        went_round_at_both_ends(&corner, &part, case, &in_two_steps[at]);
+    }
+    for case in &laid {
+        let first = laid
+            .iter()
+            .find(|other| other.cut == case.cut && other.value == case.value)
+            .expect("the case itself is among them");
+        if std::ptr::eq(first, case) {
+            continue;
+        }
+        let [mine, theirs] = [case, first].map(|one| one.patches(&part, &AT_BOTH_ENDS));
+        let to_first: Vec<(usize, usize)> = (0..5)
+            .map(|edge| (case.laid_on(&part, edge), first.laid_on(&part, edge)))
+            .chain(mine.into_iter().zip(theirs))
+            .collect();
+        the_same_bodies(
+            &first.step.body,
+            &case.step.body,
+            &to_first,
+            &format!("{} and {}", first.what, case.what),
+        );
+    }
+}
+
+/// The twelve edges at the post's two ends, by the faces each lies between,
+/// in the order the list as given names them: its four feet on the plate
+/// below, front, right, back and left; its four feet under the plate above,
+/// in the same turn; and its four uprights, front right, back right, back
+/// left and front left.
+const POST_EDGES: [[usize; 2]; 12] = [
+    [TOP, STANDING_FRONT],
+    [TOP, STANDING_RIGHT],
+    [TOP, STANDING_BACK],
+    [TOP, STANDING_LEFT],
+    [CEILING, STANDING_FRONT],
+    [CEILING, STANDING_RIGHT],
+    [CEILING, STANDING_BACK],
+    [CEILING, STANDING_LEFT],
+    [STANDING_FRONT, STANDING_RIGHT],
+    [STANDING_RIGHT, STANDING_BACK],
+    [STANDING_BACK, STANDING_LEFT],
+    [STANDING_LEFT, STANDING_FRONT],
+];
+
+/// The orders the twelve are named in, by their places in [`POST_EDGES`]: as
+/// given, reversed, and each upright followed by the feet below and above
+/// that run from its corner.
+const POST_ALL_ROUND_ORDERS: [[usize; 12]; 3] = [
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+    [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0],
+    [8, 0, 4, 9, 1, 5, 10, 2, 6, 11, 3, 7],
+];
+
+/// The post's eight corners, by their three edges' places in [`POST_EDGES`],
+/// in the order of [`FootCorner::edges`]: the four on the plate below, as
+/// [`AT_THE_CORNERS`] has them on the standing block, then the four under the
+/// plate above, in the same turn.
+fn post_s_corners() -> [[usize; 3]; 8] {
+    let mut corners = [[0; 3]; 8];
+    for (corner, [one, other, upright]) in AT_THE_CORNERS.into_iter().enumerate() {
+        corners[corner] = [one, other, upright + 4];
+        corners[corner + 4] = [one + 4, other + 4, upright + 4];
+    }
+    corners
+}
+
+/// Holds what a step of its blend and value on the post's four uprights and
+/// eight feet, named in its order, leaves of the part, `corners` its four
+/// corners on the plate below:
+///
+/// - the value taken whole; a sound body holding what
+///   [`post_blended_all_round`] promises;
+/// - one face for each edge, answering to where the part's numbers ended
+///   plus the edge's rank in the list, then one patch at each of the eight
+///   corners, numbered as [`Case::patches`] says; the next step's numbers
+///   past them; nothing else made, no face of the part gone;
+/// - among flats, each facing the way it lies, under the plate above the
+///   mirror of on the plate below; and `two_steps`, the body the four
+///   uprights chamfered and then the eight feet and their flats' eight ends
+///   leave, the same body, face for face;
+/// - among rounds, each upright's round as [`post_upright_round`] lays it,
+///   meeting the pieces of torus at both its ends; each foot's round on its
+///   cylinder from the plane through one corner's upright round's axis to
+///   the other's, meeting the pieces at both its ends, under the plate above
+///   the mirror of on the plate below; and each corner's piece of torus on
+///   its own torus, as [`piece_held`] holds it.
+fn closed_at_both_ends(part: &Body, corners: &[FootCorner; 4], case: &Case, two_steps: &Body) {
+    let Case {
+        cut,
+        value,
+        step,
+        what,
+        ..
+    } = case;
+    let v = *value;
+    taken_as_asked(step.asked, step.taken, v, what);
+    let body = &step.body;
+    let promised = post_blended_all_round(*cut, v);
+    let drawn = match cut {
+        Cut::Flat => EXACT * promised,
+        Cut::Round => {
+            let curved = PI / 2.0 * v * (8.0 * 10.0 + 4.0 * STANDING_HEIGHT)
+                + 8.0 * PI / 2.0 * v * v * (PI - 1.0);
+            DRAWN * reach_of(part) * curved
+        }
+    };
+    sound_drawn_within(body, promised, drawn, what);
+    let start = part.faces_end();
+    assert_eq!(
+        faces_made(part, body),
+        (start..start + 20).collect::<Vec<_>>(),
+        "{what}: one face for each edge, numbered in the order the step names them, and a patch \
+         at each of the eight corners after them: {:?}",
+        numbers(body)
+    );
+    assert_eq!(
+        body.faces_end(),
+        start + 20,
+        "{what}: the next step numbers its own faces past the eight patches"
+    );
+    assert!(
+        numbers(part).is_subset(&numbers(body)),
+        "{what}: a face of the part went: {:?}",
+        numbers(body)
+    );
+    let at_the_corners = post_s_corners();
+    let patches = case.patches(part, &at_the_corners);
+    let laid = |edge: usize| case.laid_on(part, edge);
+    let foot = |foot: usize| {
+        let [corner, _] = FEET_BETWEEN[foot];
+        let wall = POST_EDGES[foot][1];
+        let at = (corners[corner].feet.iter())
+            .find(|at| at.wall == wall)
+            .expect("a foot runs from the corner it starts at");
+        (at.called, at.wall, at.facing)
+    };
+    let upright_s_corner = |upright: usize| {
+        (0..4)
+            .find(|&corner| at_the_corners[corner][2] == upright)
+            .expect("each upright stands at a corner")
+    };
+    match cut {
+        Cut::Flat => {
+            for (edge, faces) in POST_EDGES.iter().enumerate() {
+                let way = match edge {
+                    below @ 0..4 => (DVec3::Z + foot(below).2).normalize(),
+                    above @ 4..8 => (-DVec3::Z + foot(above - 4).2).normalize(),
+                    upright => corners[upright_s_corner(upright)].flats_facing().0[2],
+                };
+                let which = format!("{what}: the flat on {faces:?}");
+                faces_toward(body, laid(edge), way, &which);
+            }
+            for (index, corner) in corners.iter().enumerate() {
+                let (_, end) = corner.flats_facing();
+                for (level, way) in [(index, end), (index + 4, hung_way(end))] {
+                    let which = format!(
+                        "{what}: the fill along an end of the flat on {}, face {}",
+                        corner.upright, patches[level]
+                    );
+                    faces_toward(body, patches[level], way, &which);
+                }
+            }
+            let to_two_steps: Vec<(usize, usize)> = (8..12)
+                .map(|upright| (laid(upright), start + upright - 8))
+                .chain((0..8).map(|foot| (laid(foot), start + 4 + foot)))
+                .chain((0..8).map(|level| {
+                    let flat = at_the_corners[level][2] - 8;
+                    (patches[level], start + 12 + 2 * flat + level / 4)
+                }))
+                .collect();
+            the_same_bodies(
+                two_steps,
+                body,
+                &to_two_steps,
+                &format!(
+                    "{what}, and the body two steps leave, the four uprights chamfered then the \
+                     eight feet and their flats' eight ends"
+                ),
+            );
+        }
+        Cut::Round => {
+            for (index, corner) in corners.iter().enumerate() {
+                let [one, other, upright] = at_the_corners[index];
+                let [above_one, above_other, _] = at_the_corners[index + 4];
+                round_held(
+                    body,
+                    laid(upright),
+                    &post_upright_round(corner, v),
+                    &[patches[index], patches[index + 4]],
+                    what,
+                );
+                let torus = corner.torus(v);
+                piece_held(
+                    body,
+                    patches[index],
+                    &torus,
+                    &[laid(one), laid(other), laid(upright)],
+                    &format!("{what}, at {} on the plate below", corner.upright),
+                );
+                piece_held(
+                    body,
+                    patches[index + 4],
+                    &hung_torus(&torus),
+                    &[laid(above_one), laid(above_other), laid(upright)],
+                    &format!("{what}, at {} under the plate above", corner.upright),
+                );
+            }
+            for (below, [from, to]) in FEET_BETWEEN.into_iter().enumerate() {
+                let (called, wall, facing) = foot(below);
+                let [from_at, to_at] = [from, to].map(|corner| corners[corner].at);
+                let along = (to_at - from_at).normalize();
+                let [before, after] = [from, to].map(|corner| corners[corner].tangent(v));
+                let round = Cylinder {
+                    called,
+                    through: from_at + facing * v + DVec3::Z * v,
+                    along,
+                    radius: v,
+                    toward: [-DVec3::Z, -facing],
+                    ends: [
+                        (from_at + along * before, -along),
+                        (to_at - along * after, along),
+                    ],
+                    meets: vec![TOP, wall],
+                };
+                round_held(
+                    body,
+                    laid(below),
+                    &round,
+                    &[patches[from], patches[to]],
+                    what,
+                );
+                round_held(
+                    body,
+                    laid(below + 4),
+                    &hung_round(&round),
+                    &[patches[from + 4], patches[to + 4]],
+                    what,
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_post_s_four_uprights_and_eight_feet_close_its_eight_corners_in_one_step()
+ {
+    let part = post_between_two_plates();
+    let corners = post_s_floor_corners();
+    let names = POST_EDGES.map(|[first, second]| edge_between(&part, first, second));
+    let in_two_steps = VALUES.map(|value| {
+        let promised = post_blended_all_round(Cut::Flat, value);
+        let two_steps = post_chamfered_in_two_steps(value, &POST_EDGES[8..], &POST_EDGES[..8]);
+        assert!(
+            (two_steps.volume() - promised).abs() <= EXACT * promised,
+            "the chamfer of {value} in two steps, the post's four uprights then the eight feet \
+             and their flats' eight ends: the body holds {}, where arithmetic promised {promised}",
+            two_steps.volume()
+        );
+        two_steps
+    });
+    let at_the_corners = post_s_corners();
+    let mut laid = Vec::new();
+    let mut declined = Vec::new();
+    for cut in [Cut::Flat, Cut::Round] {
+        for value in VALUES {
+            for order in POST_ALL_ROUND_ORDERS {
+                let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
+                let what = format!(
+                    "the {} of {value} on the post's four uprights and eight feet, named \
+                     {order:?}",
+                    cut.called()
+                );
+                match cut.laid_on(&part, &list, value) {
+                    Ok(step) => laid.push(Case {
+                        order: order.to_vec(),
+                        cut,
+                        value,
+                        step,
+                        what,
+                    }),
+                    Err(reason) => declined.push(format!("{what}: {reason:?}")),
+                }
+            }
+        }
+    }
+    assert!(
+        declined.is_empty(),
+        "the post's four uprights and eight feet laid in one step, each upright first and the \
+         feet round it at both its ends; declined:\n{}",
+        declined.join("\n")
+    );
+    for case in &laid {
+        let at = VALUES
+            .iter()
+            .position(|&value| value == case.value)
+            .expect("every case is laid at one of the values");
+        closed_at_both_ends(&part, &corners, case, &in_two_steps[at]);
+    }
+    for case in &laid {
+        let first = laid
+            .iter()
+            .find(|other| other.cut == case.cut && other.value == case.value)
+            .expect("the case itself is among them");
+        if std::ptr::eq(first, case) {
+            continue;
+        }
+        let [mine, theirs] = [case, first].map(|one| one.patches(&part, &at_the_corners));
+        let to_first: Vec<(usize, usize)> = (0..12)
+            .map(|edge| (case.laid_on(&part, edge), first.laid_on(&part, edge)))
+            .chain(mine.into_iter().zip(theirs))
+            .collect();
+        the_same_bodies(
+            &first.step.body,
+            &case.step.body,
+            &to_first,
+            &format!("{} and {}", first.what, case.what),
+        );
     }
 }
 

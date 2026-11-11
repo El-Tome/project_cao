@@ -20,8 +20,10 @@
 //! corner closed as #699 closes it. Either way each named edge's face is
 //! numbered by its rank, and every patch — a flat no name finds, a piece of
 //! torus, a corner closed on the way — past them by its corner's ranks. An
-//! odd edge whose other end meets an edge of the list any other way is
-//! declined: #847 builds a post whose upright is odd at both ends. Where one
+//! odd edge odd at both its ends, a post's upright between a floor plate and
+//! a ceiling plate (#847), goes round at each as at one: the feet under the
+//! ceiling go round it from above, the mirror. An odd edge whose other end
+//! meets an edge of the list any other way is declined. Where one
 //! of the two others is left sharp, the flat along the odd edge's face goes
 //! round it only up to the plane square to that edge where its wall begins,
 //! held there — a fill's in the air, a cut's dug into the top —, its end a
@@ -83,8 +85,10 @@ pub(in crate::body::exact) enum Around {
 /// edge is the odd one at one corner and one of the two others at another,
 /// or an odd edge meets at its other end an edge of the list that is odd at
 /// no corner without closing a corner of three edges of one sense with it,
-/// as [`laid_first`] lays them: the far feet of a post odd at both ends,
-/// which #847 builds. Odd edges meeting each other there, the slanted edges
+/// as [`laid_first`] lays them, nor being one of the two others at a corner
+/// of mixed sense that edge is odd at too — a post's upright between two
+/// plates, odd at both its ends (#847). Odd edges meeting each other there,
+/// the slanted edges
 /// of a pyramid at its apex, and the top edges of a standing block meeting
 /// its uprights at its top corners, are laid with them first.
 pub(super) fn corners(body: &brep::Body, step: &Step) -> Result<Vec<Odd>, Declined> {
@@ -143,8 +147,11 @@ pub(super) fn corners(body: &brep::Body, step: &Step) -> Result<Vec<Odd>, Declin
         (alike(step).iter()).any(|ranks| ranks.contains(&one) && ranks.contains(&other))
     };
     let topped = odd.iter().any(|corner| {
+        let round_it = |rank: usize| {
+            (odd.iter()).any(|other| other.lone == corner.lone && other.ranks.contains(&rank))
+        };
         (0..step.edges.len())
-            .filter(|&rank| !lone(rank) && !corner.ranks.contains(&rank))
+            .filter(|&rank| !lone(rank) && !round_it(rank))
             .filter(|&rank| !closing(corner.lone, rank))
             .any(|rank| super::corners::meet(body, [step.edges[corner.lone], step.edges[rank]]))
     });

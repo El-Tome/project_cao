@@ -222,11 +222,13 @@ impl Exact {
     /// [`Exact::in_turn`] lays them with `kind`, and the corners three of them
     /// meet at, by their ranks, in the order their closing faces are
     /// numbered. Declined `Unsupported` where they give less than `taken`, as
-    /// [`Step::bound`] reads it on this body; otherwise as [`Exact::cut_off`]
-    /// declines them.
+    /// [`Step::bound`] reads it on this body, by more than the body's
+    /// tolerance — a limit the value was taken at, read again through a
+    /// mitre, comes back a rounding short of it; otherwise as
+    /// [`Exact::cut_off`] declines them.
     fn laid_at(&self, names: &[EdgeName], taken: f64, kind: &Kind) -> Result<Laid, Declined> {
         let step = self.step(names, kind)?;
-        if step.bound(&self.brep, taken, kind) < taken {
+        if taken - step.bound(&self.brep, taken, kind) > self.brep.scale().eps() {
             return Err(Declined::Unsupported);
         }
         let closed = step.three.iter().map(|&(_, ranks, _)| ranks).collect();

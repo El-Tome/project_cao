@@ -4,7 +4,9 @@
 //! within them. A blend reaches only there, so that a face's corner, or
 //! another edge's set-back, standing on past where it stops is never read as
 //! met: the far edge of a lower block a foot's line would cross, a block
-//! beside a foot corner past the mitre of the fill along a flat's foot.
+//! beside a foot corner past the mitre of the fill along a flat's foot —
+//! while the foot of what stands on the face crossing into the sweep, a low
+//! wall in front of a foot, still is, where it enters.
 
 use glam::DVec3;
 

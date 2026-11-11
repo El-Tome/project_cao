@@ -1,11 +1,14 @@
 //! How far a face runs from an edge of it, square to the edge: the most a
 //! chamfer or a fillet of the edge can set back along that face — on the
-//! whole face, or only where the edge's blend runs on it (#829).
+//! whole face, or, for what stands on the face, only where the edge's blend
+//! runs on it (#829): up to the nearest corner of its foot there, or point
+//! where its foot enters.
 
 use std::f64::consts::PI;
 
 use glam::DVec3;
 
+use super::Wedge;
 use super::extent::Within;
 use crate::brep::{self, Curve, Edge, FaceId};
 
@@ -21,11 +24,17 @@ pub(super) fn reach(body: &brep::Body, face: FaceId, into: DVec3, point: DVec3) 
 }
 
 /// How far a face runs along `into` from the edge's line through `point`, as
-/// [`reach`] reads it, counting only the corners and turning points the
-/// half-spaces `held` hold within the tolerance, where the edge's blend runs:
-/// a corner of the face standing past where the blend stops limits nothing,
-/// and a blend may run into a face across one of its edges, as it does at an
-/// end it is trimmed on. Declined as [`reach`] declines.
+/// [`reach`] reads it, but for the feet of what stands on the face — each
+/// straight edge of its boundary meeting the face beyond inwards — read only
+/// where the edge's blend runs, within the half-spaces `held`: at its ends
+/// they hold, within the tolerance, and where it crosses the plane of one of
+/// them inside the others, as [`entering`] finds it. Its depth is linear
+/// between, so the least of those is where it first stands in the sweep; a
+/// corner of it standing past where the blend stops limits nothing. The
+/// face's own outline, every edge meeting the face beyond outwards, curved or
+/// between faces that are not both flat, is read whole, as [`reach`] reads
+/// it: where the face ends, the laying decides what a blend running past does.
+/// Declined as [`reach`] declines.
 pub(super) fn reach_within(
     body: &brep::Body,
     face: FaceId,
@@ -36,21 +45,44 @@ pub(super) fn reach_within(
     let mut far = Vec::new();
     for coedge in body.face(face).loops.iter().flatten() {
         let edge = body.edge(coedge.edge);
-        match edge.ends {
-            Some(ends) => far.extend(ends.map(|end| body.vertex(end).point)),
-            None => far.push(body.point_on(coedge.edge, edge.from)),
+        let standing = matches!(body.curve(edge.curve), Curve::Line(_))
+            && Wedge::faced(body, coedge.edge).is_ok_and(|wedge| wedge.inwards);
+        match (standing, edge.ends) {
+            (true, Some(ends)) => {
+                far.extend(entering(held, ends.map(|end| body.vertex(end).point), eps));
+            }
+            (_, Some(ends)) => far.extend(ends.map(|end| body.vertex(end).point)),
+            (_, None) => far.push(body.point_on(coedge.edge, edge.from)),
         }
         far.extend(turning_back(body, edge, into)?);
     }
-    let within =
-        |at: &DVec3| (held.iter()).all(|&(normal, offset)| normal.dot(*at) - offset <= eps);
     Some(
         far.into_iter()
-            .filter(within)
             .map(|at| into.dot(at - point))
             .filter(|&off| off > eps)
             .fold(f64::INFINITY, f64::min),
     )
+}
+
+/// The points of the straight edge from `ends[0]` to `ends[1]` where it
+/// stands inside every half-space of `held`, within `eps`, at its least and
+/// most: each end they hold, and each point where it crosses the plane of
+/// one of them — read on that plane exactly, so that an edge leaving a corner
+/// the plane passes through is met there and not a tolerance past it — that
+/// the others hold.
+fn entering(held: &[Within], ends: [DVec3; 2], eps: f64) -> Vec<DVec3> {
+    let forms: Vec<[f64; 2]> = (held.iter())
+        .map(|&(normal, offset)| ends.map(|at| normal.dot(at) - offset))
+        .collect();
+    let inside = |share: f64| (forms.iter()).all(|&[from, to]| from + (to - from) * share <= eps);
+    let crossings = forms.iter().filter_map(|&[from, to]| {
+        let level = -from / (to - from);
+        ((to - from).abs() > eps && (0.0..=1.0).contains(&level)).then_some(level)
+    });
+    ([0.0, 1.0].into_iter().chain(crossings))
+        .filter(|&share| inside(share))
+        .map(|share| ends[0] + (ends[1] - ends[0]) * share)
+        .collect()
 }
 
 /// The points strictly inside an edge where its curve turns back along

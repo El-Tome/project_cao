@@ -219,6 +219,14 @@
 //!   `a_face_of_a_see_through_volume_is_offered_to_draw_on_beside_an_opaque_one`,
 //!   and a face of an invisible volume offered no more than it is drawn, by
 //!   `a_hidden_volume_offers_none_of_its_faces_and_the_face_behind_it_is_offered`
+//!
+//! Closes #736 — the whole transcription is in `crates/app/tests/the_alerts.rs`;
+//! this bullet is the one the Part panel's presenter holds.
+//! - decided by Tom when the work opened: « Modifier » on an extrusion's alert
+//!   reopens the extrusion, its panel filled with its values — once changed, a
+//!   volume's row reads how far it now goes and which way, as the part is
+//!   raised, and the change adds no row —
+//!   `a_volume_changed_after_it_was_raised_reads_its_new_values`
 
 use cao_part::VariableChange;
 use cao_part::VolumeState;
@@ -295,6 +303,43 @@ fn a_step_that_made_matter_reads_how_far_it_went_and_which_way() {
 
     assert_eq!(tree.bodies[0].reads, "4 mm · ajout de matière");
 }
+
+#[test]
+fn a_volume_changed_after_it_was_raised_reads_its_new_values() {
+    let mut document = a_part();
+    let raised = document
+        .history
+        .number_at(THE_BLOCK_OF_A_PART)
+        .expect("the block is raised");
+    let Some(Operation::Extrude { sketch, areas, .. }) = document.raised_as(raised).cloned() else {
+        panic!("the fixture wants the block raised by an extrusion");
+    };
+    document.apply(Operation::EditMatter {
+        raised_by: raised,
+        to: Box::new(Operation::Extrude {
+            sketch,
+            areas,
+            distance: 7.0.into(),
+            mode: ExtrusionMode::Cut,
+        }),
+    });
+
+    let tree = PartTree::of(&document, &french());
+
+    let rows: Vec<(&str, &str)> = tree
+        .bodies
+        .iter()
+        .map(|body| (body.name.as_str(), body.reads.as_str()))
+        .collect();
+    assert_eq!(
+        rows,
+        [("Extrusion 1", "7 mm · enlèvement de matière")],
+        "the block raised 4, changed to a cut 7 deep, does not read what it is now on its one row",
+    );
+}
+
+/// Where `a_part` raises its block.
+const THE_BLOCK_OF_A_PART: usize = 3;
 
 #[test]
 fn a_step_whose_area_is_gone_says_so_rather_than_reading_as_one_raised_from_nothing() {

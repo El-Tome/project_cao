@@ -28,12 +28,14 @@ impl PartTree {
         for drawing in &mut tree.sketches {
             drawing.open = editor.active_sketch() == Some(drawing.sketch);
             drawing.dimmed = !drawing.open && !viewport.eye_lit(document, drawing.sketch);
+            drawing.selected = drawing.open || viewport.marked_sketch() == Some(drawing.sketch);
         }
         for body in &mut tree.bodies {
             body.shown = viewport.volume_mode(document, body.step);
             body.state = said::volume_state(lang, body.shown);
             body.visibility_button = said::visibility_button(lang, body.shown);
             body.dimmed = body.shown == VolumeState::Invisible;
+            body.selected = viewport.marked_volume() == Some(body.step);
         }
         tree.make_all_opaque = (!tree.bodies.is_empty()).then(|| Offered {
             label: lang.t("part_tree.make_all_opaque"),

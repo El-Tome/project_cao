@@ -15,6 +15,14 @@ pub enum TreeAction {
     None,
     /// Reopen this sketch for drawing.
     EditSketch(usize),
+    /// Stand this sketch's row selected, the sketch left closed.
+    MarkSketch(usize),
+    /// Stand the row of the volume made at this step of the history selected,
+    /// and light its raw block.
+    MarkVolume(usize),
+    /// Reopen the extrusion or the revolution at this step of the history, its
+    /// panel filled with its values.
+    EditExtrusion(usize),
     /// Show this sketch on the canvas, or stop showing it.
     ToggleEye(usize),
     /// Take this into the open sketch's selection, alone or added to it.
@@ -31,6 +39,8 @@ pub enum TreeAction {
     MakeAllOpaque,
     /// Switch this kept section on, or off when it is on.
     ToggleSection(usize),
+    /// Switch this kept section on, leaving it on when it is.
+    SwitchSectionOn(usize),
     /// Reopen the section view on this kept section, to change it.
     EditSection(usize),
     /// Delete this kept section, asking first when a drawing stands on it.

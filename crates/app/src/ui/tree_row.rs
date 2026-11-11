@@ -9,7 +9,7 @@ use egui::{
     UiBuilder, WidgetInfo, WidgetType, pos2, vec2,
 };
 
-use crate::ui::badge::{Level, badge, badge_width};
+use crate::ui::badge::{badge, badge_width};
 use crate::ui::eye::{eye, visibility};
 use crate::ui::icon::{Icon, IconSize};
 use crate::ui::theme::tokens::{
@@ -41,7 +41,8 @@ pub struct TreeRow<'a> {
     /// The colour the name is written in, other than the plain text's.
     pub ink: Option<Color32>,
     pub value: Option<&'a str>,
-    pub badge: Option<(&'a str, Level)>,
+    /// What a badge says, and its patch and ink.
+    pub badge: Option<(&'a str, (Color32, Color32))>,
     /// The button in the eye's column, when the row has one.
     pub eye: Option<Eye<'a>>,
     /// A picture before the name, in its own colour.
@@ -92,13 +93,13 @@ pub fn tree_row(ui: &mut Ui, row: TreeRow<'_>) -> Touched {
     if let Some(value) = row.value {
         end = beside(&mut inside, line, kept..=end, value);
     }
-    if let Some((said, level)) = row.badge {
+    if let Some((said, colours)) = row.badge {
         let room = Rect::from_x_y_ranges(end - badge_width.unwrap_or(0.0)..=end, line.y_range());
         inside.scope_builder(
             UiBuilder::new()
                 .max_rect(room)
                 .layout(Layout::right_to_left(Align::Center)),
-            |ui| badge(ui, said, level),
+            |ui| badge(ui, said, colours),
         );
         end = room.left();
     }

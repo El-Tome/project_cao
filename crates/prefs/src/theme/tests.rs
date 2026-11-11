@@ -22,6 +22,17 @@
 //! - a profile Tom saved keeps its own — no test: in this file; held by
 //!   `a_profile_saved_with_viewport_colours_of_its_own_reads_back_with_them`,
 //!   in `crates/prefs/src/profiles/tests.rs`, under its own block
+//!
+//! Closes #736 — the whole transcription is in `crates/app/tests/the_alerts.rs`;
+//! this bullet is the part the theme holds.
+//! - Preferences › Apparence can set and reset them — the warning's and the
+//!   error's colours are colours of the theme, and a theme saved before they
+//!   existed still reads, with neither set —
+//!   `a_theme_saved_before_the_warning_and_error_colours_existed_still_reads`
+//!
+//! Neither is set by default: the colour a level is seen in by default is the
+//! chrome's, a token of `cao_app`, which this crate does not know. What the
+//! theme holds is the colour a user chose over it.
 
 use super::*;
 
@@ -86,6 +97,24 @@ fn a_theme_saved_before_the_alert_colour_existed_still_reads() {
     let read: Theme = serde_json::from_value(saved).expect("a theme from before the colour");
 
     assert_eq!(read.going, Theme::default().going);
+}
+
+#[test]
+fn a_theme_saved_before_the_warning_and_error_colours_existed_still_reads() {
+    let mut saved = serde_json::to_value(Theme::default()).expect("a theme writes out");
+    let fields = saved.as_object_mut().expect("a theme is an object");
+    fields.remove("warning");
+    fields.remove("error");
+
+    let read: Theme = serde_json::from_value(saved).expect("a theme from before the colours");
+
+    let default = Theme::default();
+    assert_eq!(
+        (read.warning, read.error, default.warning, default.error),
+        (None, None, None, None),
+        "a theme from before the warning's and the error's colours reads, or the default \
+         theme holds, a colour chosen over the chrome's",
+    );
 }
 
 /// A colour read back to the bytes it would be written with: the design file

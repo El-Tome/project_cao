@@ -333,6 +333,8 @@ impl PartState {
                 construction,
             } => self.fillet(*sketch, corners, radius, *construction),
             Operation::CutChange(change) => self.change_cut(change),
+            // The history replays the step it changes as it now stands.
+            Operation::EditMatter { .. } => None,
             Operation::SaveSection(_)
             | Operation::EditSection { .. }
             | Operation::DeleteSection { .. }

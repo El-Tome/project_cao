@@ -187,6 +187,7 @@ pub(crate) fn frame_of(
     let matter_from = surfaces.len();
     body::push_matter(&mut solids, &mut surfaces, state, drawn);
     let veiled_matter = matter_from..surfaces.len();
+    body::push_marked(&mut surfaces, state, context.document);
     section_panel::push_section_plane(&mut surfaces, &mut lines, state, scale, context);
 
     let mut cube_triangles = Vec::new();

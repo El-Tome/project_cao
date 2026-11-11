@@ -8,6 +8,7 @@ use crate::screens::part_tree::state::{
     marked,
 };
 use crate::screens::sketch::SketchEditor;
+use crate::screens::theme_colours;
 use crate::screens::viewport::ViewportState;
 use crate::ui::icon;
 use crate::ui::question::{Question, ask};
@@ -136,7 +137,9 @@ fn section(ui: &mut egui::Ui, kept: &Kept, asked: &mut Asked<'_>, lang: &Catalog
     let row = TreeRow {
         name: &kept.name,
         selected: asked.viewport.kept_sections.is_on(kept.id),
-        badge: badge.as_deref().zip(kept.badge.map(Problem::level)),
+        badge: badge
+            .as_deref()
+            .zip(kept.badge.map(|found| worn(asked, found))),
         ..TreeRow::default()
     };
     let response = tree_row(ui, row).row;
@@ -151,6 +154,11 @@ fn section(ui: &mut egui::Ui, kept: &Kept, asked: &mut Asked<'_>, lang: &Catalog
             ui.close();
         }
     });
+}
+
+/// The patch and the ink of a badge saying `found`, as the theme has its level.
+fn worn(asked: &Asked<'_>, found: Problem) -> (egui::Color32, egui::Color32) {
+    theme_colours::worn(&asked.viewport.theme, found.level())
 }
 
 /// The question asked before deleting a section a drawing stands on.
@@ -179,9 +187,12 @@ fn made_of_matter(ui: &mut egui::Ui, body: &Body, asked: &mut Asked<'_>, lang: &
     };
     let heading = TreeRow {
         name: &body.name,
+        selected: body.selected,
         dimmed: body.dimmed,
         value: Some(&body.state),
-        badge: badge.as_deref().zip(body.badge.map(Problem::level)),
+        badge: badge
+            .as_deref()
+            .zip(body.badge.map(|found| worn(asked, found))),
         eye: Some(Eye::Pictured(drawn, &body.visibility_button)),
         icon: Some(made),
         ..TreeRow::default()
@@ -212,10 +223,12 @@ fn drawn(ui: &mut egui::Ui, drawing: &Drawn, asked: &mut Asked<'_>, lang: &Catal
     let badge = drawing.badge.map(|found| said::badge(lang, found));
     let heading = TreeRow {
         name: &drawing.name,
-        selected: drawing.open,
+        selected: drawing.selected,
         dimmed: drawing.dimmed,
         value: Some(&drawing.plane),
-        badge: badge.as_deref().zip(drawing.badge.map(Problem::level)),
+        badge: badge
+            .as_deref()
+            .zip(drawing.badge.map(|found| worn(asked, found))),
         eye: Some(Eye::Open(lit, &eye)),
         ..TreeRow::default()
     };

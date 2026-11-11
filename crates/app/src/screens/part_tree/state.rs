@@ -23,10 +23,12 @@ use crate::wording::part_tree::{self as said, Problem, Rubric};
 use crate::wording::{self, formula, plane};
 
 mod clicks;
+mod flagged;
 mod history;
 mod seen;
 mod volumes;
 pub use clicks::*;
+pub use flagged::{About, Flagged};
 pub use history::History;
 pub use seen::Offered;
 use volumes::volume;
@@ -85,6 +87,8 @@ pub struct Body {
     pub state: String,
     pub visibility_button: String,
     pub dimmed: bool,
+    /// Standing selected: marked by « Montrer ».
+    pub selected: bool,
 }
 
 /// One sketch, and what is drawn on it, by kind.
@@ -100,6 +104,8 @@ pub struct Drawn {
     /// Being drawn on; and hidden, which the one drawn on never is.
     pub open: bool,
     pub dimmed: bool,
+    /// Standing selected: being drawn on, or marked though closed.
+    pub selected: bool,
     pub areas: Vec<Row>,
     pub strokes: Vec<Row>,
     pub dimensions: Vec<Row>,
@@ -167,9 +173,14 @@ impl PartTree {
             ..Self::default()
         };
         let mut sketches = 0;
+        let changed = document.history.changes_in_effect();
 
         for (step, operation) in document.history.applied_operations().iter().enumerate() {
             let number = document.history.number_at(step);
+            // A step of matter changed since it was raised reads as it stands.
+            let operation = number
+                .and_then(|number| changed.get(&number).copied())
+                .unwrap_or(operation);
             let declined = number.is_some_and(|number| document.is_declined(number));
             let unstable = number
                 .and_then(|number| document.unstable_at(number))
@@ -294,6 +305,7 @@ fn drawn(
         plane: String::new(),
         open: false,
         dimmed: false,
+        selected: false,
         areas: (0..sketch.regions().len())
             .map(|rank| Row {
                 name: numbered(lang, "part_tree.area", rank + 1),

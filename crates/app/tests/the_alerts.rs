@@ -1,0 +1,1808 @@
+//! The part's problems as alerts, driven through the whole application: a
+//! count on the right of the title bar, and the list it opens under it
+//! (`docs/redesign/part-screen.md` P2, screen
+//! `docs/redesign/screens/05-part-alerts-open.png`).
+//!
+//! Closes #736 — the issue has no Done when of its own; these are the points of
+//! its « What it does » and « What must not break », approved as its criteria
+//! when the work opened, a long point split into its parts, and the two
+//! decisions Tom took then, the last two bullets of « What it does ». The
+//! bullets the title bar's presenter holds are transcribed again, checked, in
+//! `crates/app/src/screens/title_bar/state/tests.rs`.
+//!
+//! What it does:
+//! - Two levels. Warning, yellow: an unstable case (`unstable_at`); a sketch
+//!   whose face is lost and that stays where it was (`is_adrift`). Error, red:
+//!   a volume not built (`is_declined`); a lost area — no test: held by
+//!   `each_problem_of_the_part_is_an_alert_at_its_level`, in
+//!   `crates/app/src/screens/title_bar/state/tests.rs`, which reads the level
+//!   of each problem's alert off the presenter. The red a level is drawn in is
+//!   held on the count by the bullet after next, and the yellow with the
+//!   badges' colours, below
+//! - a kept section whose face is lost, which wears « face perdue » in the tree
+//!   today, is a warning like a sketch off its face — no test: held by
+//!   `each_problem_of_the_part_is_an_alert_at_its_level`, as above. Not one of
+//!   the issue's words: read from the first point of « What must not break »,
+//!   and from P2, whose count is of every element wearing a badge
+//! - anything that stops the computation is an error — no test: nothing stops
+//!   the computation today. A step the kernel declines leaves the part as it
+//!   stood before it and the rest is computed, which is the volume not built
+//!   above; a new kind of problem is out of scope
+//! - « ⚠ N alertes » on the right of the title bar, only when N > 0, in the
+//!   colour of the worst level —
+//!   `the_count_stands_on_the_right_of_the_title_bar_in_the_colour_of_the_worst_alert`;
+//!   the count, its singular « 1 alerte » and the level it takes are held case
+//!   by case beside the title bar's presenter, by
+//!   `the_title_bar_counts_the_alerts_only_while_there_is_one` and
+//!   `the_count_wears_the_level_of_the_worst_alert`
+//! - A click opens the list (340 px) under the button —
+//!   `a_click_on_the_count_opens_the_list_340_points_wide_under_it`
+//! - Each alert: the warning or error icon, « Élément · problème »
+//!   (« Extrusion 3 · instable »), one sentence of explanation —
+//!   `each_alert_reads_its_icon_its_element_and_problem_and_a_sentence`, which
+//!   reads them on screen with « Montrer » and « Modifier » under them; what
+//!   each kind of problem is titled and says is held case by case beside the
+//!   title bar's presenter, by `each_alert_is_titled_by_its_element_and_its_problem`
+//!   and `each_alert_says_why_in_a_sentence`
+//! - then « Montrer » (selects the element …) — for a sketch, its row in the
+//!   tree stands selected, the sketch left closed; for a kept section, it is
+//!   switched on as a click on its row does, and a second « Montrer » leaves it
+//!   on — `show_selects_the_sketch_or_the_section_and_leaves_the_list_open`;
+//!   for a volume, under the bullet Tom decided, below
+//! - « … and lights it in the view », for a sketch — no test: a light in the
+//!   view is seen only in a frame, which this driver, with no GPU, never
+//!   builds. The sketch « Montrer » marks is drawn whole in the light a trait
+//!   lit from the tree is drawn in, held by
+//!   `a_sketch_marked_is_drawn_whole_in_the_light_of_a_trait_lit_from_the_tree`,
+//!   in `crates/app/src/screens/viewport/render/tests.rs`: the whole-element
+//!   light a volume takes, below, serves a sketch too, as decided when the
+//!   volume's was taken up
+//! - « … and lights it in the view », for a kept section — no test: a section
+//!   whose face is gone cuts nothing, and switching it on changes nothing in
+//!   the view; there is nothing of it to light
+//! - and « Modifier » (reopens the step) — for a sketch, what a double-click
+//!   on its row does; for a kept section, which is no step, the section
+//!   reopened in its tool, as a double-click on its row does too, decided when
+//!   the list was taken up —
+//!   `modify_reopens_the_step_the_alert_is_about_and_closes_the_list`, and what
+//!   the button asks is held beside the title bar's presenter by
+//!   `modify_asks_what_a_double_click_on_the_sketch_or_the_section_s_row_asks`;
+//!   for an extrusion, under the bullet Tom decided, below
+//! - decided when « Montrer » and « Modifier » were taken up, the redesign
+//!   saying nothing of it: the list stays open after « Montrer », the next
+//!   alert still to be looked at, and closes after « Modifier », the user now in
+//!   the sketch or the section —
+//!   `show_selects_the_sketch_or_the_section_and_leaves_the_list_open` and
+//!   `modify_reopens_the_step_the_alert_is_about_and_closes_the_list`
+//! - found when « Montrer » was tried with the Part panel closed, which put
+//!   out its light at every frame: « Montrer » opens the Part panel, so that
+//!   the row it selects is seen and its light holds, for a sketch and for a
+//!   volume — `show_with_the_part_panel_closed_opens_it_on_the_row_selected`
+//! - The list follows the part live — `the_open_list_follows_the_part_live`
+//! - ✕, Escape or a click elsewhere closes it —
+//!   `the_cross_escape_or_a_click_elsewhere_closes_the_list`
+//! - What describes the part leaves the message pill: an extrusion not built
+//!   or unstable is an alert — on screen, the circle the kernel declines,
+//!   applied again as it was, says nothing in the pill while its alert stays —
+//!   `an_alert_stays_while_its_problem_holds_and_goes_with_it`; for a decline
+//!   and for a cut at an unstable lean alike, the pill handed nothing and the
+//!   alert saying what the pill used to, by
+//!   `an_extrusion_not_built_or_unstable_is_an_alert_and_no_message`, in
+//!   `crates/app/src/screens/extrusion/tests.rs`
+//! - and stays while it is true — through a message said since, until the
+//!   circle is turned the right way and built, and back with the undo of that
+//!   turn — `an_alert_stays_while_its_problem_holds_and_goes_with_it`
+//! - The pill keeps what answers a gesture — the extrusion turned into a cut
+//!   that misses the matter says « Rien enlevé … » on the title bar's row —
+//!   `an_extrusion_that_changes_nothing_still_says_so_in_the_pill`
+//! - found when the pill was sorted out: an export's refusal — a STEP of a
+//!   part made of facets or of a curve that will not fit, an STL whose
+//!   triangles do not cover the part — answers the export asked, and stays in
+//!   the pill — no test: held by
+//!   `a_declined_export_asks_no_destination_writes_nothing_and_says_so`,
+//!   `a_level_refused_suggests_only_a_level_that_is_written` and
+//!   `a_body_no_level_covers_is_told_that_no_level_fits`, in
+//!   `crates/app/src/export/tests.rs`, which this issue leaves alone
+//! - The same two colours for the tree's badges — a badge of the tree, the
+//!   title bar's count and the icon of an alert in the list wear one level's
+//!   ink and patch: the tokens by default, the colour chosen for the level
+//!   otherwise, its patch the chosen colour at the opacity of the token it
+//!   replaces — `a_badge_and_an_alert_of_one_level_wear_the_same_colours`
+//! - and, later, the reader's boxes — no test: out of scope here, as the issue
+//!   says; the step reader (P7) does not exist yet, and takes the two colours
+//!   when it is built
+//! - Preferences › Apparence can set and reset them — the rows « Avertissement »
+//!   and « Erreur » hold the colours the profile chose, and « ↺ Couleurs par
+//!   défaut » puts both back, the rows then showing the tokens and the tree's
+//!   badges wearing them again —
+//!   `the_alert_colours_are_set_and_reset_in_preferences_appearance`. The pick
+//!   itself is `egui`'s colour picker, a pop-up this driver cannot work, as for
+//!   every colour row of the page: the chosen colours are laid in the profile
+//!   instead. That a theme saved before the two colours still reads is held in
+//!   `crates/prefs/src/theme/tests.rs`
+//! - Preferences › Apparence, before it was touched, is on the list of places
+//!   with no net — no test: added here, the net it needs is already in
+//!   `crates/app/tests/appearance.rs`. Its reset test compares the whole
+//!   theme with the default, every field to come included, and the two rows
+//!   are two more of the colour rows the page already draws
+//! - decided by Tom when the work opened: « Modifier » on an extrusion's alert
+//!   reopens the extrusion, its panel filled with its values, where no
+//!   extrusion could be reopened before — on the circle the kernel declines,
+//!   the panel opens on its height and its direction, the list closed;
+//!   « Annuler » closes the panel and leaves the part and its history as they
+//!   were — strengthened in review, the alert alone being no proof; turned the other way and applied,
+//!   the part keeps its steps, the step reads its new values and the alert and
+//!   its count go — `modify_on_an_extrusion_s_alert_reopens_it_with_its_values`.
+//!   Held apart besides: the part's half, a step of matter changed after it
+//!   was raised and raised again in its own step, compaction included, in
+//!   `crates/part/tests/changing_an_extrusion.rs`; what the button asks, for an
+//!   extrusion and a revolution alike, by
+//!   `modify_asks_to_reopen_the_extrusion_or_revolution_the_alert_is_about_and_closes_the_list`
+//!   in `crates/app/src/screens/title_bar/state/tests.rs`; the panel reopened
+//!   on an extrusion's or a revolution's values, and « Appliquer » changing
+//!   the step rather than raising another, in
+//!   `crates/app/src/screens/extrusion/tests.rs`; and the volume's row reading
+//!   its new values, by `a_volume_changed_after_it_was_raised_reads_its_new_values`,
+//!   in `crates/app/src/screens/part_tree/state/tests.rs`. Through the alert
+//!   only the extrusion is driven: a revolution reopens through the same panel
+//!   and the same step, held below the screen
+//! - found in review: the panel « Modifier » reopened closes when the history
+//!   moves under it — an undo, a redo, going back to a line of the history, a
+//!   compaction — since the step it names may no longer be the one in effect —
+//!   `the_panel_reopened_on_a_step_closes_when_the_history_moves`. What applying
+//!   one left open anyway does is held in
+//!   `crates/app/src/screens/extrusion/tests.rs`, and what the part does with a
+//!   change of a step undone since in `crates/part/tests/changing_an_extrusion.rs`
+//! - decided by Tom when the work opened: « Montrer » on a volume's alert
+//!   selects the volume and lights it in the view — its row in the tree stands
+//!   selected, for a volume not built and for one built unstably, the list
+//!   left open — `show_on_a_volume_s_alert_selects_its_row_and_leaves_the_list_open`;
+//!   what the button asks, for those two and for a volume whose area is lost,
+//!   is held beside the title bar's presenter by
+//!   `show_asks_to_mark_the_volume_the_alert_is_about`; and the light, which
+//!   only a frame shows, in `crates/app/src/screens/viewport/render/tests.rs`
+//!   by `a_volume_marked_is_drawn_lit_where_its_step_raised_or_cut_it` and
+//!   `a_volume_not_built_marked_is_drawn_lit_where_its_raw_block_would_stand`
+//! - decided when the volume's light was taken up: what is lit is the volume's
+//!   raw block, the matter its step raises or removes as extruded or turned,
+//!   the block a see-through volume shows; for a volume not built, that block
+//!   where it would have stood, the kernel having built it and declined only
+//!   to join it to the part. A volume whose areas are all lost has no block,
+//!   and only its row stands selected — no test: nothing is drawn to hold;
+//!   that « Montrer » marks it all the same is held by
+//!   `show_asks_to_mark_the_volume_the_alert_is_about`
+//!
+//! What must not break:
+//! - Every problem detected today is still shown: as an alert now — no test:
+//!   held by `each_problem_of_the_part_is_an_alert_at_its_level`, in
+//!   `crates/app/src/screens/title_bar/state/tests.rs`, one part for each
+//!   problem the tree wears a badge for today; on screen, the count of
+//!   `the_count_stands_on_the_right_of_the_title_bar_in_the_colour_of_the_worst_alert`
+//!   takes an area lost and a face lost together
+//! - The refusal at the moment of the gesture (« Cette extrusion ne change
+//!   rien ») still shows in the pill —
+//!   `an_extrusion_that_changes_nothing_still_says_so_in_the_pill`
+//!
+//! The « ⚠ » of the count is the `warning` icon, the triangle the mockup's
+//! button wears (`docs/redesign/source/part.html`), and the count is a button
+//! named by its words alone, « 2 alertes », as the mockup names it. The colour
+//! of a level is the pair the tree's badges are drawn in: `state.error_text` on
+//! `state.error_background`, `state.warning_text` on
+//! `state.warning_background`.
+//!
+//! A part with an error and a warning is made as `the_part_panel.rs` makes a
+//! sketch lose its face: a block, a sketch laid on its face, then the block's
+//! own sketch emptied. The block's extrusion is left with no area, and the
+//! sketch on its face with no face. For the list to follow, a section takes
+//! the sketch's place on the face, since a section can be deleted from the
+//! tree and an undo brings it back while the list stays open: the keyboard
+//! changes the part without the click elsewhere that would close it.
+//!
+//! The list is read as the mockup draws it, in `docs/redesign/source/part.html`:
+//! headed « Alertes de la pièce », closed by a button named « Fermer les
+//! alertes » on the heading's row, its right edge on the count's and its top
+//! just under it. Its 340 are read as the width of the frame painted, whose
+//! fill is found as the least one around the heading and that button; the
+//! mockup's CSS adds its padding to them, which an `egui` frame would not. An
+//! alert is read inside that frame: its title, the `warning` or `error` icon
+//! on its left, at least one text under the title, then one « Montrer » and one
+//! « Modifier » before the next alert.
+
+mod driver;
+
+use cao_app::theme::tokens;
+use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef, RevolutionAxis};
+use cao_sketch::{PointId, SketchAxis, WorkPlane};
+use egui::accesskit::Role;
+use egui_kittest::kittest::{NodeT, Queryable};
+use glam::{DVec2, DVec3};
+
+#[test]
+fn the_count_stands_on_the_right_of_the_title_bar_in_the_colour_of_the_worst_alert() {
+    let mut app = driver::a_block("the_count_stands_on_the_right_of_the_title_bar");
+    lay_a_sketch_on_the_block_s_face(&mut app);
+    let before = the_title_bar(&app);
+
+    empty_the_block_s_sketch(&mut app);
+    assert!(
+        driver::says(&app, "aire perdue") && driver::says(&app, "face perdue"),
+        "the block's sketch emptied, the tree does not wear « aire perdue » and « face \
+         perdue », which leaves the count nothing to count: {:?}",
+        driver::said(&app),
+    );
+
+    let mut wrong = Vec::new();
+    let counted_before: Vec<&String> = before
+        .iter()
+        .filter(|read| read.contains("alerte"))
+        .collect();
+    if !counted_before.is_empty() {
+        wrong.push(format!(
+            "with nothing wrong with the part, the title bar already reads {counted_before:?}"
+        ));
+    }
+    match the_button_reading(&app, "2 alertes") {
+        None => wrong.push(format!(
+            "no button reads « 2 alertes »; the title bar reads {:?}",
+            the_title_bar(&app),
+        )),
+        Some(count) => wrong.extend(not_on_the_right_in_red(&app, count)),
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "an area lost and a face lost are not counted as the redesign draws it:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn a_click_on_the_count_opens_the_list_340_points_wide_under_it() {
+    let mut app = a_part_with_two_alerts("a_click_on_the_count_opens_the_list");
+    let open_before = the_list(&app);
+
+    driver::click_the_button(&mut app, "2 alertes");
+
+    let mut wrong = Vec::new();
+    if let Some(list) = open_before {
+        wrong.push(format!(
+            "the list stood open at {list:?} before the count was clicked"
+        ));
+    }
+    match the_list(&app) {
+        None => wrong.push(format!(
+            "no list headed « {HEADING} » with a « {CLOSE} » button is open; the screen \
+             shows {:?}",
+            driver::on_screen(&app),
+        )),
+        Some(list) => wrong.extend(not_340_wide_under_the_count(&app, list)),
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "a click on « 2 alertes » does not open the list as the redesign draws it:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn each_alert_reads_its_icon_its_element_and_problem_and_a_sentence() {
+    let mut app = a_part_with_two_alerts("each_alert_reads_its_icon_its_element_and_problem");
+    driver::click_the_button(&mut app, "2 alertes");
+    let list = the_list(&app).unwrap_or_else(|| {
+        panic!(
+            "a click on « 2 alertes » opened no list, which leaves no alert to read: {:?}",
+            driver::on_screen(&app),
+        )
+    });
+
+    let read = texts_within(&app, list);
+    let mut wrong = Vec::new();
+    let mut titles = Vec::new();
+    for (title, icon) in [
+        ("Esquisse 2 · face perdue", "warning"),
+        ("Extrusion 1 · aire perdue", "error"),
+    ] {
+        match read.iter().find(|(text, _)| text == title) {
+            Some((_, at)) => titles.push((title, icon, *at)),
+            None => wrong.push(format!("the list reads no « {title} »")),
+        }
+    }
+    for (title, icon, at) in &titles {
+        let next = titles
+            .iter()
+            .map(|(.., other)| other.top())
+            .filter(|top| *top > at.top())
+            .fold(list.bottom(), f32::min);
+        wrong.extend(not_read_as_an_alert(&app, list, (title, *at, next), icon));
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "the list does not read each alert as the redesign draws it:\n  {}\nIt reads {read:?}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn the_open_list_follows_the_part_live() {
+    let mut app = driver::a_block("the_open_list_follows_the_part_live");
+    lay_a_section_on_the_block_s_face(&mut app);
+    empty_the_block_s_sketch(&mut app);
+    driver::right_click(&mut app, "Coupe 1");
+    driver::click_the_button(&mut app, "Supprimer");
+    assert!(
+        !driver::in_the_tree(&app, "Coupe 1") && the_button_reading(&app, "1 alerte").is_some(),
+        "a section laid on the block's face, the block's sketch emptied, then the section \
+         deleted: the part is not left with the one alert of the block's extrusion; the \
+         title bar reads {:?}, the screen shows {:?}",
+        the_title_bar(&app),
+        driver::on_screen(&app),
+    );
+    driver::click_the_button(&mut app, "1 alerte");
+    let before = alerts_listed(&app);
+
+    driver::press_with_command(&mut app, egui::Key::Z);
+
+    let after = alerts_listed(&app);
+    let mut wrong = Vec::new();
+    if !driver::in_the_tree(&app, "Coupe 1") || the_button_reading(&app, "2 alertes").is_none() {
+        wrong.push(format!(
+            "the undo did not bring the section back with its alert, which leaves the list \
+             nothing to follow: the title bar reads {:?}",
+            the_title_bar(&app),
+        ));
+    }
+    match &before {
+        None => wrong.push("a click on « 1 alerte » opened no list".to_owned()),
+        Some(read)
+            if !read.contains(&AREA_LOST.to_owned()) || read.contains(&FACE_LOST.to_owned()) =>
+        {
+            wrong.push(format!(
+                "with the section deleted, the list reads {read:?}, where it should read « \
+                 {AREA_LOST} » alone"
+            ))
+        }
+        Some(_) => {}
+    }
+    match &after {
+        None => wrong.push("the undo closed the list, or took it away".to_owned()),
+        Some(read)
+            if !read.contains(&AREA_LOST.to_owned()) || !read.contains(&FACE_LOST.to_owned()) =>
+        {
+            wrong.push(format!(
+                "the section brought back by the undo, the open list reads {read:?}, without \
+                 « {FACE_LOST} » beside « {AREA_LOST} »"
+            ))
+        }
+        Some(_) => {}
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "the open list does not follow the part:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn the_cross_escape_or_a_click_elsewhere_closes_the_list() {
+    let mut app = a_part_with_two_alerts("the_cross_escape_or_a_click_elsewhere_closes_the_list");
+    let ways: [(&str, Gesture); 3] = [
+        ("« Fermer les alertes »", |app| {
+            driver::click_the_button(app, CLOSE);
+        }),
+        ("Escape", |app| driver::press(app, egui::Key::Escape)),
+        ("a click in the view", |app| {
+            driver::click_at_world_point(app, IN_THE_VIEW);
+        }),
+    ];
+
+    let mut wrong = Vec::new();
+    for (way, close) in ways {
+        driver::click_the_button(&mut app, "2 alertes");
+        let Some(list) = the_list(&app) else {
+            wrong.push(format!(
+                "a click on « 2 alertes » opened no list for {way} to close"
+            ));
+            continue;
+        };
+        if list.contains(driver::world_point_on_screen(&app, IN_THE_VIEW)) {
+            wrong.push(format!(
+                "the click in the view would land in the list, at {list:?}"
+            ));
+        }
+        close(&mut app);
+        if driver::reads(&app, HEADING) {
+            wrong.push(format!("{way} left the list open"));
+        }
+        if the_button_reading(&app, "2 alertes").is_none() {
+            wrong.push(format!(
+                "{way} took the count away, the part's problems still there"
+            ));
+        }
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "the list does not close as the issue asks:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn modify_reopens_the_step_the_alert_is_about_and_closes_the_list() {
+    let mut wrong = Vec::new();
+
+    let mut app = a_part_with_two_alerts("modify_reopens_the_sketch");
+    let open_before = driver::a_sketch_is_open(&app);
+    driver::click_the_button(&mut app, "2 alertes");
+    click_the_alert_s(&mut app, SKETCH_OFF_ITS_FACE, "Modifier");
+    let bar = the_title_bar(&app);
+    if open_before
+        || !driver::a_sketch_is_open(&app)
+        || !bar.iter().any(|read| read == "Esquisse 2")
+    {
+        wrong.push(format!(
+            "« Modifier » on « {SKETCH_OFF_ITS_FACE} » did not reopen « Esquisse 2 », as a \
+             double-click on its row does: a sketch open before {open_before}, after {}, and \
+             the title bar reads {bar:?}",
+            driver::a_sketch_is_open(&app),
+        ));
+    }
+    if driver::reads(&app, HEADING) {
+        wrong.push("the list stands open over the sketch « Modifier » reopened".to_owned());
+    }
+
+    let mut app = a_part_with_a_section_off_its_face("modify_reopens_the_section");
+    let tool_before = the_section_tool_is_open(&app);
+    driver::click_the_button(&mut app, "2 alertes");
+    click_the_alert_s(&mut app, FACE_LOST, "Modifier");
+    let bar = the_title_bar(&app);
+    if tool_before
+        || !the_section_tool_is_open(&app)
+        || !bar.iter().any(|read| read == "Vue en coupe")
+    {
+        wrong.push(format!(
+            "« Modifier » on « {FACE_LOST} » did not reopen the section in its tool, as a \
+             double-click on its row does: the tool open before {tool_before}, after {}, and \
+             the title bar reads {bar:?}",
+            the_section_tool_is_open(&app),
+        ));
+    }
+    if driver::reads(&app, HEADING) {
+        wrong.push("the list stands open over the section « Modifier » reopened".to_owned());
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "« Modifier » does not reopen what its alert is about:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn show_selects_the_sketch_or_the_section_and_leaves_the_list_open() {
+    let mut wrong = Vec::new();
+
+    let mut app = a_part_with_two_alerts("show_selects_the_sketch");
+    let before = the_row_is_selected(&app, "Esquisse 2");
+    driver::click_the_button(&mut app, "2 alertes");
+    click_the_alert_s(&mut app, SKETCH_OFF_ITS_FACE, "Montrer");
+    let after = the_row_is_selected(&app, "Esquisse 2");
+    if before || !after {
+        wrong.push(format!(
+            "« Montrer » on « {SKETCH_OFF_ITS_FACE} » did not select the row of « Esquisse 2 » \
+             in the tree: selected before {before}, after {after}"
+        ));
+    }
+    if driver::a_sketch_is_open(&app) {
+        wrong.push(format!(
+            "« Montrer » on « {SKETCH_OFF_ITS_FACE} » opened the sketch, which is « Modifier »'s \
+             to do"
+        ));
+    }
+    if !driver::reads(&app, HEADING) {
+        wrong.push(format!(
+            "« Montrer » on « {SKETCH_OFF_ITS_FACE} » closed the list"
+        ));
+    }
+
+    let mut app = a_part_with_a_section_off_its_face("show_selects_the_section");
+    let before = the_row_is_selected(&app, "Coupe 1");
+    driver::click_the_button(&mut app, "2 alertes");
+    click_the_alert_s(&mut app, FACE_LOST, "Montrer");
+    let once = the_row_is_selected(&app, "Coupe 1");
+    let still_open = driver::reads(&app, HEADING);
+    if still_open {
+        click_the_alert_s(&mut app, FACE_LOST, "Montrer");
+    }
+    let twice = the_row_is_selected(&app, "Coupe 1");
+    if before || !once || !twice {
+        wrong.push(format!(
+            "« Montrer » on « {FACE_LOST} » did not switch « Coupe 1 » on in the tree, or a second \
+             « Montrer » switched it off: on before {before}, after one {once}, after two {twice}"
+        ));
+    }
+    if the_section_tool_is_open(&app) {
+        wrong.push(format!(
+            "« Montrer » on « {FACE_LOST} » opened the section tool, which is « Modifier »'s to do"
+        ));
+    }
+    if !still_open || !driver::reads(&app, HEADING) {
+        wrong.push(format!("« Montrer » on « {FACE_LOST} » closed the list"));
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "« Montrer » does not select what its alert is about, the list left open:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn show_on_a_volume_s_alert_selects_its_row_and_leaves_the_list_open() {
+    let mut wrong = Vec::new();
+    for (test, laid, volume, alert) in [
+        (
+            "show_on_a_volume_not_built",
+            a_ball_under_a_slanted_circle_raised as fn(&mut PartDocument),
+            "Extrusion 2",
+            "Extrusion 2 · non construite",
+        ),
+        (
+            "show_on_a_volume_built_unstably",
+            a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin,
+            "Révolution 2",
+            "Révolution 2 · instable",
+        ),
+    ] {
+        let mut app = a_part_opened_from(test, laid);
+        assert!(
+            driver::in_the_tree(&app, volume) && the_button_reading(&app, "1 alerte").is_some(),
+            "the part written for {test} does not open on « {volume} » with one alert: the title \
+             bar reads {:?}, the screen shows {:?}",
+            the_title_bar(&app),
+            driver::on_screen(&app),
+        );
+        let before = the_row_is_selected(&app, volume);
+        driver::click_the_button(&mut app, "1 alerte");
+        click_the_alert_s(&mut app, alert, "Montrer");
+        let after = the_row_is_selected(&app, volume);
+        if before || !after {
+            wrong.push(format!(
+                "« Montrer » on « {alert} » did not select the row of « {volume} » in the tree: \
+                 selected before {before}, after {after}"
+            ));
+        }
+        if driver::a_sketch_is_open(&app) {
+            wrong.push(format!("« Montrer » on « {alert} » opened a sketch"));
+        }
+        if !driver::reads(&app, HEADING) {
+            wrong.push(format!("« Montrer » on « {alert} » closed the list"));
+        }
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "« Montrer » does not select the volume its alert is about, the list left open:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn modify_on_an_extrusion_s_alert_reopens_it_with_its_values() {
+    let test = "modify_on_an_extrusion_s_alert_reopens_it_with_its_values";
+    let mut app = a_part_opened_from(test, a_ball_under_a_slanted_circle_raised);
+    let mut as_written = PartDocument::new("Platine", chrono::Utc::now());
+    a_ball_under_a_slanted_circle_raised(&mut as_written);
+    let steps = as_written.history.steps().len();
+    let raised = as_written
+        .history
+        .number_at(THE_SLANTED_CIRCLE)
+        .expect("the circle is raised");
+    assert!(
+        the_button_reading(&app, "1 alerte").is_some(),
+        "the ball under the slanted circle does not open on one alert: {:?}",
+        the_title_bar(&app),
+    );
+
+    driver::open_the_history(&mut app);
+    let lines_before = driver::steps(&app);
+    reopen_the_circle(&mut app);
+    let mut wrong = not_reopened_on_ten_the_other_way(&app);
+    if driver::reads(&app, HEADING) {
+        wrong.push("the list stands open over the extrusion « Modifier » reopened".to_owned());
+    }
+    assert!(
+        wrong.is_empty(),
+        "« Modifier » on « {NOT_BUILT} » does not reopen the extrusion on its values:\n  {}\nThe \
+         screen shows {:?}",
+        wrong.join("\n  "),
+        driver::on_screen(&app),
+    );
+
+    driver::click_the_button(&mut app, "Annuler");
+    if driver::says(&app, "Hauteur :") {
+        wrong.push("« Annuler » left the extrusion panel open".to_owned());
+    }
+    let lines_after = driver::steps(&app);
+    if lines_after != lines_before {
+        wrong.push(format!(
+            "closed with « Annuler », the extrusion moved the history from {lines_before:?} to \
+             {lines_after:?}"
+        ));
+    }
+    if the_button_reading(&app, "1 alerte").is_none() {
+        wrong.push(format!(
+            "closed with « Annuler », the extrusion changed the part all the same: {:?}",
+            the_title_bar(&app),
+        ));
+    }
+    reopen_the_circle(&mut app);
+    driver::click(&mut app, "Sens inverse");
+    driver::click_the_button(&mut app, "Appliquer");
+    let counted: Vec<String> = the_title_bar(&app)
+        .into_iter()
+        .filter(|read| read.contains("alerte"))
+        .collect();
+    if !counted.is_empty() {
+        wrong.push(format!(
+            "turned the other way and applied, the circle still counts {counted:?}"
+        ));
+    }
+    let part = driver::the_part_put_away(&mut app, test, "Platine");
+    if part.history.steps().len() != steps {
+        wrong.push(format!(
+            "the part has {} steps where it was written with {steps}",
+            part.history.steps().len(),
+        ));
+    }
+    if !matches!(
+        part.raised_as(raised),
+        Some(Operation::Extrude { distance, .. }) if *distance == 10.0.into()
+    ) {
+        wrong.push(format!(
+            "the circle's step reads {:?}, not raised 10 the right way",
+            part.raised_as(raised),
+        ));
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "the extrusion reopened from its alert, turned the other way and applied, did not change \
+         its own step:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn an_alert_stays_while_its_problem_holds_and_goes_with_it() {
+    let mut app = a_part_opened_from(
+        "an_alert_stays_while_its_problem_holds",
+        a_ball_under_a_slanted_circle_raised,
+    );
+    let mut wrong = Vec::new();
+    wrong.extend(alerted_as_wanted(&app, "opened", true));
+
+    reopen_the_circle(&mut app);
+    driver::click_the_button(&mut app, "Appliquer");
+    if driver::says(&app, DECLINED) {
+        wrong.push(format!(
+            "applied again as it was, the circle the kernel declines is said in the pill: {:?}",
+            driver::said(&app),
+        ));
+    }
+    wrong.extend(alerted_as_wanted(&app, "applied again as it was", true));
+
+    driver::press_with_command(&mut app, egui::Key::N);
+    assert!(
+        driver::says(&app, "Choisissez un plan d'esquisse"),
+        "a new sketch asked with its shortcut does not ask for a plane, which leaves the pill \
+         nothing else to say: {:?}",
+        driver::said(&app),
+    );
+    wrong.extend(alerted_as_wanted(
+        &app,
+        "the pill saying something else",
+        true,
+    ));
+    driver::press(&mut app, egui::Key::Escape);
+
+    reopen_the_circle(&mut app);
+    driver::click(&mut app, "Sens inverse");
+    driver::click_the_button(&mut app, "Appliquer");
+    wrong.extend(alerted_as_wanted(
+        &app,
+        "turned the other way, built",
+        false,
+    ));
+
+    driver::press_with_command(&mut app, egui::Key::Z);
+    wrong.extend(alerted_as_wanted(&app, "the turn undone", true));
+
+    assert!(
+        wrong.is_empty(),
+        "the circle's alert does not follow its problem rather than the pill:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn an_extrusion_that_changes_nothing_still_says_so_in_the_pill() {
+    let mut app = a_part_opened_from(
+        "an_extrusion_that_changes_nothing_still_says_so",
+        a_ball_under_a_slanted_circle_raised,
+    );
+
+    reopen_the_circle(&mut app);
+    driver::click(&mut app, "Enlèvement de matière");
+    driver::click(&mut app, "Sens inverse");
+    driver::click_the_button(&mut app, "Appliquer");
+
+    let bar = the_topmost_reading(&app, "Accueil");
+    let said: Vec<egui::Rect> = app
+        .query_all_by_role(Role::Label)
+        .filter(|node| {
+            node.accesskit_node()
+                .value()
+                .is_some_and(|said| said.starts_with(NOTHING_REMOVED))
+        })
+        .map(|node| node.rect())
+        .collect();
+    assert!(
+        said.iter().any(|at| bar.y_range().contains(at.center().y)),
+        "the circle turned into a cut up and away from the ball, applied, does not say « \
+         {NOTHING_REMOVED} … » on the title bar's row, at {bar:?}; it is said at {said:?}, the \
+         screen saying {:?}",
+        driver::said(&app),
+    );
+}
+
+#[test]
+fn show_with_the_part_panel_closed_opens_it_on_the_row_selected() {
+    let mut wrong = Vec::new();
+    let sketch = a_part_with_two_alerts("show_with_the_part_panel_closed_on_a_sketch");
+    let volume = a_part_opened_from(
+        "show_with_the_part_panel_closed_on_a_volume",
+        a_ball_under_a_slanted_circle_raised,
+    );
+    for (mut app, count, alert, row) in [
+        (sketch, "2 alertes", SKETCH_OFF_ITS_FACE, "Esquisse 2"),
+        (volume, "1 alerte", NOT_BUILT, "Extrusion 2"),
+    ] {
+        driver::click_the_button(&mut app, "Pièce");
+        assert!(
+            !driver::in_the_tree(&app, row),
+            "« Pièce » clicked, the Part panel still shows « {row} »: {:?}",
+            driver::on_screen(&app),
+        );
+        driver::click_the_button(&mut app, count);
+        click_the_alert_s(&mut app, alert, "Montrer");
+        app.run();
+        if !driver::in_the_tree(&app, row) || !the_row_is_selected(&app, row) {
+            wrong.push(format!(
+                "« Montrer » on « {alert} » with the Part panel closed: the row of « {row} » is \
+                 shown {}, selected {}",
+                driver::in_the_tree(&app, row),
+                the_row_is_selected(&app, row),
+            ));
+        }
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "« Montrer » does not open the Part panel on what it selects:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+/// The start of what a cut that misses the matter says.
+const NOTHING_REMOVED: &str = "Rien enlevé";
+
+/// What is wrong when the title bar does not count « 1 alerte » `when` the
+/// alert is `wanted`, or counts it when it is not.
+fn alerted_as_wanted(app: &driver::App, when: &str, wanted: bool) -> Option<String> {
+    (the_button_reading(app, "1 alerte").is_some() != wanted).then(|| {
+        format!(
+            "{when}, the title bar reads {:?}, the alert {} wanted",
+            the_title_bar(app),
+            if wanted { "is" } else { "is not" },
+        )
+    })
+}
+
+/// The start of what the pill said of an extrusion the kernel declines.
+const DECLINED: &str = "Le noyau exact ne sait pas encore construire";
+
+#[test]
+fn the_panel_reopened_on_a_step_closes_when_the_history_moves() {
+    let mut app = a_part_opened_from(
+        "the_panel_reopened_on_a_step_closes_when_the_history_moves",
+        a_ball_under_a_slanted_circle_raised,
+    );
+    driver::open_the_history(&mut app);
+    reopen_the_circle(&mut app);
+    driver::type_beside(&mut app, "Hauteur :", "12");
+    driver::click_the_button(&mut app, "Appliquer");
+    assert!(
+        the_button_reading(&app, "1 alerte").is_some() && driver::steps(&app).len() >= 2,
+        "the circle changed to 12 down, still declined, does not keep its alert, or the history \
+         shows {:?}",
+        driver::steps(&app),
+    );
+
+    let ways: [(&str, Gesture); 4] = [
+        ("an undo", |app| {
+            driver::press_with_command(app, egui::Key::Z)
+        }),
+        ("a redo", |app| {
+            driver::press_with(
+                app,
+                egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
+                egui::Key::Z,
+            );
+        }),
+        ("going back to a line of the history", |app| {
+            let lines = driver::steps(app);
+            let back_to = lines[lines.len() - 2].clone();
+            press_brought_into_view(app, &back_to);
+        }),
+        ("a compaction", |app| {
+            driver::click_the_button(app, "Compacter l'historique…");
+            driver::click_the_button(app, "Compacter");
+        }),
+    ];
+    let mut wrong = Vec::new();
+    for (way, move_the_history) in ways {
+        reopen_the_circle(&mut app);
+        if !driver::says(&app, "Hauteur :") {
+            wrong.push(format!("the circle's panel did not reopen before {way}"));
+            continue;
+        }
+        move_the_history(&mut app);
+        if driver::says(&app, "Hauteur :") {
+            wrong.push(format!("{way} left the panel reopened on the circle open"));
+        }
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "the panel reopened on a step stays open while the history moves under it:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+/// What the slanted circle's step is alerted for.
+const NOT_BUILT: &str = "Extrusion 2 · non construite";
+
+/// Where the slanted circle is raised in the history of
+/// `a_ball_under_a_slanted_circle_raised`.
+const THE_SLANTED_CIRCLE: usize = 6;
+
+/// « Modifier » on the slanted circle's alert, the list opened for it.
+fn reopen_the_circle(app: &mut driver::App) {
+    driver::click_the_button(app, "1 alerte");
+    click_the_alert_s(app, NOT_BUILT, "Modifier");
+}
+
+/// What keeps the extrusion panel from standing open on the slanted circle's
+/// values: a height of 10, the other way along its plane.
+fn not_reopened_on_ten_the_other_way(app: &driver::App) -> Vec<String> {
+    if !driver::says(app, "Hauteur :") {
+        return vec!["no extrusion panel asks for a « Hauteur : »".to_owned()];
+    }
+    let mut wrong = Vec::new();
+    let height = driver::field_beside(app, "Hauteur :");
+    if height != "10" {
+        wrong.push(format!("its height reads « {height} », not « 10 »"));
+    }
+    if !driver::is_on(app, "Sens inverse") {
+        wrong.push("« Sens inverse » is not ticked, where the circle goes down".to_owned());
+    }
+    wrong
+}
+
+/// The part `laid` makes, written over the file of a part named « Platine »
+/// the application made itself, then opened from the home screen: a way to
+/// open on a volume the kernel declines, which no gesture makes cheaply.
+fn a_part_opened_from(test: &str, laid: fn(&mut PartDocument)) -> driver::App {
+    let mut app = driver::open(test);
+    driver::create_a_part(&mut app, "Platine");
+    driver::click(&mut app, "Accueil");
+    let mut document = PartDocument::new("Platine", chrono::Utc::now());
+    laid(&mut document);
+    let file = driver::the_part_s_file(test, "Platine");
+    document
+        .save(
+            &cao_app::adapters::files::DiskFiles,
+            &file,
+            chrono::Utc::now(),
+        )
+        .unwrap_or_else(|err| panic!("the part is not written at {file:?}: {err:?}"));
+    app.query_all_by_label("Platine")
+        .last()
+        .expect("the home screen lists « Platine »")
+        .click();
+    app.run();
+    driver::hold_the_canvas(&mut app);
+    app
+}
+
+/// A ball of radius 4 about (5, 10, 0), turned whole from a half disc, then a
+/// circle of radius 2 on a plane tilted 30° about X, through (5, 10, 6),
+/// raised 10 down across the ball's sphere off its centre: the kernel
+/// declines it, and the circle's step is « Extrusion 2 · non construite ».
+fn a_ball_under_a_slanted_circle_raised(document: &mut PartDocument) {
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: DVec3::new(5.0, 10.0, 0.0),
+            u: DVec3::X,
+            v: DVec3::Z,
+        },
+        on: None,
+    });
+    let first = document.sketches()[0].points().len();
+    document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::ZERO),
+        start: PointRef::New(DVec2::new(0.0, -4.0)),
+        end: PointRef::New(DVec2::new(0.0, 4.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(PointId(first + 2)),
+        end: PointRef::Existing(PointId(first + 1)),
+        construction: false,
+    });
+    document.apply(Operation::Revolve {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(1.0, 0.0)]),
+        axis: RevolutionAxis::Sketch(SketchAxis::V),
+        angle: 360.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    let (sin, cos) = (std::f64::consts::PI / 6.0).sin_cos();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: DVec3::new(5.0, 10.0, 6.0),
+            u: DVec3::X,
+            v: DVec3::new(0.0, cos, sin),
+        },
+        on: None,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 1,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 2.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 1,
+        areas: document.areas_at(1, &[DVec2::ZERO]),
+        distance: (-10.0).into(),
+        mode: ExtrusionMode::Add,
+    });
+}
+
+/// A shaft Ø20 raised 30 on XY, and a slice of it turned a hundredth of a
+/// degree about X cut out: the kernel builds the slice though it reads it
+/// unstably, and its step is « Révolution 2 · instable ».
+fn a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin(document: &mut PartDocument) {
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 10.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::ZERO]),
+        distance: 30.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XZ,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 1,
+        corner: PointRef::New(DVec2::new(-20.0, 0.0)),
+        opposite: PointRef::New(DVec2::new(20.0, 40.0)),
+        construction: false,
+    });
+    document.apply(Operation::Revolve {
+        sketch: 1,
+        areas: document.areas_at(1, &[DVec2::new(0.0, 20.0)]),
+        axis: RevolutionAxis::Sketch(SketchAxis::U),
+        angle: 0.01.into(),
+        mode: ExtrusionMode::Cut,
+    });
+}
+
+/// Whether the row of the tree that reads exactly this stands selected: the
+/// sketch open, the section switched on.
+fn the_row_is_selected(app: &driver::App, name: &str) -> bool {
+    driver::the_row(app, name)
+        .is_some_and(|row| row.accesskit_node().toggled() == Some(egui::accesskit::Toggled::True))
+}
+
+/// What the sketch laid on the block's face is alerted for, once the block's
+/// sketch is emptied.
+const SKETCH_OFF_ITS_FACE: &str = "Esquisse 2 · face perdue";
+
+/// A block whose sketch was emptied once a section was laid on its face: the
+/// title bar counts « 2 alertes », the block's extrusion having lost its area
+/// and « Coupe 1 » its face.
+fn a_part_with_a_section_off_its_face(test: &str) -> driver::App {
+    let mut app = driver::a_block(test);
+    lay_a_section_on_the_block_s_face(&mut app);
+    empty_the_block_s_sketch(&mut app);
+    assert!(
+        driver::in_the_tree(&app, "Coupe 1") && the_button_reading(&app, "2 alertes").is_some(),
+        "the block's sketch emptied under a section on its face, the tree holds no « Coupe 1 » \
+         or the title bar does not count « 2 alertes »: {:?}",
+        the_title_bar(&app),
+    );
+    app
+}
+
+/// Clicks the button named `action` of the alert titled `title`, in the open
+/// list: the first of that name under its title.
+fn click_the_alert_s(app: &mut driver::App, title: &str, action: &str) {
+    let at = the_alert_s_button(app, title, action).unwrap_or_else(|| {
+        panic!(
+            "the open list offers no « {action} » under « {title} »; the screen shows {:?}",
+            driver::on_screen(app),
+        )
+    });
+    driver::click_at(app, at.center());
+}
+
+fn the_alert_s_button(app: &driver::App, title: &str, action: &str) -> Option<egui::Rect> {
+    let list = the_list(app)?;
+    let (_, at) = texts_within(app, list)
+        .into_iter()
+        .find(|(text, _)| text == title)?;
+    app.query_all_by_label(action)
+        .filter(|node| node.accesskit_node().role() == Role::Button)
+        .map(|node| node.rect())
+        .filter(|button| {
+            list.contains(button.center()) && button.top() >= at.bottom() - HUGGED_WITHIN
+        })
+        .min_by(|one, other| one.top().total_cmp(&other.top()))
+}
+
+/// Whether the section tool is open: its « Inverser » is its own.
+fn the_section_tool_is_open(app: &driver::App) -> bool {
+    driver::a_button_reads(app, "Inverser")
+}
+
+#[test]
+fn a_badge_and_an_alert_of_one_level_wear_the_same_colours() {
+    let mut wrong = Vec::new();
+    let tokens_worn = (
+        (tokens::STATE_WARNING_TEXT, tokens::STATE_WARNING_BACKGROUND),
+        (tokens::STATE_ERROR_TEXT, tokens::STATE_ERROR_BACKGROUND),
+    );
+    let chosen_worn = (
+        worn_at_the_token_s_opacity(CHOSEN_WARNING, tokens::STATE_WARNING_BACKGROUND),
+        worn_at_the_token_s_opacity(CHOSEN_ERROR, tokens::STATE_ERROR_BACKGROUND),
+    );
+    for (test, settings, (warning, error)) in [
+        (
+            "a_badge_and_an_alert_wear_the_same_colours_by_default",
+            cao_prefs::Settings::default(),
+            tokens_worn,
+        ),
+        (
+            "a_badge_and_an_alert_wear_the_same_colours_chosen",
+            with_the_level_colours(CHOSEN_WARNING, CHOSEN_ERROR),
+            chosen_worn,
+        ),
+    ] {
+        let mut app = a_part_with_two_alerts_with(test, settings);
+        driver::click_the_button(&mut app, "2 alertes");
+        for (what, wanted, worn) in [
+            (
+                "the badge « face perdue »",
+                warning,
+                ink_and_patch(&app, "face perdue"),
+            ),
+            (
+                "the badge « aire perdue »",
+                error,
+                ink_and_patch(&app, "aire perdue"),
+            ),
+            (
+                "the count « 2 alertes »",
+                error,
+                ink_and_patch(&app, "2 alertes"),
+            ),
+        ] {
+            if worn != Some(wanted) {
+                wrong.push(format!(
+                    "{test}: {what} wears (ink, patch) {worn:?}, where its level wears {wanted:?}"
+                ));
+            }
+        }
+        for (title, wanted) in [(SKETCH_OFF_ITS_FACE, warning.0), (AREA_LOST, error.0)] {
+            let tints = icon_tints_beside(&app, title);
+            if tints.is_empty() || tints.iter().any(|tint| *tint != wanted) {
+                wrong.push(format!(
+                    "{test}: the icon beside « {title} » is tinted {tints:?}, where its level's \
+                     ink is {wanted:?}"
+                ));
+            }
+        }
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "a badge, the count and an alert of one level do not wear that level's colours, the \
+         tokens by default and the ones chosen otherwise:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn the_alert_colours_are_set_and_reset_in_preferences_appearance() {
+    let test = "the_alert_colours_are_set_and_reset_in_preferences_appearance";
+    let chosen = with_the_level_colours(CHOSEN_WARNING, CHOSEN_ERROR);
+    let chosen_written = serde_json::to_value(&chosen.theme).expect("a theme writes out");
+    let mut app = a_part_with_two_alerts_with(test, chosen);
+    let held =
+        serde_json::to_value(driver::saved_settings(test).theme).expect("a theme writes out");
+    let mut wrong = Vec::new();
+    for level in ["warning", "error"] {
+        if held.get(level) != chosen_written.get(level) {
+            wrong.push(format!(
+                "the profile holds {:?} for the {level}, where {:?} was chosen",
+                held.get(level),
+                chosen_written.get(level),
+            ));
+        }
+    }
+    driver::click_exactly(&mut app, "Préférences");
+    driver::click(&mut app, "Apparence");
+    let (warning, error) = (
+        worn_at_the_token_s_opacity(CHOSEN_WARNING, tokens::STATE_WARNING_BACKGROUND).0,
+        worn_at_the_token_s_opacity(CHOSEN_ERROR, tokens::STATE_ERROR_BACKGROUND).0,
+    );
+    for (row, wanted) in [(WARNING_ROW, warning), (ERROR_ROW, error)] {
+        wrong.extend(not_shown_in(&mut app, row, wanted));
+    }
+    assert!(
+        wrong.is_empty(),
+        "Préférences › Apparence does not hold the colours chosen for the two levels:\n  {}",
+        wrong.join("\n  "),
+    );
+
+    press_brought_into_view(&mut app, "↺ Couleurs par défaut");
+
+    let reset =
+        serde_json::to_value(driver::saved_settings(test).theme).expect("a theme writes out");
+    let default = serde_json::to_value(cao_prefs::Theme::default()).expect("a theme writes out");
+    for level in ["warning", "error"] {
+        if reset.get(level) != default.get(level) {
+            wrong.push(format!(
+                "reset, the profile holds {:?} for the {level}, where the default is {:?}",
+                reset.get(level),
+                default.get(level),
+            ));
+        }
+    }
+    for (row, wanted) in [
+        (WARNING_ROW, tokens::STATE_WARNING_TEXT),
+        (ERROR_ROW, tokens::STATE_ERROR_TEXT),
+    ] {
+        wrong.extend(not_shown_in(&mut app, row, wanted));
+    }
+    driver::click_exactly(&mut app, "Close window");
+    let face_lost = ink_and_patch(&app, "face perdue");
+    if face_lost != Some((tokens::STATE_WARNING_TEXT, tokens::STATE_WARNING_BACKGROUND)) {
+        wrong.push(format!(
+            "reset, the badge « face perdue » wears {face_lost:?}, not the warning's tokens"
+        ));
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "the reset of Préférences › Apparence does not put the two levels' colours back:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+/// What the rows of Préférences › Apparence that colour the two levels read.
+const WARNING_ROW: &str = "Avertissement";
+const ERROR_ROW: &str = "Erreur";
+
+/// What keeps the row of Préférences › Apparence reading `row` from showing
+/// `wanted` in the colour button on its left.
+fn not_shown_in(app: &mut driver::App, row: &str, wanted: egui::Color32) -> Option<String> {
+    let Some(label) = app.query_all_by_label(row).next() else {
+        return Some(format!("no row reads « {row} »"));
+    };
+    label.scroll_to_me();
+    app.run();
+    let label = app.query_all_by_label(row).next()?.rect();
+    let well = app
+        .query_all_by(|node| node.role() == Role::ColorWell)
+        .filter(|node| node.accesskit_node().bounding_box().is_some())
+        .map(|node| node.rect())
+        .find(|well| {
+            well.y_range().contains(label.center().y) && well.right() <= label.left() + 1.0
+        });
+    let Some(well) = well else {
+        return Some(format!("« {row} » has no colour button on its left"));
+    };
+    let shown: Vec<egui::Color32> = shapes_painted(app)
+        .into_iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Rect(rect)
+                if rect.fill_texture_id() == egui::TextureId::default()
+                    && well.expand(1.0).contains_rect(rect.rect) =>
+            {
+                Some(rect.fill)
+            }
+            _ => None,
+        })
+        .collect();
+    (!shown.contains(&wanted)).then(|| {
+        format!("« {row} » shows {shown:?} in its colour button, where it holds {wanted:?}")
+    })
+}
+
+/// Clicks the button reading `label`, brought into view first: the page of
+/// Préférences and the history both scroll, and a click aimed at a point of
+/// a list half scrolled away lands on what stands over it.
+fn press_brought_into_view(app: &mut driver::App, label: &str) {
+    let Some(button) = app.query_all_by_label(label).next() else {
+        panic!(
+            "no « {label} » in the preferences: {:?}",
+            driver::on_screen(app)
+        );
+    };
+    button.scroll_to_me();
+    app.run();
+    if let Some(button) = app.query_all_by_label(label).next() {
+        button.click_accesskit();
+    }
+    app.run();
+}
+
+/// The colours chosen for the warning and the error, far from the tokens.
+const CHOSEN_WARNING: [u8; 3] = [0x33, 0x99, 0xE6];
+const CHOSEN_ERROR: [u8; 3] = [0xE6, 0x33, 0x99];
+
+/// What a level chosen to be seen in `colour` wears, as (ink, patch): the
+/// colour itself, and under it the colour at the opacity of the token whose
+/// patch it replaces.
+fn worn_at_the_token_s_opacity(
+    colour: [u8; 3],
+    patch: egui::Color32,
+) -> (egui::Color32, egui::Color32) {
+    let [r, g, b] = colour;
+    (
+        egui::Color32::from_rgb(r, g, b),
+        egui::Color32::from_rgba_unmultiplied(r, g, b, patch.a()),
+    )
+}
+
+/// Default settings with the warning and the error chosen in these colours,
+/// written into the theme as a saved profile carries them.
+fn with_the_level_colours(warning: [u8; 3], error: [u8; 3]) -> cao_prefs::Settings {
+    let mut written =
+        serde_json::to_value(cao_prefs::Settings::default()).expect("settings write out");
+    let theme = written["theme"]
+        .as_object_mut()
+        .expect("the settings hold a theme");
+    for (level, [r, g, b]) in [("warning", warning), ("error", error)] {
+        let byte = |channel: u8| f32::from(channel) / 255.0;
+        let colour = cao_prefs::Rgba::opaque(byte(r), byte(g), byte(b));
+        theme.insert(
+            level.to_owned(),
+            serde_json::to_value(colour).expect("a colour writes out"),
+        );
+    }
+    serde_json::from_value(written).expect("the settings read back")
+}
+
+/// The colour a text reading exactly this is painted in, and the fill of the
+/// least patch painted under it, when it is painted once.
+fn ink_and_patch(app: &driver::App, text: &str) -> Option<(egui::Color32, egui::Color32)> {
+    let shapes = shapes_painted(app);
+    let written: Vec<&egui::epaint::TextShape> = shapes
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Text(written) if written.galley.text() == text => Some(written),
+            _ => None,
+        })
+        .collect();
+    let [written] = written.as_slice() else {
+        return None;
+    };
+    let at = written.visual_bounding_rect();
+    let ink = colours_written_in(app, text).first().copied()?;
+    let patch = shapes
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Rect(rect)
+                if rect.fill.a() > 0
+                    && rect.fill_texture_id() == egui::TextureId::default()
+                    && rect.rect.expand(HUGGED_WITHIN).contains_rect(at) =>
+            {
+                Some((rect.rect.area(), rect.fill))
+            }
+            _ => None,
+        })
+        .min_by(|one, other| one.0.total_cmp(&other.0))
+        .map(|(_, fill)| fill)?;
+    Some((ink, patch))
+}
+
+/// The tint of every icon painted on the left of the alert titled `title`, in
+/// the open list.
+fn icon_tints_beside(app: &driver::App, title: &str) -> Vec<egui::Color32> {
+    let Some(list) = the_list(app) else {
+        return Vec::new();
+    };
+    let Some((_, at)) = texts_within(app, list)
+        .into_iter()
+        .find(|(text, _)| text == title)
+    else {
+        return Vec::new();
+    };
+    let beside = egui::Rect::from_x_y_ranges(
+        list.left()..=at.left(),
+        (at.top() - ICON_SLACK)..=(at.bottom() + ICON_SLACK),
+    )
+    .expand(1.0);
+    shapes_painted(app)
+        .into_iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Rect(rect)
+                if rect.fill_texture_id() != egui::TextureId::default()
+                    && beside.contains_rect(rect.rect) =>
+            {
+                Some(rect.fill)
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// What a hand does to the application.
+type Gesture = fn(&mut driver::App);
+
+/// Where the view is clicked away from the list: the origin, nothing standing
+/// there once the block's sketch is emptied.
+const IN_THE_VIEW: DVec3 = DVec3::ZERO;
+
+/// What the block's extrusion and the section on its face are alerted for,
+/// once the block's sketch is emptied.
+const AREA_LOST: &str = "Extrusion 1 · aire perdue";
+const FACE_LOST: &str = "Coupe 1 · face perdue";
+
+/// Every name and every text the open list reads, nothing while it is shut.
+fn alerts_listed(app: &driver::App) -> Option<Vec<String>> {
+    let list = the_list(app)?;
+    Some(
+        texts_within(app, list)
+            .into_iter()
+            .map(|(text, _)| text)
+            .collect(),
+    )
+}
+
+/// « Coupe 1 », laid on the block's face with the section tool and kept, the
+/// tool then closed.
+fn lay_a_section_on_the_block_s_face(app: &mut driver::App) {
+    driver::click_in_the_bar(app, "Vue en coupe");
+    driver::click(app, "Face cliquée");
+    driver::click_at_world_point(app, ON_THE_BLOCK_S_FACE);
+    driver::click_the_button(app, "Enregistrer la coupe");
+    if driver::a_button_reads(app, "Inverser") {
+        driver::click_the_button(app, "Fermer");
+    }
+}
+
+/// What keeps the alert titled `title`, standing at `at` in the list and
+/// running down to `next`, from wearing `icon` on its left, then saying a
+/// sentence under its title, then offering « Montrer » and « Modifier ».
+fn not_read_as_an_alert(
+    app: &driver::App,
+    list: egui::Rect,
+    (title, at, next): (&str, egui::Rect, f32),
+    icon: &str,
+) -> Vec<String> {
+    let mut wrong = Vec::new();
+    let beside = egui::Rect::from_x_y_ranges(
+        list.left()..=at.left(),
+        (at.top() - ICON_SLACK)..=(at.bottom() + ICON_SLACK),
+    );
+    let worn = icons_painted_within(app, beside);
+    if !worn.iter().any(|id| id == icon) {
+        wrong.push(format!(
+            "« {title} » wears {worn:?} on its left, not the `{icon}` icon"
+        ));
+    }
+    let under = (at.bottom() - HUGGED_WITHIN)..=next;
+    let mut actions_top = next;
+    for action in ["Montrer", "Modifier"] {
+        let offered: Vec<egui::Rect> = app
+            .query_all_by_label(action)
+            .filter(|node| node.accesskit_node().role() == Role::Button)
+            .map(|node| node.rect())
+            .filter(|button| {
+                list.x_range().contains(button.center().x) && under.contains(&button.center().y)
+            })
+            .collect();
+        match offered.as_slice() {
+            [button] => actions_top = actions_top.min(button.top()),
+            _ => wrong.push(format!(
+                "« {title} » offers {} « {action} » under it, at {offered:?}, before the next \
+                 alert at {next}",
+                offered.len(),
+            )),
+        }
+    }
+    let said: Vec<String> = texts_within(app, list)
+        .into_iter()
+        .filter(|(text, place)| {
+            text != title
+                && place.top() >= at.bottom() - HUGGED_WITHIN
+                && place.bottom() <= actions_top + HUGGED_WITHIN
+        })
+        .map(|(text, _)| text)
+        .collect();
+    if said.is_empty() {
+        wrong.push(format!(
+            "« {title} » says no sentence between its title and its actions"
+        ));
+    }
+    wrong
+}
+
+/// How far above or below its title an alert's icon may reach, in points: the
+/// icon stands higher than the text beside it.
+const ICON_SLACK: f32 = 6.0;
+
+/// Every name and every text whose middle stands inside `within`, with where it
+/// stands.
+fn texts_within(app: &driver::App, within: egui::Rect) -> Vec<(String, egui::Rect)> {
+    app.get_all_by(|_| true)
+        .filter_map(|node| {
+            let read = node.accesskit_node();
+            read.bounding_box()?;
+            if read.role() == Role::TextRun {
+                return None;
+            }
+            let said = read
+                .label()
+                .or_else(|| read.value())
+                .filter(|said| !said.trim().is_empty())?;
+            let at = node.rect();
+            within.contains(at.center()).then_some((said, at))
+        })
+        .collect()
+}
+
+/// What keeps the list at `list` from standing 340 points wide just under the
+/// count, its right edge on the count's, its heading on its first row with the
+/// button that closes it on the right.
+fn not_340_wide_under_the_count(app: &driver::App, list: egui::Rect) -> Vec<String> {
+    let mut wrong = Vec::new();
+    if (list.width() - LIST_WIDTH).abs() > PLACED_WITHIN {
+        wrong.push(format!(
+            "the list at {list:?} is {} points wide, where the redesign draws it \
+             {LIST_WIDTH}",
+            list.width(),
+        ));
+    }
+    let Some(count) = the_button_reading(app, "2 alertes") else {
+        wrong.push("the count is gone once the list is open".to_owned());
+        return wrong;
+    };
+    let gap = list.top() - count.bottom();
+    if !(-HUGGED_WITHIN..=UNDER_WITHIN).contains(&gap) {
+        wrong.push(format!(
+            "the list's top at {} does not stand just under the count, whose bottom is at {}",
+            list.top(),
+            count.bottom(),
+        ));
+    }
+    if (list.right() - count.right()).abs() > PLACED_WITHIN {
+        wrong.push(format!(
+            "the list's right edge at {} is not the count's, at {}",
+            list.right(),
+            count.right(),
+        ));
+    }
+    let heading = the_topmost_reading(app, HEADING);
+    if let Some(close) = the_button_reading(app, CLOSE)
+        && (!heading.y_range().contains(close.center().y) || close.left() < heading.right())
+    {
+        wrong.push(format!(
+            "« {CLOSE} » at {close:?} does not stand right of the heading at {heading:?}, on \
+             its row"
+        ));
+    }
+    wrong
+}
+
+/// What the list of alerts is headed, and what the button that closes it is
+/// named: `docs/redesign/source/part.html`.
+const HEADING: &str = "Alertes de la pièce";
+const CLOSE: &str = "Fermer les alertes";
+
+/// How wide the list stands, in points: P2 of `docs/redesign/part-screen.md`.
+const LIST_WIDTH: f32 = 340.0;
+
+/// How far a size or an edge may be from where it is drawn, in points.
+const PLACED_WITHIN: f32 = 1.0;
+
+/// How far under the count the list may start, in points.
+const UNDER_WITHIN: f32 = 12.0;
+
+/// A block whose sketch was emptied once a sketch was laid on its face: the
+/// title bar counts « 2 alertes », the block's extrusion having lost its area
+/// and the sketch its face.
+fn a_part_with_two_alerts(test: &str) -> driver::App {
+    a_part_with_two_alerts_with(test, cao_prefs::Settings::default())
+}
+
+/// `a_part_with_two_alerts`, in an application opened on these settings.
+fn a_part_with_two_alerts_with(test: &str, settings: cao_prefs::Settings) -> driver::App {
+    let mut app = driver::a_block_with(test, settings);
+    lay_a_sketch_on_the_block_s_face(&mut app);
+    empty_the_block_s_sketch(&mut app);
+    assert!(
+        the_button_reading(&app, "2 alertes").is_some(),
+        "the block's sketch emptied under a sketch on its face, the title bar does not count \
+         « 2 alertes », which leaves no list to open: {:?}",
+        the_title_bar(&app),
+    );
+    app
+}
+
+/// The frame of the list of alerts while it is open: the least rectangle
+/// painted with a fill around its heading and the button that closes it.
+fn the_list(app: &driver::App) -> Option<egui::Rect> {
+    let heading = driver::where_it_reads(app, HEADING)?;
+    let close = the_button_reading(app, CLOSE)?;
+    let both = heading.union(close);
+    shapes_painted(app)
+        .into_iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Rect(rect)
+                if rect.fill.a() > 0 && rect.rect.expand(HUGGED_WITHIN).contains_rect(both) =>
+            {
+                Some(rect.rect)
+            }
+            _ => None,
+        })
+        .min_by(|one, other| one.area().total_cmp(&other.area()))
+}
+
+/// What keeps the count at `count` from standing at the right end of the title
+/// bar, wearing the warning triangle, written in `state.error_text` on
+/// `state.error_background`.
+fn not_on_the_right_in_red(app: &driver::App, count: egui::Rect) -> Vec<String> {
+    let mut wrong = Vec::new();
+    let home = the_topmost_reading(app, "Accueil");
+    if !home.y_range().contains(count.center().y) {
+        wrong.push(format!(
+            "the count at {count:?} is not on the title bar's row, « Accueil » at {home:?}"
+        ));
+    }
+    let window = app.ctx.content_rect();
+    if count.left() < window.center().x || window.right() - count.right() > AT_THE_RIGHT_EDGE {
+        wrong.push(format!(
+            "the count stands at {count:?}, not at the right end of a window {window:?}"
+        ));
+    }
+    let worn = icons_painted_within(app, count);
+    if !worn.iter().any(|icon| icon == "warning") {
+        wrong.push(format!(
+            "the count at {count:?} wears {worn:?}, not the `warning` triangle"
+        ));
+    }
+    let ink = colours_written_in(app, "2 alertes");
+    if ink.is_empty() || ink.iter().any(|colour| *colour != tokens::STATE_ERROR_TEXT) {
+        wrong.push(format!(
+            "« 2 alertes » is written in {ink:?}, where `state.error_text` is {:?}",
+            tokens::STATE_ERROR_TEXT,
+        ));
+    }
+    let filled = fills_around(app, count);
+    if !filled.contains(&tokens::STATE_ERROR_BACKGROUND) {
+        wrong.push(format!(
+            "the count at {count:?} stands on {filled:?}, where `state.error_background` \
+             is {:?}",
+            tokens::STATE_ERROR_BACKGROUND,
+        ));
+    }
+    wrong
+}
+
+/// How far from the window's right edge the count may end, in points: the
+/// title bar's margin, and some.
+const AT_THE_RIGHT_EDGE: f32 = 32.0;
+
+/// How far a frame may sit inside the widget it is drawn around, in points:
+/// the rect the tree gives a widget and the frame painted around it are
+/// rounded apart.
+const HUGGED_WITHIN: f32 = 0.5;
+
+/// On the face of the block at x = 10, the one `keeping_a_section.rs` clicks
+/// to lay a section there.
+const ON_THE_BLOCK_S_FACE: DVec3 = DVec3::new(10.0, 41.51, -19.82);
+
+/// A point of the block's sketch away from what is drawn on it, where the hand
+/// rests while the selection is deleted.
+const AWAY_FROM_THE_BLOCK_S_TRAITS: DVec2 = DVec2::new(173.9, -56.77);
+
+/// « Esquisse 2 », laid on the block's face, and finished.
+fn lay_a_sketch_on_the_block_s_face(app: &mut driver::App) {
+    driver::click(app, "Nouvelle esquisse");
+    driver::click_at_world_point(app, ON_THE_BLOCK_S_FACE);
+    driver::finish_the_sketch(app);
+}
+
+/// Everything drawn on « Esquisse 1 », the block's sketch, deleted, and the
+/// sketch finished: the block's extrusion loses its area, and the sketch on
+/// its face loses the face.
+fn empty_the_block_s_sketch(app: &mut driver::App) {
+    driver::double_click(app, "Esquisse 1");
+    driver::click(app, "Sélection (S)");
+    driver::press_with_command(app, egui::Key::A);
+    app.hover_at(driver::sketch_point_on_screen(
+        app,
+        AWAY_FROM_THE_BLOCK_S_TRAITS,
+    ));
+    app.run();
+    driver::press(app, egui::Key::Delete);
+    driver::finish_the_sketch(app);
+}
+
+/// Where the button named exactly this stands.
+fn the_button_reading(app: &driver::App, name: &str) -> Option<egui::Rect> {
+    app.query_all_by_label(name)
+        .find(|node| node.accesskit_node().role() == Role::Button)
+        .map(|node| node.rect())
+}
+
+/// What the title bar reads, left to right: the row of « Accueil ».
+fn the_title_bar(app: &driver::App) -> Vec<String> {
+    the_row_of(app, the_topmost_reading(app, "Accueil"))
+}
+
+/// Every name and every text whose middle stands within the height of `on`,
+/// left to right.
+fn the_row_of(app: &driver::App, on: egui::Rect) -> Vec<String> {
+    let mut read: Vec<(f32, String)> = app
+        .get_all_by(|_| true)
+        .filter_map(|node| {
+            let read = node.accesskit_node();
+            read.bounding_box()?;
+            if read.role() == Role::TextRun {
+                return None;
+            }
+            let said = read
+                .label()
+                .or_else(|| read.value())
+                .filter(|said| !said.is_empty())?;
+            let at = node.rect();
+            on.y_range()
+                .contains(at.center().y)
+                .then_some((at.left(), said))
+        })
+        .collect();
+    read.sort_by(|one, other| one.0.total_cmp(&other.0));
+    read.into_iter().map(|(_, said)| said).collect()
+}
+
+/// The highest widget on screen named or reading exactly this.
+fn the_topmost_reading(app: &driver::App, text: &str) -> egui::Rect {
+    app.query_all_by(|node| {
+        node.label().as_deref() == Some(text) || node.value().as_deref() == Some(text)
+    })
+    .map(|node| node.rect())
+    .min_by(|one, other| one.top().total_cmp(&other.top()))
+    .unwrap_or_else(|| {
+        panic!(
+            "nothing on screen reads « {text} »: {:?}",
+            driver::on_screen(app)
+        )
+    })
+}
+
+/// Every shape the last frame painted, groups opened.
+fn shapes_painted(app: &driver::App) -> Vec<egui::Shape> {
+    let mut found = Vec::new();
+    let mut pending: Vec<&egui::Shape> = app
+        .output()
+        .shapes
+        .iter()
+        .map(|clipped| &clipped.shape)
+        .collect();
+    while let Some(shape) = pending.pop() {
+        match shape {
+            egui::Shape::Vec(group) => pending.extend(group),
+            shape => found.push(shape.clone()),
+        }
+    }
+    found
+}
+
+/// Every colour a text reading exactly this is painted in.
+fn colours_written_in(app: &driver::App, text: &str) -> Vec<egui::Color32> {
+    let mut found = Vec::new();
+    for shape in shapes_painted(app) {
+        let egui::Shape::Text(written) = shape else {
+            continue;
+        };
+        if written.galley.text() != text {
+            continue;
+        }
+        for section in &written.galley.job.sections {
+            found.push(match written.override_text_color {
+                Some(colour) => colour,
+                None if section.format.color == egui::Color32::PLACEHOLDER => {
+                    written.fallback_color
+                }
+                None => section.format.color,
+            });
+        }
+    }
+    found
+}
+
+/// The fill of every rectangle the last frame painted around this one.
+fn fills_around(app: &driver::App, within: egui::Rect) -> Vec<egui::Color32> {
+    shapes_painted(app)
+        .into_iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Rect(rect)
+                if rect.fill.a() > 0 && rect.rect.expand(HUGGED_WITHIN).contains_rect(within) =>
+            {
+                Some(rect.fill)
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// The ids of the icons the last frame painted inside a rectangle of the
+/// screen, by the file each was loaded from — `bytes://icon/warning.svg` is
+/// `warning`.
+fn icons_painted_within(app: &driver::App, within: egui::Rect) -> Vec<String> {
+    let within = within.expand(1.0);
+    let textures = app.ctx.tex_manager();
+    let textures = textures.read();
+    shapes_painted(app)
+        .into_iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Rect(rect)
+                if rect.fill_texture_id() != egui::TextureId::default()
+                    && within.contains_rect(rect.rect) =>
+            {
+                let loaded_as = textures
+                    .meta(rect.fill_texture_id())
+                    .map(|meta| meta.name.clone())
+                    .unwrap_or_default();
+                let file = loaded_as.rsplit('/').next().unwrap_or(&loaded_as);
+                Some(file.strip_suffix(".svg").unwrap_or(file).to_owned())
+            }
+            _ => None,
+        })
+        .collect()
+}

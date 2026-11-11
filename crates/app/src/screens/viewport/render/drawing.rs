@@ -136,10 +136,14 @@ impl Seen {
             active,
         } = *shown;
         tint_regions(surfaces, sketch, theme, active, seen);
-        // A trait lit from the tree is drawn in a colour of its own; in a sketch
-        // whose eye is out, it is drawn alone.
+        // A trait lit from the tree is drawn in a colour of its own, as is every
+        // trait of a sketch marked; in a sketch whose eye is out, it is drawn
+        // alone.
         let lit = |element| {
-            seen.lights(|row| matches!(row, Points::Element { element: lit, .. } if lit == element))
+            seen.marked
+                || seen.lights(
+                    |row| matches!(row, Points::Element { element: lit, .. } if lit == element),
+                )
         };
         let marked = |element: Element, color, width| {
             if lit(element) {

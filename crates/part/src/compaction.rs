@@ -31,7 +31,7 @@ mod verbatim;
 /// to.
 pub fn compact(history: &History) -> History {
     let old_state = PartState::rebuild(history);
-    let operations = history.applied_operations();
+    let operations = &history.applied_as_raised();
     let mut new_history = history.following();
     let mut new_state = PartState::default();
     let mut sketch_maps: Vec<SketchIdMap> = Vec::new();

@@ -10,6 +10,7 @@ pub mod settings;
 pub mod sketch;
 pub mod sketch_pill;
 pub mod start_menu;
+mod theme_colours;
 pub mod title_bar;
 pub mod variables;
 pub mod view_bar;
@@ -36,8 +37,9 @@ pub struct OpenPart {
     pub extrusion: ExtrusionState,
     pub ribbon: Ribbon,
     pub variables: variables::VariablesPanel,
-    /// The error the title bar's pill holds over the message, if one does.
-    pub covering: Option<title_bar::Covering>,
+    /// The error the title bar's pill holds over the message, if one does, and
+    /// whether the list of alerts is open.
+    pub title_bar: title_bar::Held,
 }
 
 /// The part being worked on, borrowed for one gesture or one command: what the

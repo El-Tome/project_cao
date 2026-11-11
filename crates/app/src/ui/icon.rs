@@ -92,6 +92,7 @@ embedded! {
     CIRCLE_TWO_POINTS = "circle-two-points";
     CIRCLE_TWO_TANGENTS = "circle-two-tangents";
     CIRCULAR_PATTERN = "circular-pattern";
+    CLOSE = "close";
     COINCIDENT = "coincident";
     COLLINEAR = "collinear";
     COMPACT_HISTORY = "compact-history";
@@ -107,6 +108,7 @@ embedded! {
     ELLIPSE_BY_CENTRE = "ellipse-by-centre";
     ELLIPSE_BY_ENDS = "ellipse-by-ends";
     EQUAL = "equal";
+    ERROR = "error";
     EXPORT_STEP = "export-step";
     EXTRUSION_ADD = "extrusion-add";
     EXTRUSION_APPLY = "extrusion-apply";
@@ -152,6 +154,7 @@ embedded! {
     TRIM = "trim";
     UNDO = "undo";
     VARIABLES = "variables";
+    WARNING = "warning";
 }
 
 #[cfg(test)]

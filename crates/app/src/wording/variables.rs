@@ -113,15 +113,14 @@ fn value_on(
     )
 }
 
-/// A step of the history, by the place the history shows it at.
+/// A step of the history, by the place the history shows it at, named as
+/// the part now replays it.
 fn step(lang: &Catalogue, document: &PartDocument, number: u32) -> String {
     let Some(position) = document.history.position_of(number) else {
         return String::new();
     };
     let label = document
-        .history
-        .operations()
-        .get(position)
+        .raised_as(number)
         .map(|operation| history::label(lang, document.variables(), operation))
         .unwrap_or_default();
     lang.t_with(

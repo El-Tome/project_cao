@@ -1,5 +1,6 @@
 //! What app · screens/title_bar/state.rs is held to: which of an error and a
-//! message the pill keeps once a frame is over.
+//! message the pill keeps once a frame is over, and what the part's problems
+//! come to as alerts.
 //!
 //! Closes #726.
 //! - a fresh error, raised in the frame or since the last one was settled (the
@@ -31,8 +32,77 @@
 //! at its end is not the one at its start; one cleared by a gesture, at its end
 //! `None`, is not a message said, and the rule leaves that case to the
 //! implementation.
+//!
+//! Closes #736 — the whole transcription is in `crates/app/tests/the_alerts.rs`;
+//! these bullets are the ones the title bar's presenter holds.
+//! - Two levels. Warning, yellow: an unstable case (`unstable_at`); a sketch
+//!   whose face is lost and that stays where it was (`is_adrift`). Error, red:
+//!   a volume not built (`is_declined`); a lost area —
+//!   `each_problem_of_the_part_is_an_alert_at_its_level`
+//! - a kept section whose face is lost, which wears « face perdue » in the tree
+//!   today, is a warning like a sketch off its face —
+//!   `each_problem_of_the_part_is_an_alert_at_its_level`
+//! - « ⚠ N alertes » on the right of the title bar, only when N > 0 — what the
+//!   count reads, « 1 alerte » for one, and that a sound part has none —
+//!   `the_title_bar_counts_the_alerts_only_while_there_is_one`; where it stands
+//!   is the view's, held in `crates/app/tests/the_alerts.rs`
+//! - in the colour of the worst level — the level the count is drawn at,
+//!   whichever of the two comes first in the part —
+//!   `the_count_wears_the_level_of_the_worst_alert`
+//! - Each alert: the warning or error icon, « Élément · problème »
+//!   (« Extrusion 3 · instable »), one sentence of explanation — what it is
+//!   titled, the element named as the tree names it —
+//!   `each_alert_is_titled_by_its_element_and_its_problem`; and the sentence it
+//!   says — `each_alert_says_why_in_a_sentence`. The icon, and the sentence
+//!   standing under the title, are the view's, held in
+//!   `crates/app/tests/the_alerts.rs`
+//! - and « Modifier » (reopens the step) — for a sketch and a kept section, it
+//!   asks the tree what a double-click on the row asks, `EditSketch` and
+//!   `EditSection` —
+//!   `modify_asks_what_a_double_click_on_the_sketch_or_the_section_s_row_asks`;
+//!   that the sketch or the section is then open is held in
+//!   `crates/app/tests/the_alerts.rs`
+//! - decided by Tom when the work opened: « Montrer » on a volume's alert
+//!   selects the volume and lights it in the view — what the button asks, to
+//!   mark that volume, for one not built, one built unstably and one whose
+//!   area is lost — `show_asks_to_mark_the_volume_the_alert_is_about`; its
+//!   row selected is held in `crates/app/tests/the_alerts.rs`, and its light in
+//!   `crates/app/src/screens/viewport/render/tests.rs`
+//! - decided by Tom when the work opened: « Modifier » on an extrusion's alert
+//!   reopens the extrusion, its panel filled with its values — what the button
+//!   asks, the step's panel reopened, for an extrusion not built, a revolution
+//!   built unstably and an extrusion whose area is lost, the list closing —
+//!   `modify_asks_to_reopen_the_extrusion_or_revolution_the_alert_is_about_and_closes_the_list`
+//! - Every problem detected today is still shown: as an alert now —
+//!   `each_problem_of_the_part_is_an_alert_at_its_level`, one part for each
+//!   problem the tree wears a badge for today; and what the pill said of a
+//!   volume not built or built unstably, its lean included, is what its alert
+//!   says — `each_alert_says_why_in_a_sentence`
+//!
+//! An element counts once, however many problems it has: P2 counts the
+//! elements that wear a badge, lost, refused, unstable or drifting, and a
+//! volume wears its gravest.
+//!
+//! A volume not built reads « non construite », where its badge in the tree
+//! reads « non construit »: the issue's own example is « Extrusion 2 · non
+//! construite », the word agreeing with « Extrusion » and « Révolution » alike.
+//! What a volume not built or built unstably says is the sentence the pill
+//! said of it until now, so that taking it out of the pill loses nothing; an
+//! area lost and a face lost had no sentence, and are held only to say one,
+//! not the same. The parts are those the tree's own tests are made
+//! of, in `crates/app/src/screens/part_tree/state/tests.rs`, written here so
+//! that two can be laid one after the other in a part.
+
+use cao_part::history::{
+    ExtrusionMode, FaceAnchor, Operation, PointRef, RevolutionAxis, SectionAsked, SideDrawing,
+};
+use cao_sketch::{DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane};
+use chrono::{DateTime, Utc};
+use glam::{DVec2, DVec3};
 
 use super::*;
+use crate::screens::part_tree::TreeAction;
+use crate::ui::badge::Level;
 
 const SAVE_FAILED: &str = "L'échange avec /CAO/Platine.caopart s'est arrêté en chemin.";
 const CHOOSE_A_PLANE: &str = "Choisissez un plan d'esquisse";
@@ -218,4 +288,512 @@ fn a_standing_error_alone_stays() {
         "a frame where nothing was said nor asked took the error away",
     );
     assert_eq!(message, None);
+}
+
+#[test]
+fn each_problem_of_the_part_is_an_alert_at_its_level() {
+    let read = [
+        ("an area lost", levels_listed(&[a_block_whose_area_is_gone])),
+        (
+            "a volume not built",
+            levels_listed(&[a_ball_under_a_slanted_circle_raised]),
+        ),
+        (
+            "a step built unstably",
+            levels_listed(&[a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin]),
+        ),
+        (
+            "a sketch off its face",
+            levels_listed(&[a_sketch_off_its_face]),
+        ),
+        (
+            "a section off its face",
+            levels_listed(&[a_block, two_sections_one_off_its_face]),
+        ),
+        ("a sound part", levels_listed(&[a_block])),
+    ];
+
+    assert_eq!(
+        read,
+        [
+            ("an area lost", vec![Level::Error]),
+            ("a volume not built", vec![Level::Error]),
+            ("a step built unstably", vec![Level::Warning]),
+            ("a sketch off its face", vec![Level::Warning]),
+            ("a section off its face", vec![Level::Warning]),
+            ("a sound part", Vec::new()),
+        ],
+        "a problem of the part is not listed as one alert at its level, or a sound part \
+         lists one",
+    );
+}
+
+#[test]
+fn the_title_bar_counts_the_alerts_only_while_there_is_one() {
+    let unstable = a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin;
+
+    let read = [
+        ("a sound part", the_count_s_words(&[a_block])),
+        ("one problem", the_count_s_words(&[unstable])),
+        (
+            "two problems",
+            the_count_s_words(&[unstable, a_sketch_off_its_face]),
+        ),
+    ];
+
+    assert_eq!(
+        read,
+        [
+            ("a sound part", None),
+            ("one problem", Some("1 alerte".to_owned())),
+            ("two problems", Some("2 alertes".to_owned())),
+        ],
+        "the title bar does not count the part's alerts, or counts them while there is none",
+    );
+}
+
+#[test]
+fn the_count_wears_the_level_of_the_worst_alert() {
+    let unstable = a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin;
+    let declined = a_ball_under_a_slanted_circle_raised;
+
+    let read = [
+        ("a warning alone", the_count_s_level(&[unstable])),
+        (
+            "two warnings",
+            the_count_s_level(&[unstable, a_sketch_off_its_face]),
+        ),
+        ("an error alone", the_count_s_level(&[declined])),
+        (
+            "an error after a warning",
+            the_count_s_level(&[a_sketch_off_its_face, declined]),
+        ),
+        (
+            "a warning after an error",
+            the_count_s_level(&[declined, a_sketch_off_its_face]),
+        ),
+    ];
+
+    assert_eq!(
+        read,
+        [
+            ("a warning alone", Some(Level::Warning)),
+            ("two warnings", Some(Level::Warning)),
+            ("an error alone", Some(Level::Error)),
+            ("an error after a warning", Some(Level::Error)),
+            ("a warning after an error", Some(Level::Error)),
+        ],
+        "the count is not drawn at the level of the worst of the part's alerts",
+    );
+}
+
+#[test]
+fn each_alert_is_titled_by_its_element_and_its_problem() {
+    let read = [
+        titles_listed(&[a_block_whose_area_is_gone]),
+        titles_listed(&[a_ball_under_a_slanted_circle_raised]),
+        titles_listed(&[a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin]),
+        titles_listed(&[a_sketch_off_its_face]),
+        titles_listed(&[a_block, two_sections_one_off_its_face]),
+    ];
+
+    assert_eq!(
+        read,
+        [
+            ["Extrusion 1 · aire perdue"],
+            ["Extrusion 2 · non construite"],
+            ["Révolution 2 · instable"],
+            ["Esquisse 1 · face perdue"],
+            ["Coupe 2 · face perdue"],
+        ],
+        "an alert is not titled « Élément · problème », the element named as the tree names \
+         it: an area lost, a volume not built, a step built unstably, a sketch then a section \
+         off its face",
+    );
+}
+
+#[test]
+fn each_alert_says_why_in_a_sentence() {
+    let lang = Catalogue::french();
+
+    let not_built = sentences_listed(&[a_ball_under_a_slanted_circle_raised]);
+    let unstable = sentences_listed(&[a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin]);
+    let area_lost = sentences_listed(&[a_block_whose_area_is_gone]);
+    let sketch_off = sentences_listed(&[a_sketch_off_its_face]);
+    let section_off = sentences_listed(&[a_block, two_sections_one_off_its_face]);
+
+    assert_eq!(
+        not_built,
+        [lang.t("extrusion.declined")],
+        "a volume not built does not say what the pill said of it when the kernel declined it",
+    );
+    assert_eq!(
+        unstable,
+        [lang.t_with("extrusion.unstable_along", &[("angle", "0.01")])],
+        "a step built unstably does not say what the pill said of it, its lean included",
+    );
+    let one_said = |sentences: &[String]| {
+        sentences.len() == 1 && sentences.iter().all(|said| !said.trim().is_empty())
+    };
+    assert!(
+        one_said(&area_lost) && one_said(&sketch_off) && one_said(&section_off),
+        "an area lost or a face lost does not say why in a sentence: {area_lost:?}, \
+         {sketch_off:?}, {section_off:?}",
+    );
+    assert_ne!(
+        area_lost, sketch_off,
+        "an area lost and a face lost say the same thing",
+    );
+}
+
+#[test]
+fn modify_asks_what_a_double_click_on_the_sketch_or_the_section_s_row_asks() {
+    let asked = read_off_the_bar(
+        &[
+            a_sketch_off_its_face,
+            a_block,
+            two_sections_one_off_its_face,
+        ],
+        |bar| -> Vec<(About, TreeAction)> {
+            bar.alerts
+                .iter()
+                .map(|alert| (alert.about, alert.asks(AlertButton::Modify)))
+                .collect()
+        },
+    );
+
+    assert_eq!(
+        asked,
+        [
+            (About::Sketch(0), TreeAction::EditSketch(0)),
+            (About::Section(1), TreeAction::EditSection(1)),
+        ],
+        "« Modifier » on the alert of a sketch or of a kept section does not ask to reopen \
+         it, as a double-click on its row in the tree does",
+    );
+}
+
+#[test]
+fn show_asks_to_mark_the_volume_the_alert_is_about() {
+    let asked = |laid: &[fn(&mut PartDocument)]| -> Vec<(About, TreeAction)> {
+        read_off_the_bar(laid, |bar| {
+            bar.alerts
+                .iter()
+                .map(|alert| (alert.about, alert.asks(AlertButton::Show)))
+                .collect()
+        })
+    };
+
+    let read = [
+        asked(&[a_ball_under_a_slanted_circle_raised]),
+        asked(&[a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin]),
+        asked(&[a_block_whose_area_is_gone]),
+    ];
+
+    let wrong: Vec<&(About, TreeAction)> = read
+        .iter()
+        .flatten()
+        .filter(|(about, action)| match about {
+            About::Volume { step } => *action != TreeAction::MarkVolume(*step),
+            _ => true,
+        })
+        .collect();
+    assert!(
+        read.iter().all(|alerts| alerts.len() == 1) && wrong.is_empty(),
+        "« Montrer » on the alert of a volume not built, built unstably, or whose area is \
+         lost, does not ask to mark that volume: {read:?}",
+    );
+}
+
+#[test]
+fn modify_asks_to_reopen_the_extrusion_or_revolution_the_alert_is_about_and_closes_the_list() {
+    let asked = |laid: &[fn(&mut PartDocument)]| -> Vec<(About, TreeAction)> {
+        read_off_the_bar(laid, |bar| {
+            bar.alerts
+                .iter()
+                .map(|alert| (alert.about, alert.asks(AlertButton::Modify)))
+                .collect()
+        })
+    };
+
+    let read = [
+        asked(&[a_ball_under_a_slanted_circle_raised]),
+        asked(&[a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin]),
+        asked(&[a_block_whose_area_is_gone]),
+    ];
+
+    let wrong: Vec<&(About, TreeAction)> = read
+        .iter()
+        .flatten()
+        .filter(|(about, action)| match about {
+            About::Volume { step } => *action != TreeAction::EditExtrusion(*step),
+            _ => true,
+        })
+        .collect();
+    assert!(
+        read.iter().all(|alerts| alerts.len() == 1) && wrong.is_empty(),
+        "« Modifier » on the alert of an extrusion not built, a revolution built unstably, or an \
+         extrusion whose area is lost, does not ask to reopen it: {read:?}",
+    );
+    assert!(
+        AlertButton::Modify.closes_the_list(),
+        "« Modifier » leaves the list open over the extrusion it reopens",
+    );
+}
+
+/// What `read` takes off the title bar of a part made of `laid`, with nothing
+/// open on it.
+fn read_off_the_bar<T>(laid: &[fn(&mut PartDocument)], read: impl FnOnce(&TitleBar<'_>) -> T) -> T {
+    let document = a_part_of(laid);
+    let editor = SketchEditor::default();
+    let viewport = ViewportState::default();
+    let lang = Catalogue::french();
+    let bar = TitleBar::of(
+        &document,
+        Path::new("Test.caopart"),
+        &editor,
+        &viewport,
+        None,
+        &lang,
+    );
+    read(&bar)
+}
+
+/// The level of each alert the title bar lists, in its order.
+fn levels_listed(laid: &[fn(&mut PartDocument)]) -> Vec<Level> {
+    read_off_the_bar(laid, |bar| {
+        bar.alerts.iter().map(|alert| alert.level).collect()
+    })
+}
+
+/// What the title bar's count reads, nothing while it is not drawn.
+fn the_count_s_words(laid: &[fn(&mut PartDocument)]) -> Option<String> {
+    read_off_the_bar(laid, |bar| {
+        bar.alerts_button
+            .as_ref()
+            .map(|count| count.text.to_string())
+    })
+}
+
+/// The level the title bar's count is drawn at, nothing while it is not drawn.
+fn the_count_s_level(laid: &[fn(&mut PartDocument)]) -> Option<Level> {
+    read_off_the_bar(laid, |bar| {
+        bar.alerts_button.as_ref().map(|count| count.level)
+    })
+}
+
+/// What each alert the title bar lists is titled, in its order.
+fn titles_listed(laid: &[fn(&mut PartDocument)]) -> Vec<String> {
+    read_off_the_bar(laid, |bar| {
+        bar.alerts
+            .iter()
+            .map(|alert| alert.title.to_string())
+            .collect()
+    })
+}
+
+/// The sentence each alert the title bar lists says why with, in its order.
+fn sentences_listed(laid: &[fn(&mut PartDocument)]) -> Vec<String> {
+    read_off_the_bar(laid, |bar| {
+        bar.alerts
+            .iter()
+            .map(|alert| alert.sentence.to_string())
+            .collect()
+    })
+}
+
+/// A part made of these, laid one after the other.
+fn a_part_of(laid: &[fn(&mut PartDocument)]) -> PartDocument {
+    let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+    for lay in laid {
+        lay(&mut document);
+    }
+    document
+}
+
+fn at(text: &str) -> DateTime<Utc> {
+    text.parse().expect("a date")
+}
+
+/// A rectangle on the plane XY, its first trait dimensioned, raised into a
+/// block.
+fn a_block(document: &mut PartDocument) {
+    let sketch = document.sketches().len();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 20.0)),
+        construction: false,
+    });
+    document.apply(Operation::SetDimension {
+        sketch,
+        target: DimensionTarget::Length(SegmentId(0)),
+        value: 100.0.into(),
+        placement: None,
+    });
+    document.apply(Operation::Extrude {
+        sketch,
+        areas: document.areas_at(sketch, &[DVec2::new(5.0, 10.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+}
+
+/// `a_block`, the first trait of its rectangle then erased: the area the block
+/// was raised from is gone.
+fn a_block_whose_area_is_gone(document: &mut PartDocument) {
+    let sketch = document.sketches().len();
+    a_block(document);
+    document.apply(Operation::EraseMany {
+        sketch,
+        elements: vec![Element::Segment(SegmentId(0))],
+        dimensions: Vec::new(),
+        constraints: Vec::new(),
+    });
+}
+
+/// A ball of `radius` about `center`: a half disc drawn on the plane holding
+/// the upright through it, turned whole about that line.
+fn a_ball(document: &mut PartDocument, center: DVec3, radius: f64) {
+    let sketch = document.sketches().len();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: center,
+            u: DVec3::X,
+            v: DVec3::Z,
+        },
+        on: None,
+    });
+    let first = document.sketches()[sketch].points().len();
+    document.apply(Operation::AddArc {
+        sketch,
+        center: PointRef::New(DVec2::ZERO),
+        start: PointRef::New(DVec2::new(0.0, -radius)),
+        end: PointRef::New(DVec2::new(0.0, radius)),
+        construction: false,
+    });
+    document.apply(Operation::AddSegment {
+        sketch,
+        start: PointRef::Existing(PointId(first + 2)),
+        end: PointRef::Existing(PointId(first + 1)),
+        construction: false,
+    });
+    document.apply(Operation::Revolve {
+        sketch,
+        areas: document.areas_at(sketch, &[DVec2::new(radius / 4.0, 0.0)]),
+        axis: RevolutionAxis::Sketch(SketchAxis::V),
+        angle: 360.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+}
+
+/// A ball of radius 4 about (5, 10, 0), then a circle on a plane tilted 30°
+/// about X raised down across its sphere, three off its centre: the exact
+/// kernel cannot follow where the two meet, and declines the circle's step.
+fn a_ball_under_a_slanted_circle_raised(document: &mut PartDocument) {
+    a_ball(document, DVec3::new(5.0, 10.0, 0.0), 4.0);
+    let sketch = document.sketches().len();
+    let (sin, cos) = (std::f64::consts::PI / 6.0).sin_cos();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: DVec3::new(5.0, 10.0, 6.0),
+            u: DVec3::X,
+            v: DVec3::new(0.0, cos, sin),
+        },
+        on: None,
+    });
+    document.apply(Operation::AddCircle {
+        sketch,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 2.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch,
+        areas: document.areas_at(sketch, &[DVec2::ZERO]),
+        distance: (-10.0).into(),
+        mode: ExtrusionMode::Add,
+    });
+}
+
+/// A shaft Ø20 raised 30 on XY, and a slice of it turned a hundredth of a
+/// degree about X cut out: the slice's second side leans that much off along
+/// the shaft's axis, and the kernel builds it though it reads it unstably.
+fn a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin(document: &mut PartDocument) {
+    let shaft = document.sketches().len();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: shaft,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 10.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: shaft,
+        areas: document.areas_at(shaft, &[DVec2::ZERO]),
+        distance: 30.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    let slice = document.sketches().len();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XZ,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: slice,
+        corner: PointRef::New(DVec2::new(-20.0, 0.0)),
+        opposite: PointRef::New(DVec2::new(20.0, 40.0)),
+        construction: false,
+    });
+    document.apply(Operation::Revolve {
+        sketch: slice,
+        areas: document.areas_at(slice, &[DVec2::new(0.0, 20.0)]),
+        axis: RevolutionAxis::Sketch(SketchAxis::U),
+        angle: 0.01.into(),
+        mode: ExtrusionMode::Cut,
+    });
+}
+
+/// A sketch laid on a face the part does not have: it stays on the plane it
+/// was given, adrift.
+fn a_sketch_off_its_face(document: &mut PartDocument) {
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: Some(FaceAnchor {
+            face: 404,
+            up: DVec3::Y,
+        }),
+    });
+}
+
+/// Two sections kept, one on the plane XZ and one laid on a face the part
+/// does not have.
+fn two_sections_one_off_its_face(document: &mut PartDocument) {
+    for on in [
+        None,
+        Some(FaceAnchor {
+            face: 404,
+            up: DVec3::Y,
+        }),
+    ] {
+        document.apply(Operation::SaveSection(SectionAsked {
+            plane: WorkPlane::XZ,
+            on,
+            offset: 3.0,
+            behind: SideDrawing::SeeThrough,
+            in_front: SideDrawing::Opaque,
+            tilt_about_u_degrees: 0.0,
+            tilt_about_v_degrees: 0.0,
+            pivot: DVec3::ZERO,
+        }));
+    }
 }

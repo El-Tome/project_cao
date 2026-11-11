@@ -279,6 +279,31 @@
 //!   That the pass hides them behind the opaque faces lives in the wgpu
 //!   pipelines of `crates/render/src/renderer.rs`, which no test reaches, and
 //!   is checked on screen
+//!
+//! Closes #736 — the whole transcription is in `crates/app/tests/the_alerts.rs`;
+//! these bullets are the light « Montrer » puts on what its alert is about,
+//! which only a frame shows.
+//! - « … and lights it in the view », for a sketch: the sketch marked from its
+//!   alert is drawn whole, every trait of it in the light a trait lit from the
+//!   tree is drawn in, its eye lit or out —
+//!   `a_sketch_marked_is_drawn_whole_in_the_light_of_a_trait_lit_from_the_tree`
+//! - decided by Tom when the work opened: « Montrer » on a volume's alert
+//!   selects the volume and lights it in the view — the light: a volume built
+//!   and marked is drawn lit as its raw block, the matter its step raised or
+//!   cut, and nothing else is —
+//!   `a_volume_marked_is_drawn_lit_where_its_step_raised_or_cut_it`; a volume
+//!   not built, as the raw block the kernel built and declined to join to the
+//!   part, where it would have stood —
+//!   `a_volume_not_built_marked_is_drawn_lit_where_its_raw_block_would_stand`
+//!
+//! A sketch marked is the one `mark_sketch` stands selected in the tree, which
+//! « Montrer » on its alert asks for: the same mark now lights it, so that the
+//! row and the view say the same thing. A volume is marked the same way, by
+//! `mark_volume` and the step it stands at in the history. What is lit is read
+//! as every vertex drawn in a colour that neither the part as it is drawn nor
+//! the part with that volume see-through is drawn in, so that a volume merely
+//! made see-through lights nothing; faces or edges alike, since how the light
+//! is drawn is not the criterion.
 
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef, VolumeState};
 use cao_prefs::config::ViewportConfig;
@@ -3492,5 +3517,253 @@ fn ghosts_and_see_through_matter_go_to_the_depth_tested_pass_and_nothing_else_do
     assert!(
         on_the_cut.iter().all(|tested| !*tested),
         "the section's square is drawn by the pass that hides matter behind the part",
+    );
+}
+
+/// Where every trait of a sketch stands in the world, end to end.
+fn every_trait(document: &PartDocument, sketch: usize) -> Vec<(Vec3, Vec3)> {
+    let drawing = &document.sketches()[sketch];
+    drawing
+        .live_segments()
+        .map(|(_, segment)| {
+            let [from, to] = [segment.start, segment.end]
+                .map(|point| drawing.plane.to_world(drawing.point(point)).as_vec3());
+            (from, to)
+        })
+        .collect()
+}
+
+/// The colours a trait of `sketch` is drawn in once a click in the tree has
+/// lit it: the light.
+fn the_light_of_a_trait(document: &mut PartDocument, sketch: usize) -> Vec<[f32; 4]> {
+    let plane = document.sketches()[sketch].plane;
+    let (element, from, to) = the_first_trait(document, sketch);
+    let mut state = ViewportState::default();
+    state.light(Points::Element { sketch, element });
+    let frame = a_frame_of(&state, document, &mut SketchEditor::default());
+    line_colours(&frame, plane, from, to).0
+}
+
+/// What keeps every trait of `sketch` from being drawn, in `light` alone, in a
+/// frame of the view with that sketch marked.
+fn not_drawn_whole_in(
+    document: &mut PartDocument,
+    sketch: usize,
+    light: &[[f32; 4]],
+) -> Vec<String> {
+    let plane = document.sketches()[sketch].plane;
+    let mut state = ViewportState::default();
+    state.mark_sketch(sketch);
+    let frame = a_frame_of(&state, document, &mut SketchEditor::default());
+    every_trait(document, sketch)
+        .into_iter()
+        .filter_map(|(from, to)| {
+            let (on, _) = line_colours(&frame, plane, from, to);
+            (on.is_empty() || on.iter().any(|colour| !light.contains(colour))).then(|| {
+                format!(
+                    "the trait from {from} to {to} is drawn in {on:?}, the light being {light:?}"
+                )
+            })
+        })
+        .collect()
+}
+
+#[test]
+fn a_sketch_marked_is_drawn_whole_in_the_light_of_a_trait_lit_from_the_tree() {
+    let mut used = a_block();
+    assert!(
+        !ViewportState::default().eye_lit(&used, 0),
+        "the fixture wants the eye of the sketch the block was raised from out",
+    );
+    let light = the_light_of_a_trait(&mut used, 0);
+    let mut wrong = not_drawn_whole_in(&mut used, 0, &light);
+
+    let mut shown = a_block_and_a_sketch_never_used();
+    let light = the_light_of_a_trait(&mut shown, 1);
+    wrong.extend(not_drawn_whole_in(&mut shown, 1, &light));
+
+    assert!(
+        !light.is_empty() && wrong.is_empty(),
+        "a sketch marked from its alert, its eye out then lit, is not drawn whole in the \
+         light:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+/// Where every vertex the frame `marked` draws in a colour none of `unlit`
+/// draws in stands: what the mark lit, whether as faces or as edges. The
+/// frames left unlit are the part as it is drawn and the part with the volume
+/// see-through, so that a volume merely made see-through lights nothing.
+fn drawn_lit(marked: &SceneFrame, unlit: [&SceneFrame; 2]) -> Vec<Vec3> {
+    let layers = |frame: &SceneFrame| {
+        [
+            frame.scene_solids.clone(),
+            frame.scene_surfaces.clone(),
+            frame.scene_lines.clone(),
+        ]
+        .concat()
+    };
+    let before: Vec<[f32; 4]> = unlit
+        .into_iter()
+        .flat_map(layers)
+        .map(|vertex| vertex.color)
+        .collect();
+    layers(marked)
+        .iter()
+        .filter(|vertex| !before.contains(&vertex.color))
+        .map(|vertex| Vec3::from(vertex.position))
+        .collect()
+}
+
+/// How far a lit vertex may stand outside the raw block it lights, handed to
+/// the GPU in `f32`.
+const IN_THE_BLOCK: f32 = 1e-3;
+
+#[test]
+fn a_volume_marked_is_drawn_lit_where_its_step_raised_or_cut_it() {
+    let plain = the_frame_of(&ViewportState::default(), a_block_with_a_hole());
+    let see_through = clicked(&a_block_with_a_hole(), THE_HOLE, 1);
+    let see_through = the_frame_of(&see_through, a_block_with_a_hole());
+    let mut state = ViewportState::default();
+    state.mark_volume(THE_HOLE);
+    let marked = the_frame_of(&state, a_block_with_a_hole());
+
+    let lit = drawn_lit(&marked, [&plain, &see_through]);
+    let in_the_hole = |at: &Vec3| {
+        (at.x - 5.0).hypot(at.y - 10.0) <= 2.0 + IN_THE_BLOCK
+            && (-IN_THE_BLOCK..=4.0 + IN_THE_BLOCK).contains(&at.z)
+    };
+    let astray: Vec<&Vec3> = lit.iter().filter(|at| !in_the_hole(at)).collect();
+    let reaches = |height: f32| lit.iter().any(|at| (at.z - height).abs() <= IN_THE_BLOCK);
+
+    assert!(
+        !lit.is_empty() && astray.is_empty() && reaches(0.0) && reaches(4.0),
+        "the cut boring the hole, marked from its alert, is not drawn lit as the block it \
+         removes, from the bottom of the block to its top, and nothing else: {} vertices lit, \
+         {} of them astray, first {:?}",
+        lit.len(),
+        astray.len(),
+        astray.first(),
+    );
+}
+
+/// A ball of radius 4 about (5, 10, 0), turned whole from a half disc, then a
+/// circle of radius 2 on a plane tilted 30° about X, through (5, 10, 6),
+/// raised 10 down across the ball's sphere off its centre: the kernel builds
+/// the circle's block, and declines joining it to the ball.
+fn a_ball_under_a_slanted_circle_raised() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: DVec3::new(5.0, 10.0, 0.0),
+            u: DVec3::X,
+            v: DVec3::Z,
+        },
+        on: None,
+    });
+    let first = document.sketches()[0].points().len();
+    document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::ZERO),
+        start: PointRef::New(DVec2::new(0.0, -4.0)),
+        end: PointRef::New(DVec2::new(0.0, 4.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(cao_sketch::PointId(first + 2)),
+        end: PointRef::Existing(cao_sketch::PointId(first + 1)),
+        construction: false,
+    });
+    document.apply(Operation::Revolve {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(1.0, 0.0)]),
+        axis: cao_part::RevolutionAxis::Sketch(cao_sketch::SketchAxis::V),
+        angle: 360.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::CreateSketch {
+        plane: the_slanted_plane(),
+        on: None,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 1,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 2.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 1,
+        areas: document.areas_at(1, &[DVec2::ZERO]),
+        distance: (-10.0).into(),
+        mode: ExtrusionMode::Add,
+    });
+    let declined = document
+        .history
+        .number_at(THE_SLANTED_CIRCLE)
+        .is_some_and(|number| document.is_declined(number));
+    assert!(
+        declined,
+        "the fixture wants the slanted circle's step declined"
+    );
+    document
+}
+
+/// Where the slanted circle is raised in the history of
+/// `a_ball_under_a_slanted_circle_raised`.
+const THE_SLANTED_CIRCLE: usize = 6;
+
+/// The plane tilted 30° about X through (5, 10, 6) the circle is drawn on.
+fn the_slanted_plane() -> WorkPlane {
+    let (sin, cos) = (std::f64::consts::PI / 6.0).sin_cos();
+    WorkPlane {
+        origin: DVec3::new(5.0, 10.0, 6.0),
+        u: DVec3::X,
+        v: DVec3::new(0.0, cos, sin),
+    }
+}
+
+#[test]
+fn a_volume_not_built_marked_is_drawn_lit_where_its_raw_block_would_stand() {
+    let plain = the_frame_of(
+        &ViewportState::default(),
+        a_ball_under_a_slanted_circle_raised(),
+    );
+    let see_through = clicked(
+        &a_ball_under_a_slanted_circle_raised(),
+        THE_SLANTED_CIRCLE,
+        1,
+    );
+    let see_through = the_frame_of(&see_through, a_ball_under_a_slanted_circle_raised());
+    let mut state = ViewportState::default();
+    state.mark_volume(THE_SLANTED_CIRCLE);
+    let marked = the_frame_of(&state, a_ball_under_a_slanted_circle_raised());
+
+    let plane = the_slanted_plane();
+    let (origin, down) = (plane.origin.as_vec3(), -plane.normal().as_vec3());
+    let along = |at: &Vec3| (*at - origin).dot(down);
+    let off_the_axis = |at: &Vec3| ((*at - origin) - down * along(at)).length();
+    let lit = drawn_lit(&marked, [&plain, &see_through]);
+    let astray: Vec<&Vec3> = lit
+        .iter()
+        .filter(|at| {
+            off_the_axis(at) > 2.0 + IN_THE_BLOCK
+                || !(-IN_THE_BLOCK..=10.0 + IN_THE_BLOCK).contains(&along(at))
+        })
+        .collect();
+    let reaches = |depth: f32| {
+        lit.iter()
+            .any(|at| (along(at) - depth).abs() <= IN_THE_BLOCK)
+    };
+
+    assert!(
+        !lit.is_empty() && astray.is_empty() && reaches(0.0) && reaches(10.0),
+        "the slanted circle's step, declined and marked from its alert, is not drawn lit as the \
+         block it would have raised, end to end, and nothing else: {} vertices lit, {} of them \
+         astray, first {:?}",
+        lit.len(),
+        astray.len(),
+        astray.first(),
     );
 }

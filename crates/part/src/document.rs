@@ -181,13 +181,14 @@ impl PartDocument {
         if outcome == Some(Outcome::RuleRefused) {
             return outcome;
         }
+        let changes_matter = matches!(operation, Operation::EditMatter { .. });
         self.history.push(operation);
-        // An edit that lands in an earlier step is replayed before everything
-        // raised after it, so the part is built again rather than patched:
-        // what was just applied changed the drawing and would leave the matter
-        // behind. Drawing in the step already open — which is most of what
-        // happens — lands at the end and costs nothing.
-        if !self.history.last_is_at_the_end() {
+        // An edit that lands in an earlier step, or changes a step of matter,
+        // is replayed before everything raised after it, so the part is built
+        // again rather than patched: what was just applied changed the drawing
+        // and would leave the matter behind. Drawing in the step already open
+        // — which is most of what happens — lands at the end and costs nothing.
+        if changes_matter || !self.history.last_is_at_the_end() {
             self.rebuild();
         }
         outcome

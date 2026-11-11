@@ -26,6 +26,11 @@ impl KeptSections {
         self.on = (self.on != Some(section)).then_some(section);
     }
 
+    /// Switches a section on, the one on before off.
+    pub(crate) fn switch_on(&mut self, section: usize) {
+        self.on = Some(section);
+    }
+
     /// The section switched on, as the frame cuts with it.
     pub(crate) fn shown(&self) -> Option<&Section> {
         self.shown.as_ref()

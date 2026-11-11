@@ -1,6 +1,8 @@
 use cao_prefs::{Background, Profiles, Rgba, Stop, Theme};
 
 use crate::lang::Catalogue;
+use crate::screens::theme_colours::{self, painted};
+use crate::ui::badge::Level;
 use crate::ui::slider::slider;
 
 pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles, lang: &Catalogue) -> bool {
@@ -127,6 +129,13 @@ pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles, lang: &Catalog
     );
 
     ui.add_space(10.0);
+    ui.heading(lang.t("settings.appearance.alerts"));
+    let warning = lang.t("settings.appearance.warning");
+    level_row(ui, (&warning, Level::Warning), theme);
+    let error = lang.t("settings.appearance.error");
+    level_row(ui, (&error, Level::Error), theme);
+
+    ui.add_space(10.0);
     if ui.button(lang.t("settings.appearance.reset")).clicked() {
         *theme = Theme::default();
     }
@@ -232,7 +241,7 @@ fn stops_editor(ui: &mut egui::Ui, stops: &mut Vec<Stop>, lang: &Catalogue) {
     let mut remove = None;
     for (rank, stop) in stops.iter_mut().enumerate() {
         ui.horizontal(|ui| {
-            let mut color = to_egui_color(stop.color);
+            let mut color = painted(stop.color);
             if ui.color_edit_button_srgba(&mut color).changed() {
                 stop.color = from_egui_color(color);
             }
@@ -266,7 +275,7 @@ fn stops_editor(ui: &mut egui::Ui, stops: &mut Vec<Stop>, lang: &Catalogue) {
 
 fn color_row(ui: &mut egui::Ui, label: &str, color: &mut Rgba) {
     ui.horizontal(|ui| {
-        let mut value = to_egui_color(*color);
+        let mut value = painted(*color);
         if ui.color_edit_button_srgba(&mut value).changed() {
             *color = from_egui_color(value);
         }
@@ -274,14 +283,16 @@ fn color_row(ui: &mut egui::Ui, label: &str, color: &mut Rgba) {
     });
 }
 
-fn to_egui_color(color: Rgba) -> egui::Color32 {
-    let channel = |value: f32| (value.clamp(0.0, 1.0) * 255.0).round() as u8;
-    egui::Color32::from_rgba_unmultiplied(
-        channel(color.r),
-        channel(color.g),
-        channel(color.b),
-        channel(color.a),
-    )
+/// The colour a level of the part's alerts is seen in: the one chosen, or
+/// the chrome's while none is. Picking one chooses it.
+fn level_row(ui: &mut egui::Ui, (label, level): (&str, Level), theme: &mut Theme) {
+    ui.horizontal(|ui| {
+        let (_, mut value) = theme_colours::worn(theme, level);
+        if ui.color_edit_button_srgba(&mut value).changed() {
+            theme_colours::choose(theme, level, from_egui_color(value));
+        }
+        ui.label(label);
+    });
 }
 
 fn from_egui_color(color: egui::Color32) -> Rgba {

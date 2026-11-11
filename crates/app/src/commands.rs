@@ -1,7 +1,6 @@
 use cao_part::PartDocument;
 use cao_prefs::Command;
-use cao_sketch::{Rule, WorkPlane};
-use glam::DVec3;
+use cao_sketch::Rule;
 
 use crate::screens::SketchContext;
 use crate::screens::extrusion::apply_extrusion;
@@ -11,12 +10,14 @@ use crate::screens::viewport::{
     ViewportState, corner_picks_with, swap_held_chamfer, switch_held_cuts, take_everything,
     take_up_the_copy,
 };
-use crate::{screens, wording};
+use crate::wording;
 
 mod asked;
 mod compaction;
+mod framing;
 pub(crate) use asked::Asked;
 pub(crate) use compaction::compact_history;
+pub(crate) use framing::sketch_framing;
 
 /// Carries out one command, wherever it came from.
 ///
@@ -109,6 +110,7 @@ pub(crate) fn run(
             if changed {
                 clamp_editor_to_document(editor, doc);
             }
+            extrusion.history_moved();
             viewport.light_out();
             if doc.body().is_empty() {
                 viewport.close_section();
@@ -367,26 +369,6 @@ pub(crate) fn clamp_editor_to_document(editor: &mut SketchEditor, doc: &PartDocu
     match doc.sketches().get(index) {
         Some(sketch) => editor.plane = Some(sketch.plane),
         None => editor.close(),
-    }
-}
-
-/// Centre and radius to frame: the sketch if it has anything in it, otherwise a
-/// sensible patch of the plane around its origin.
-pub(crate) fn sketch_framing(
-    doc: &PartDocument,
-    sketch: Option<usize>,
-    plane: WorkPlane,
-) -> (DVec3, f64) {
-    let bounds = sketch
-        .and_then(|index| doc.sketches().get(index))
-        .and_then(|sketch| sketch.bounds());
-
-    match bounds {
-        Some((min, max)) if (max - min).length() > 1e-4 => {
-            let center = plane.to_world((min + max) * 0.5);
-            (center, (max - min).length() * 0.5)
-        }
-        _ => (plane.origin, screens::viewport::DEFAULT_SKETCH_RADIUS),
     }
 }
 

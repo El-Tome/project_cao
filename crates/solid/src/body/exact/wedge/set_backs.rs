@@ -61,6 +61,7 @@ pub(super) fn bound(
             [one, other]
                 .into_iter()
                 .flat_map(|ranked| runs(body, (edges, wedges), beside, ranked, later, &set_back))
+                .map(|(within, _)| within)
                 .collect()
         };
         let value = match (along, between) {

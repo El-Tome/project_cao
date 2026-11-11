@@ -19,6 +19,18 @@ use crate::brep::{self, EdgeId, Surface};
 /// A half-space, `normal · p ≤ offset`: one side of where a set-back ends.
 pub(super) type Within = (DVec3, f64);
 
+/// A half-space holding a set-back at one end of its edge, and whether it is
+/// a mitre's rather than the plane of the face the edge ends on: the plane
+/// through the corner the edge mitres on there with another edge of the list
+/// sharing its face — past which that edge's blend takes over — or, at a
+/// corner of mixed sense the edge goes round, the plane square to it through
+/// the corner. Past that one no edge of the list need take over: the corner
+/// is the patch's, which the chamfer's second laying reads through the edge
+/// on the odd edge's face, laid again lower where that falls short, and which
+/// the fillet's guards against a filling swallowing, or a clearing cutting, a
+/// face of the body decline.
+pub(super) type End = (Within, bool);
+
 /// A listed edge by its rank, and the side of its wedge a face is on.
 pub(super) type Ranked = (usize, usize);
 
@@ -63,9 +75,14 @@ fn narrowed([low, high]: [f64; 2], past: [f64; 2], eps: f64) -> Option<[f64; 2]>
 /// edge laid later mitres it, back from that plane at a convex corner — and
 /// where several edges of the list meet it there, at a corner whose three
 /// edges are named, which every laying cuts back within that plane or mitres
-/// short of it. Nothing holds it at an end where the face it ends on is
-/// curved or not one face, or where the one edge mitring it there does not
-/// share its face.
+/// short of it. At an end where it is one of the two edges of one sense at a
+/// corner of mixed sense, which go round the odd edge once it is laid (#829),
+/// the plane through the corner square to the edge, past which their blends
+/// never run: they mitre past it with the edge where the odd edge's face
+/// meets the one they share (#863). Nothing holds it at an end where the
+/// face it ends on is curved or not one face, or where the one edge mitring
+/// it there does not share its face. Each half-space says whether it is a
+/// mitre's, as [`End`] reads it.
 pub(super) fn runs(
     body: &brep::Body,
     (edges, wedges): (&[EdgeId], &[Wedge]),
@@ -73,7 +90,7 @@ pub(super) fn runs(
     (rank, side): Ranked,
     later: usize,
     set_back: &impl Fn(&Wedge) -> f64,
-) -> Vec<Within> {
+) -> Vec<End> {
     let wedge = &wedges[rank];
     let eps = body.scale().eps();
     let stopping = stops(body, edges[rank], wedge);
@@ -105,7 +122,15 @@ pub(super) fn runs(
             beside.contains(&(end, [rank.min(neighbour), rank.max(neighbour)]))
                 && stopping.iter().any(|stop| stop.end == end)
         };
+        let gone_round = |others: [usize; 2]| {
+            let [mine, one, other] = [rank, others[0], others[1]].map(|at| wedges[at].inwards);
+            (one != other) && (mine == one || mine == other)
+        };
         let half = match meeting[..] {
+            [one, other] if gone_round([one, other]) => {
+                let at = body.vertex(end).point;
+                Some(((wedge.along, wedge.along.dot(at)), true))
+            }
             [neighbour] if neighbour < later || carried(neighbour) => {
                 let theirs = &wedges[neighbour];
                 let on = theirs
@@ -114,16 +139,16 @@ pub(super) fn runs(
                     .position(|&face| face == wedge.faces[side]);
                 on.map(|on| {
                     let [(mine, own), (their, other)] = [depth(wedge, side), depth(theirs, on)];
-                    (their - mine, other - own)
+                    ((their - mine, other - own), true)
                 })
             }
-            _ => trimmed(),
+            _ => trimmed().map(|plane| (plane, false)),
         };
-        if let Some((normal, offset)) = half {
+        if let Some(((normal, offset), mitre)) = half {
             let inside = normal.dot(middle) - offset;
             if inside.abs() > eps {
                 let toward = -inside.signum();
-                held.push((normal * toward, offset * toward));
+                held.push(((normal * toward, offset * toward), mitre));
             }
         }
     }

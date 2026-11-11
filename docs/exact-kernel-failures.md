@@ -4084,3 +4084,27 @@ feared are not among their failures.
 **Left.** The sag is still read from the wall's grid and rays, not from its
 triangles: near a contact line, or where a face's boundary samples are
 closer than the grid, the two differ. No draw of these sets shows it.
+
+## #850: a chord near a third wall, against the face's own triangles
+
+Follows #840, which halves a meet's chords near a third wall until they dip
+no deeper than the wall's triangles sag, the sag read from the wall's grid
+and the rays it takes. The question was whether a face cut closer than the
+grid near the vertex sags less than that reading, and lets a chord through
+its triangles. It does not: `contact::own::through_vertices` gives every
+circle of a wall a ray through each vertex on it, and the sampling pass
+whose output survives reads those rays. A unit test builds the closer-cut
+face with contacts as production builds them, and the chord stays clear. A
+first fix added the face's vertices to the sag a second time and was
+reverted: it answered a test called with no contacts, which production never
+does. The sag stays read from the grid and rays.
+
+**How it was measured.** The branch changes no production code: its
+campaign is `main`'s (the walls and turned sets of #840, on f691751e) by
+construction.
+
+**The two shrunk cases #840 carried** are not this pass's: with it
+neutralised both cross to the bit. 353000000016959's shrunk case is two
+walls a hair apart beside a cone (#755); 352000000000339's is three walls
+tangent to one plane at a node (#853). Each is pinned, ignored under its
+issue, in `no_two_faces_fold_through_each_other_at_a_vertex_where_three_walls_meet.rs`.

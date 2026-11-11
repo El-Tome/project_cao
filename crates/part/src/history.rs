@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 mod cut_change;
 mod edits;
+mod matter_change;
 mod numbering;
 mod operation;
 mod point_ref;
@@ -115,14 +116,19 @@ impl History {
     /// the list is kept in.
     ///
     /// Each comes with its number, which is what names a step whose size does
-    /// not hold once the part is rebuilt.
+    /// not hold once the part is rebuilt. A step of matter changed since it
+    /// was raised comes as its latest change in effect, under its own number.
     pub fn replay_order(&self) -> Vec<(u32, &Operation)> {
         let in_effect: BTreeSet<u32> = self.numbers[..self.applied].iter().copied().collect();
+        let changed = self.changes_in_effect();
         self.steps
             .iter()
             .flat_map(|step| step.operations())
             .filter(|number| in_effect.contains(number))
-            .filter_map(|number| Some((*number, self.at(*number)?)))
+            .filter_map(|number| {
+                let replayed = changed.get(number).copied().or_else(|| self.at(*number));
+                Some((*number, replayed?))
+            })
             .collect()
     }
 
@@ -218,7 +224,7 @@ impl History {
                 }
                 None => {
                     let Some(step) =
-                        StepKind::owner(&kinds, operation).filter(|step| *step < opened)
+                        StepKind::owner(&steps, operation).filter(|step| *step < opened)
                     else {
                         continue;
                     };
@@ -293,13 +299,10 @@ impl History {
                 self.steps.push(Step::opened(kind));
                 self.steps.len() - 1
             }
-            None => {
-                let kinds: Vec<StepKind> = self.steps.iter().map(Step::kind).collect();
-                match StepKind::owner(&kinds, &operation) {
-                    Some(step) => step,
-                    None => return,
-                }
-            }
+            None => match StepKind::owner(&self.steps, &operation) {
+                Some(step) => step,
+                None => return,
+            },
         };
         let number = self.number(operation);
         self.steps[owner].record(number);

@@ -22,6 +22,8 @@
   "history.fillet": "Coin arrondi",
   "history.fillet_changed": "Congé modifié",
   "history.chamfer_changed": "Chanfrein modifié",
+  "history.extrusion_changed": "Extrusion modifiée",
+  "history.revolution_changed": "Révolution modifiée",
   "history.cut_taken_off": "Coin rendu vif",
   "history.chamfer_sides_swapped": "Côtés du chanfrein inversés",
   "history.cut_in_construction": "Coin coupé passé en construction",

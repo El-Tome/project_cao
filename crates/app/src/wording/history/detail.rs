@@ -173,6 +173,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
             ..
         } => sized::fillet(lang, variables, *sketch, corners.len(), radius),
         Operation::CutChange(change) => super::cut_change::detail(lang, variables, change),
+        Operation::EditMatter { to, .. } => super::label(lang, variables, to),
         Operation::SaveSection(_)
         | Operation::EditSection { .. }
         | Operation::DeleteSection { .. } => String::new(),

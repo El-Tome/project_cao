@@ -1,6 +1,3 @@
-//! One step of what was done to a part: what it names, and what it asks
-//! for. Replaying the list of them is what produces the geometry.
-
 use cao_sketch::{
     ArcId, Area, ChosenAxis, CircleId, Constraint, Corner, DimensionTarget, Element, EllipseId,
     PointId, SegmentId, Support, WorkPlane,
@@ -14,8 +11,9 @@ use super::{
 };
 use crate::{formula::Formula, variables::VariableChange};
 
-/// One step of the part's history. Replaying the list from the start rebuilds
-/// the whole part, which is what makes rolling back to any point possible.
+/// One step of what was done to a part: what it names, and what it asks for.
+/// Replaying the list from the start rebuilds the whole part, which is what
+/// makes rolling back to any point possible.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Operation {
     /// Several operations the user did as one gesture: they are replayed in
@@ -124,10 +122,7 @@ pub enum Operation {
     /// drawing that read closed and was not, its area gone, and two undos to
     /// get back to one drag.
     ///
-    /// Which corner it lands on is decided at the drop and recorded, never
-    /// worked out again on replay: how close is close enough depends on the
-    /// zoom at the time, so re-deriving it later could join a different pair,
-    /// or none.
+    /// Which corner it lands on is recorded, for the reason `MergePoints` is.
     MovePoint {
         sketch: usize,
         point: PointId,
@@ -385,6 +380,11 @@ pub enum Operation {
     },
     /// A fillet or a chamfer changed after it was laid.
     CutChange(CutChange),
+    /// The step of matter `raised_by` raised, replayed as `to` from then on.
+    EditMatter {
+        raised_by: u32,
+        to: Box<Operation>,
+    },
     SaveSection(SectionAsked),
     EditSection {
         section: usize,

@@ -87,6 +87,10 @@ pub fn label(lang: &Catalogue, variables: &Variables, operation: &Operation) -> 
         Operation::Chamfer { .. } => lang.t("history.chamfer"),
         Operation::Fillet { .. } => lang.t("history.fillet"),
         Operation::CutChange(change) => cut_change::label(lang, change),
+        Operation::EditMatter { to, .. } => lang.t(match **to {
+            Operation::Revolve { .. } => "history.revolution_changed",
+            _ => "history.extrusion_changed",
+        }),
         Operation::Mirror { .. } => lang.t("history.mirrored"),
         Operation::CircularPattern { .. } => lang.t("history.circular_pattern"),
         Operation::RectangularPattern { .. } => lang.t("history.rectangular_pattern"),

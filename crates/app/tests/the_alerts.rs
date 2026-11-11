@@ -94,7 +94,10 @@
 //! - decided by Tom when the work opened: « Modifier » on an extrusion's alert
 //!   reopens the extrusion, its panel filled with its values, where no
 //!   extrusion could be reopened before —
-//!   `modify_on_an_extrusion_s_alert_reopens_it_with_its_values`
+//!   `modify_on_an_extrusion_s_alert_reopens_it_with_its_values`; the part's
+//!   half, a step of matter changed after it was raised and raised again in
+//!   its own step, is held first and apart, in
+//!   `crates/part/tests/changing_an_extrusion.rs`
 //! - decided by Tom when the work opened: « Montrer » on a volume's alert
 //!   selects the volume and lights it in the view — its row in the tree stands
 //!   selected, for a volume not built and for one built unstably, the list

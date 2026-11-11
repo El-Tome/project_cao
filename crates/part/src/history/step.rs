@@ -52,17 +52,24 @@ impl StepKind {
     }
 
     /// Which of these steps an operation that opens none is recorded under:
-    /// the sketch it edits, or the section it changes, by rank in its kind.
-    pub(crate) fn owner(kinds: &[Self], operation: &Operation) -> Option<usize> {
+    /// the sketch it edits, or the section it changes, by rank in its kind;
+    /// the step of matter it changes, by the number of the operation that
+    /// opened it.
+    pub(crate) fn owner(steps: &[Step], operation: &Operation) -> Option<usize> {
+        if let Operation::EditMatter { raised_by, .. } = operation {
+            return steps
+                .iter()
+                .position(|step| step.operations().first() == Some(raised_by));
+        }
         let (kind, rank) = match (operation.edits(), operation.edits_section()) {
             (Some(sketch), _) => (Self::Sketch, sketch),
             (None, Some(section)) => (Self::Section, section),
             (None, None) => return None,
         };
-        kinds
+        steps
             .iter()
             .enumerate()
-            .filter(|(_, given)| **given == kind)
+            .filter(|(_, step)| step.kind == kind)
             .map(|(at, _)| at)
             .nth(rank)
     }

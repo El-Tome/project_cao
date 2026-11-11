@@ -33,6 +33,12 @@ impl PartDocument {
             .map_or_else(Vec::new, |rank| self.state.faces_made(rank))
     }
 
+    /// The operation the step of matter of that number is replayed as now:
+    /// its latest change, or the operation that raised it.
+    pub fn raised_as(&self, step: u32) -> Option<&Operation> {
+        self.history.raised_as(step)
+    }
+
     /// Whether the kernel declined the step of matter of that number: the
     /// part stands as it did before it, and the step is broken.
     pub fn is_declined(&self, step: u32) -> bool {

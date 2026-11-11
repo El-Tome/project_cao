@@ -4108,3 +4108,40 @@ neutralised both cross to the bit. 353000000016959's shrunk case is two
 walls a hair apart beside a cone (#755); 352000000000339's is three walls
 tangent to one plane at a node (#853). Each is pinned, ignored under its
 issue, in `no_two_faces_fold_through_each_other_at_a_vertex_where_three_walls_meet.rs`.
+
+## #855: a block face a bore leaning a hair off its length touches
+
+Part of #755. A bore leaning 0.001° touches a block's top face and meets a
+post whose top is tangent to that face along the block's edge. The bore and
+post meet turns back in the bore's angle 8.7e-5 from the end it shares with
+the plane, but only 6.3e-8 round the wall from it: near a turn the angle
+moves with the square of the distance. Kept as a sample, that turn stood
+7.6e-10 below the plane, and the bore's one triangle over the knife edge
+between bore and plane lay on the plane's own (354000000000132, shrunk).
+`sampling/meet.rs` now reads a turn whose ray passes within a hair of an
+end's ray, no other turn between, as that end.
+
+**How it was measured.** The walls and turned sets of #840, on `main`
+(f691751e's production code) and on the branch (78697980), compared seed
+by seed.
+
+| Set | Exact, `main` | Exact, #855 | Body, `main` | Body, #855 |
+| --- | --- | --- | --- | --- |
+| walls 352… | 41 | 40 | 85 | 84 |
+| walls 353… | 24 | 24 | 79 | 79 |
+| walls 354… | 37 | 37 | 83 | 83 |
+| turned 533300000… | 22 | 20 | 42 | 40 |
+
+No regression. The walls draws go from 349 failures to 347, the turned
+draws from 64 to 60. **Gains:** 352000000000787 on both kernels
+(`Uncrossed`), and in the turned set 533301186 and 533312139 on both
+(`Closed` on the exact kernel, `Answers` through the body).
+
+A review swept 132 shapes around the shrunk case — the lean either side of
+90°, the post's height and radius, the bore's place and radius, the part's
+reach up to 3000 — on `main` and on the branch: 51 fail on `main` and hold on
+the branch, none the other way. 352000000002266's shrunk case, declined
+`Undrawn` when #755 was written, holds on `main` already and is pinned.
+
+**Left.** A cone's turns are not read this way: neither its angle nor its
+rays are compared here, so a leaning cone touching a face could still fold.

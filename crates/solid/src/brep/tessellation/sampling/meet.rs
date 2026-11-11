@@ -3,13 +3,14 @@
 //! At every parameter where it crosses a grid angle of either wall, so
 //! that on both it has a point at every grid angle as a circle has; wherever
 //! it turns back in the angle of either, so that between two of its points it
-//! runs one way on both; at its ends. At the angle of every ray the circles
-//! of either cylinder take, so that it stands on the same rays as a wall a
-//! hair inside its own, whose chords would otherwise stand shallower than
-//! its own between two of its points. Then, between two of those, wherever
-//! the chord would stand further from the curve than the tolerance. A line
-//! two walls sharing their rays cross along is sampled at its ends alone
-//! (`crossing.rs`).
+//! runs one way on both — but a turn within a hair of an end's ray is that
+//! end, so between two points it may run back by up to a hair; at its ends.
+//! At the angle of every ray the circles of either cylinder take, so that it
+//! stands on the same rays as a wall a hair inside its own, whose chords
+//! would otherwise stand shallower than its own between two of its points.
+//! Then, between two of those, wherever the chord would stand further from
+//! the curve than the tolerance. A line two walls sharing their rays cross
+//! along is sampled at its ends alone (`crossing.rs`).
 //!
 //! An elliptic wall (#571) is divided as a circle of its major half-axis,
 //! as its rims are, its grid an eccentric angle's; it takes the angles its
@@ -60,9 +61,13 @@ enum Reason {
 /// ray is kept only where `clear` says so — and not on the ray through an
 /// end where the angle runs one way from that end, which crosses it at the
 /// end alone: such a place is the end read with rounding (354000000005870).
-/// An edge standing within the kernel's tolerance of the chord between its
-/// ends — a meet run along a line two walls touch along — is a line to the
-/// kernel, sampled at its ends alone as a line is (354000000008476).
+/// Nor at a turn whose ray stands within a hair of the ray through an end,
+/// no turn between them: the angle runs one way from that end but for a
+/// hair, and a triangle on the turn would lie on a face the end lies on
+/// (354000000000132). An edge standing within the kernel's tolerance of the
+/// chord between its ends — a meet run along a line two walls touch along —
+/// is a line to the kernel, sampled at its ends alone as a line is
+/// (354000000008476).
 fn on_meet_by(
     meet: &Meet,
     edge: &Edge,
@@ -89,22 +94,40 @@ fn on_meet_by(
     let mut marks = vec![(low, Reason::End), (high, Reason::End)];
     for ((on_first, taken), steps) in [true, false].into_iter().zip(rays).zip(steps) {
         let turns = meet.turns(on_first);
+        let wall = if on_first { meet.first } else { meet.second };
+        let unturned = |t: f64, end: f64| {
+            let (from, to) = (t.min(end), t.max(end));
+            turns
+                .iter()
+                .all(|turn| within(*turn, from, to).all(|t| t <= from || t >= to))
+        };
+        let turned_at_an_end = |t: f64| {
+            !whole
+                && [low, high].into_iter().any(|end| {
+                    unturned(t, end)
+                        && angle(&wall, meet.point(t)).is_some_and(|angle| {
+                            on_ray(&wall, angle, meet.point(end), eps * Scale::HAIR)
+                        })
+                })
+        };
+        let turned = turns.iter().flat_map(|t| within(*t, low, high));
+        marks.extend(
+            turned
+                .filter(|t| !turned_at_an_end(*t))
+                .map(|t| (t, Reason::Turn)),
+        );
         let grid = (0..steps)
             .flat_map(|step| meet.at_angle(on_first, TAU * step as f64 / steps as f64))
-            .map(|t| (t, Reason::Grid));
-        let marked = turns.iter().map(|t| (*t, Reason::Turn)).chain(grid);
-        marks.extend(marked.flat_map(|(t, reason)| within(t, low, high).map(move |t| (t, reason))));
-        let wall = if on_first { meet.first } else { meet.second };
+            .flat_map(|t| within(t, low, high));
+        marks.extend(grid.map(|t| (t, Reason::Grid)));
         for angle in taken {
             let ended =
                 [low, high].map(|end| !whole && on_ray(&wall, *angle, meet.point(end), eps));
             let by_an_end = |t: f64| {
-                [low, high].into_iter().zip(ended).any(|(end, on)| {
-                    let (from, to) = (t.min(end), t.max(end));
-                    on && turns
-                        .iter()
-                        .all(|turn| within(*turn, from, to).all(|t| t <= from || t >= to))
-                })
+                [low, high]
+                    .into_iter()
+                    .zip(ended)
+                    .any(|(end, on)| on && unturned(t, end))
             };
             let places = meet.at_angle(on_first, *angle).into_iter();
             let places = places.flat_map(|t| within(t, low, high));
@@ -299,6 +322,15 @@ fn on_ray(wall: &Wall, angle: f64, end: DVec3, eps: f64) -> bool {
         Wall::Cone(_) => return false,
     };
     at.distance(there) <= eps
+}
+
+/// The angle round `wall` of the ray through `point`: none on a cone.
+fn angle(wall: &Wall, point: DVec3) -> Option<f64> {
+    match wall {
+        Wall::Cylinder(cylinder) => Some(cylinder.parameters(point).x),
+        Wall::Elliptic(oval) => Some(oval.parameters(point).x),
+        Wall::Cone(_) => None,
+    }
 }
 
 /// What a wall is divided as: a cylinder its radius, an elliptic wall the

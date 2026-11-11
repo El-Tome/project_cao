@@ -45,9 +45,12 @@
 //!   whichever of the two the step names first —
 //!   `a_fillet_and_a_chamfer_on_two_edges_whose_rounds_would_meet_take_the_same_value_whichever_edge_the_step_names_first`;
 //!   and where the edge they would cross on is in the list too, laid after
-//!   both, as the last criterion has it —
-//!   `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_named_with_the_middle_one_last_asked_past_where_the_outer_two_would_cross_take_the_value_at_which_they_touch`,
-//!   `a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_in_ring_order_asked_past_where_alternate_edges_would_cross_take_the_value_at_which_they_touch`;
+//!   both, #792 reduced the value to where they touched, as the last
+//!   criterion had it; #822 made the value read the layout every edge of the
+//!   list leaves, whatever its order, so the middle edge's cut takes away
+//!   where they would cross and the value asked is taken —
+//!   `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_named_with_the_middle_one_last_asked_past_where_the_outer_two_would_cross_take_the_value_asked`,
+//!   `a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_in_ring_order_asked_past_where_alternate_edges_would_cross_take_the_value_asked`;
 //!   and where that edge is laid before the later of the two but its own
 //!   set-back closes between its two mitres first — a trapezoid's short top
 //!   edge between its two sides, which converge below it — the step takes
@@ -81,19 +84,23 @@
 //!   mitred, the outer two meeting nowhere —
 //!   `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_asked_past_where_the_outer_two_would_cross_take_the_value_asked_the_middle_one_named_before_the_last`.
 //!   #698 laid them so with the middle edge named before the last of the
-//!   outer two. The value follows the order the step lays its edges in, as
-//!   the owner decided: two set-backs that would meet on an edge of the list
-//!   laid before the later of the two do not meet, that edge's cut taking
-//!   away the point where they would before the later one is laid. With the
-//!   middle edge named last, #698 declined the three `Unsupported`; they are
-//!   reduced to where the outer two touch on it, a quarter of the side times
-//!   the square root of three, and laid —
-//!   `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_named_with_the_middle_one_last_asked_past_where_the_outer_two_would_cross_take_the_value_at_which_they_touch`;
-//!   and so are the six top edges named in ring order, which #698 declined
-//!   past that value, the last named laid after both its neighbours —
-//!   `a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_in_ring_order_asked_past_where_alternate_edges_would_cross_take_the_value_at_which_they_touch`.
-//!   The value taken may so depend on the order of the list; a value that
-//!   does not is left to #822. And two steps #698 lays that the reading of
+//!   outer two. #792 had the value follow the order the step lays its edges
+//!   in, as the owner decided: two set-backs that would meet on an edge of
+//!   the list laid before the later of the two did not meet, that edge's cut
+//!   taking away the point where they would before the later one was laid;
+//!   with the middle edge named last, #698 declined the three `Unsupported`,
+//!   and #792 reduced them to where the outer two touch on it, a quarter of
+//!   the side times the square root of three, as it did the six top edges
+//!   named in ring order, the last named laid after both its neighbours.
+//!   #822 took that back: the step still lays its edges in the order named,
+//!   but bounds the value by the layout they all leave, a listed edge
+//!   between two crossing set-backs bounding them where its own set-back
+//!   closes, whatever its rank. The three with the middle edge named last
+//!   and the six in ring order take the value asked, each face where it lies
+//!   as with the middle edge named before the last —
+//!   `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_named_with_the_middle_one_last_asked_past_where_the_outer_two_would_cross_take_the_value_asked`,
+//!   `a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_in_ring_order_asked_past_where_alternate_edges_would_cross_take_the_value_asked`.
+//!   And two steps #698 lays that the reading of
 //!   an edge of the list between two others could shrink take the value
 //!   asked: where the middle edge's wall overhangs, so steeply that its
 //!   fillet's set-back runs ahead of where the outer two's would cross —
@@ -133,6 +140,29 @@
 //! upright's on the slant's top edge — 3.75 chamfered, 5 filleted — in all
 //! six orders —
 //! `a_fillet_and_a_chamfer_on_the_two_top_edges_at_an_l_s_inner_corner_and_an_upright_their_mitre_runs_into_take_the_value_at_which_they_meet_whatever_the_order`.
+//!
+//! Closes #822.
+//!
+//! - A step on several edges takes the same value whichever order its edges
+//!   are named in: the largest at which no two set-backs meet once every
+//!   edge of the list is laid. The three in a row and the ring of the
+//!   hexagon, asked 4.9, take 4.9 in every order — the three in a row in all
+//!   six orders,
+//!   `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_asked_past_where_the_outer_two_would_cross_take_the_value_asked_in_every_order`;
+//!   the six as given, reversed and in two orders shuffled,
+//!   `a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_asked_past_where_alternate_edges_would_cross_take_the_value_asked_whatever_the_order`.
+//!   Read as: chamfered and filleted, the value taken whole, a sound body
+//!   holding the arithmetic's volume — one for every order — and the top set
+//!   back by the value from every edge of the list
+//! - Every step #698, #699 and #792 lay — no test: held by their suites, but
+//!   for #792's two tests that held the value reduced with the middle edge
+//!   named last and on the ring; each now holds the value asked, every face
+//!   where it lies, under a name that says so
+//!
+//! The volumes are #792's: the three in a row's as
+//! `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_asked_past_where_the_outer_two_would_cross_take_the_value_asked_the_middle_one_named_before_the_last`
+//! derives them, the six's as the ring's test does, at the value asked
+//! rather than where alternate edges touch.
 
 use std::collections::BTreeSet;
 use std::f64::consts::{FRAC_1_SQRT_2, PI};
@@ -2091,10 +2121,10 @@ fn laid_on_the_top_edge(
 }
 
 #[test]
-fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_named_with_the_middle_one_last_asked_past_where_the_outer_two_would_cross_take_the_value_at_which_they_touch()
+fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_named_with_the_middle_one_last_asked_past_where_the_outer_two_would_cross_take_the_value_asked()
  {
     let prism = hexagonal_prism();
-    let (asked, touching) = (HEXAGON_ASKED, hexagon_touching());
+    let asked = HEXAGON_ASKED;
     let end = HEXAGON_SIDE / 2.0;
 
     for order in [[0, 2, 1], [2, 0, 1]] {
@@ -2114,12 +2144,13 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_named
         for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
             let what = format!(
                 "the {kind} on three top edges in a row of the hexagon, named {order:?}, asked \
-                 {asked}: the middle one laid after both outer ones, which would cross on it"
+                 {asked}: the middle one laid after both outer ones, its cut taking away where \
+                 they would cross on it"
             );
 
             let (reported, taken, body) = stepped(&prism, &names, asked, fillet, &what);
 
-            reduced_to_touching(reported, taken, [asked, touching], HEXAGON_HAIR, &what);
+            taken_as_asked(reported, taken, asked, &what);
             for (rank, &wall) in IN_A_ROW.iter().enumerate() {
                 let turn = rank as f64 * PI / 3.0;
                 let reach = if rank == 1 {
@@ -2211,10 +2242,10 @@ fn only_neighbours_meet(body: &Body, laid: &[usize], what: &str) {
 }
 
 #[test]
-fn a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_in_ring_order_asked_past_where_alternate_edges_would_cross_take_the_value_at_which_they_touch()
+fn a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_in_ring_order_asked_past_where_alternate_edges_would_cross_take_the_value_asked()
  {
     let prism = hexagonal_prism();
-    let (asked, touching) = (HEXAGON_ASKED, hexagon_touching());
+    let asked = HEXAGON_ASKED;
     let names: Vec<EdgeName> = HEXAGON_WALLS
         .iter()
         .map(|&wall| edge_between(&prism, TOP, wall))
@@ -2226,12 +2257,12 @@ fn a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_in_ring_orde
     for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
         let what = format!(
             "the {kind} on the hexagon's six top edges in ring order, asked {asked}: the last \
-             laid after both its neighbours, which would cross on it"
+             laid after both its neighbours, its cut taking away where they would cross on it"
         );
 
         let (reported, taken, body) = stepped(&prism, &names, asked, fillet, &what);
 
-        reduced_to_touching(reported, taken, [asked, touching], HEXAGON_HAIR, &what);
+        taken_as_asked(reported, taken, asked, &what);
         for ((rank, &wall), &number) in HEXAGON_WALLS.iter().enumerate().zip(&laid) {
             let turn = rank as f64 * PI / 3.0;
             laid_on_the_top_edge(
@@ -3193,4 +3224,120 @@ fn a_fillet_and_a_chamfer_on_the_two_top_edges_at_an_l_s_inner_corner_and_an_upr
             }
         }
     }
+}
+
+/// Holds, for each order of `orders` and each kind, that the step on the
+/// hexagon's top edges on the walls `walls`, named in that order, takes
+/// `value` whole and leaves a sound body holding `promised` of its kind, its
+/// top's corners `top`; or says, among `wrong`, what it took or why it
+/// declined. A fillet is drawn within the tolerance over one round for each
+/// edge, a side and a value long.
+fn take_the_value_asked_in_every_order(
+    walls: &[usize],
+    orders: &[Vec<usize>],
+    value: f64,
+    (promised, top): (&dyn Fn(bool) -> f64, &[DVec3]),
+    called: &str,
+) -> Vec<String> {
+    let prism = hexagonal_prism();
+    let mut wrong = Vec::new();
+    for order in orders {
+        let names: Vec<EdgeName> = (order.iter())
+            .map(|&rank| edge_between(&prism, TOP, walls[rank]))
+            .collect();
+        for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
+            let what = format!("the {kind} of {value} on {called}, named {order:?}");
+            let laid = if fillet {
+                prism
+                    .fillet_edges(&names, value)
+                    .map(|done| (done.asked, done.taken, done.body))
+            } else {
+                prism
+                    .chamfer_edges(&names, value)
+                    .map(|done| (done.asked, done.taken, done.body))
+            };
+            let (asked, taken, body) = match laid {
+                Ok(laid) => laid,
+                Err(reason) => {
+                    wrong.push(format!("{what}: declined, {reason:?}"));
+                    continue;
+                }
+            };
+            if (asked - value).abs() > PLACE || (taken - value).abs() > PLACE {
+                wrong.push(format!("{what}: asked {asked} and took {taken}"));
+                continue;
+            }
+            let promised = promised(fillet);
+            let drawn = if fillet {
+                let area = walls.len() as f64 * PI / 2.0 * value * (HEXAGON_SIDE + value);
+                DRAWN * reach_of(&prism) * area
+            } else {
+                EXACT * promised
+            };
+            sound_drawn_within(&body, promised, drawn, &what);
+            corners_are(
+                &body,
+                TOP,
+                top,
+                &format!("{what}: the top, set back by the value from every edge of the list"),
+            );
+        }
+    }
+    wrong
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_asked_past_where_the_outer_two_would_cross_take_the_value_asked_in_every_order()
+ {
+    let value = HEXAGON_ASKED;
+    let orders: Vec<Vec<usize>> = ORDERS_OF_THREE.iter().map(|order| order.to_vec()).collect();
+    let wrong = take_the_value_asked_in_every_order(
+        &IN_A_ROW,
+        &orders,
+        value,
+        (
+            &|fillet| hexagon_volume() - taken_off_in_a_row(value, fillet),
+            &in_a_row_top(value),
+        ),
+        "three top edges in a row of the hexagon",
+    );
+    assert!(
+        wrong.is_empty(),
+        "three top edges in a row of the hexagon, asked {value}, past where the outer two's \
+         set-backs would cross on the middle edge, {}: the value asked whatever the order, as \
+         no two set-backs meet once all three are laid:\n{}",
+        hexagon_touching(),
+        wrong.join("\n")
+    );
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_asked_past_where_alternate_edges_would_cross_take_the_value_asked_whatever_the_order()
+ {
+    let value = HEXAGON_ASKED;
+    let orders = vec![
+        vec![0, 1, 2, 3, 4, 5],
+        vec![5, 4, 3, 2, 1, 0],
+        vec![0, 3, 1, 4, 2, 5],
+        vec![2, 0, 4, 1, 5, 3],
+    ];
+    let top = ring_top(value);
+    let wrong = take_the_value_asked_in_every_order(
+        &HEXAGON_WALLS,
+        &orders,
+        value,
+        (
+            &|fillet| hexagon_volume() - taken_off_the_ring(value, fillet),
+            &top,
+        ),
+        "the hexagon's six top edges",
+    );
+    assert!(
+        wrong.is_empty(),
+        "the hexagon's six top edges, asked {value}, past where alternate edges' set-backs would \
+         cross, {}: the value asked whatever the order, as no two set-backs meet once all six are \
+         laid:\n{}",
+        hexagon_touching(),
+        wrong.join("\n")
+    );
 }

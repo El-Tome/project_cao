@@ -165,6 +165,7 @@ impl Exact {
             meeting.closing,
         )?;
         let given: Vec<(EdgeId, &Wedge)> = edges.iter().copied().zip(&wedges).collect();
+        let crossing = set_backs::crossing_on(&self.brep, &edges, &wedges);
         let start = self.next;
         let mut cut = self.clone();
         for rank in 0..names.len() {
@@ -189,7 +190,8 @@ impl Exact {
                         .filter(|&earlier| corners::meet(&self.brep, [edges[earlier], edges[rank]]))
                         .map(|earlier| start + earlier as u32)
                         .collect();
-                    let open = flush::open(&self.brep, rank, &given, &beside);
+                    let mut open = flush::open(&self.brep, rank, &given, &beside);
+                    open.extend(flush::completing(&self.brep, rank, &given, &crossing));
                     let value = ends.get(&rank).copied().unwrap_or(taken);
                     if mitred.is_empty() {
                         cut.laid(&names[rank], value, &tool, (&mitred, &open), &held)?

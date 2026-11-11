@@ -24,10 +24,11 @@ type Depths = [f64; 2];
 /// at a corner — of their wedges in `wedges`, at their ranks, by the set-back
 /// of a value of one `set_back` says — reach one point of a straight edge of
 /// the body bounding a face of each, within where each set-back runs on that
-/// face, as [`runs`] holds it and [`span`] reads it on that edge. Where that edge is itself one of the
-/// list, neither of the two, and laid before the later of them, its own cut
-/// takes the point away first: the two meet only once its own set-back closes
-/// between theirs, which bounds them instead, as [`closing`] reads it.
+/// face, as [`runs`] holds it and [`span`] reads it on that edge. Where that
+/// edge is itself one of the list, neither of the two, its own cut takes the
+/// point away once every edge is laid, whichever is laid first (#822): the
+/// two meet only once its own set-back closes between theirs, which bounds
+/// them instead, as [`closing`] reads it.
 /// Where a straight edge joins two parallel edges facing each other across a
 /// face, it is [`super::pairs::bound`]'s; across a face whose sides between
 /// them are curved, only that one sees them.
@@ -38,17 +39,9 @@ pub(super) fn bound(
     beside: &[Beside],
     set_back: impl Fn(&Wedge) -> f64,
 ) -> f64 {
-    let mut bounding: BTreeMap<EdgeId, Vec<Ranked>> = BTreeMap::new();
-    for (rank, wedge) in wedges.iter().enumerate() {
-        for (side, &face) in wedge.faces.iter().enumerate() {
-            for coedge in body.face(face).loops.iter().flatten() {
-                bounding.entry(coedge.edge).or_default().push((rank, side));
-            }
-        }
-    }
     let eps = body.scale().eps();
     let mut most = f64::INFINITY;
-    for (edge, sides) in bounding {
+    for (edge, sides) in bounding(body, wedges) {
         let listed = edges.iter().position(|&named| named == edge);
         let stretch = body.edge(edge);
         let (Curve::Line(_), Some(ends)) = (body.curve(stretch.curve), stretch.ends) else {
@@ -69,8 +62,7 @@ pub(super) fn bound(
                 if first == second || corners::meet(body, [edges[first], edges[second]]) {
                     continue;
                 }
-                let between = listed
-                    .filter(|&rank| rank != first && rank != second && rank < first.max(second));
+                let between = listed.filter(|&rank| rank != first && rank != second);
                 let value = match between {
                     Some(rank) => closing(wedges, [*one, *other], rank, &set_back),
                     None => {
@@ -92,6 +84,53 @@ pub(super) fn bound(
         }
     }
     most
+}
+
+/// The edges of the body bounding a face of the wedges `wedges`, each with
+/// the ranks of the wedges and the sides of the faces it bounds.
+fn bounding(body: &brep::Body, wedges: &[Wedge]) -> BTreeMap<EdgeId, Vec<Ranked>> {
+    let mut bounding: BTreeMap<EdgeId, Vec<Ranked>> = BTreeMap::new();
+    for (rank, wedge) in wedges.iter().enumerate() {
+        for (side, &face) in wedge.faces.iter().enumerate() {
+            for coedge in body.face(face).loops.iter().flatten() {
+                bounding.entry(coedge.edge).or_default().push((rank, side));
+            }
+        }
+    }
+    bounding
+}
+
+/// The edges of `edges` whose straight edge bounds a face of each of two
+/// others that do not meet at a corner, as [`bound`] reads them, so that
+/// their set-backs may cross on it until its own cut takes the crossing
+/// away: each by its rank, with the two's ranks, the lower first.
+pub(super) fn crossing_on(
+    body: &brep::Body,
+    edges: &[EdgeId],
+    wedges: &[Wedge],
+) -> Vec<(usize, [usize; 2])> {
+    let mut crossing = Vec::new();
+    for (edge, sides) in bounding(body, wedges) {
+        let Some(between) = edges.iter().position(|&named| named == edge) else {
+            continue;
+        };
+        if !matches!(body.curve(body.edge(edge).curve), Curve::Line(_)) {
+            continue;
+        }
+        for (index, &(first, _)) in sides.iter().enumerate() {
+            for &(second, _) in &sides[index + 1..] {
+                let pair = [first.min(second), first.max(second)];
+                if first != second
+                    && !pair.contains(&between)
+                    && !corners::meet(body, [edges[first], edges[second]])
+                    && !crossing.contains(&(between, pair))
+                {
+                    crossing.push((between, pair));
+                }
+            }
+        }
+    }
+    crossing
 }
 
 /// The least value at which two set-backs reach one point of a straight

@@ -1,8 +1,9 @@
 //! The first row of the part screen: the way home, the part's name, where the
-//! view stands, and the message.
+//! view stands, the message, and the count of the part's alerts, which opens
+//! their list.
 
 mod state;
 mod view;
 
-pub use state::{Covering, TitleBar, settle};
+pub use state::{Held, TitleBar, settle};
 pub use view::show;

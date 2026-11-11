@@ -126,7 +126,7 @@ impl CaoApp {
             extrusion: ExtrusionState::default(),
             ribbon: Ribbon::new(),
             variables: screens::variables::VariablesPanel::default(),
-            covering: None,
+            title_bar: Default::default(),
         }));
     }
 
@@ -175,7 +175,7 @@ impl CaoApp {
             extrusion,
             ribbon,
             variables,
-            covering,
+            title_bar,
         } = part.as_mut();
 
         // The viewport reads its own copy: it is handed to the renderer every
@@ -189,9 +189,9 @@ impl CaoApp {
         // An error raised on this screen goes to the title bar's pill, which
         // the frame's end settles; until then the shell holds it.
         let at_start = editor.message.clone();
-        let error = covering.as_ref().map(|lying| lying.error.as_str());
+        let error = title_bar.covering.as_ref().map(|held| held.error.as_str());
         let bar = screens::title_bar::TitleBar::of(doc, path, editor, viewport, error, lang);
-        let mut back_to_menu = screens::title_bar::show(ui, &bar, lang);
+        let mut back_to_menu = screens::title_bar::show(ui, &bar, &mut title_bar.alerts_open, lang);
         let mut changed = false;
         let mut asked: Vec<Command> = Vec::new();
 
@@ -296,16 +296,16 @@ impl CaoApp {
             self.error = Some(message);
         }
         let settled = screens::title_bar::settle(
-            covering.clone(),
+            title_bar.covering.clone(),
             self.error.take(),
             at_start.as_deref(),
             &mut editor.message,
             commanded || over_the_view.is_some() || back_to_menu,
         );
-        if settled != *covering {
+        if settled != title_bar.covering {
             ui.ctx().request_repaint();
         }
-        *covering = settled;
+        title_bar.covering = settled;
         if let Some(at) = copy_panel_let_go_at {
             self.remembered.profiles.active_mut().copy_panel_at = Some(at);
             // With nowhere to keep it, the place holds for the session alone.

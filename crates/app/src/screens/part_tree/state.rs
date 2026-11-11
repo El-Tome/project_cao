@@ -23,10 +23,12 @@ use crate::wording::part_tree::{self as said, Problem, Rubric};
 use crate::wording::{self, formula, plane};
 
 mod clicks;
+mod flagged;
 mod history;
 mod seen;
 mod volumes;
 pub use clicks::*;
+pub use flagged::{About, Flagged};
 pub use history::History;
 pub use seen::Offered;
 use volumes::volume;
@@ -220,15 +222,6 @@ impl PartTree {
         .into_iter()
         .filter_map(|(rubric, shown)| shown.then_some(rubric))
         .collect()
-    }
-
-    /// The badge of every element that wears one, in the order the panel
-    /// shows them.
-    pub fn problems(&self) -> impl Iterator<Item = Problem> + '_ {
-        let sketches = self.sketches.iter().map(|drawn| drawn.badge);
-        let bodies = self.bodies.iter().map(|body| body.badge);
-        let sections = self.sections.iter().map(|kept| kept.badge);
-        sketches.chain(bodies).chain(sections).flatten()
     }
 
     pub fn is_empty(&self) -> bool {

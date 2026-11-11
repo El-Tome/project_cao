@@ -3,10 +3,11 @@ use std::path::Path;
 use cao_part::PartDocument;
 
 use crate::lang::Catalogue;
-use crate::screens::part_tree::state::PartTree;
+use crate::screens::part_tree::state::{About, Flagged, PartTree};
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::ViewportState;
 use crate::ui::badge::Level;
+use crate::wording::alerts;
 use crate::wording::view::{Standing, standing_on};
 
 /// What the title bar reads: the part's name and the file it is kept in, the
@@ -17,19 +18,40 @@ pub struct TitleBar<'a> {
     pub path: &'a Path,
     pub view: String,
     pub said: Option<Said<'a>>,
-    // Read by the list of alerts, still to come in #736; only the tests read it
-    // until then.
-    #[cfg_attr(not(test), expect(dead_code))]
     pub alerts: Vec<Alert>,
     /// How many alerts there are, while there is one.
     pub alerts_button: Option<AlertsButton>,
 }
 
+/// What the title bar holds from one frame to the next: the error on its
+/// pill, and whether the list of alerts is open.
+#[derive(Debug, Default)]
+pub struct Held {
+    pub covering: Option<Covering>,
+    pub alerts_open: bool,
+}
+
 /// One element of the part wearing a badge in the tree, at the level of the
 /// gravest of its problems.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Alert {
+    pub about: About,
     pub level: Level,
+    /// « Extrusion 2 · non construite ».
+    pub title: String,
+    /// Why, in one sentence.
+    pub sentence: String,
+}
+
+impl Alert {
+    fn of(flagged: Flagged<'_>, lang: &Catalogue) -> Self {
+        Self {
+            about: flagged.about,
+            level: flagged.problem.level(),
+            title: alerts::title(lang, flagged.name, flagged.problem),
+            sentence: alerts::why(lang, flagged.problem, flagged.unstable),
+        }
+    }
 }
 
 /// « 2 alertes », drawn at the level of the worst of them.
@@ -67,9 +89,7 @@ impl<'a> TitleBar<'a> {
         };
         let alerts: Vec<Alert> = PartTree::of(document, lang)
             .problems()
-            .map(|problem| Alert {
-                level: problem.level(),
-            })
+            .map(|flagged| Alert::of(flagged, lang))
             .collect();
         Self {
             name: document.name(),

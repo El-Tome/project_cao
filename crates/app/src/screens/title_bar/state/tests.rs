@@ -49,13 +49,30 @@
 //! - in the colour of the worst level — the level the count is drawn at,
 //!   whichever of the two comes first in the part —
 //!   `the_count_wears_the_level_of_the_worst_alert`
+//! - Each alert: the warning or error icon, « Élément · problème »
+//!   (« Extrusion 3 · instable »), one sentence of explanation — what it is
+//!   titled, the element named as the tree names it —
+//!   `each_alert_is_titled_by_its_element_and_its_problem`; and the sentence it
+//!   says — `each_alert_says_why_in_a_sentence`. The icon, and the sentence
+//!   standing under the title, are the view's, held in
+//!   `crates/app/tests/the_alerts.rs`
 //! - Every problem detected today is still shown: as an alert now —
 //!   `each_problem_of_the_part_is_an_alert_at_its_level`, one part for each
-//!   problem the tree wears a badge for today
+//!   problem the tree wears a badge for today; and what the pill said of a
+//!   volume not built or built unstably, its lean included, is what its alert
+//!   says — `each_alert_says_why_in_a_sentence`
 //!
 //! An element counts once, however many problems it has: P2 counts the
 //! elements that wear a badge, lost, refused, unstable or drifting, and a
-//! volume wears its gravest. The parts are those the tree's own tests are made
+//! volume wears its gravest.
+//!
+//! A volume not built reads « non construite », where its badge in the tree
+//! reads « non construit »: the issue's own example is « Extrusion 2 · non
+//! construite », the word agreeing with « Extrusion » and « Révolution » alike.
+//! What a volume not built or built unstably says is the sentence the pill
+//! said of it until now, so that taking it out of the pill loses nothing; an
+//! area lost and a face lost had no sentence, and are held only to say one,
+//! not the same. The parts are those the tree's own tests are made
 //! of, in `crates/app/src/screens/part_tree/state/tests.rs`, written here so
 //! that two can be laid one after the other in a part.
 
@@ -352,6 +369,65 @@ fn the_count_wears_the_level_of_the_worst_alert() {
     );
 }
 
+#[test]
+fn each_alert_is_titled_by_its_element_and_its_problem() {
+    let read = [
+        titles_listed(&[a_block_whose_area_is_gone]),
+        titles_listed(&[a_ball_under_a_slanted_circle_raised]),
+        titles_listed(&[a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin]),
+        titles_listed(&[a_sketch_off_its_face]),
+        titles_listed(&[a_block, two_sections_one_off_its_face]),
+    ];
+
+    assert_eq!(
+        read,
+        [
+            ["Extrusion 1 · aire perdue"],
+            ["Extrusion 2 · non construite"],
+            ["Révolution 2 · instable"],
+            ["Esquisse 1 · face perdue"],
+            ["Coupe 2 · face perdue"],
+        ],
+        "an alert is not titled « Élément · problème », the element named as the tree names \
+         it: an area lost, a volume not built, a step built unstably, a sketch then a section \
+         off its face",
+    );
+}
+
+#[test]
+fn each_alert_says_why_in_a_sentence() {
+    let lang = Catalogue::french();
+
+    let not_built = sentences_listed(&[a_ball_under_a_slanted_circle_raised]);
+    let unstable = sentences_listed(&[a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin]);
+    let area_lost = sentences_listed(&[a_block_whose_area_is_gone]);
+    let sketch_off = sentences_listed(&[a_sketch_off_its_face]);
+    let section_off = sentences_listed(&[a_block, two_sections_one_off_its_face]);
+
+    assert_eq!(
+        not_built,
+        [lang.t("extrusion.declined")],
+        "a volume not built does not say what the pill said of it when the kernel declined it",
+    );
+    assert_eq!(
+        unstable,
+        [lang.t_with("extrusion.unstable_along", &[("angle", "0.01")])],
+        "a step built unstably does not say what the pill said of it, its lean included",
+    );
+    let one_said = |sentences: &[String]| {
+        sentences.len() == 1 && sentences.iter().all(|said| !said.trim().is_empty())
+    };
+    assert!(
+        one_said(&area_lost) && one_said(&sketch_off) && one_said(&section_off),
+        "an area lost or a face lost does not say why in a sentence: {area_lost:?}, \
+         {sketch_off:?}, {section_off:?}",
+    );
+    assert_ne!(
+        area_lost, sketch_off,
+        "an area lost and a face lost say the same thing",
+    );
+}
+
 /// What `read` takes off the title bar of a part made of `laid`, with nothing
 /// open on it.
 fn read_off_the_bar<T>(laid: &[fn(&mut PartDocument)], read: impl FnOnce(&TitleBar<'_>) -> T) -> T {
@@ -390,6 +466,26 @@ fn the_count_s_words(laid: &[fn(&mut PartDocument)]) -> Option<String> {
 fn the_count_s_level(laid: &[fn(&mut PartDocument)]) -> Option<Level> {
     read_off_the_bar(laid, |bar| {
         bar.alerts_button.as_ref().map(|count| count.level)
+    })
+}
+
+/// What each alert the title bar lists is titled, in its order.
+fn titles_listed(laid: &[fn(&mut PartDocument)]) -> Vec<String> {
+    read_off_the_bar(laid, |bar| {
+        bar.alerts
+            .iter()
+            .map(|alert| alert.title.to_string())
+            .collect()
+    })
+}
+
+/// The sentence each alert the title bar lists says why with, in its order.
+fn sentences_listed(laid: &[fn(&mut PartDocument)]) -> Vec<String> {
+    read_off_the_bar(laid, |bar| {
+        bar.alerts
+            .iter()
+            .map(|alert| alert.sentence.to_string())
+            .collect()
     })
 }
 

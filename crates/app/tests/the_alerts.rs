@@ -39,11 +39,16 @@
 //!   `a_click_on_the_count_opens_the_list_340_points_wide_under_it`
 //! - Each alert: the warning or error icon, « Élément · problème »
 //!   (« Extrusion 3 · instable »), one sentence of explanation —
-//!   `each_alert_reads_its_icon_its_element_and_problem_and_a_sentence`
+//!   `each_alert_reads_its_icon_its_element_and_problem_and_a_sentence`, which
+//!   reads them on screen with « Montrer » and « Modifier » under them; what
+//!   each kind of problem is titled and says is held case by case beside the
+//!   title bar's presenter, by `each_alert_is_titled_by_its_element_and_its_problem`
+//!   and `each_alert_says_why_in_a_sentence`
 //! - then « Montrer » (selects the element and lights it in the view) —
 //!   `show_selects_the_element_and_lights_it_in_the_view`
 //! - and « Modifier » (reopens the step) —
-//!   `modify_reopens_the_step_the_alert_is_about`
+//!   `modify_reopens_the_step_the_alert_is_about`; for a kept section, which
+//!   is no step, it reopens the section, as decided when the list was taken up
 //! - The list follows the part live — `the_open_list_follows_the_part_live`
 //! - ✕, Escape or a click elsewhere closes it —
 //!   `the_cross_escape_or_a_click_elsewhere_closes_the_list`
@@ -90,7 +95,20 @@
 //! A part with an error and a warning is made as `the_part_panel.rs` makes a
 //! sketch lose its face: a block, a sketch laid on its face, then the block's
 //! own sketch emptied. The block's extrusion is left with no area, and the
-//! sketch on its face with no face.
+//! sketch on its face with no face. For the list to follow, a section takes
+//! the sketch's place on the face, since a section can be deleted from the
+//! tree and an undo brings it back while the list stays open: the keyboard
+//! changes the part without the click elsewhere that would close it.
+//!
+//! The list is read as the mockup draws it, in `docs/redesign/source/part.html`:
+//! headed « Alertes de la pièce », closed by a button named « Fermer les
+//! alertes » on the heading's row, its right edge on the count's and its top
+//! just under it. Its 340 are read as the width of the frame painted, whose
+//! fill is found as the least one around the heading and that button; the
+//! mockup's CSS adds its padding to them, which an `egui` frame would not. An
+//! alert is read inside that frame: its title, the `warning` or `error` icon
+//! on its left, at least one text under the title, then one « Montrer » and one
+//! « Modifier » before the next alert.
 
 mod driver;
 
@@ -136,6 +154,388 @@ fn the_count_stands_on_the_right_of_the_title_bar_in_the_colour_of_the_worst_ale
         "an area lost and a face lost are not counted as the redesign draws it:\n  {}",
         wrong.join("\n  "),
     );
+}
+
+#[test]
+fn a_click_on_the_count_opens_the_list_340_points_wide_under_it() {
+    let mut app = a_part_with_two_alerts("a_click_on_the_count_opens_the_list");
+    let open_before = the_list(&app);
+
+    driver::click_the_button(&mut app, "2 alertes");
+
+    let mut wrong = Vec::new();
+    if let Some(list) = open_before {
+        wrong.push(format!(
+            "the list stood open at {list:?} before the count was clicked"
+        ));
+    }
+    match the_list(&app) {
+        None => wrong.push(format!(
+            "no list headed « {HEADING} » with a « {CLOSE} » button is open; the screen \
+             shows {:?}",
+            driver::on_screen(&app),
+        )),
+        Some(list) => wrong.extend(not_340_wide_under_the_count(&app, list)),
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "a click on « 2 alertes » does not open the list as the redesign draws it:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn each_alert_reads_its_icon_its_element_and_problem_and_a_sentence() {
+    let mut app = a_part_with_two_alerts("each_alert_reads_its_icon_its_element_and_problem");
+    driver::click_the_button(&mut app, "2 alertes");
+    let list = the_list(&app).unwrap_or_else(|| {
+        panic!(
+            "a click on « 2 alertes » opened no list, which leaves no alert to read: {:?}",
+            driver::on_screen(&app),
+        )
+    });
+
+    let read = texts_within(&app, list);
+    let mut wrong = Vec::new();
+    let mut titles = Vec::new();
+    for (title, icon) in [
+        ("Esquisse 2 · face perdue", "warning"),
+        ("Extrusion 1 · aire perdue", "error"),
+    ] {
+        match read.iter().find(|(text, _)| text == title) {
+            Some((_, at)) => titles.push((title, icon, *at)),
+            None => wrong.push(format!("the list reads no « {title} »")),
+        }
+    }
+    for (title, icon, at) in &titles {
+        let next = titles
+            .iter()
+            .map(|(.., other)| other.top())
+            .filter(|top| *top > at.top())
+            .fold(list.bottom(), f32::min);
+        wrong.extend(not_read_as_an_alert(&app, list, (title, *at, next), icon));
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "the list does not read each alert as the redesign draws it:\n  {}\nIt reads {read:?}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn the_open_list_follows_the_part_live() {
+    let mut app = driver::a_block("the_open_list_follows_the_part_live");
+    lay_a_section_on_the_block_s_face(&mut app);
+    empty_the_block_s_sketch(&mut app);
+    driver::right_click(&mut app, "Coupe 1");
+    driver::click_the_button(&mut app, "Supprimer");
+    assert!(
+        !driver::in_the_tree(&app, "Coupe 1") && the_button_reading(&app, "1 alerte").is_some(),
+        "a section laid on the block's face, the block's sketch emptied, then the section \
+         deleted: the part is not left with the one alert of the block's extrusion; the \
+         title bar reads {:?}, the screen shows {:?}",
+        the_title_bar(&app),
+        driver::on_screen(&app),
+    );
+    driver::click_the_button(&mut app, "1 alerte");
+    let before = alerts_listed(&app);
+
+    driver::press_with_command(&mut app, egui::Key::Z);
+
+    let after = alerts_listed(&app);
+    let mut wrong = Vec::new();
+    if !driver::in_the_tree(&app, "Coupe 1") || the_button_reading(&app, "2 alertes").is_none() {
+        wrong.push(format!(
+            "the undo did not bring the section back with its alert, which leaves the list \
+             nothing to follow: the title bar reads {:?}",
+            the_title_bar(&app),
+        ));
+    }
+    match &before {
+        None => wrong.push("a click on « 1 alerte » opened no list".to_owned()),
+        Some(read)
+            if !read.contains(&AREA_LOST.to_owned()) || read.contains(&FACE_LOST.to_owned()) =>
+        {
+            wrong.push(format!(
+                "with the section deleted, the list reads {read:?}, where it should read « \
+                 {AREA_LOST} » alone"
+            ))
+        }
+        Some(_) => {}
+    }
+    match &after {
+        None => wrong.push("the undo closed the list, or took it away".to_owned()),
+        Some(read)
+            if !read.contains(&AREA_LOST.to_owned()) || !read.contains(&FACE_LOST.to_owned()) =>
+        {
+            wrong.push(format!(
+                "the section brought back by the undo, the open list reads {read:?}, without \
+                 « {FACE_LOST} » beside « {AREA_LOST} »"
+            ))
+        }
+        Some(_) => {}
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "the open list does not follow the part:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn the_cross_escape_or_a_click_elsewhere_closes_the_list() {
+    let mut app = a_part_with_two_alerts("the_cross_escape_or_a_click_elsewhere_closes_the_list");
+    let ways: [(&str, Gesture); 3] = [
+        ("« Fermer les alertes »", |app| {
+            driver::click_the_button(app, CLOSE);
+        }),
+        ("Escape", |app| driver::press(app, egui::Key::Escape)),
+        ("a click in the view", |app| {
+            driver::click_at_world_point(app, IN_THE_VIEW);
+        }),
+    ];
+
+    let mut wrong = Vec::new();
+    for (way, close) in ways {
+        driver::click_the_button(&mut app, "2 alertes");
+        let Some(list) = the_list(&app) else {
+            wrong.push(format!(
+                "a click on « 2 alertes » opened no list for {way} to close"
+            ));
+            continue;
+        };
+        if list.contains(driver::world_point_on_screen(&app, IN_THE_VIEW)) {
+            wrong.push(format!(
+                "the click in the view would land in the list, at {list:?}"
+            ));
+        }
+        close(&mut app);
+        if driver::reads(&app, HEADING) {
+            wrong.push(format!("{way} left the list open"));
+        }
+        if the_button_reading(&app, "2 alertes").is_none() {
+            wrong.push(format!(
+                "{way} took the count away, the part's problems still there"
+            ));
+        }
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "the list does not close as the issue asks:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+/// What a hand does to the application.
+type Gesture = fn(&mut driver::App);
+
+/// Where the view is clicked away from the list: the origin, nothing standing
+/// there once the block's sketch is emptied.
+const IN_THE_VIEW: DVec3 = DVec3::ZERO;
+
+/// What the block's extrusion and the section on its face are alerted for,
+/// once the block's sketch is emptied.
+const AREA_LOST: &str = "Extrusion 1 · aire perdue";
+const FACE_LOST: &str = "Coupe 1 · face perdue";
+
+/// Every name and every text the open list reads, nothing while it is shut.
+fn alerts_listed(app: &driver::App) -> Option<Vec<String>> {
+    let list = the_list(app)?;
+    Some(
+        texts_within(app, list)
+            .into_iter()
+            .map(|(text, _)| text)
+            .collect(),
+    )
+}
+
+/// « Coupe 1 », laid on the block's face with the section tool and kept, the
+/// tool then closed.
+fn lay_a_section_on_the_block_s_face(app: &mut driver::App) {
+    driver::click_in_the_bar(app, "Vue en coupe");
+    driver::click(app, "Face cliquée");
+    driver::click_at_world_point(app, ON_THE_BLOCK_S_FACE);
+    driver::click_the_button(app, "Enregistrer la coupe");
+    if driver::a_button_reads(app, "Inverser") {
+        driver::click_the_button(app, "Fermer");
+    }
+}
+
+/// What keeps the alert titled `title`, standing at `at` in the list and
+/// running down to `next`, from wearing `icon` on its left, then saying a
+/// sentence under its title, then offering « Montrer » and « Modifier ».
+fn not_read_as_an_alert(
+    app: &driver::App,
+    list: egui::Rect,
+    (title, at, next): (&str, egui::Rect, f32),
+    icon: &str,
+) -> Vec<String> {
+    let mut wrong = Vec::new();
+    let beside = egui::Rect::from_x_y_ranges(
+        list.left()..=at.left(),
+        (at.top() - ICON_SLACK)..=(at.bottom() + ICON_SLACK),
+    );
+    let worn = icons_painted_within(app, beside);
+    if !worn.iter().any(|id| id == icon) {
+        wrong.push(format!(
+            "« {title} » wears {worn:?} on its left, not the `{icon}` icon"
+        ));
+    }
+    let under = (at.bottom() - HUGGED_WITHIN)..=next;
+    let mut actions_top = next;
+    for action in ["Montrer", "Modifier"] {
+        let offered: Vec<egui::Rect> = app
+            .query_all_by_label(action)
+            .filter(|node| node.accesskit_node().role() == Role::Button)
+            .map(|node| node.rect())
+            .filter(|button| {
+                list.x_range().contains(button.center().x) && under.contains(&button.center().y)
+            })
+            .collect();
+        match offered.as_slice() {
+            [button] => actions_top = actions_top.min(button.top()),
+            _ => wrong.push(format!(
+                "« {title} » offers {} « {action} » under it, at {offered:?}, before the next \
+                 alert at {next}",
+                offered.len(),
+            )),
+        }
+    }
+    let said: Vec<String> = texts_within(app, list)
+        .into_iter()
+        .filter(|(text, place)| {
+            text != title
+                && place.top() >= at.bottom() - HUGGED_WITHIN
+                && place.bottom() <= actions_top + HUGGED_WITHIN
+        })
+        .map(|(text, _)| text)
+        .collect();
+    if said.is_empty() {
+        wrong.push(format!(
+            "« {title} » says no sentence between its title and its actions"
+        ));
+    }
+    wrong
+}
+
+/// How far above or below its title an alert's icon may reach, in points: the
+/// icon stands higher than the text beside it.
+const ICON_SLACK: f32 = 6.0;
+
+/// Every name and every text whose middle stands inside `within`, with where it
+/// stands.
+fn texts_within(app: &driver::App, within: egui::Rect) -> Vec<(String, egui::Rect)> {
+    app.get_all_by(|_| true)
+        .filter_map(|node| {
+            let read = node.accesskit_node();
+            read.bounding_box()?;
+            if read.role() == Role::TextRun {
+                return None;
+            }
+            let said = read
+                .label()
+                .or_else(|| read.value())
+                .filter(|said| !said.trim().is_empty())?;
+            let at = node.rect();
+            within.contains(at.center()).then_some((said, at))
+        })
+        .collect()
+}
+
+/// What keeps the list at `list` from standing 340 points wide just under the
+/// count, its right edge on the count's, its heading on its first row with the
+/// button that closes it on the right.
+fn not_340_wide_under_the_count(app: &driver::App, list: egui::Rect) -> Vec<String> {
+    let mut wrong = Vec::new();
+    if (list.width() - LIST_WIDTH).abs() > PLACED_WITHIN {
+        wrong.push(format!(
+            "the list at {list:?} is {} points wide, where the redesign draws it \
+             {LIST_WIDTH}",
+            list.width(),
+        ));
+    }
+    let Some(count) = the_button_reading(app, "2 alertes") else {
+        wrong.push("the count is gone once the list is open".to_owned());
+        return wrong;
+    };
+    let gap = list.top() - count.bottom();
+    if !(-HUGGED_WITHIN..=UNDER_WITHIN).contains(&gap) {
+        wrong.push(format!(
+            "the list's top at {} does not stand just under the count, whose bottom is at {}",
+            list.top(),
+            count.bottom(),
+        ));
+    }
+    if (list.right() - count.right()).abs() > PLACED_WITHIN {
+        wrong.push(format!(
+            "the list's right edge at {} is not the count's, at {}",
+            list.right(),
+            count.right(),
+        ));
+    }
+    let heading = the_topmost_reading(app, HEADING);
+    if let Some(close) = the_button_reading(app, CLOSE)
+        && (!heading.y_range().contains(close.center().y) || close.left() < heading.right())
+    {
+        wrong.push(format!(
+            "« {CLOSE} » at {close:?} does not stand right of the heading at {heading:?}, on \
+             its row"
+        ));
+    }
+    wrong
+}
+
+/// What the list of alerts is headed, and what the button that closes it is
+/// named: `docs/redesign/source/part.html`.
+const HEADING: &str = "Alertes de la pièce";
+const CLOSE: &str = "Fermer les alertes";
+
+/// How wide the list stands, in points: P2 of `docs/redesign/part-screen.md`.
+const LIST_WIDTH: f32 = 340.0;
+
+/// How far a size or an edge may be from where it is drawn, in points.
+const PLACED_WITHIN: f32 = 1.0;
+
+/// How far under the count the list may start, in points.
+const UNDER_WITHIN: f32 = 12.0;
+
+/// A block whose sketch was emptied once a sketch was laid on its face: the
+/// title bar counts « 2 alertes », the block's extrusion having lost its area
+/// and the sketch its face.
+fn a_part_with_two_alerts(test: &str) -> driver::App {
+    let mut app = driver::a_block(test);
+    lay_a_sketch_on_the_block_s_face(&mut app);
+    empty_the_block_s_sketch(&mut app);
+    assert!(
+        the_button_reading(&app, "2 alertes").is_some(),
+        "the block's sketch emptied under a sketch on its face, the title bar does not count \
+         « 2 alertes », which leaves no list to open: {:?}",
+        the_title_bar(&app),
+    );
+    app
+}
+
+/// The frame of the list of alerts while it is open: the least rectangle
+/// painted with a fill around its heading and the button that closes it.
+fn the_list(app: &driver::App) -> Option<egui::Rect> {
+    let heading = driver::where_it_reads(app, HEADING)?;
+    let close = the_button_reading(app, CLOSE)?;
+    let both = heading.union(close);
+    shapes_painted(app)
+        .into_iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Rect(rect)
+                if rect.fill.a() > 0 && rect.rect.expand(HUGGED_WITHIN).contains_rect(both) =>
+            {
+                Some(rect.rect)
+            }
+            _ => None,
+        })
+        .min_by(|one, other| one.area().total_cmp(&other.area()))
 }
 
 /// What keeps the count at `count` from standing at the right end of the title

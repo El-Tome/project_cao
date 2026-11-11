@@ -22,6 +22,20 @@
 //! on both kernels: 352000000000787 of the walls set, `Uncrossed` there, and
 //! 533301186 and 533312139 of the turned set, `Closed` on the exact kernel
 //! and `Answers` through the body there.
+//!
+//! The rule the fix added — a turn whose ray stands within a hair of the ray
+//! through an end, no turn between, is no sample — is held beside its code,
+//! in `crates/solid/src/brep/tessellation/sampling/tests.rs`:
+//! `a_meet_is_not_sampled_where_it_turns_back_within_a_hair_of_the_ray_through_its_end`,
+//! and `a_meet_is_sampled_where_it_turns_back_in_a_wall_s_angle_far_from_the_rays_through_its_ends`,
+//! which kills the three mutants of `meet.rs` the campaign tests let live,
+//! `106:17` and `108:25` `&&` → `||` and `109:71` `*` → `+`. No meet of two
+//! walls makes its guard that no turn stands between false: a ray a hair
+//! from a turn's crosses the other wall only beside that turn, so an end on
+//! it reaches the turn past another only the long way round, and the edge
+//! then either runs past its period or ends nearer the turn on the near
+//! side, whose ray drops it. The mutant `120:58`, `*` → `/` or `+` on the
+//! grid's angle, times out rather than surviving.
 
 // The drawing, the promise and the checks are the campaigns'; this file
 // only builds cases and holds them.

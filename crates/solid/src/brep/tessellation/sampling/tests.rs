@@ -1177,3 +1177,77 @@ fn a_meet_turning_back_past_the_angle_of_its_end_keeps_a_sample_on_that_ray_wher
         }
     }
 }
+
+/// A bore of radius 5 leaning a thousandth of a degree off Y across a post
+/// of radius 5 along X whose top it all but touches, as 354000000000132
+/// leaves them, and the stretch of their meet between the parameters `ends`
+/// picks.
+fn a_post_across_a_bore_leaning_a_thousandth_of_a_degree(
+    ends: impl Fn(&Meet) -> [f64; 2],
+) -> (Body, Meet, EdgeId) {
+    let (lean, reach) = (1e-3_f64.to_radians(), 23.0);
+    let mut build = fixtures::Build::new();
+    let bore = build.cylinder(
+        DVec3::new(1.0, 18.0, 0.0),
+        DVec3::new(0.0, -lean.cos(), lean.sin()),
+        5.0,
+    );
+    let post = build.cylinder(DVec3::new(0.0, -3.0, 0.0), DVec3::X, 5.0);
+    let meet = build.meeting(bore, post, reach).components[0];
+    let [from, to] = ends(&meet);
+    let vertices = [from, to].map(|t| build.vertex(meet.point(t)));
+    let edge = build.meet_edge(meet, Some(vertices), from, to);
+    (build.finish(reach), meet, edge)
+}
+
+/// Where the meet turns back in the bore's angle beside the post's top, on
+/// the side x < 1.
+fn the_bore_s_turn(meet: &Meet) -> f64 {
+    let on_the_bore = matches!(meet.first, Wall::Cylinder(wall) if wall.axis.x.abs() < 0.5);
+    meet.turns(on_the_bore)
+        .into_iter()
+        .find(|t| meet.point(*t).x < 1.0)
+        .expect("the meet turns back in the bore's angle beside the post's top")
+}
+
+#[test]
+fn a_meet_is_sampled_where_it_turns_back_in_a_wall_s_angle_far_from_the_rays_through_its_ends() {
+    let (body, meet, edge) = a_post_across_a_bore_leaning_a_thousandth_of_a_degree(|meet| {
+        let turn = the_bore_s_turn(meet);
+        [turn - 0.1, turn + 0.1]
+    });
+    let (eps, turn) = (body.scale().eps(), meet.point(the_bore_s_turn(&meet)));
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let fineness = (tolerance, span(&body));
+        let points =
+            super::meet::on_meet(&meet, body.edge(edge), fineness, eps, [&[], &[]], &|_| true);
+        assert!(
+            points.iter().any(|point| point.distance(turn) < 1e-9),
+            "the turn at {turn} is missed within {tolerance}: {points:?}",
+        );
+    }
+}
+
+#[test]
+fn a_meet_is_not_sampled_where_it_turns_back_within_a_hair_of_the_ray_through_its_end() {
+    let (body, meet, edge) = a_post_across_a_bore_leaning_a_thousandth_of_a_degree(|meet| {
+        let on_the_block_s_edge = meet.parameter(DVec3::new(0.9394602221047335, -3.0, 5.0));
+        [on_the_block_s_edge, the_bore_s_turn(meet) + 0.1]
+    });
+    let (eps, turn) = (body.scale().eps(), meet.point(the_bore_s_turn(&meet)));
+    let end = meet.point(body.edge(edge).from);
+    assert!(
+        end.distance(turn) > 1e-5,
+        "the turn stands well apart from the end along the meet"
+    );
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let fineness = (tolerance, span(&body));
+        let points =
+            super::meet::on_meet(&meet, body.edge(edge), fineness, eps, [&[], &[]], &|_| true);
+        assert!(
+            points.iter().all(|point| point.distance(turn) > 1e-6),
+            "the turn at {turn}, its ray a hair from the end's at {end}, is sampled within \
+             {tolerance}",
+        );
+    }
+}

@@ -25,11 +25,13 @@ use crate::wording::{self, formula, plane};
 mod clicks;
 mod flagged;
 mod history;
+mod reader;
 mod seen;
 mod volumes;
 pub use clicks::*;
 pub use flagged::{About, Flagged};
 pub use history::History;
+pub use reader::{KeyStep, StepReader, key_steps};
 pub use seen::Offered;
 use volumes::volume;
 

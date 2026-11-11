@@ -124,6 +124,7 @@ embedded! {
     HISTORY = "history";
     HOME = "home";
     HOME_VIEW = "home-view";
+    ITEM_SKETCH = "item-sketch";
     LINE = "line";
     LINE_SYMMETRIC = "line-symmetric";
     MATTER_IN_FRONT_HIDDEN = "matter-in-front-hidden";
@@ -148,6 +149,8 @@ embedded! {
     SPLIT = "split";
     STL_COARSE = "stl-coarse";
     STL_FINE = "stl-fine";
+    STEP_NEXT = "step-next";
+    STEP_PREVIOUS = "step-previous";
     STL_NORMAL = "stl-normal";
     SWAP_CHAMFER_SIDES = "swap-chamfer-sides";
     TANGENT = "tangent";

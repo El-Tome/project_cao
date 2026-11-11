@@ -95,7 +95,8 @@ pub(super) fn drawn_under<'a>(
 /// click, and the light on the face offered to draw on, ask for it again.
 /// Each call compares the whole body with the one the section's halves were
 /// cut from and copies those halves, and copies the part shown out of its
-/// cache while a volume is not opaque, but replays nothing.
+/// cache while a volume is not opaque or the part is read to a step, but
+/// replays nothing.
 pub(crate) fn seen<'a>(
     state: &ViewportState,
     editor: &SketchEditor,

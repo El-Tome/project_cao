@@ -1,10 +1,13 @@
-//! The history, folded at the bottom of the Part panel: its header counts the
-//! actions, and unfolded it lists them, one line each, newest last.
+//! The history, folded at the bottom of the Part panel under the step
+//! reader's card: its header counts the actions, and unfolded it lists them,
+//! one line each, newest last.
 
 use cao_part::PartDocument;
 
+use super::reader::reader;
 use crate::lang::Catalogue;
 use crate::screens::part_tree::state::{History, TreeAction};
+use crate::screens::viewport::ViewportState;
 use crate::ui::history_line::{HistoryLine, history_line};
 use crate::ui::question::{Question, ask};
 use crate::ui::quiet_link::quiet_link;
@@ -14,8 +17,8 @@ use crate::ui::tree_row::{TreeRow, tree_row};
 /// How tall the unfolded list grows before it scrolls.
 const TALLEST: f32 = 230.0;
 
-/// The history in a panel of its own along the bottom of the Part panel, as
-/// tall as what it holds.
+/// The step reader's card, then the history, in a panel of their own along
+/// the bottom of the Part panel, as tall as what they hold.
 ///
 /// A bottom panel is laid out at the height it had the frame before and only
 /// ever grows, so it is given the height its content took last time, and asks
@@ -23,6 +26,7 @@ const TALLEST: f32 = 230.0;
 pub(super) fn at_the_bottom(
     ui: &mut egui::Ui,
     document: &PartDocument,
+    viewport: &ViewportState,
     unfolded: bool,
     lang: &Catalogue,
 ) -> TreeAction {
@@ -37,8 +41,12 @@ pub(super) fn at_the_bottom(
         .exact_size(height)
         .show(ui, |ui| {
             ui.vertical(|ui| {
+                let read = reader(ui, document, viewport, lang);
                 ui.separator();
-                history(ui, document, unfolded, lang)
+                match history(ui, document, unfolded, lang) {
+                    TreeAction::None => read,
+                    asked => asked,
+                }
             })
         });
     let wanted = shown.inner.response.rect.height() + margins;

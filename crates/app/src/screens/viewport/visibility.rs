@@ -1,7 +1,10 @@
 //! What of the part the canvas shows. A sketch an extrusion or a revolution
 //! was made from steps out of the way, unless its eye was lit; one never used
-//! stays. A row clicked in the tree is lit where it stands, and each volume is
-//! drawn invisible, see-through or opaque.
+//! stays. Read to a step, the part shows its sketches as that step left them:
+//! only the volumes read count as made from a sketch, and a sketch past the
+//! reading point is not drawn, whatever its eye. A row clicked in the tree is
+//! lit where it stands, and each volume is drawn invisible, see-through or
+//! opaque.
 
 mod shown;
 
@@ -16,7 +19,7 @@ use shown::{Blocked, Replayed};
 
 use super::ViewportState;
 use crate::screens::SketchContext;
-use crate::screens::part_tree::state::Points;
+use crate::screens::part_tree::state::{Points, key_steps};
 
 pub(super) struct Visibility {
     /// The eyes switched by hand, by the number of the operation that created
@@ -81,7 +84,23 @@ impl ViewportState {
     pub(crate) fn eye_lit(&self, document: &PartDocument, sketch: usize) -> bool {
         let chosen =
             created_by(document, sketch).and_then(|number| self.visibility.eyes.get(&number));
-        chosen.copied().unwrap_or_else(|| !used(document, sketch))
+        chosen
+            .copied()
+            .unwrap_or_else(|| !self.used(document, sketch))
+    }
+
+    /// Whether a volume the part is read through was raised or turned from
+    /// that sketch.
+    fn used(&self, document: &PartDocument, sketch: usize) -> bool {
+        key_steps(document)
+            .enumerate()
+            .any(|(rank, (_, operation, _))| match operation {
+                Operation::Extrude { sketch: from, .. }
+                | Operation::Revolve { sketch: from, .. } => {
+                    *from == sketch && self.reads_through(rank)
+                }
+                _ => false,
+            })
     }
 
     pub(crate) fn toggle_eye(&mut self, document: &PartDocument, sketch: usize) {
@@ -214,7 +233,8 @@ impl ViewportState {
     fn seen(&self, context: &SketchContext<'_>, sketch: usize) -> Option<Seen> {
         let active = context.editor.active_sketch() == Some(sketch);
         let picking = context.extrusion.is_active() && context.extrusion.sketch == Some(sketch);
-        let hidden = !active && !picking && !self.eye_lit(context.document, sketch);
+        let read = self.reads_through_sketch(context.document, sketch);
+        let hidden = !active && !picking && !(read && self.eye_lit(context.document, sketch));
         let here = |row: &Points| {
             row.sketch() == sketch && (!active || matches!(row, Points::Area { .. }))
         };
@@ -248,19 +268,6 @@ fn volumes(document: &PartDocument) -> impl Iterator<Item = usize> + '_ {
             )
         })
         .map(|(step, _)| step)
-}
-
-fn used(document: &PartDocument, sketch: usize) -> bool {
-    document
-        .history
-        .applied_operations()
-        .iter()
-        .any(|operation| match operation {
-            Operation::Extrude { sketch: from, .. } | Operation::Revolve { sketch: from, .. } => {
-                *from == sketch
-            }
-            _ => false,
-        })
 }
 
 fn created_by(document: &PartDocument, sketch: usize) -> Option<u32> {

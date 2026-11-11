@@ -3,17 +3,40 @@ use std::path::Path;
 use cao_part::PartDocument;
 
 use crate::lang::Catalogue;
+use crate::screens::part_tree::state::PartTree;
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::ViewportState;
+use crate::ui::badge::Level;
 use crate::wording::view::{Standing, standing_on};
 
 /// What the title bar reads: the part's name and the file it is kept in, the
-/// name of where the view stands, and what the pill says.
+/// name of where the view stands, what the pill says, and what is wrong with
+/// the part.
 pub struct TitleBar<'a> {
     pub name: &'a str,
     pub path: &'a Path,
     pub view: String,
     pub said: Option<Said<'a>>,
+    // Read by the list of alerts, still to come in #736; only the tests read it
+    // until then.
+    #[cfg_attr(not(test), expect(dead_code))]
+    pub alerts: Vec<Alert>,
+    /// How many alerts there are, while there is one.
+    pub alerts_button: Option<AlertsButton>,
+}
+
+/// One element of the part wearing a badge in the tree, at the level of the
+/// gravest of its problems.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Alert {
+    pub level: Level,
+}
+
+/// « 2 alertes », drawn at the level of the worst of them.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AlertsButton {
+    pub text: String,
+    pub level: Level,
 }
 
 /// The one thing the pill says at a time.
@@ -42,6 +65,12 @@ impl<'a> TitleBar<'a> {
             kept_section_rank: viewport.kept_sections.cutting().map(|id| id + 1),
             plane: viewport.mode().plane(),
         };
+        let alerts: Vec<Alert> = PartTree::of(document, lang)
+            .problems()
+            .map(|problem| Alert {
+                level: problem.level(),
+            })
+            .collect();
         Self {
             name: document.name(),
             path,
@@ -49,8 +78,26 @@ impl<'a> TitleBar<'a> {
             said: error
                 .map(Said::Error)
                 .or(editor.message.as_deref().map(Said::Message)),
+            alerts_button: counted(&alerts, lang),
+            alerts,
         }
     }
+}
+
+fn counted(alerts: &[Alert], lang: &Catalogue) -> Option<AlertsButton> {
+    let key = match alerts.len() {
+        0 => return None,
+        1 => "app.alerts_one",
+        _ => "app.alerts_many",
+    };
+    let level = match alerts.iter().any(|alert| alert.level == Level::Error) {
+        true => Level::Error,
+        false => Level::Warning,
+    };
+    Some(AlertsButton {
+        text: lang.t_with(key, &[("count", &alerts.len().to_string())]),
+        level,
+    })
 }
 
 /// An error on the pill, and the message it was laid over.

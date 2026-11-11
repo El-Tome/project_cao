@@ -823,6 +823,8 @@
   "app.free_view": "Vue 3D libre",
   "app.settings": "⚙ Préférences",
   "app.settings_window": "Préférences",
+  "app.alerts_one": "{count} alerte",
+  "app.alerts_many": "{count} alertes",
 
   "ribbon.tools": "Outils",
   "ribbon.part_tree": "Pièce",

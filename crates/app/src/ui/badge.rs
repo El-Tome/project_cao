@@ -1,7 +1,7 @@
 //! A word that marks what stands beside it, in the colours of how grave it is:
 //! C12 of `docs/redesign/components.md`.
 
-use egui::{Frame, Margin, Response, RichText, Ui};
+use egui::{Color32, Frame, Margin, Response, RichText, Ui};
 
 use crate::ui::theme::tokens::{
     RADIUS_PILL, SPACING_M, STATE_ERROR_BACKGROUND, STATE_ERROR_TEXT, STATE_WARNING_BACKGROUND,
@@ -18,6 +18,16 @@ pub enum Level {
     Error,
 }
 
+impl Level {
+    /// The patch and the ink of what is said at this level.
+    pub fn colours(self) -> (Color32, Color32) {
+        match self {
+            Self::Warning => (STATE_WARNING_BACKGROUND, STATE_WARNING_TEXT),
+            Self::Error => (STATE_ERROR_BACKGROUND, STATE_ERROR_TEXT),
+        }
+    }
+}
+
 /// How wide `badge` draws `said`, patch and all.
 pub fn badge_width(ui: &Ui, said: &str) -> f32 {
     let font = egui::FontId::proportional(TEXT_SIZE);
@@ -28,10 +38,7 @@ pub fn badge_width(ui: &Ui, said: &str) -> f32 {
 }
 
 pub fn badge(ui: &mut Ui, said: &str, level: Level) -> Response {
-    let (fill, ink) = match level {
-        Level::Warning => (STATE_WARNING_BACKGROUND, STATE_WARNING_TEXT),
-        Level::Error => (STATE_ERROR_BACKGROUND, STATE_ERROR_TEXT),
-    };
+    let (fill, ink) = level.colours();
     Frame::new()
         .fill(fill)
         .corner_radius(RADIUS_PILL)

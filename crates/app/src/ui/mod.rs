@@ -1,3 +1,4 @@
+pub mod alerts_button;
 pub mod badge;
 pub mod dropping;
 pub mod eye;

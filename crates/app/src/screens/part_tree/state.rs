@@ -222,6 +222,15 @@ impl PartTree {
         .collect()
     }
 
+    /// The badge of every element that wears one, in the order the panel
+    /// shows them.
+    pub fn problems(&self) -> impl Iterator<Item = Problem> + '_ {
+        let sketches = self.sketches.iter().map(|drawn| drawn.badge);
+        let bodies = self.bodies.iter().map(|body| body.badge);
+        let sections = self.sections.iter().map(|kept| kept.badge);
+        sketches.chain(bodies).chain(sections).flatten()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.variables.is_empty()
             && self.bodies.is_empty()

@@ -152,6 +152,7 @@ embedded! {
     TRIM = "trim";
     UNDO = "undo";
     VARIABLES = "variables";
+    WARNING = "warning";
 }
 
 #[cfg(test)]

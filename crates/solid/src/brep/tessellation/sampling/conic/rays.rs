@@ -2,6 +2,7 @@
 //! wall's axis, and the angles of every ray those walls take in contact.
 
 use std::collections::BTreeMap;
+use std::f64::consts::TAU;
 
 use glam::DVec3;
 
@@ -9,9 +10,9 @@ use super::of_edge;
 use crate::brep::conic::{Conic, Round};
 use crate::brep::curve::Curve;
 use crate::brep::scale::Scale;
-use crate::brep::surface::Cylinder;
+use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::tessellation::contact::{Contact, Wall, Zones};
-use crate::brep::tessellation::sampling::abreast::Abreast;
+use crate::brep::tessellation::sampling::abreast::{Abreast, heights};
 use crate::brep::tessellation::sampling::cone::Grid;
 use crate::brep::topology::{Body, Edge, SurfaceId};
 
@@ -59,7 +60,7 @@ pub(in crate::brep::tessellation::sampling) fn rays_along(
         let (origin, axis) = about(&conic.round);
         let beside = sampled
             .iter()
-            .filter(|(other, theirs, _)| leaving_together([edge, other], [conic, theirs]))
+            .filter(|(other, theirs, _)| leaving_together(body, [edge, other], [conic, theirs]))
             .flat_map(|(_, _, theirs)| theirs.iter());
         let ways: Vec<DVec3> = points
             .iter()
@@ -83,6 +84,13 @@ pub(in crate::brep::tessellation::sampling) fn rays_along(
 /// together.
 const TOGETHER: f64 = 1e-3;
 
+/// The drift, in radians, under which an elliptic rim and another leaving a
+/// vertex together keep their own samples: a tenth of a step of the
+/// coarsest grid, sixteen steps a turn. The rims of an elliptic shaft and a
+/// bore of its minor radius were left uncut up to 0.025 at that grid, and
+/// at finer ones only under it, whatever the lean, the height or the size.
+const ADRIFT: f64 = TAU / 160.0;
+
 /// Whether two conics of one plane, cut on walls about axes across each
 /// other, leave a vertex they share together: where the two walls touch at
 /// a node, a plane through it cuts both along curves tangent there, parting
@@ -91,17 +99,28 @@ const TOGETHER: f64 = 1e-3;
 /// horn, cannot be cut (5550117749); each then takes the other's samples as
 /// its wall's rays. Not on two parallel walls: touching along a line, they
 /// are sampled on the rays they share already, which another wall's would
-/// put out of order (5551609285).
-fn leaving_together([one, other]: [&Edge; 2], [first, second]: [&Conic; 2]) -> bool {
+/// put out of order (5551609285). Nor on an elliptic wall and another whose
+/// axis leans off it by so little that a sample handed across drifts round
+/// by less than [`ADRIFT`] from one rim to the next: read off the other
+/// wall's axis at another height it lands that drift off its own, nothing
+/// gathers the two into one ray as two cylinders' are
+/// (`contact/leaning.rs`), and handed to and fro pass after pass the rim's
+/// samples part from the elliptic rim's, whose chords cross them beside
+/// the tip (354000000000100).
+fn leaving_together(body: &Body, [one, other]: [&Edge; 2], [first, second]: [&Conic; 2]) -> bool {
     let (Some(ends), Some(theirs)) = (one.ends, other.ends) else {
         return false;
     };
     let [(_, one_axis), (_, other_axis)] = [first, second].map(|conic| about(&conic.round));
-    if one_axis.cross(other_axis).length() <= Scale::RELATIVE
+    let sine = one_axis.cross(other_axis).length();
+    if sine <= Scale::RELATIVE
         || first.plane.normal.cross(second.plane.normal).length() > Scale::RELATIVE
     {
         return false;
     }
+    let elliptic = [first, second]
+        .iter()
+        .any(|conic| matches!(conic.round, Round::Elliptic(_)));
     let tangent = |conic: &Conic, edge: &Edge, at: DVec3| {
         let [from, to] = [edge.from, edge.to].map(|t| conic.point(t).distance(at));
         conic
@@ -114,7 +133,40 @@ fn leaving_together([one, other]: [&Edge; 2], [first, second]: [&Conic; 2]) -> b
             .cross(tangent(second, other, at))
             .length()
             <= TOGETHER
+            && !(elliptic && drift(body, [&first.round, &second.round], at, sine) < ADRIFT)
     })
+}
+
+/// How far round, in radians, a sample handed from one of two walls to the
+/// other drifts between their rims: how far their axes, leaning by `sine`,
+/// part over the heights the faces of either span, against the nearer of
+/// the two axes to `at`, where the rims leave together.
+fn drift(body: &Body, rounds: [&Round; 2], at: DVec3, sine: f64) -> f64 {
+    let (_, axis) = about(rounds[0]);
+    let span = rounds
+        .iter()
+        .filter_map(|round| {
+            let surface = match round {
+                Round::Cylinder(cylinder) => Surface::Cylinder(*cylinder),
+                Round::Cone(cone) => Surface::Cone(*cone),
+                Round::Elliptic(wall) => Surface::Elliptic(*wall),
+            };
+            let rank = body.surfaces.iter().position(|held| *held == surface)?;
+            heights(SurfaceId(rank as u32), axis, body)
+        })
+        .reduce(|[low, high], [from, to]| [low.min(from), high.max(to)]);
+    let Some([low, high]) = span else {
+        return f64::INFINITY;
+    };
+    let nearest = rounds
+        .map(|round| {
+            let (origin, axis) = about(round);
+            let from = at - origin;
+            (from - axis * axis.dot(from)).length()
+        })
+        .into_iter()
+        .fold(f64::INFINITY, f64::min);
+    (high - low) * sine / nearest
 }
 
 /// The angles, about the conic's wall from its own `u`, of every ray the
@@ -166,3 +218,6 @@ fn coaxial(wall: &Cylinder, origin: DVec3, axis: DVec3, eps: f64) -> bool {
     wall.axis.cross(axis).length() <= Scale::RELATIVE
         && (from - axis * axis.dot(from)).length() <= eps
 }
+
+#[cfg(test)]
+mod tests;

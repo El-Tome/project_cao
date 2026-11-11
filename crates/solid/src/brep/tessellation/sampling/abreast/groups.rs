@@ -24,7 +24,11 @@ pub(super) fn side_by_side([one, other]: [SurfaceId; 2], body: &Body) -> bool {
 
 /// The least and the largest height along `axis` the ends of the edges
 /// bounding a wall's faces stand at; none where it holds no face.
-fn heights(wall: SurfaceId, axis: DVec3, body: &Body) -> Option<[f64; 2]> {
+pub(in crate::brep::tessellation::sampling) fn heights(
+    wall: SurfaceId,
+    axis: DVec3,
+    body: &Body,
+) -> Option<[f64; 2]> {
     let mut span: Option<[f64; 2]> = None;
     for face in body
         .face_ids()

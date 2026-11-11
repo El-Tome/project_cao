@@ -71,6 +71,9 @@ impl Exact {
     /// axis, its centre circle one radius below the top. An upright named
     /// with its block's top edges closes its top corner with them by a piece
     /// of sphere, as above: every edge of a standing block in one step. A
+    /// post's upright between a floor plate and a ceiling plate goes round at
+    /// both its ends, the piece of torus under the ceiling hanging from it,
+    /// the mirror of the floor's. A
     /// foot and the upright above it, the other foot left sharp, go round the
     /// upright's round the same way, the piece of torus over the whole arc and
     /// stopping on the plane square to the sharp foot where that foot's wall

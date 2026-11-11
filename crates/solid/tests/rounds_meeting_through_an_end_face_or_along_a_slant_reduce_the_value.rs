@@ -190,6 +190,17 @@
 //! - The same where the curved edge is an arc of a conic — no test: not read
 //!   yet, its depths along the set-backs being no trigonometric form of one
 //!   parameter as a circle's are; tracked as #882
+//! - Found on the way, not in the issue's wording: two sides at different
+//!   leans and distances, whose set-backs cross off the arc's middle, and the
+//!   plate turned so that its arc stands astride its circle's half turn,
+//!   take the value at which they touch, both orders, chamfer and fillet —
+//!   `a_fillet_and_a_chamfer_on_two_sides_of_an_arched_plate_at_different_leans_take_the_value_at_which_their_set_backs_touch_off_the_arc_s_middle`
+//! - Found on the way, not in the issue's wording: a bore through the arched
+//!   plate's top, its rim a whole circle bounding the face both sides cut and
+//!   read over a whole turn, leaves the value where the two touch on the arc:
+//!   inside the face, the rim is reached only after the face's outer edge is
+//!   —
+//!   `a_fillet_and_a_chamfer_on_the_two_sides_of_an_arched_plate_bored_through_its_top_take_the_value_at_which_their_set_backs_touch_on_the_arc_the_bore_s_rim_read_whole`
 //! - Every step #698, #699 and #792 lay — no test: held by their suites, left
 //!   as they are
 //!
@@ -198,10 +209,14 @@
 //! two lines `n·p = c − v`, mirrors of each other about the arc's middle,
 //! cross on that middle at `(c − v)/sin a` up it, `a` the side's lean, and
 //! touch the arc of radius `R` where that is `R`: at `v = c − R·sin a`, 2 for
-//! the issue's plate and 1.2635 for the other.
+//! the issue's plate and 1.2635 for the other. Where the two sides differ, on
+//! `n₁·p = c₁` and `n₂·p = c₂` with outward normals `n₁` and `n₂`, each
+//! depth along the arc is `cᵢ − R·nᵢ·e(θ)`, and the two touch where they are
+//! equal, `(n₂ − n₁)·e(θ) = (c₂ − c₁)/R`, at the depth there; the test holds
+//! that against the least of the larger depth stepped along the arc.
 
 use std::collections::BTreeSet;
-use std::f64::consts::{FRAC_1_SQRT_2, PI};
+use std::f64::consts::{FRAC_1_SQRT_2, PI, TAU};
 
 use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
@@ -3618,6 +3633,303 @@ fn a_fillet_and_a_chamfer_on_the_two_sides_of_an_arched_plate_asked_past_where_t
         wrong.is_empty(),
         "the two sides of an arched plate whose set-backs would meet on its arc take the value \
          asked short of where they touch, and that value past it:\n{}",
+        wrong.join("\n")
+    );
+}
+
+/// A plate raised [`ARCH_HEIGHT`] whose top is bounded by a straight bottom
+/// at [`ARCH_BOTTOM`], a right side on `n₂·p = c₂`, an arc of [`ARCH_RADIUS`]
+/// about the origin and a left side on `n₁·p = c₁`, each side's outward
+/// normal leaning `a` from the upright — the two sides at different leans
+/// and distances, so that their set-backs cross off the arc's middle — the
+/// whole turned by `turn` about the origin, so that the arc may straddle any
+/// angle of its circle. Asked `below` the touch and each of `past` beyond.
+struct Askew {
+    left: (f64, f64),
+    right: (f64, f64),
+    turn: f64,
+    called: &'static str,
+}
+
+impl Askew {
+    /// Each side's outward normal on the plan, unturned, and its distance
+    /// from the origin: the left first.
+    fn sides(&self) -> [(DVec2, f64); 2] {
+        let [(c1, a1), (c2, a2)] = [self.left, self.right].map(|(c, a)| (c, a.to_radians()));
+        [
+            (DVec2::new(-a1.cos(), a1.sin()), c1),
+            (DVec2::new(a2.cos(), a2.sin()), c2),
+        ]
+    }
+
+    /// Where each side, unturned, meets the circle above the origin, the
+    /// left first.
+    fn on_the_arc(&self) -> [DVec2; 2] {
+        self.sides().map(|(normal, c)| {
+            let up = DVec2::new(-normal.y, normal.x) * normal.x.signum().max(-1.0);
+            let along = if up.y < 0.0 { -up } else { up };
+            normal * c + along * (ARCH_RADIUS * ARCH_RADIUS - c * c).sqrt()
+        })
+    }
+
+    /// The plate's corners, unturned, from the bottom's left end round.
+    fn corners_unturned(&self) -> [DVec2; 4] {
+        let [(n1, c1), (n2, c2)] = self.sides();
+        let on_bottom = |normal: DVec2, c: f64| (c - normal.y * ARCH_BOTTOM) / normal.x;
+        let [left, right] = self.on_the_arc();
+        [
+            DVec2::new(on_bottom(n1, c1), ARCH_BOTTOM),
+            DVec2::new(on_bottom(n2, c2), ARCH_BOTTOM),
+            right,
+            left,
+        ]
+    }
+
+    fn turned(&self, at: DVec2) -> DVec2 {
+        DVec2::from_angle(self.turn.to_radians()).rotate(at)
+    }
+
+    fn plate(&self) -> Body {
+        let corners = self.corners_unturned();
+        let [_, _, right, left] = corners;
+        let arc = left.to_angle() - right.to_angle();
+        raised_with(
+            &Body::default(),
+            Contour {
+                corners: corners.map(|at| self.turned(at)).to_vec(),
+                runs: vec![
+                    Run::Straight,
+                    Run::Straight,
+                    Run::Round {
+                        center: DVec2::ZERO,
+                        turn: arc,
+                    },
+                    Run::Straight,
+                ],
+            },
+            ARCH_HEIGHT,
+        )
+    }
+
+    /// Where the two set-backs touch on the arc, as the module's
+    /// documentation derives it: at the point of the arc as deep behind both
+    /// sides' set-backs, `(n₂ − n₁)·e(θ) = (c₂ − c₁)/R`, the depth there.
+    fn touching(&self) -> f64 {
+        let [(n1, c1), (n2, c2)] = self.sides();
+        let [left, right] = self.on_the_arc();
+        let [from, to] = [right.to_angle(), left.to_angle()];
+        let way = n2 - n1;
+        let spread = ((c2 - c1) / (ARCH_RADIUS * way.length())).acos();
+        let at = way.to_angle();
+        let theta = [
+            at - spread,
+            at + spread,
+            at - spread + TAU,
+            at + spread - TAU,
+        ]
+        .into_iter()
+        .find(|theta| (from..=to).contains(theta))
+        .expect("the two depths are equal somewhere on the arc");
+        c1 - ARCH_RADIUS * n1.dot(DVec2::from_angle(theta))
+    }
+
+    /// The least, along the arc, of the larger of the two depths, read by
+    /// stepping along it: what [`Askew::touching`] derives, held another way.
+    fn touching_by_steps(&self) -> f64 {
+        let [(n1, c1), (n2, c2)] = self.sides();
+        let [left, right] = self.on_the_arc();
+        let [from, to] = [right.to_angle(), left.to_angle()];
+        (0..=200_000)
+            .map(|step| {
+                let e = DVec2::from_angle(from + (to - from) * step as f64 / 200_000.0);
+                (c1 - ARCH_RADIUS * n1.dot(e)).max(c2 - ARCH_RADIUS * n2.dot(e))
+            })
+            .fold(f64::INFINITY, f64::min)
+    }
+
+    /// The curved faces a step of `value` leaves, as [`Arched::curved`]
+    /// reckons them.
+    fn curved(&self, value: f64, fillet: bool) -> f64 {
+        let [low, low_right, right, left] = self.corners_unturned();
+        let arc = left.to_angle() - right.to_angle();
+        let sides = (left - low).length() + (right - low_right).length() + 2.0 * value;
+        ARCH_RADIUS * arc * ARCH_HEIGHT
+            + if fillet {
+                PI / 2.0 * value * sides
+            } else {
+                0.0
+            }
+    }
+}
+
+const ASKEW: [Askew; 4] = [
+    Askew {
+        left: (7.0, 30.0),
+        right: (6.0, 20.0),
+        turn: 0.0,
+        called: "sides at 7 leaning 30° and at 6 leaning 20°",
+    },
+    Askew {
+        left: (5.0, 15.0),
+        right: (7.0, 35.0),
+        turn: 0.0,
+        called: "sides at 5 leaning 15° and at 7 leaning 35°",
+    },
+    Askew {
+        left: (7.0, 30.0),
+        right: (7.0, 30.0),
+        turn: 90.0,
+        called: "sides at 7 leaning 30°, turned a quarter, the arc astride its circle's half turn",
+    },
+    Askew {
+        left: (7.0, 30.0),
+        right: (6.0, 20.0),
+        turn: 95.0,
+        called: "sides at 7 leaning 30° and at 6 leaning 20°, turned 95°",
+    },
+];
+
+#[test]
+fn a_fillet_and_a_chamfer_on_two_sides_of_an_arched_plate_at_different_leans_take_the_value_at_which_their_set_backs_touch_off_the_arc_s_middle()
+ {
+    let mut wrong = Vec::new();
+    for askew in ASKEW {
+        let touching = askew.touching();
+        assert!(
+            (touching - askew.touching_by_steps()).abs() < 1e-4,
+            "{}: the touch derived, {touching}, is the least of the larger depth along the arc, {}",
+            askew.called,
+            askew.touching_by_steps()
+        );
+        let part = askew.plate();
+        let sides = [
+            edge_between(&part, TOP, ARCH_LEFT),
+            edge_between(&part, TOP, ARCH_RIGHT),
+        ];
+        let hair = 20.0 * 1e-9 * reach_of(&part);
+        for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
+            for order in [[0, 1], [1, 0]] {
+                let names: Vec<EdgeName> = order.iter().map(|&side| sides[side].clone()).collect();
+                for asked in [touching - 0.3, touching + 0.5, touching + 1.0] {
+                    let what = format!(
+                        "the {kind} of {asked} on the two sides of the arched plate with {}, \
+                         named {order:?}, their set-backs touching on the arc at {touching}",
+                        askew.called
+                    );
+                    let (reported, taken, body) = match laid_on(&part, &names, asked, fillet) {
+                        Ok(laid) => laid,
+                        Err(reason) => {
+                            wrong.push(format!("{what}: declined, {reason:?}"));
+                            continue;
+                        }
+                    };
+                    let expected = asked.min(touching);
+                    let least = expected
+                        - if asked > touching {
+                            SHORT_BY * hair
+                        } else {
+                            PLACE
+                        };
+                    if (reported - asked).abs() > PLACE || taken > expected + PLACE || taken < least
+                    {
+                        wrong.push(format!(
+                            "{what}: reports {reported} asked and took {taken}, where {expected} \
+                             fits"
+                        ));
+                        continue;
+                    }
+                    let (_, _, direct) =
+                        laid_on(&part, &sides, taken, fillet).unwrap_or_else(|declined| {
+                            panic!(
+                                "{what}: the step laid directly at {taken}: declined, {declined:?}"
+                            )
+                        });
+                    sound_drawn_within(
+                        &body,
+                        direct.volume(),
+                        DRAWN * reach_of(&part) * askew.curved(taken, fillet),
+                        &format!("{what}, and the same step laid directly at {taken}"),
+                    );
+                }
+            }
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "two sides of an arched plate at different leans take the value at which their set-backs \
+         touch on the arc, off its middle:\n{}",
+        wrong.join("\n")
+    );
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_the_two_sides_of_an_arched_plate_bored_through_its_top_take_the_value_at_which_their_set_backs_touch_on_the_arc_the_bore_s_rim_read_whole()
+ {
+    let arched = &ARCHED[0];
+    let plain = arched.plate();
+    let bore = Contour::circle(DVec2::new(0.0, 2.0), 1.5);
+    let bored = plain
+        .difference(
+            &plain
+                .tool_raised(
+                    &profile(bore),
+                    Frame {
+                        origin: DVec3::Z * -1.0,
+                        ..ground()
+                    },
+                    DVec3::Z * (ARCH_HEIGHT + 2.0),
+                )
+                .expect("the bore raises"),
+        )
+        .expect("the bore is cut");
+    let touching = arched.touching();
+    let mut wrong = Vec::new();
+    for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
+        for asked in [arched.below].into_iter().chain(arched.past) {
+            let what = format!(
+                "the {kind} of {asked} on the two sides of the arched plate bored through its top, \
+                 the bore's rim a whole circle bounding the top both sides cut, their set-backs \
+                 touching on the arc at {touching}"
+            );
+            let laid = [&plain, &bored].map(|part| {
+                let sides = [
+                    edge_between(part, TOP, ARCH_LEFT),
+                    edge_between(part, TOP, ARCH_RIGHT),
+                ];
+                laid_on(part, &sides, asked, fillet)
+            });
+            let [Ok((_, plain_taken, _)), Ok((_, taken, body))] = laid else {
+                wrong.push(format!("{what}: declined, {:?}", laid.map(|one| one.err())));
+                continue;
+            };
+            if (taken - plain_taken).abs() > PLACE {
+                wrong.push(format!(
+                    "{what}: took {taken}, where the plate unbored takes {plain_taken}: the rim, \
+                     inside the top, is reached by the two set-backs only after the arc is"
+                ));
+                continue;
+            }
+            let sides = [
+                edge_between(&bored, TOP, ARCH_LEFT),
+                edge_between(&bored, TOP, ARCH_RIGHT),
+            ];
+            let (_, _, direct) =
+                laid_on(&bored, &sides, taken, fillet).unwrap_or_else(|declined| {
+                    panic!("{what}: laid directly at {taken}: {declined:?}")
+                });
+            let bore_wall = 2.0 * PI * 1.5 * (ARCH_HEIGHT + 2.0);
+            sound_drawn_within(
+                &body,
+                direct.volume(),
+                DRAWN * reach_of(&bored) * (arched.curved(taken, fillet) + bore_wall),
+                &what,
+            );
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "a bore through the arched plate's top, its rim read whole, leaves the value where the \
+         two set-backs touch on the arc:\n{}",
         wrong.join("\n")
     );
 }

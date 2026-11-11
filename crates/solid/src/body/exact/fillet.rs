@@ -79,8 +79,10 @@ impl Exact {
     /// an edge meets inwards, an edge whose set-backs meet those of two others
     /// — rounds closing on themselves, #790 — an edge of a full round meeting
     /// another edge of the list at a corner but the edge at its end, one of a
-    /// round bottom meeting any, and a cut
-    /// that left anything but its round — a face of the prism, the round in two
+    /// round bottom meeting any, the three at the top of an L's inner corner,
+    /// whose piece of torus cut out about the inner upright's fill is still to
+    /// come, and a cut that left anything but its round — a face of the
+    /// prism, the round in two
     /// pieces or with a corner on neither of the edge's faces, a face the body
     /// held, but the edge's two, taken away whole — as where a round leaving
     /// the edge's end outwards bulges past the edge's face, and the prism's

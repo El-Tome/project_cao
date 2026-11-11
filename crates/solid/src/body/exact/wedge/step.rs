@@ -165,7 +165,7 @@ impl Exact {
             meeting.closing,
         )?;
         let given: Vec<(EdgeId, &Wedge)> = edges.iter().copied().zip(&wedges).collect();
-        let crossing = set_backs::crossing_on(&self.brep, &edges, &wedges);
+        let crossing = set_backs::crossing_on(&self.brep, &edges, &wedges, set_back);
         let start = self.next;
         let mut cut = self.clone();
         for rank in 0..names.len() {

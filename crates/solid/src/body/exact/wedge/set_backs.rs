@@ -9,6 +9,8 @@
 
 use std::collections::BTreeMap;
 
+use glam::DVec3;
+
 use super::chain::TANGENT;
 use super::corners::Beside;
 use super::extent::{Ranked, Within, runs, span};
@@ -41,13 +43,7 @@ pub(super) fn bound(
 ) -> f64 {
     let eps = body.scale().eps();
     let mut most = f64::INFINITY;
-    for (edge, sides) in bounding(body, wedges) {
-        let listed = edges.iter().position(|&named| named == edge);
-        let stretch = body.edge(edge);
-        let (Curve::Line(_), Some(ends)) = (body.curve(stretch.curve), stretch.ends) else {
-            continue;
-        };
-        let ends = ends.map(|end| body.vertex(end).point);
+    for (ends, [one, other], between) in across(body, edges, wedges) {
         let depths = |&(rank, side): &Ranked| {
             let wedge = &wedges[rank];
             let per = set_back(wedge);
@@ -56,34 +52,56 @@ pub(super) fn bound(
                 per,
             )
         };
-        for (index, one) in sides.iter().enumerate() {
-            for other in &sides[index + 1..] {
+        let value = match between {
+            Some(rank) => closing(wedges, [one, other], rank, &set_back),
+            None => {
+                let later = one.0.max(other.0);
+                let held: Vec<Within> = [one, other]
+                    .into_iter()
+                    .flat_map(|ranked| {
+                        runs(body, (edges, wedges), beside, ranked, later, &set_back)
+                    })
+                    .collect();
+                let within = span(&held, ends, eps);
+                within.and_then(|within| reached([depths(&one), depths(&other)], within, eps))
+            }
+        };
+        if let Some(value) = value {
+            most = most.min(value);
+        }
+    }
+    most
+}
+
+/// Every two sides of two of `edges` that do not meet at a corner, their
+/// wedges in `wedges`, whose faces a straight edge of the body bounds: that
+/// edge's two ends, the two sides, and the edge's rank where it is one of the
+/// list but neither of the two.
+fn across(
+    body: &brep::Body,
+    edges: &[EdgeId],
+    wedges: &[Wedge],
+) -> Vec<([DVec3; 2], [Ranked; 2], Option<usize>)> {
+    let mut across = Vec::new();
+    for (edge, sides) in bounding(body, wedges) {
+        let listed = edges.iter().position(|&named| named == edge);
+        let stretch = body.edge(edge);
+        let (Curve::Line(_), Some(ends)) = (body.curve(stretch.curve), stretch.ends) else {
+            continue;
+        };
+        let ends = ends.map(|end| body.vertex(end).point);
+        for (index, &one) in sides.iter().enumerate() {
+            for &other in &sides[index + 1..] {
                 let (first, second) = (one.0, other.0);
                 if first == second || corners::meet(body, [edges[first], edges[second]]) {
                     continue;
                 }
                 let between = listed.filter(|&rank| rank != first && rank != second);
-                let value = match between {
-                    Some(rank) => closing(wedges, [*one, *other], rank, &set_back),
-                    None => {
-                        let later = first.max(second);
-                        let held: Vec<Within> = [one, other]
-                            .into_iter()
-                            .flat_map(|&ranked| {
-                                runs(body, (edges, wedges), beside, ranked, later, &set_back)
-                            })
-                            .collect();
-                        let within = span(&held, ends, eps);
-                        within.and_then(|within| reached([depths(one), depths(other)], within, eps))
-                    }
-                };
-                if let Some(value) = value {
-                    most = most.min(value);
-                }
+                across.push((ends, [one, other], between));
             }
         }
     }
-    most
+    across
 }
 
 /// The edges of the body bounding a face of the wedges `wedges`, each with
@@ -100,37 +118,27 @@ fn bounding(body: &brep::Body, wedges: &[Wedge]) -> BTreeMap<EdgeId, Vec<Ranked>
     bounding
 }
 
-/// The edges of `edges` whose straight edge bounds a face of each of two
-/// others that do not meet at a corner, as [`bound`] reads them, so that
-/// their set-backs may cross on it until its own cut takes the crossing
-/// away: each by its rank, with the two's ranks, the lower first.
+/// The listed edges two others' set-backs cross on, as [`bound`] reads them
+/// on `edges` and `wedges` with `set_back`: where their crossing stands behind
+/// the edge at a value of nought and comes over it onto the face all three
+/// share as the value grows, as [`crossing`] runs it — the point the edge's
+/// own cut takes away once it is laid, there until then. Each by its rank,
+/// with the two's ranks, the lower first.
 pub(super) fn crossing_on(
     body: &brep::Body,
     edges: &[EdgeId],
     wedges: &[Wedge],
+    set_back: impl Fn(&Wedge) -> f64,
 ) -> Vec<(usize, [usize; 2])> {
-    let mut crossing = Vec::new();
-    for (edge, sides) in bounding(body, wedges) {
-        let Some(between) = edges.iter().position(|&named| named == edge) else {
-            continue;
-        };
-        if !matches!(body.curve(body.edge(edge).curve), Curve::Line(_)) {
-            continue;
-        }
-        for (index, &(first, _)) in sides.iter().enumerate() {
-            for &(second, _) in &sides[index + 1..] {
-                let pair = [first.min(second), first.max(second)];
-                if first != second
-                    && !pair.contains(&between)
-                    && !corners::meet(body, [edges[first], edges[second]])
-                    && !crossing.contains(&(between, pair))
-                {
-                    crossing.push((between, pair));
-                }
-            }
-        }
-    }
-    crossing
+    (across(body, edges, wedges).into_iter())
+        .filter_map(|(_, pair, between)| {
+            let between = between?;
+            let [behind, speed, _] = crossing(wedges, pair, between, &set_back)?;
+            let [first, second] = pair.map(|(rank, _)| rank);
+            let ranks = [first.min(second), first.max(second)];
+            (behind < 0.0 && speed > 0.0).then_some((between, ranks))
+        })
+        .collect()
 }
 
 /// The least value at which two set-backs reach one point of a straight
@@ -156,20 +164,38 @@ fn reached(lines: [(Depths, f64); 2], within: [f64; 2], eps: f64) -> Option<f64>
         .reduce(f64::min)
 }
 
-/// The value at which the set-back of the listed edge `between`, laid before
-/// the later of a pair whose set-backs cross on it, closes between theirs on
-/// the face all three share: the point where the pair's set-backs cross runs
-/// from where their lines meet, behind `between`, in proportion to the value,
-/// and once past its own set-back the two meet beyond its cut. None where the
-/// pair are parallel — left to [`super::pairs::bound`] where they face each
-/// other, to the laying's checks otherwise —, do not share that face with it,
-/// or their crossing never outruns its set-back, left to the laying's checks.
+/// The value at which the set-back of the listed edge `between` closes
+/// between those of a pair whose set-backs cross on it, on the face all three
+/// share: the point where the pair's set-backs cross runs from where their
+/// lines meet, behind `between`, in proportion to the value, as [`crossing`]
+/// runs it, and once past its own set-back the two meet beyond its cut. None
+/// where the pair are parallel — left to [`super::pairs::bound`] where they
+/// face each other, to the laying's checks otherwise —, do not share that face
+/// with it, or their crossing never outruns its set-back, left to the
+/// laying's checks.
 fn closing(
+    wedges: &[Wedge],
+    pair: [Ranked; 2],
+    between: usize,
+    set_back: &impl Fn(&Wedge) -> f64,
+) -> Option<f64> {
+    let [behind, speed, per] = crossing(wedges, pair, between, set_back)?;
+    let outrunning = speed - per;
+    (behind < 0.0 && outrunning > 0.0).then(|| -behind / outrunning)
+}
+
+/// How the point where the set-backs of a pair cross runs on the face all
+/// three share, square to the listed edge `between`, into that face: where it
+/// stands at a value of nought — where the pair's lines meet, behind the edge
+/// where negative —, how far it runs for a value of one, and the edge's own
+/// set-back of one. None where the pair are parallel, or do not share that
+/// face with it.
+fn crossing(
     wedges: &[Wedge],
     [(one, one_side), (other, other_side)]: [Ranked; 2],
     between: usize,
     set_back: &impl Fn(&Wedge) -> f64,
-) -> Option<f64> {
+) -> Option<[f64; 3]> {
     let [first, second, third] = [one, other, between].map(|rank| &wedges[rank]);
     let face = first.faces[one_side];
     let side = third.faces.iter().position(|&theirs| theirs == face)?;
@@ -184,7 +210,5 @@ fn closing(
     let running = a * ((per_first - cosine * per_second) / square)
         + b * ((per_second - cosine * per_first) / square);
     let into = third.into[side];
-    let behind = into.dot(met - third.point);
-    let outrunning = into.dot(running) - per_between;
-    (behind < 0.0 && outrunning > 0.0).then(|| -behind / outrunning)
+    Some([into.dot(met - third.point), into.dot(running), per_between])
 }

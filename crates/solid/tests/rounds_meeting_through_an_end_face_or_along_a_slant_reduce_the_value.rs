@@ -103,8 +103,10 @@
 //!   And two steps #698 lays that the reading of
 //!   an edge of the list between two others could shrink take the value
 //!   asked: where the middle edge's wall overhangs, so steeply that its
-//!   fillet's set-back runs ahead of where the outer two's would cross —
-//!   `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_whose_middle_wall_overhangs_take_the_value_asked_its_set_back_outrunning_where_the_outer_two_would_cross`;
+//!   fillet's set-back runs ahead of where the outer two's would cross, the
+//!   same body whatever the order, the middle edge named last too since
+//!   #822 —
+//!   `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_whose_middle_wall_overhangs_take_the_value_asked_in_every_order_its_set_back_outrunning_where_the_outer_two_would_cross`;
 //!   and where the outer two reach the middle edge through its two faces,
 //!   one ending on its top face and the other on its wall, a chain of three
 //!   on the block and on the trapezoid —
@@ -158,6 +160,12 @@
 //!   for #792's two tests that held the value reduced with the middle edge
 //!   named last and on the ring; each now holds the value asked, every face
 //!   where it lies, under a name that says so
+//! - Found on the way, not in the issue's wording: three top edges in a row
+//!   whose middle wall overhangs, its set-back running ahead of where the
+//!   outer two's would cross, take the value asked in all six orders, the
+//!   middle edge named last as well as second, the same body in each: the
+//!   outer two stop on the middle edge's faces wherever it is ranked —
+//!   `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_whose_middle_wall_overhangs_take_the_value_asked_in_every_order_its_set_back_outrunning_where_the_outer_two_would_cross`
 //!
 //! The volumes are #792's: the three in a row's as
 //! `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_asked_past_where_the_outer_two_would_cross_take_the_value_asked_the_middle_one_named_before_the_last`
@@ -2811,7 +2819,7 @@ fn set_in(corners: &[DVec2], insets: &[f64]) -> Vec<DVec2> {
 }
 
 #[test]
-fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_whose_middle_wall_overhangs_take_the_value_asked_its_set_back_outrunning_where_the_outer_two_would_cross()
+fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_whose_middle_wall_overhangs_take_the_value_asked_in_every_order_its_set_back_outrunning_where_the_outer_two_would_cross()
  {
     let [_, from, to, _, _, _] = hexagon_corners();
     let (_, out) = trapezoid_edge(from, to);
@@ -2821,12 +2829,11 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_whose
         out.extend(0.0),
         OVERHANG_DEGREES,
     );
-    let names = [
+    let edges = [
         edge_between(&part, TOP, HEXAGON_FRONT),
         edge_between(&part, TOP, wall),
         edge_between(&part, TOP, HEXAGON_ACROSS),
     ];
-    let laid = [0, 1, 2].map(|rank| part.faces_end() + rank);
     let value = OVERHANG_ASKED;
 
     for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
@@ -2835,39 +2842,92 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_whose
         } else {
             1.0
         };
-        let what = format!(
-            "the {kind} on three top edges in a row of the hexagon whose middle wall overhangs \
-             {OVERHANG_DEGREES} degrees, asked {value}: the middle one's set-back along the top, \
-             {per} of the value, runs ahead of where the outer two's set-backs would cross"
-        );
+        let mut laid_in_every_order: Vec<(String, Body, [usize; 3])> = Vec::new();
+        for order in ORDERS_OF_THREE {
+            let names: Vec<EdgeName> = order.iter().map(|&rank| edges[rank].clone()).collect();
+            let laid: Vec<usize> = (0..order.len())
+                .map(|named| part.faces_end() + named)
+                .collect();
+            let number_of = |rank: usize| {
+                laid[order
+                    .iter()
+                    .position(|&named| named == rank)
+                    .expect("named")]
+            };
+            let what = format!(
+                "the {kind} on three top edges in a row of the hexagon whose middle wall \
+                 overhangs {OVERHANG_DEGREES} degrees, named {order:?}, asked {value}: the \
+                 middle one's set-back along the top, {per} of the value, runs ahead of where \
+                 the outer two's set-backs would cross"
+            );
 
-        let (reported, taken, body) = stepped(&part, &names, value, fillet, &what);
+            let (reported, taken, body) = stepped(&part, &names, value, fillet, &what);
 
-        taken_as_asked(reported, taken, value, &what);
-        for (rank, number) in [(0, laid[0]), (2, laid[2])] {
-            let turn = rank as f64 * PI / 3.0;
-            let which = format!("{what}: face {number}");
-            if fillet {
-                let reach = HEXAGON_SIDE / 2.0 + value / 3.0f64.sqrt();
-                drawn_on(&body, number, &hexagon_round_to(value, turn, reach), &which);
-            } else {
-                let (_, facing) = hexagon_flat_to(value, turn, 0.0);
-                faces_toward(&body, number, facing, &which);
+            taken_as_asked(reported, taken, value, &what);
+            for rank in [0, 2] {
+                let (number, turn) = (number_of(rank), rank as f64 * PI / 3.0);
+                let which = format!("{what}: face {number}");
+                if fillet {
+                    let reach = HEXAGON_SIDE / 2.0 + value / 3.0f64.sqrt();
+                    drawn_on(&body, number, &hexagon_round_to(value, turn, reach), &which);
+                } else {
+                    let (_, facing) = hexagon_flat_to(value, turn, 0.0);
+                    faces_toward(&body, number, facing, &which);
+                }
+            }
+            do_not_meet(&body, [number_of(0), number_of(2)], &what);
+            kept_every_face_and_laid(&part, &body, &laid, &what);
+            let insets = [value, value * per, value, 0.0, 0.0, 0.0];
+            corners_are(
+                &body,
+                TOP,
+                &set_in(&hexagon_corners(), &insets)
+                    .into_iter()
+                    .map(|corner| corner.extend(HEXAGON_HEIGHT))
+                    .collect::<Vec<_>>(),
+                &format!("{what}: the top, set back from the three edges"),
+            );
+            closed_and_uncrossed(&body, &what);
+            laid_in_every_order.push((what, body, [0, 1, 2].map(number_of)));
+        }
+        let (first_what, first, first_numbers) = &laid_in_every_order[0];
+        for (what, body, numbers) in &laid_in_every_order[1..] {
+            let which = format!("{first_what}, and {what}");
+            assert!(
+                (body.volume() - first.volume()).abs() <= EXACT * first.volume(),
+                "{which}: the two hold {} and {}",
+                first.volume(),
+                body.volume()
+            );
+            for rank in 0..3 {
+                let [mine, theirs] = [numbers[rank], first_numbers[rank]];
+                assert_eq!(
+                    body.is_flat(mine),
+                    first.is_flat(theirs),
+                    "{which}: the face laid on the edge of rank {rank} in the row is flat in one \
+                     and not in the other"
+                );
+                if let (Some(plane), Some(other)) = (body.plane_of(mine), first.plane_of(theirs)) {
+                    let among = |corners: &[DVec3], point: &DVec3| {
+                        corners.iter().any(|corner| corner.distance(*point) < PLACE)
+                    };
+                    assert!(
+                        plane
+                            .corners
+                            .iter()
+                            .all(|point| among(&other.corners, point))
+                            && other
+                                .corners
+                                .iter()
+                                .all(|point| among(&plane.corners, point)),
+                        "{which}: the flat laid on the edge of rank {rank} in the row has the \
+                         corners {:?} in one and {:?} in the other",
+                        plane.corners,
+                        other.corners
+                    );
+                }
             }
         }
-        do_not_meet(&body, [laid[0], laid[2]], &what);
-        kept_every_face_and_laid(&part, &body, &laid, &what);
-        let insets = [value, value * per, value, 0.0, 0.0, 0.0];
-        corners_are(
-            &body,
-            TOP,
-            &set_in(&hexagon_corners(), &insets)
-                .into_iter()
-                .map(|corner| corner.extend(HEXAGON_HEIGHT))
-                .collect::<Vec<_>>(),
-            &format!("{what}: the top, set back from the three edges"),
-        );
-        closed_and_uncrossed(&body, &what);
     }
 }
 

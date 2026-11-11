@@ -85,13 +85,13 @@ pub(super) fn completing(
 ) -> Vec<Stop> {
     let mut stops = Vec::new();
     for &(between, [_, later]) in crossing {
+        if later != rank || between < rank {
+            continue;
+        }
         let (edge, wedge) = edges[between];
         let Some([end, _]) = given.edge(edge).ends else {
             continue;
         };
-        if later != rank || between < rank {
-            continue;
-        }
         for away in wedge.outward {
             stops.push(Stop {
                 plane: Plane::through(wedge.point, away).0,

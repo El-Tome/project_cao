@@ -38,6 +38,7 @@ use crate::brep::conic::{Conic, On, Round};
 use crate::brep::surface::Surface;
 use crate::brep::tessellation::contact::{self, Zones};
 use crate::brep::topology::{Body, Edge, SurfaceId};
+pub(in crate::brep::tessellation) use rays::{ADRIFT, drift};
 pub(super) use rays::{rays_about, rays_along};
 
 /// How many turns of its wall a stretch may run before its angles are given

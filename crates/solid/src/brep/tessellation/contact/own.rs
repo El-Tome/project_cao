@@ -7,11 +7,13 @@ use std::f64::consts::PI;
 
 use glam::DVec3;
 
-use super::super::sampling::divisions_in;
+use super::super::sampling::{ADRIFT, divisions_in, drift};
 use super::{Contact, Wall, bears};
+use crate::brep::conic::Round;
 use crate::brep::curve::{self, Curve};
+use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Surface};
-use crate::brep::topology::{Body, SurfaceId};
+use crate::brep::topology::{Body, EdgeId, SurfaceId};
 
 /// For each wall, the vertices lying on it; the rays through those and
 /// through the vertices standing just inside it, which it keeps whatever
@@ -37,6 +39,13 @@ pub(super) struct Through {
 /// the large one's square to them and the small one's, between its two mirror
 /// lobes, across them: within a strip each sags as the square of its width,
 /// and the two stay ordered.
+///
+/// But a third wall crossing two walls whose axes lean a hair off each
+/// other takes no ray from either meet: it would carry each sample of one
+/// meet onto the other, read off the other wall's axis at the meet's
+/// height and so a drift round on its rims, and back pass after pass —
+/// the rims of the two walls part where they leave a cap together, and
+/// their chords cross beside the tip (352000000009685).
 pub(super) fn along_meets(
     body: &Body,
     meets: &[Vec<DVec3>],
@@ -53,10 +62,12 @@ pub(super) fn along_meets(
             .flatten()
             .map(|end| body.vertex(end).point);
         let through: Vec<DVec3> = meets[id.0 as usize].iter().copied().chain(ends).collect();
-        for (wall, held) in [meet.first, meet.second]
-            .into_iter()
-            .zip(super::held(body, id, meet))
-        {
+        let walls = super::held(body, id, meet);
+        for (side, (wall, held)) in [meet.first, meet.second].into_iter().zip(walls).enumerate() {
+            let at = meet.point(edge.from);
+            if relays(body, id, [held, walls[1 - side]], at) {
+                continue;
+            }
             let rays: Vec<DVec3> = match wall {
                 curve::Wall::Cylinder(cylinder) => through
                     .iter()
@@ -73,6 +84,42 @@ pub(super) fn along_meets(
                 }
             }
         }
+    }
+}
+
+/// Whether `third`, meeting `wall` along `edge`, also meets another wall
+/// leaning off `wall` by a drift under [`ADRIFT`], read at `at`.
+fn relays(body: &Body, edge: EdgeId, [third, wall]: [curve::Wall; 2], at: DVec3) -> bool {
+    let along = axis(&wall);
+    body.edge_ids().filter(|other| *other != edge).any(|other| {
+        let Curve::Meet(theirs) = body.curve(body.edge(other).curve) else {
+            return false;
+        };
+        let walls = super::held(body, other, theirs);
+        let Some(side) = walls.iter().position(|held| *held == third) else {
+            return false;
+        };
+        let partner = walls[1 - side];
+        let sine = along.cross(axis(&partner)).length();
+        partner != wall
+            && sine > Scale::RELATIVE
+            && drift(body, [&round(wall), &round(partner)], at, sine) < ADRIFT
+    })
+}
+
+fn axis(wall: &curve::Wall) -> DVec3 {
+    match wall {
+        curve::Wall::Cylinder(cylinder) => cylinder.axis,
+        curve::Wall::Elliptic(oval) => oval.axis,
+        curve::Wall::Cone(cone) => cone.axis,
+    }
+}
+
+fn round(wall: curve::Wall) -> Round {
+    match wall {
+        curve::Wall::Cylinder(cylinder) => Round::Cylinder(cylinder),
+        curve::Wall::Elliptic(oval) => Round::Elliptic(oval),
+        curve::Wall::Cone(cone) => Round::Cone(cone),
     }
 }
 

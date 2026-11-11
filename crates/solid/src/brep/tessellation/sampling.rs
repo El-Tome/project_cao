@@ -68,6 +68,7 @@ use abreast::Abreast;
 use axis::Axes;
 use circle::on_circle_by;
 use cone::{Grid, Spun};
+pub(super) use conic::{ADRIFT, drift};
 use ends::Ends;
 pub(super) use planes::{on_a_plane, touching_planes};
 pub(super) use round::{ON_A_ROW, Rounded, levels, midway, rows};

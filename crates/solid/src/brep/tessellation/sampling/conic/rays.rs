@@ -89,7 +89,7 @@ const TOGETHER: f64 = 1e-3;
 /// coarsest grid, sixteen steps a turn. The rims of an elliptic shaft and a
 /// bore of its minor radius were left uncut up to 0.025 at that grid, and
 /// at finer ones only under it, whatever the lean, the height or the size.
-const ADRIFT: f64 = TAU / 160.0;
+pub(in crate::brep::tessellation) const ADRIFT: f64 = TAU / 160.0;
 
 /// Whether two conics of one plane, cut on walls about axes across each
 /// other, leave a vertex they share together: where the two walls touch at
@@ -141,7 +141,12 @@ fn leaving_together(body: &Body, [one, other]: [&Edge; 2], [first, second]: [&Co
 /// other drifts between their rims: how far their axes, leaning by `sine`,
 /// part over the heights the faces of either span, against the nearer of
 /// the two axes to `at`, where the rims leave together.
-fn drift(body: &Body, rounds: [&Round; 2], at: DVec3, sine: f64) -> f64 {
+pub(in crate::brep::tessellation) fn drift(
+    body: &Body,
+    rounds: [&Round; 2],
+    at: DVec3,
+    sine: f64,
+) -> f64 {
     let (_, axis) = about(rounds[0]);
     let span = rounds
         .iter()

@@ -218,3 +218,6 @@ fn coaxial(wall: &Cylinder, origin: DVec3, axis: DVec3, eps: f64) -> bool {
     wall.axis.cross(axis).length() <= Scale::RELATIVE
         && (from - axis * axis.dot(from)).length() <= eps
 }
+
+#[cfg(test)]
+mod tests;

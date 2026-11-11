@@ -39,6 +39,22 @@
 //! `crates/solid/src/brep/tessellation/tests/conics.rs` by
 //! `the_caps_of_an_elliptic_shaft_bored_by_its_minor_radius_leaning_past_the_band_are_cut_and_drawn_closed`,
 //! with leans of 0.06°, 0.2°, 0.5° and 1°.
+//!
+//! The mutants of `sampling/conic/rays.rs` this file and the library's tests
+//! let live are killed beside the code, in `sampling/conic/rays/tests.rs`,
+//! which puts the drift of an elliptic rim and a bore's on either side of
+//! `ADRIFT` and holds `drift` to its value worked by hand, or elsewhere in
+//! the crate: `leaving_together` returning false, and its guard on parallel
+//! walls turned round, fail
+//! `seed_5550117749_a_half_turn_cut_by_a_cylinder_a_turn_and_a_block_leaning_15_degrees`
+//! (`what_the_exact_campaigns_found_in_the_kernel.rs`), the horn the hand-off
+//! was made for; `rays_along` returning no rays fails it and
+//! `seed_9311810_two_conics_touching_at_a_frustum_s_rim_are_drawn_closed` and
+//! `seed_9314220_a_plane_touching_a_shaft_s_meet_with_a_post_on_its_wall_is_drawn_closed`
+//! (`what_the_exact_campaigns_found_in_the_triangles.rs`). One is
+//! equivalent: `<` turned to `<=` against `ADRIFT` differs only where a
+//! drift worked out of a body's heights, a sine and a distance equals
+//! `TAU / 160` to the last bit.
 
 // The drawing, the promise and the checks are the campaigns'; this file
 // only builds cases and holds them.

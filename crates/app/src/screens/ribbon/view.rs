@@ -68,6 +68,10 @@ impl Ribbon {
         lang: &Catalogue,
     ) -> Vec<Command> {
         let layout = &settings.toolbar;
+        self.sketch_tab = layout
+            .items
+            .iter()
+            .position(|item| matches!(item, Item::Group { name, .. } if name == "sketch"));
         let mut asked = Vec::new();
 
         match layout.edge {

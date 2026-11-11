@@ -807,3 +807,66 @@ fn the_shape_of_a_reopened_step_is_not_offered_for_change() {
          reopened on the block's extrusion",
     );
 }
+
+fn enter_a_sketch(ribbon: &mut Ribbon) {
+    ribbon.enter_sketch();
+}
+
+fn finish_the_sketch(ribbon: &mut Ribbon) {
+    ribbon.leave_sketch();
+}
+
+fn no_sketch_is_open(ribbon: &mut Ribbon) {
+    ribbon.follow_the_canvas(Some(0), None);
+}
+
+#[test]
+fn entering_a_second_sketch_keeps_the_tab_saved_by_the_first() {
+    let mut ribbon = Ribbon::new();
+    ribbon.tab = 2;
+    enter_a_sketch(&mut ribbon);
+    ribbon.tab = 1;
+    enter_a_sketch(&mut ribbon);
+
+    finish_the_sketch(&mut ribbon);
+
+    assert_eq!(ribbon.tab, 2);
+}
+
+#[test]
+fn finishing_with_no_sketch_entered_leaves_the_tab_shown() {
+    let mut ribbon = Ribbon::new();
+    ribbon.tab = 1;
+
+    finish_the_sketch(&mut ribbon);
+
+    assert_eq!(ribbon.tab, 1);
+}
+
+#[test]
+fn no_sketch_open_forgets_the_saved_tab_and_leaves_the_tab_shown() {
+    let mut ribbon = Ribbon::new();
+    ribbon.tab = 2;
+    enter_a_sketch(&mut ribbon);
+    ribbon.tab = 1;
+
+    no_sketch_is_open(&mut ribbon);
+    let shown = ribbon.tab;
+    finish_the_sketch(&mut ribbon);
+
+    assert_eq!((shown, ribbon.tab), (1, 1));
+}
+
+#[test]
+fn finishing_brings_the_saved_tab_back_once() {
+    let mut ribbon = Ribbon::new();
+    ribbon.tab = 2;
+    enter_a_sketch(&mut ribbon);
+
+    finish_the_sketch(&mut ribbon);
+    let brought_back = ribbon.tab;
+    ribbon.tab = 1;
+    finish_the_sketch(&mut ribbon);
+
+    assert_eq!((brought_back, ribbon.tab), (2, 1));
+}

@@ -110,11 +110,11 @@
 //! every button by its name, whether it can be pressed and whether it is on,
 //! and every field — which holds the ribbon back on the tab the sketch was
 //! entered from (#779) and whatever the extrusion offered shows — besides the
-//! sketch closed and the
-//! pill gone. The pill's button is clicked by a pointer at its middle, as a
-//! hand would, so that the drawing beneath would hear the click if the pill let
-//! it through. A line begun and a click just below the pill lays a trait, the
-//! leak the line test watches the history and the saved sketch for.
+//! sketch closed and the pill gone. The pill's button is clicked by a pointer
+//! at its middle, as a hand would, so that the drawing beneath would hear the
+//! click if the pill let it through. A line begun and a click just below the
+//! pill lays a trait, the leak the line test watches the history and the saved
+//! sketch for.
 
 mod driver;
 

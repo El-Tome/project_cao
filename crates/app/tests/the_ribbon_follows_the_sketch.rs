@@ -32,6 +32,14 @@
 //!   keeps the tab from before the first, so that « Terminer » goes back to
 //!   the tab from before any sketch —
 //!   `reopening_another_sketch_while_one_is_open_keeps_the_tab_from_before_the_first`
+//! - decided without the user: going from one sketch to a new one by ⌘N keeps
+//!   the tab from before the first, as reopening does —
+//!   `starting_a_new_sketch_while_one_is_open_keeps_the_tab_from_before_the_first`;
+//!   a plane choice cannot be cancelled today, so no other case is left to
+//!   decide
+//! - found in review: « Esquisse » is the tab of the sketch group wherever the
+//!   user moved it in the toolbar, not the first tab —
+//!   `with_the_sketch_group_moved_entering_a_sketch_still_turns_to_it`
 //!
 //! What must not break:
 //! - every shortcut and every command stays reachable — no test: this
@@ -357,5 +365,86 @@ fn opening_an_extrusion_from_the_tree_while_sketching_still_lands_on_its_tab() {
         &app,
         "Extrusion",
         "the sketch left for its extrusion, then entered again from « Extrusion » and finished",
+    );
+}
+
+#[test]
+fn starting_a_new_sketch_while_one_is_open_keeps_the_tab_from_before_the_first() {
+    let mut app = driver::open("starting_a_new_sketch_while_one_is_open");
+    driver::create_a_part(&mut app, "Platine");
+    turn_the_ribbon_to(&mut app, "Export");
+    start_a_sketch_by_its_shortcut(&mut app);
+    turn_the_ribbon_to(&mut app, "Extrusion");
+
+    start_a_sketch_by_its_shortcut(&mut app);
+    assert!(
+        driver::in_the_tree(&app, "Esquisse 2"),
+        "⌘N in « Esquisse 1 » then a click on the plane YZ started no second sketch: {:?}",
+        driver::on_screen(&app)
+    );
+    assert_the_tab_shown(
+        &app,
+        "Esquisse",
+        "a second sketch started by ⌘N inside the first",
+    );
+    driver::finish_the_sketch(&mut app);
+
+    assert_the_tab_shown(
+        &app,
+        "Export",
+        "« Esquisse 1 » started from « Export », « Esquisse 2 » by ⌘N inside it from \
+         « Extrusion », then finished",
+    );
+}
+
+/// The default toolbar with its « Esquisse » group moved after « Extrusion »,
+/// as the settings' « Descendre » does: the tabs read « Extrusion »,
+/// « Esquisse », « Export ».
+fn the_sketch_group_moved_second() -> cao_prefs::Settings {
+    let mut settings = cao_prefs::Settings::default();
+    settings.toolbar.items.swap(0, 1);
+    settings
+}
+
+#[test]
+fn with_the_sketch_group_moved_entering_a_sketch_still_turns_to_it() {
+    let mut app = driver::open_held_with(
+        "with_the_sketch_group_moved_entering_a_sketch",
+        the_sketch_group_moved_second(),
+    );
+    driver::create_a_part(&mut app, "Platine");
+    let mut wrong = Vec::new();
+    let mut expect = |app: &driver::App, tab: &'static str, when: &str| {
+        let shown = the_tab_shown(app);
+        if shown != [tab] {
+            wrong.push(format!("{when}: {shown:?} rather than « {tab} »"));
+        }
+    };
+
+    turn_the_ribbon_to(&mut app, "Export");
+    start_a_sketch_by_its_shortcut(&mut app);
+    expect(&app, "Esquisse", "a sketch started by ⌘N from « Export »");
+    driver::finish_the_sketch(&mut app);
+    expect(&app, "Export", "that sketch finished");
+
+    turn_the_ribbon_to(&mut app, "Extrusion");
+    driver::double_click(&mut app, "Esquisse 1");
+    assert!(
+        driver::a_sketch_is_open(&app),
+        "a double-click on « Esquisse 1 » did not reopen it: {:?}",
+        driver::on_screen(&app)
+    );
+    expect(
+        &app,
+        "Esquisse",
+        "« Esquisse 1 » reopened from « Extrusion »",
+    );
+    driver::finish_the_sketch(&mut app);
+    expect(&app, "Extrusion", "that sketch finished");
+
+    assert!(
+        wrong.is_empty(),
+        "with « Esquisse » second in the toolbar, the ribbon did not follow the sketch:\n  {}",
+        wrong.join("\n  ")
     );
 }

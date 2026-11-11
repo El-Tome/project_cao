@@ -2,14 +2,16 @@
 //! chamfer or a fillet of the edge can set back along that face — on the
 //! whole face, or, for what stands on the face, only where the edge's blend
 //! runs on it (#829): up to the nearest corner of its foot there, or point
-//! where its foot enters.
+//! where its foot enters. A corner of the face's own straight outline past
+//! a mitre at the blend's ends, where another edge's blend, or a corner's
+//! patch, takes over, is not read (#863).
 
 use std::f64::consts::PI;
 
 use glam::DVec3;
 
 use super::Wedge;
-use super::extent::Within;
+use super::extent::{End, Within};
 use crate::brep::{self, Curve, Edge, FaceId};
 
 /// How far a face runs along `into` from the edge's line through `point`:
@@ -25,28 +27,49 @@ use crate::brep::{self, Curve, Edge, FaceId};
 /// least of those is where it first stands in the sweep; a corner of it
 /// standing past where the blend stops limits nothing. The
 /// face's own outline, every edge meeting the face beyond outwards, curved or
-/// between faces that are not both flat, is read whole: where the face
-/// ends, the laying decides what a blend running past does. None where the
+/// between faces that are not both flat, is read whole — where the face
+/// ends, the laying decides what a blend running past does, as at a rib's
+/// slanted end, which a fill runs along out past the plate's front, or the
+/// slant an L's top edge runs on onto past its inner corner — but for a
+/// corner of a straight edge of it standing past a mitre among `held`: past
+/// a mitre with an edge of the list sharing the face, that edge's blend
+/// takes over, so that such a corner, the far corner of an L's stem beyond
+/// the mitre of its inner corner, is none of this blend's. Past the plane
+/// square to the edge at a corner of mixed sense it goes round, as
+/// [`super::extent::runs`] holds it, no edge of the list need read such a
+/// corner, a hole's behind an L's inner corner: the corner is the patch's,
+/// read by the chamfer's second laying through the edge on the odd edge's
+/// face, and declined by the fillet's guards against swallowing or cutting
+/// a face of the body. None where the
 /// boundary holds a curve two walls meet along, which turns back where no
 /// closed form says.
 pub(super) fn reach_within(
     body: &brep::Body,
     face: FaceId,
     (into, point): (DVec3, DVec3),
-    held: &[Within],
+    held: &[End],
 ) -> Option<f64> {
     let eps = body.scale().eps();
+    let all: Vec<Within> = held.iter().map(|&(within, _)| within).collect();
+    let past_a_mitre = |at: DVec3| {
+        (held.iter()).any(|&((normal, offset), mitre)| mitre && normal.dot(at) - offset > eps)
+    };
     let mut far = Vec::new();
     for coedge in body.face(face).loops.iter().flatten() {
         let edge = body.edge(coedge.edge);
-        let standing = matches!(body.curve(edge.curve), Curve::Line(_))
-            && Wedge::faced(body, coedge.edge).is_ok_and(|wedge| wedge.inwards);
-        match (standing, edge.ends) {
-            (true, Some(ends)) => {
-                far.extend(entering(held, ends.map(|end| body.vertex(end).point), eps));
+        let straight = matches!(body.curve(edge.curve), Curve::Line(_));
+        let standing = straight && Wedge::faced(body, coedge.edge).is_ok_and(|wedge| wedge.inwards);
+        match edge.ends {
+            Some(ends) if standing => {
+                far.extend(entering(&all, ends.map(|end| body.vertex(end).point), eps));
             }
-            (_, Some(ends)) => far.extend(ends.map(|end| body.vertex(end).point)),
-            (_, None) => far.push(body.point_on(coedge.edge, edge.from)),
+            Some(ends) if straight => far.extend(
+                (ends.into_iter())
+                    .map(|end| body.vertex(end).point)
+                    .filter(|&at| !past_a_mitre(at)),
+            ),
+            Some(ends) => far.extend(ends.map(|end| body.vertex(end).point)),
+            None => far.push(body.point_on(coedge.edge, edge.from)),
         }
         far.extend(turning_back(body, edge, into)?);
     }

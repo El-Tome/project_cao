@@ -1,6 +1,6 @@
 //! The plane caps beside a pair of walls a hair off parallel with a third
 //! wall across them, sorted out of #858's 59 by #861: two shrunk cases on
-//! both kernels, ignored while they wait on #866. The sort itself is in
+//! both kernels, held since #866. The sort itself is in
 //! `a_cone_s_cap_beside_an_elliptic_shaft_or_a_leaning_hole_is_cut.rs`.
 //! Beside them, one shrunk case of a curved wall left uncut, not a cap,
 //! ignored while it waits on #872.
@@ -56,7 +56,6 @@ fn an_elliptic_shaft_a_round_hole_leaning_5e_2_degrees_and_a_cross_bore() -> Cas
 }
 
 #[test]
-#[ignore = "a plane cap beside a third wall, #866"]
 fn seed_352000000009685_an_elliptic_shaft_a_round_hole_leaning_5e_2_degrees_and_a_cross_bore_keep_every_rule()
  {
     random_solids::holds_exactly(
@@ -65,7 +64,6 @@ fn seed_352000000009685_an_elliptic_shaft_a_round_hole_leaning_5e_2_degrees_and_
 }
 
 #[test]
-#[ignore = "a plane cap beside a third wall, #866"]
 fn seed_352000000009685_the_same_shaft_and_holes_keep_every_rule_through_the_application_s_body() {
     random_solids::holds_through_the_application(
         &an_elliptic_shaft_a_round_hole_leaning_5e_2_degrees_and_a_cross_bore(),
@@ -96,7 +94,6 @@ fn a_round_shaft_a_hole_inside_its_wall_leaning_1e_2_degrees_and_a_slanted_wall(
 }
 
 #[test]
-#[ignore = "a plane cap beside a third wall, #866"]
 fn seed_352000000015008_a_round_shaft_a_hole_inside_its_wall_leaning_1e_2_degrees_and_a_slanted_wall_keep_every_rule()
  {
     random_solids::holds_exactly(
@@ -105,7 +102,6 @@ fn seed_352000000015008_a_round_shaft_a_hole_inside_its_wall_leaning_1e_2_degree
 }
 
 #[test]
-#[ignore = "a plane cap beside a third wall, #866"]
 fn seed_352000000015008_the_same_shaft_hole_and_wall_keep_every_rule_through_the_application_s_body()
  {
     random_solids::holds_through_the_application(

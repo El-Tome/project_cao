@@ -12,6 +12,7 @@ use super::{PartTree, sketch_name};
 use crate::lang::Catalogue;
 use crate::screens::viewport::ViewportState;
 use crate::ui::badge::Level;
+use crate::wording::part_tree::{self as said, Problem};
 
 /// One key step, named as its row in the tree is.
 #[derive(Clone, Debug, PartialEq)]
@@ -25,28 +26,43 @@ pub struct KeyStep {
     pub alert: Option<Level>,
 }
 
+/// The line under the row: the step the part is read to, with its problem
+/// when it has one and whether the steps after it are hidden, then how many
+/// boxes are played out of all of them.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReadingLine {
+    pub text: String,
+    /// The level whose colour it is written in, the alert of that step.
+    pub alert: Option<Level>,
+    pub counter: String,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct StepReader {
     pub boxes: Vec<KeyStep>,
     /// One between each two boxes, applied when the box it leads to is.
     pub arrows: Vec<bool>,
+    /// Nothing while there is no box.
+    pub line: Option<ReadingLine>,
+    /// Each level a box can wear, with its word; empty while there is no box.
+    pub legend: Vec<(Level, String)>,
 }
 
 impl StepReader {
     /// The part read to the point the canvas reads it to.
     pub fn seen(document: &PartDocument, viewport: &ViewportState, lang: &Catalogue) -> Self {
-        let mut boxes = Self::of(document, lang).boxes;
-        for (rank, step) in boxes.iter_mut().enumerate() {
-            step.applied = viewport.reads_through(rank);
-        }
-        Self::arrowed(boxes)
+        Self::read(document, lang, |rank| viewport.reads_through(rank))
     }
 
     /// The part read to its end.
     pub fn of(document: &PartDocument, lang: &Catalogue) -> Self {
-        let alerts = alerts(&PartTree::of(document, lang));
+        Self::read(document, lang, |_| true)
+    }
+
+    fn read(document: &PartDocument, lang: &Catalogue, played: impl Fn(usize) -> bool) -> Self {
+        let problems = problems(&PartTree::of(document, lang));
         let (mut sketches, mut volumes) = (0, 0);
-        let boxes = document
+        let steps: Vec<(KeyStep, Option<Problem>)> = document
             .history
             .applied_operations()
             .iter()
@@ -64,30 +80,86 @@ impl StepReader {
                     }
                     StepKind::Section => return None,
                 };
-                Some(KeyStep {
-                    kind,
-                    name,
-                    applied: true,
-                    alert: alerts.get(&step).copied(),
-                })
+                Some((kind, name, problems.get(&step).copied()))
+            })
+            .enumerate()
+            .map(|(rank, (kind, name, problem))| {
+                let applied = played(rank);
+                let alert = problem.map(Problem::level);
+                (
+                    KeyStep {
+                        kind,
+                        name,
+                        applied,
+                        alert,
+                    },
+                    problem,
+                )
             })
             .collect();
-        Self::arrowed(boxes)
-    }
-
-    fn arrowed(boxes: Vec<KeyStep>) -> Self {
+        let line = line(lang, &steps);
+        let boxes: Vec<KeyStep> = steps.into_iter().map(|(step, _)| step).collect();
         let arrows = boxes.iter().skip(1).map(|step| step.applied).collect();
-        Self { boxes, arrows }
+        let legend = match boxes.is_empty() {
+            true => Vec::new(),
+            false => legend(lang),
+        };
+        Self {
+            boxes,
+            arrows,
+            line,
+            legend,
+        }
     }
 }
 
-/// The level of each badge of the tree's sketches and volumes, by the step
+/// The problem of each badge of the tree's sketches and volumes, by the step
 /// in the design the row stands for.
-fn alerts(tree: &PartTree) -> HashMap<usize, Level> {
+fn problems(tree: &PartTree) -> HashMap<usize, Problem> {
     let sketches = tree.sketches.iter().map(|drawn| (drawn.step, drawn.badge));
     let volumes = tree.bodies.iter().map(|body| (body.step, body.badge));
     sketches
         .chain(volumes)
-        .filter_map(|(step, badge)| Some((step, badge?.level())))
+        .filter_map(|(step, badge)| Some((step, badge?)))
         .collect()
+}
+
+/// The line under the row, read off the last box played: the box read to,
+/// or the last of all while the part is read to its end.
+fn line(lang: &Catalogue, steps: &[(KeyStep, Option<Problem>)]) -> Option<ReadingLine> {
+    let played = steps.iter().filter(|(step, _)| step.applied).count();
+    let (step, problem) = steps.get(played.checked_sub(1)?)?;
+    let named = match problem {
+        Some(problem) => lang.t_with(
+            "part_tree.reader.alerted",
+            &[
+                ("name", &step.name),
+                ("problem", &said::badge(lang, *problem)),
+            ],
+        ),
+        None => step.name.clone(),
+    };
+    let text = match played < steps.len() {
+        true => lang.t_with("part_tree.reader.hidden", &[("line", &named)]),
+        false => named,
+    };
+    let counter = lang.t_with(
+        "part_tree.reader.counter",
+        &[
+            ("played", &played.to_string()),
+            ("total", &steps.len().to_string()),
+        ],
+    );
+    Some(ReadingLine {
+        text,
+        alert: step.alert,
+        counter,
+    })
+}
+
+fn legend(lang: &Catalogue) -> Vec<(Level, String)> {
+    vec![
+        (Level::Warning, lang.t("part_tree.reader.legend.warning")),
+        (Level::Error, lang.t("part_tree.reader.legend.error")),
+    ]
 }

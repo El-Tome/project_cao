@@ -378,3 +378,74 @@ fn a_box_wears_the_worst_alert_of_its_own_step_even_past_the_reading_point() {
         "read to the first box, a box past the reading point loses or changes its alert",
     );
 }
+
+/// The line under the row as the user reads it: what it says, the level whose
+/// colour it is written in, and the counter on its right.
+type Read = (String, Option<Level>, String);
+
+fn the_line(document: &PartDocument, viewport: &ViewportState) -> Option<Read> {
+    StepReader::seen(document, viewport, &french())
+        .line
+        .map(|line| (line.text, line.alert, line.counter))
+}
+
+fn read(text: &str, alert: Option<Level>, counter: &str) -> Option<Read> {
+    Some((text.to_string(), alert, counter.to_string()))
+}
+
+#[test]
+fn the_line_under_the_row_names_the_step_its_alert_the_rest_hidden_and_the_count() {
+    let lang = french();
+    let document = a_part_with_alerts_of_both_levels();
+    let mut viewport = ViewportState::default();
+    let mut lines = vec![the_line(&document, &viewport)];
+    for key_step in [4, 3, 0, 5, 6] {
+        viewport.read_to(key_step);
+        lines.push(the_line(&document, &viewport));
+    }
+
+    assert_eq!(
+        lines,
+        [
+            read("Extrusion 3 — aire perdue", Some(Level::Error), "7 / 7"),
+            read(
+                "Esquisse 3 — face perdue · la suite est masquée",
+                Some(Level::Warning),
+                "5 / 7",
+            ),
+            read(
+                "Révolution 2 — instable · la suite est masquée",
+                Some(Level::Warning),
+                "4 / 7",
+            ),
+            read("Esquisse 1 · la suite est masquée", None, "1 / 7"),
+            read("Esquisse 4 · la suite est masquée", None, "6 / 7"),
+            read("Extrusion 3 — aire perdue", Some(Level::Error), "7 / 7"),
+        ],
+        "unread, then read to the sketch off its face, the slice, the first sketch, the last \
+         sketch and the last box: the line does not name the step read to with its problem, \
+         in its alert's colour, say the rest is hidden only short of the end, or count the \
+         boxes played out of all of them, as (text, colour, counter)",
+    );
+    assert_eq!(
+        the_line(&a_part(), &ViewportState::default()),
+        read("Esquisse 2", None, "3 / 3"),
+        "a part read to its end, whose last step has no alert, is not named bare",
+    );
+    assert_eq!(
+        the_line(
+            &PartDocument::new("Test", at("2026-01-02T09:00:00Z")),
+            &ViewportState::default(),
+        ),
+        None,
+        "a part with no box has a line under a row that is not there",
+    );
+    assert_eq!(
+        StepReader::seen(&document, &viewport, &lang).legend,
+        [
+            (Level::Warning, "avertissement".to_string()),
+            (Level::Error, "erreur".to_string()),
+        ],
+        "the legend does not read each level's word beside its colour",
+    );
+}

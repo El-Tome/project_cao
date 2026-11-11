@@ -9,7 +9,9 @@
 //! however little inside it stands, as a vertex does: the kernel puts no
 //! vertex where a cap's rim passes the line its plane leaves on the wall
 //! by its tolerance, and seen from the wall's axis the rim stands inside
-//! by less than that wherever the cap leans to the wall.
+//! by less than that wherever the cap leans to the wall. A stand-in wall,
+//! no surface of the body — under a cone's rim — holds no face: a sample
+//! counts there on the plane of one of its circles.
 
 pub(super) mod oval;
 

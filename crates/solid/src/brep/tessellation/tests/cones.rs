@@ -427,3 +427,27 @@ fn a_frustum_s_cap_an_elliptic_shaft_of_its_radius_as_minor_half_axis_nearly_sha
         }
     }
 }
+
+#[test]
+#[ignore = "a cone's cap beside an elliptic shaft 1e-4 off across its major axis, #866"]
+fn a_frustum_s_cap_an_elliptic_shaft_of_its_radius_as_major_half_axis_stands_1e_4_off_across_is_cut_and_drawn_closed()
+ {
+    for minor in [1.5, 0.6] {
+        let beside = Beside {
+            foot: 1.0,
+            cap: 2.0,
+            height: 5.0,
+            major: 2.0,
+            minor,
+            u: DVec3::X,
+            away: DVec3::Z,
+            hair: 1e-4,
+        };
+        for join in [true, false] {
+            let body = beside.frustum(join);
+            for share in [1e-3, 2e-4] {
+                held(&body, share * body.scale().reach(), body.volume());
+            }
+        }
+    }
+}

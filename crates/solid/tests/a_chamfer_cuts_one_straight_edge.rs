@@ -2196,3 +2196,140 @@ fn a_chamfer_on_a_slot_s_front_runs_on_over_a_round_leaving_it_outwards_at_sever
         wrong.join("\n")
     );
 }
+
+/// Holds that a chamfer or a fillet of `value` on the edge `edge` of `part`,
+/// running `length` to where its end meets a curved face standing far past
+/// the edge's faces, is declined, or laid taking no more than its own
+/// section along that length and a run of twice the value past each end:
+/// never a slice off what stands beyond the edge's end, which a cut carried
+/// on across it, a margin out as far as the curved face reaches, would take.
+/// Says what it found among `wrong`.
+fn never_a_slice_past_its_section(
+    part: &Body,
+    edge: &EdgeName,
+    (value, length, fillet): (f64, f64, bool),
+    what: &str,
+    wrong: &mut Vec<String>,
+) {
+    let laid = if fillet {
+        part.fillet(edge, value).map(|done| (done.taken, done.body))
+    } else {
+        part.chamfer(edge, value)
+            .map(|done| (done.taken, done.body))
+    };
+    let Ok((taken, body)) = laid else {
+        return;
+    };
+    let section = if fillet {
+        taken * taken * (1.0 - PI / 4.0)
+    } else {
+        taken * taken / 2.0
+    };
+    let took = part.volume() - body.volume();
+    let most = section * (length + 4.0 * taken);
+    let kept = (0..part.faces_end()).filter(|&face| part.has_face(face));
+    let gone: Vec<usize> = kept.filter(|&face| !body.has_face(face)).collect();
+    if took > most || !gone.is_empty() {
+        wrong.push(format!(
+            "{what}: laid at {taken}, taking {took} where its own section along {length} and a run \
+             past its ends takes at most {most}, the faces {gone:?} gone"
+        ));
+    }
+}
+
+/// A link arm 4 deep and 35 long, raised 20, joined to an eye of radius 20
+/// centred on the arm's axis, `eye_height` high: the eye's wall crosses the
+/// arm's front 30 along, facing back toward the arm, and stands 18 past the
+/// front's plane further on. The top front edge it ends on, and the arm's
+/// top's numbers it lies between, with the eye's where the two tops are one.
+fn link_arm(eye_height: f64) -> (Body, EdgeName) {
+    let arm = block([35.0, 4.0, 20.0]);
+    let centre = DVec2::new(30.0 + (400.0f64 - 4.0).sqrt(), 2.0);
+    let part = joined_to(&arm, Contour::circle(centre, 20.0), 0.0, eye_height);
+    let edge = (part.edge_names().into_iter())
+        .find(|name| {
+            name.between.iter().any(|side| side.contains(&(TOP as u32)))
+                && name.between.contains(&vec![FRONT as u32])
+        })
+        .expect("the arm's top front edge");
+    (part, edge)
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_link_arm_s_top_front_edge_running_into_a_large_eye_never_take_a_slice_off_the_eye()
+ {
+    let mut wrong = Vec::new();
+    for eye_height in [20.0, 22.0] {
+        let (part, edge) = link_arm(eye_height);
+        for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
+            for value in [0.5, 1.0, 2.0] {
+                let what = format!(
+                    "the {kind} of {value} on the link arm's top front edge, its eye {eye_height} \
+                     high"
+                );
+                never_a_slice_past_its_section(
+                    &part,
+                    &edge,
+                    (value, 30.0, fillet),
+                    &what,
+                    &mut wrong,
+                );
+            }
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "a blend on an edge running into a large eye is declined or takes no slice off it:\n{}",
+        wrong.join("\n")
+    );
+}
+
+/// A part 20 high whose front runs 30 along the X axis and whose outline
+/// then leaves it outwards at `degrees` along a round of radius 20, turning
+/// on round its far side to the top of its circle and back to the Y axis:
+/// at 80 degrees the round stands 16.5 past the front's plane.
+fn leaving_along_a_large_round_at(degrees: f64) -> Body {
+    let (radius, theta) = (20.0, degrees.to_radians());
+    let end = DVec2::new(30.0, 0.0);
+    let centre = end + DVec2::new(theta.sin(), theta.cos()) * radius;
+    let top = centre + DVec2::Y * radius;
+    let turn = (PI / 2.0 - (end - centre).to_angle()).rem_euclid(TAU);
+    raised(
+        Contour {
+            corners: vec![DVec2::ZERO, end, top, DVec2::new(0.0, top.y)],
+            runs: vec![
+                Run::Straight,
+                Run::Round {
+                    center: centre,
+                    turn,
+                },
+                Run::Straight,
+                Run::Straight,
+            ],
+        },
+        20.0,
+    )
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_an_edge_whose_end_leaves_outwards_along_a_large_round_never_take_a_slice_past_their_own_section()
+ {
+    let part = leaving_along_a_large_round_at(80.0);
+    let edge = edge_between(&part, TOP, FRONT);
+    let mut wrong = Vec::new();
+    for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
+        for value in [0.5, 1.0, 2.0] {
+            let what = format!(
+                "the {kind} of {value} on the front's top edge, the outline leaving it outwards \
+                 at 80 degrees along a round of 20"
+            );
+            never_a_slice_past_its_section(&part, &edge, (value, 30.0, fillet), &what, &mut wrong);
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "a blend on an edge whose end leaves outwards along a large round is declined or takes \
+         no slice past its own section:\n{}",
+        wrong.join("\n")
+    );
+}

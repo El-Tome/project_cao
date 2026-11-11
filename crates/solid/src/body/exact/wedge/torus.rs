@@ -41,9 +41,11 @@ impl Exact {
     /// lays it, every patch — a piece of torus, or the face closing a corner
     /// three edges of the list meet at — numbered past them in the order of
     /// its corner's ranks, as [`ranked_patches`] numbers them. Declined
-    /// `Unsupported` where an odd edge is concave, or any face of a filling
-    /// is left once every corner is closed; otherwise as the filling, the
-    /// laying and the closing decline.
+    /// `Unsupported` where an odd edge is concave, joining the fillings takes
+    /// away a face of this body — a block standing where a corner's patch
+    /// sweeps, which the filling would swallow and the piece of torus clear
+    /// with its tube — or any face of a filling is left once every corner is
+    /// closed; otherwise as the filling, the laying and the closing decline.
     pub(super) fn through_a_torus(
         &self,
         names: &[EdgeName],
@@ -59,6 +61,12 @@ impl Exact {
             let from = filled.next;
             filled = filled.joined(&filling(corner, &wedges[corner.lone], taken)?)?;
             fillings.push(from..filled.next);
+        }
+        let kept = (self.brep.face_ids())
+            .flat_map(|face| self.brep.numbers(face))
+            .all(|&number| filled.has_face(number as usize));
+        if !kept {
+            return Err(Declined::Unsupported);
         }
         let followed = (names.iter().zip(wedges))
             .map(|(name, wedge)| filled.following(name, wedge))

@@ -148,6 +148,17 @@
 //!   counted — the wall's edge across the sweep stops the fill where its
 //!   corners no longer do —
 //!   `a_chamfer_and_a_fillet_on_a_foot_alone_and_on_its_corner_stop_where_their_fill_reaches_what_stands_in_its_sweep`
+//! - Found on the way, not in the issue's wording: a block standing where a
+//!   foot corner's patch sweeps — past both walls, out to twice the radius
+//!   from the upright round's axis, or under the fill along the foot of the
+//!   upright's flat — but where no foot's fill reaches is never taken away.
+//!   Every face of the block is kept and its matter added to the corner's.
+//!   The value is reduced to where the patch first touches the block's
+//!   nearest corner, `gap` off both walls — `gap·√2/(2 − √2)` filleted,
+//!   `2·gap/(√2 − 1)` chamfered — or the step is declined; short of that it
+//!   is taken whole. The fillet laid the piece of torus through the block,
+//!   its filling having swallowed it, and left a sound body without it —
+//!   `a_chamfer_and_a_fillet_on_a_foot_corner_never_take_away_a_block_standing_where_the_corner_s_patch_sweeps`
 //!
 //! The volumes are arithmetic. The lower block is 30 by 20 by 10 and the
 //! block standing on it 10 by 10 by 10, 7000 together. The corner is the
@@ -2972,6 +2983,151 @@ fn a_chamfer_and_a_fillet_on_a_foot_alone_and_on_its_corner_stop_where_their_fil
         wrong.is_empty(),
         "a fill stops where it first reaches what stands in its sweep, whether that thing's \
          corners stand in the sweep or past its ends:\n{}",
+        wrong.join("\n")
+    );
+}
+
+/// A block 1 high standing on [`stacked`]'s lower block diagonally off the
+/// standing block's front right foot corner, from (`from`) to (`to`): where
+/// the corner's patch sweeps — the piece of torus, out to twice the radius
+/// from the upright round's axis, and the fill along the foot of the
+/// upright's flat — but no foot's fill reaches. Its corner nearest the
+/// standing block's stands `gap` off both walls, and its faces are numbered
+/// twelve to seventeen, its floor gone into the lower block's top.
+struct OffTheCorner {
+    from: [f64; 2],
+    to: [f64; 2],
+    gap: f64,
+    below: f64,
+    called: &'static str,
+}
+
+impl OffTheCorner {
+    /// The value at which the corner's patch first touches the block, at
+    /// its corner nearest the standing block's, on the lower block's top:
+    /// filleted, where the piece of torus reaches twice the radius from the
+    /// axis `r` in from both walls, `2r = √2·(r + gap)`; chamfered, where the
+    /// fill along the flat's foot meets the lower block's top on
+    /// `x − y = 15 + (√2 − 1)·d`, `15 + 2·gap` at that corner.
+    fn touched(&self, cut: Cut) -> f64 {
+        let root = 2f64.sqrt();
+        match cut {
+            Cut::Round => self.gap * root / (2.0 - root),
+            Cut::Flat => 2.0 * self.gap / (root - 1.0),
+        }
+    }
+
+    fn holds(&self) -> f64 {
+        (self.to[0] - self.from[0]) * (self.to[1] - self.from[1])
+    }
+}
+
+/// Two blocks off the corner: one the patch reaches but cannot hold whole,
+/// and one small enough to stand inside its sweep; and for each a value short
+/// of where either kind of patch touches it.
+const OFF_THE_CORNER: [OffTheCorner; 2] = [
+    OffTheCorner {
+        from: [20.2, 4.2],
+        to: [20.9, 4.8],
+        gap: 0.2,
+        below: 0.4,
+        called: "a block 0.2 off both walls",
+    },
+    OffTheCorner {
+        from: [20.1, 4.6],
+        to: [20.4, 4.9],
+        gap: 0.1,
+        below: 0.2,
+        called: "a small block 0.1 off both walls, inside the patch's sweep",
+    },
+];
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_foot_corner_never_take_away_a_block_standing_where_the_corner_s_patch_sweeps()
+ {
+    let corner = stacked_s_front_right();
+    let hair = 20.0 * 1e-9 * 30.0;
+    let mut wrong = Vec::new();
+    for block in OFF_THE_CORNER {
+        let part = joined(
+            &stacked(),
+            Contour::rectangle(DVec2::from(block.from), DVec2::from(block.to)),
+            LOWER_TOP,
+            1.0,
+        );
+        let start = part.faces_end();
+        let walls: Vec<usize> = (start - 5..start).collect();
+        let names = corner
+            .edges()
+            .map(|(_, [first, second])| edge_between(&part, first, second));
+        for cut in [Cut::Flat, Cut::Round] {
+            let touched = block.touched(cut);
+            for asked in [block.below, 1.5, 2.5] {
+                for order in [[0, 1, 2], [2, 1, 0], [2, 0, 1]] {
+                    let what = format!(
+                        "the {} of {asked} on the front right foot corner beside {}, named \
+                         {order:?}, its patch touching the block at {touched}",
+                        cut.called(),
+                        block.called
+                    );
+                    let list: Vec<EdgeName> =
+                        order.iter().map(|&edge| names[edge].clone()).collect();
+                    let step = match cut.laid_on(&part, &list, asked) {
+                        Ok(step) => step,
+                        Err(_) if asked > touched => continue,
+                        Err(reason) => {
+                            wrong.push(format!("{what}: declined, {reason:?}"));
+                            continue;
+                        }
+                    };
+                    let body = &step.body;
+                    let gone: Vec<usize> = (walls.iter().copied())
+                        .filter(|&wall| !body.has_face(wall))
+                        .collect();
+                    if !gone.is_empty() {
+                        wrong.push(format!(
+                            "{what}: took {} and laid a body without the block, its faces \
+                             {gone:?} gone, holding {}",
+                            step.taken,
+                            body.volume()
+                        ));
+                        continue;
+                    }
+                    let expected = if asked > touched { touched } else { asked };
+                    if (step.asked - asked).abs() > PLACE
+                        || step.taken > expected + PLACE
+                        || step.taken < expected - 10.0 * hair
+                    {
+                        wrong.push(format!(
+                            "{what}: asked {} and took {}, where the patch first touches the \
+                             block at {touched}",
+                            step.asked, step.taken
+                        ));
+                        continue;
+                    }
+                    let taken = step.taken;
+                    let promised = match cut {
+                        Cut::Flat => corner.chamfered(taken),
+                        Cut::Round => corner.filleted(taken),
+                    } + block.holds();
+                    let drawn = match cut {
+                        Cut::Flat => EXACT * promised,
+                        Cut::Round => corner.drawn_within(&part, taken),
+                    };
+                    sound_drawn_within(body, promised, drawn, &what);
+                    assert_eq!(
+                        faces_made(&part, body),
+                        (start..=start + 3).collect::<Vec<_>>(),
+                        "{what}: one face for each edge, then the corner's patch"
+                    );
+                }
+            }
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "a foot corner beside a block where its patch sweeps keeps the block whole, its value \
+         reduced to where the patch first touches it, or declined:\n{}",
         wrong.join("\n")
     );
 }

@@ -39,6 +39,7 @@ use super::divisions_in;
 use crate::brep::relation::{Relation, closest, relation};
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, SurfaceId};
+pub(super) use groups::heights;
 use groups::{common_hub, grouped, hubbed, side_by_side};
 use rays::{Taken, alone, axis_of, grid, hit};
 

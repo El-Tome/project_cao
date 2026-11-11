@@ -229,3 +229,14 @@ fn the_caps_of_an_elliptic_shaft_bored_by_its_minor_radius_leaning_a_hair_are_cu
         }
     }
 }
+
+#[test]
+fn the_caps_of_an_elliptic_shaft_bored_by_its_minor_radius_leaning_past_the_band_are_cut_and_drawn_closed()
+ {
+    for lean in [0.06, 0.2, 0.5, 1.0] {
+        let body = elliptic_shaft_bored_by_its_minor_radius_leaning(lean);
+        for share in [1e-4, 1e-3, 2e-2] {
+            held(&body, share * body.scale().reach(), body.volume());
+        }
+    }
+}

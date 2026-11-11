@@ -27,6 +27,18 @@
 //! inside an ellipse's major vertex (354000000000499). Every one is declined
 //! `Undrawn` because a plane cap is left uncut, and is open on the exact
 //! kernel.
+//!
+//! What is left: 33 of the 59 hold on this branch. The cone-cap family still
+//! fails — 352000000001305, 352000000002235, 353000000003224,
+//! 353000000005523, 353000000016799, 353000000017454, 354000000003072 and
+//! 354000000006518 — and so does the same pair with a third wall,
+//! 352000000007451, 352000000009685 and 353000000004193, with other seeds
+//! besides; all of them are left to #861. The defect also went on past
+//! #552's band — the same shaft bored by a round hole leaning 0.06°, 0.2° or
+//! 0.5° left a cap uncut — and is answered here, held in
+//! `crates/solid/src/brep/tessellation/tests/conics.rs` by
+//! `the_caps_of_an_elliptic_shaft_bored_by_its_minor_radius_leaning_past_the_band_are_cut_and_drawn_closed`,
+//! with leans of 0.06°, 0.2°, 0.5° and 1°.
 
 // The drawing, the promise and the checks are the campaigns'; this file
 // only builds cases and holds them.

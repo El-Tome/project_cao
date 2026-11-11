@@ -30,5 +30,5 @@ pub fn run(
 ) -> (bool, TreeAction) {
     let error = held.covering.as_ref().map(|lying| lying.error.as_str());
     let bar = TitleBar::of(document, path, editor, viewport, error, lang);
-    show(ui, &bar, &mut held.alerts_open, lang)
+    show(ui, &bar, &mut held.alerts_open, (&viewport.theme, lang))
 }

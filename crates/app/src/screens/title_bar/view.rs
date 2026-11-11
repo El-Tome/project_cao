@@ -1,4 +1,7 @@
+use cao_prefs::Theme;
+
 use crate::lang::Catalogue;
+use crate::screens::level_colours::worn;
 use crate::ui::alert_line::alert_line;
 use crate::ui::alerts_button::alerts_button;
 use crate::ui::icon;
@@ -22,7 +25,7 @@ pub fn show(
     ui: &mut egui::Ui,
     bar: &TitleBar<'_>,
     list_open: &mut bool,
-    lang: &Catalogue,
+    (theme, lang): (&Theme, &Catalogue),
 ) -> (bool, TreeAction) {
     let middle = ui.ctx().content_rect().center().x;
     let (home, count) = egui::Panel::top("part_title_bar")
@@ -41,7 +44,7 @@ pub fn show(
                     let count = bar
                         .alerts_button
                         .as_ref()
-                        .map(|count| alerts_button(ui, &count.text, count.level));
+                        .map(|count| alerts_button(ui, &count.text, worn(theme, count.level)));
                     ui.with_layout(centred, |ui| {
                         if let Some(said) = bar.said {
                             let (text, tone) = match said {
@@ -59,7 +62,7 @@ pub fn show(
         })
         .inner;
     let asked = match count {
-        Some(count) => list(ui.ctx(), &bar.alerts, (&count, list_open), lang),
+        Some(count) => list(ui.ctx(), &bar.alerts, (&count, list_open), (theme, lang)),
         None => {
             *list_open = false;
             TreeAction::None
@@ -74,7 +77,7 @@ fn list(
     ctx: &egui::Context,
     alerts: &[Alert],
     (count, open): (&egui::Response, &mut bool),
-    lang: &Catalogue,
+    (theme, lang): (&Theme, &Catalogue),
 ) -> TreeAction {
     let (heading, close) = (lang.t("alerts.heading"), lang.t("alerts.close"));
     let actions = (lang.t("alerts.show"), lang.t("alerts.modify"));
@@ -87,7 +90,9 @@ fn list(
             // the list follows the part and the rows above it come and go.
             ui.push_id(alert.about, |ui| {
                 let said = (alert.title.as_str(), alert.sentence.as_str());
-                let [show, modify] = alert_line(ui, alert.level, said, (&actions.0, &actions.1));
+                let (_, ink) = worn(theme, alert.level);
+                let actions = (actions.0.as_str(), actions.1.as_str());
+                let [show, modify] = alert_line(ui, (alert.level, ink), said, actions);
                 for (response, button) in [(show, AlertButton::Show), (modify, AlertButton::Modify)]
                 {
                     if response.clicked() {

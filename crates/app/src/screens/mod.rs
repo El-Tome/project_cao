@@ -3,6 +3,7 @@ mod blinking;
 pub mod explorer;
 pub mod extrusion;
 mod extrusion_row;
+mod level_colours;
 pub mod origin_view;
 pub mod part_tree;
 pub mod ribbon;

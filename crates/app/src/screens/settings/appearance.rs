@@ -1,6 +1,7 @@
 use cao_prefs::{Background, Profiles, Rgba, Stop, Theme};
 
 use crate::lang::Catalogue;
+use crate::ui::badge::Level;
 use crate::ui::slider::slider;
 
 pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles, lang: &Catalogue) -> bool {
@@ -125,6 +126,13 @@ pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles, lang: &Catalog
         &lang.t("settings.appearance.extrusion_cut"),
         &mut theme.extrusion_cut,
     );
+
+    ui.add_space(10.0);
+    ui.heading(lang.t("settings.appearance.alerts"));
+    let warning = lang.t("settings.appearance.warning");
+    level_row(ui, (&warning, Level::Warning), &mut theme.warning);
+    let error = lang.t("settings.appearance.error");
+    level_row(ui, (&error, Level::Error), &mut theme.error);
 
     ui.add_space(10.0);
     if ui.button(lang.t("settings.appearance.reset")).clicked() {
@@ -269,6 +277,18 @@ fn color_row(ui: &mut egui::Ui, label: &str, color: &mut Rgba) {
         let mut value = to_egui_color(*color);
         if ui.color_edit_button_srgba(&mut value).changed() {
             *color = from_egui_color(value);
+        }
+        ui.label(label);
+    });
+}
+
+/// The colour a level of the part's alerts is seen in: the one chosen, or
+/// the chrome's while none is. Picking one chooses it.
+fn level_row(ui: &mut egui::Ui, (label, level): (&str, Level), chosen: &mut Option<Rgba>) {
+    ui.horizontal(|ui| {
+        let (_, mut value) = level.colours(chosen.map(to_egui_color));
+        if ui.color_edit_button_srgba(&mut value).changed() {
+            *chosen = Some(from_egui_color(value));
         }
         ui.label(label);
     });

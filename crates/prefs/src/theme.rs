@@ -134,7 +134,8 @@ impl Background {
     }
 }
 
-/// Every colour the viewport draws with.
+/// Every colour the viewport draws with, and the colour chosen for each level
+/// of a part's alerts.
 ///
 /// All of it here rather than scattered through the rendering code: a colour
 /// that lives in a `const` somewhere is a colour nobody can change.
@@ -197,6 +198,13 @@ pub struct Theme {
     pub measure: Rgba,
     pub extrusion_add: Rgba,
     pub extrusion_cut: Rgba,
+    /// The colour a warning of the part is seen in, chosen over the one the
+    /// interface gives it, which this crate does not know: nothing keeps that.
+    #[serde(default)]
+    pub warning: Option<Rgba>,
+    /// The same for an error.
+    #[serde(default)]
+    pub error: Option<Rgba>,
 }
 
 impl Theme {
@@ -277,6 +285,8 @@ impl Default for Theme {
             measure: Theme::default_measure(),
             extrusion_add: Rgba::new(0.40, 0.85, 0.60, 0.45),
             extrusion_cut: Rgba::new(0.95, 0.45, 0.40, 0.45),
+            warning: None,
+            error: None,
         }
     }
 }

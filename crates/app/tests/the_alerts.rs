@@ -103,13 +103,28 @@
 //!   `a_level_refused_suggests_only_a_level_that_is_written` and
 //!   `a_body_no_level_covers_is_told_that_no_level_fits`, in
 //!   `crates/app/src/export/tests.rs`, which this issue leaves alone
-//! - The same two colours for the tree's badges —
-//!   `a_badge_and_an_alert_of_one_level_wear_the_same_colours`
+//! - The same two colours for the tree's badges — a badge of the tree, the
+//!   title bar's count and the icon of an alert in the list wear one level's
+//!   ink and patch: the tokens by default, the colour chosen for the level
+//!   otherwise, its patch the chosen colour at the opacity of the token it
+//!   replaces — `a_badge_and_an_alert_of_one_level_wear_the_same_colours`
 //! - and, later, the reader's boxes — no test: out of scope here, as the issue
 //!   says; the step reader (P7) does not exist yet, and takes the two colours
 //!   when it is built
-//! - Preferences › Apparence can set and reset them —
-//!   `the_alert_colours_are_set_and_reset_in_preferences_appearance`
+//! - Preferences › Apparence can set and reset them — the rows « Avertissement »
+//!   and « Erreur » hold the colours the profile chose, and « ↺ Couleurs par
+//!   défaut » puts both back, the rows then showing the tokens and the tree's
+//!   badges wearing them again —
+//!   `the_alert_colours_are_set_and_reset_in_preferences_appearance`. The pick
+//!   itself is `egui`'s colour picker, a pop-up this driver cannot work, as for
+//!   every colour row of the page: the chosen colours are laid in the profile
+//!   instead. That a theme saved before the two colours still reads is held in
+//!   `crates/prefs/src/theme/tests.rs`
+//! - Preferences › Apparence, before it was touched, is on the list of places
+//!   with no net — no test: added here, the net it needs is already in
+//!   `crates/app/tests/appearance.rs`. Its reset test compares the whole
+//!   theme with the default, every field to come included, and the two rows
+//!   are two more of the colour rows the page already draws
 //! - decided by Tom when the work opened: « Modifier » on an extrusion's alert
 //!   reopens the extrusion, its panel filled with its values, where no
 //!   extrusion could be reopened before — on the circle the kernel declines,
@@ -992,6 +1007,299 @@ fn the_section_tool_is_open(app: &driver::App) -> bool {
     driver::a_button_reads(app, "Inverser")
 }
 
+#[test]
+fn a_badge_and_an_alert_of_one_level_wear_the_same_colours() {
+    let mut wrong = Vec::new();
+    let tokens_worn = (
+        (tokens::STATE_WARNING_TEXT, tokens::STATE_WARNING_BACKGROUND),
+        (tokens::STATE_ERROR_TEXT, tokens::STATE_ERROR_BACKGROUND),
+    );
+    let chosen_worn = (
+        worn_at_the_token_s_opacity(CHOSEN_WARNING, tokens::STATE_WARNING_BACKGROUND),
+        worn_at_the_token_s_opacity(CHOSEN_ERROR, tokens::STATE_ERROR_BACKGROUND),
+    );
+    for (test, settings, (warning, error)) in [
+        (
+            "a_badge_and_an_alert_wear_the_same_colours_by_default",
+            cao_prefs::Settings::default(),
+            tokens_worn,
+        ),
+        (
+            "a_badge_and_an_alert_wear_the_same_colours_chosen",
+            with_the_level_colours(CHOSEN_WARNING, CHOSEN_ERROR),
+            chosen_worn,
+        ),
+    ] {
+        let mut app = a_part_with_two_alerts_with(test, settings);
+        driver::click_the_button(&mut app, "2 alertes");
+        for (what, wanted, worn) in [
+            (
+                "the badge « face perdue »",
+                warning,
+                ink_and_patch(&app, "face perdue"),
+            ),
+            (
+                "the badge « aire perdue »",
+                error,
+                ink_and_patch(&app, "aire perdue"),
+            ),
+            (
+                "the count « 2 alertes »",
+                error,
+                ink_and_patch(&app, "2 alertes"),
+            ),
+        ] {
+            if worn != Some(wanted) {
+                wrong.push(format!(
+                    "{test}: {what} wears (ink, patch) {worn:?}, where its level wears {wanted:?}"
+                ));
+            }
+        }
+        for (title, wanted) in [(SKETCH_OFF_ITS_FACE, warning.0), (AREA_LOST, error.0)] {
+            let tints = icon_tints_beside(&app, title);
+            if tints.is_empty() || tints.iter().any(|tint| *tint != wanted) {
+                wrong.push(format!(
+                    "{test}: the icon beside « {title} » is tinted {tints:?}, where its level's \
+                     ink is {wanted:?}"
+                ));
+            }
+        }
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "a badge, the count and an alert of one level do not wear that level's colours, the \
+         tokens by default and the ones chosen otherwise:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn the_alert_colours_are_set_and_reset_in_preferences_appearance() {
+    let test = "the_alert_colours_are_set_and_reset_in_preferences_appearance";
+    let chosen = with_the_level_colours(CHOSEN_WARNING, CHOSEN_ERROR);
+    let chosen_written = serde_json::to_value(&chosen.theme).expect("a theme writes out");
+    let mut app = a_part_with_two_alerts_with(test, chosen);
+    let held =
+        serde_json::to_value(driver::saved_settings(test).theme).expect("a theme writes out");
+    let mut wrong = Vec::new();
+    for level in ["warning", "error"] {
+        if held.get(level) != chosen_written.get(level) {
+            wrong.push(format!(
+                "the profile holds {:?} for the {level}, where {:?} was chosen",
+                held.get(level),
+                chosen_written.get(level),
+            ));
+        }
+    }
+    driver::click_exactly(&mut app, "Préférences");
+    driver::click(&mut app, "Apparence");
+    let (warning, error) = (
+        worn_at_the_token_s_opacity(CHOSEN_WARNING, tokens::STATE_WARNING_BACKGROUND).0,
+        worn_at_the_token_s_opacity(CHOSEN_ERROR, tokens::STATE_ERROR_BACKGROUND).0,
+    );
+    for (row, wanted) in [(WARNING_ROW, warning), (ERROR_ROW, error)] {
+        wrong.extend(not_shown_in(&mut app, row, wanted));
+    }
+    assert!(
+        wrong.is_empty(),
+        "Préférences › Apparence does not hold the colours chosen for the two levels:\n  {}",
+        wrong.join("\n  "),
+    );
+
+    press_in_the_preferences(&mut app, "↺ Couleurs par défaut");
+
+    let reset =
+        serde_json::to_value(driver::saved_settings(test).theme).expect("a theme writes out");
+    let default = serde_json::to_value(cao_prefs::Theme::default()).expect("a theme writes out");
+    for level in ["warning", "error"] {
+        if reset.get(level) != default.get(level) {
+            wrong.push(format!(
+                "reset, the profile holds {:?} for the {level}, where the default is {:?}",
+                reset.get(level),
+                default.get(level),
+            ));
+        }
+    }
+    for (row, wanted) in [
+        (WARNING_ROW, tokens::STATE_WARNING_TEXT),
+        (ERROR_ROW, tokens::STATE_ERROR_TEXT),
+    ] {
+        wrong.extend(not_shown_in(&mut app, row, wanted));
+    }
+    driver::click_exactly(&mut app, "Close window");
+    let face_lost = ink_and_patch(&app, "face perdue");
+    if face_lost != Some((tokens::STATE_WARNING_TEXT, tokens::STATE_WARNING_BACKGROUND)) {
+        wrong.push(format!(
+            "reset, the badge « face perdue » wears {face_lost:?}, not the warning's tokens"
+        ));
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "the reset of Préférences › Apparence does not put the two levels' colours back:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+/// What the rows of Préférences › Apparence that colour the two levels read.
+const WARNING_ROW: &str = "Avertissement";
+const ERROR_ROW: &str = "Erreur";
+
+/// What keeps the row of Préférences › Apparence reading `row` from showing
+/// `wanted` in the colour button on its left.
+fn not_shown_in(app: &mut driver::App, row: &str, wanted: egui::Color32) -> Option<String> {
+    let Some(label) = app.query_all_by_label(row).next() else {
+        return Some(format!("no row reads « {row} »"));
+    };
+    label.scroll_to_me();
+    app.run();
+    let label = app.query_all_by_label(row).next()?.rect();
+    let well = app
+        .query_all_by(|node| node.role() == Role::ColorWell)
+        .filter(|node| node.accesskit_node().bounding_box().is_some())
+        .map(|node| node.rect())
+        .find(|well| {
+            well.y_range().contains(label.center().y) && well.right() <= label.left() + 1.0
+        });
+    let Some(well) = well else {
+        return Some(format!("« {row} » has no colour button on its left"));
+    };
+    let shown: Vec<egui::Color32> = shapes_painted(app)
+        .into_iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Rect(rect)
+                if rect.fill_texture_id() == egui::TextureId::default()
+                    && well.expand(1.0).contains_rect(rect.rect) =>
+            {
+                Some(rect.fill)
+            }
+            _ => None,
+        })
+        .collect();
+    (!shown.contains(&wanted)).then(|| {
+        format!("« {row} » shows {shown:?} in its colour button, where it holds {wanted:?}")
+    })
+}
+
+/// Clicks the button of Préférences reading `label`, brought into view first:
+/// the page scrolls, and much of it stands below the window's edge.
+fn press_in_the_preferences(app: &mut driver::App, label: &str) {
+    let Some(button) = app.query_all_by_label(label).next() else {
+        panic!(
+            "no « {label} » in the preferences: {:?}",
+            driver::on_screen(app)
+        );
+    };
+    button.scroll_to_me();
+    app.run();
+    if let Some(button) = app.query_all_by_label(label).next() {
+        button.click_accesskit();
+    }
+    app.run();
+}
+
+/// The colours chosen for the warning and the error, far from the tokens.
+const CHOSEN_WARNING: [u8; 3] = [0x33, 0x99, 0xE6];
+const CHOSEN_ERROR: [u8; 3] = [0xE6, 0x33, 0x99];
+
+/// What a level chosen to be seen in `colour` wears, as (ink, patch): the
+/// colour itself, and under it the colour at the opacity of the token whose
+/// patch it replaces.
+fn worn_at_the_token_s_opacity(
+    colour: [u8; 3],
+    patch: egui::Color32,
+) -> (egui::Color32, egui::Color32) {
+    let [r, g, b] = colour;
+    (
+        egui::Color32::from_rgb(r, g, b),
+        egui::Color32::from_rgba_unmultiplied(r, g, b, patch.a()),
+    )
+}
+
+/// Default settings with the warning and the error chosen in these colours,
+/// written into the theme as a saved profile carries them.
+fn with_the_level_colours(warning: [u8; 3], error: [u8; 3]) -> cao_prefs::Settings {
+    let mut written =
+        serde_json::to_value(cao_prefs::Settings::default()).expect("settings write out");
+    let theme = written["theme"]
+        .as_object_mut()
+        .expect("the settings hold a theme");
+    for (level, [r, g, b]) in [("warning", warning), ("error", error)] {
+        let byte = |channel: u8| f32::from(channel) / 255.0;
+        let colour = cao_prefs::Rgba::opaque(byte(r), byte(g), byte(b));
+        theme.insert(
+            level.to_owned(),
+            serde_json::to_value(colour).expect("a colour writes out"),
+        );
+    }
+    serde_json::from_value(written).expect("the settings read back")
+}
+
+/// The colour a text reading exactly this is painted in, and the fill of the
+/// least patch painted under it, when it is painted once.
+fn ink_and_patch(app: &driver::App, text: &str) -> Option<(egui::Color32, egui::Color32)> {
+    let shapes = shapes_painted(app);
+    let written: Vec<&egui::epaint::TextShape> = shapes
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Text(written) if written.galley.text() == text => Some(written),
+            _ => None,
+        })
+        .collect();
+    let [written] = written.as_slice() else {
+        return None;
+    };
+    let at = written.visual_bounding_rect();
+    let ink = colours_written_in(app, text).first().copied()?;
+    let patch = shapes
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Rect(rect)
+                if rect.fill.a() > 0
+                    && rect.fill_texture_id() == egui::TextureId::default()
+                    && rect.rect.expand(HUGGED_WITHIN).contains_rect(at) =>
+            {
+                Some((rect.rect.area(), rect.fill))
+            }
+            _ => None,
+        })
+        .min_by(|one, other| one.0.total_cmp(&other.0))
+        .map(|(_, fill)| fill)?;
+    Some((ink, patch))
+}
+
+/// The tint of every icon painted on the left of the alert titled `title`, in
+/// the open list.
+fn icon_tints_beside(app: &driver::App, title: &str) -> Vec<egui::Color32> {
+    let Some(list) = the_list(app) else {
+        return Vec::new();
+    };
+    let Some((_, at)) = texts_within(app, list)
+        .into_iter()
+        .find(|(text, _)| text == title)
+    else {
+        return Vec::new();
+    };
+    let beside = egui::Rect::from_x_y_ranges(
+        list.left()..=at.left(),
+        (at.top() - ICON_SLACK)..=(at.bottom() + ICON_SLACK),
+    )
+    .expand(1.0);
+    shapes_painted(app)
+        .into_iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Rect(rect)
+                if rect.fill_texture_id() != egui::TextureId::default()
+                    && beside.contains_rect(rect.rect) =>
+            {
+                Some(rect.fill)
+            }
+            _ => None,
+        })
+        .collect()
+}
+
 /// What a hand does to the application.
 type Gesture = fn(&mut driver::App);
 
@@ -1169,7 +1477,12 @@ const UNDER_WITHIN: f32 = 12.0;
 /// title bar counts « 2 alertes », the block's extrusion having lost its area
 /// and the sketch its face.
 fn a_part_with_two_alerts(test: &str) -> driver::App {
-    let mut app = driver::a_block(test);
+    a_part_with_two_alerts_with(test, cao_prefs::Settings::default())
+}
+
+/// `a_part_with_two_alerts`, in an application opened on these settings.
+fn a_part_with_two_alerts_with(test: &str, settings: cao_prefs::Settings) -> driver::App {
+    let mut app = driver::a_block_with(test, settings);
     lay_a_sketch_on_the_block_s_face(&mut app);
     empty_the_block_s_sketch(&mut app);
     assert!(

@@ -19,12 +19,19 @@ pub enum Level {
 }
 
 impl Level {
-    /// The patch and the ink of what is said at this level.
-    pub fn colours(self) -> (Color32, Color32) {
-        match self {
+    /// The patch and the ink of what is said at this level: its tokens, or
+    /// the colour `chosen` over them, its patch that colour at the opacity of
+    /// the token it replaces.
+    pub fn colours(self, chosen: Option<Color32>) -> (Color32, Color32) {
+        let (patch, ink) = match self {
             Self::Warning => (STATE_WARNING_BACKGROUND, STATE_WARNING_TEXT),
             Self::Error => (STATE_ERROR_BACKGROUND, STATE_ERROR_TEXT),
-        }
+        };
+        let Some(chosen) = chosen else {
+            return (patch, ink);
+        };
+        let [r, g, b, _] = chosen.to_srgba_unmultiplied();
+        (Color32::from_rgba_unmultiplied(r, g, b, patch.a()), chosen)
     }
 }
 
@@ -37,8 +44,9 @@ pub fn badge_width(ui: &Ui, said: &str) -> f32 {
     text.size().x + 2.0 * SPACING_M
 }
 
-pub fn badge(ui: &mut Ui, said: &str, level: Level) -> Response {
-    let (fill, ink) = level.colours();
+/// `said` on its patch, in the colours of its level as [`Level::colours`]
+/// gives them.
+pub fn badge(ui: &mut Ui, said: &str, (fill, ink): (Color32, Color32)) -> Response {
     Frame::new()
         .fill(fill)
         .corner_radius(RADIUS_PILL)

@@ -12,8 +12,9 @@
 //! and mitred with them, as #801 lays it. Among rounds a foot corner is
 //! filled up to where the upright's round leaves the feet, every edge is then
 //! laid against that as alone, and a piece of torus replaces what the filling
-//! left, as [`super::torus`] lays it; the top of an L's inner corner, whose
-//! piece of torus is cut out, is still to come. Either way each named edge's
+//! left, as [`super::torus`] lays it; the top of an L's inner corner, the
+//! mirror, is propped, laid, cleared and closed by a piece of torus cut out.
+//! Either way each named edge's
 //! face is numbered by its rank, and every patch — a flat no name finds, a
 //! piece of torus, a corner closed on the way — past them by its corner's
 //! ranks. A corner whose odd edge's other end meets an edge of the list laid
@@ -53,8 +54,9 @@ pub(in crate::body::exact) enum Around {
     /// square to the others, every edge then laid against it, and what the
     /// filling left replaced by a piece of torus about that axis, as
     /// [`Exact::through_a_torus`] lays it: a fillet's round, whose edge there
-    /// is curved. The mirror at a concave odd edge, a piece cut out about a
-    /// fill's axis, is still to come.
+    /// is curved. At a concave odd edge, the mirror: the corner propped, every
+    /// edge laid, the sector cut away and a piece of torus cut out about the
+    /// fill's axis.
     Torus,
 }
 

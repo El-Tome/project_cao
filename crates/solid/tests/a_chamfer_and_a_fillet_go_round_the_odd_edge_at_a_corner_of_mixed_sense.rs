@@ -525,7 +525,8 @@ struct Foot {
 /// and the odd edge the upright above them, cut; at the top of an L's inner
 /// corner the two are its top edges, cut, and the odd edge the inner upright
 /// below them, filled. Either way the odd edge stands [`STANDING_HEIGHT`]
-/// tall. Its three edges are named, in every list here, by their place in
+/// tall, up from the face the two others share or down from it to the face
+/// `odd_ends_on`. Its three edges are named, in every list here, by their place in
 /// [`FootCorner::edges`]: the first of the two, the second, and the odd edge.
 struct FootCorner {
     called: &'static str,
@@ -535,6 +536,7 @@ struct FootCorner {
     feet: [Foot; 2],
     upright: &'static str,
     odd_filled: bool,
+    odd_ends_on: usize,
 }
 
 impl FootCorner {
@@ -566,11 +568,12 @@ impl FootCorner {
         radius / (self.angle() / 2.0).tan()
     }
 
-    /// Where the axis of a round of `radius` on the upright stands on the
-    /// lower block's top: `radius` in from both walls.
+    /// Where the axis of a round of `radius` on the odd edge stands on the
+    /// face the two others share: `radius` in from both walls where the odd
+    /// edge is cut, `radius` out from them where it is filled.
     fn axis(&self, radius: f64) -> DVec3 {
         let foot = &self.feet[0];
-        self.at + foot.along * self.tangent(radius) - foot.facing * radius
+        self.at + foot.along * self.tangent(radius) - foot.facing * radius * self.sense()
     }
 
     /// The ways the flats a chamfer lays face, out of the matter, in the order
@@ -683,6 +686,7 @@ fn stacked_s_front_right() -> FootCorner {
         ],
         upright: "the standing block's front right upright",
         odd_filled: false,
+        odd_ends_on: STANDING_TOP,
     }
 }
 
@@ -721,6 +725,7 @@ fn leaning_s_obtuse_corner() -> FootCorner {
         ],
         upright: "the leaning block's front right upright",
         odd_filled: false,
+        odd_ends_on: STANDING_TOP,
     }
 }
 
@@ -759,6 +764,7 @@ fn leaning_s_acute_corner() -> FootCorner {
         ],
         upright: "the leaning block's back right upright",
         odd_filled: false,
+        odd_ends_on: STANDING_TOP,
     }
 }
 
@@ -1189,17 +1195,20 @@ impl Cylinder {
     }
 }
 
-/// The piece of torus a fillet joins a corner's feet's rounds through: about
-/// the upright round's axis, standing at `axis` on the lower block's top, its
-/// tube of `radius`, its centre circle twice that from the axis and `radius`
-/// above the lower block's top, turning from the way `from` out from the
-/// axis, where it meets the first foot's round, to the way `to`, where it
-/// meets the second's.
+/// The piece of torus a fillet joins a corner's two like edges' rounds
+/// through: about the odd edge round's axis, standing at `axis` on the face
+/// the two share, its tube of `radius`, its centre circle twice that from the
+/// axis and `radius` over that face where `sense` is one — a fill, the
+/// matter between the piece and the walls — or under it where it is minus
+/// one — a cut, the matter round the tube's centre — turning from the way
+/// `from` out from the axis, where it meets the first edge's round, to the
+/// way `to`, where it meets the second's.
 struct Torus {
     axis: DVec3,
     radius: f64,
     from: DVec3,
     to: DVec3,
+    sense: f64,
 }
 
 impl Torus {
@@ -1212,19 +1221,19 @@ impl Torus {
 
     /// The centre of the tube's section the way `out` from the axis.
     fn tube_centre(&self, out: DVec3) -> DVec3 {
-        self.axis + out * 2.0 * self.radius + DVec3::Z * self.radius
+        self.axis + out * 2.0 * self.radius + DVec3::Z * self.radius * self.sense
     }
 
     /// Whether a point lies on the torus, on the quarter of its tube that
-    /// faces the axis and the lower block's top — from `radius` out from the
-    /// axis at the tube centre's height to twice that on the lower block's
-    /// top — and within the turn between the two planes through the axis it
-    /// ends on.
+    /// faces the axis and the face the two edges share — from `radius` out
+    /// from the axis at the tube centre's height to twice that on that face —
+    /// and within the turn between the two planes through the axis it ends
+    /// on.
     fn holds(&self, point: DVec3) -> bool {
         let off = point - self.axis;
         let level = DVec3::new(off.x, off.y, 0.0);
         let out = level.length();
-        let up = off.z;
+        let up = off.z * self.sense;
         let r = self.radius;
         let least = out * self.from.dot(self.to);
         ((out - 2.0 * r).hypot(up - r) - r).abs() < PLACE
@@ -1234,9 +1243,9 @@ impl Torus {
             && level.dot(self.to) >= least - PLACE
     }
 
-    /// The four corners of the piece: where it touches the lower block's top
-    /// and where it touches the upright's round, on each of the two planes it
-    /// ends on.
+    /// The four corners of the piece: where it touches the face the two
+    /// edges share and where it touches the odd edge's round, on each of the
+    /// two planes it ends on.
     fn corners(&self) -> Vec<DVec3> {
         let r = self.radius;
         [0.0, 1.0]
@@ -1245,7 +1254,7 @@ impl Torus {
                 let out = self.out(share);
                 [
                     self.axis + out * 2.0 * r,
-                    self.axis + out * r + DVec3::Z * r,
+                    self.axis + out * r + DVec3::Z * r * self.sense,
                 ]
             })
             .collect()
@@ -1254,21 +1263,22 @@ impl Torus {
 
 impl FootCorner {
     /// The rounds a fillet of `radius` on the corner's three edges leaves, in
-    /// the order of [`FootCorner::edges`]: each foot's, from the plane through
-    /// the upright round's axis square to its wall to the plane of the wall
-    /// at its far end; and the upright's, from the circle where the piece of
-    /// torus meets it, `radius` above the lower block's top, to the standing
-    /// block's top.
+    /// the order of [`FootCorner::edges`]: each of the two like edges', from
+    /// the plane through the odd edge round's axis square to its wall to the
+    /// plane of the face at its far end; and the odd edge's, from the circle
+    /// where the piece of torus meets it, `radius` from the face the two
+    /// share, to the face it ends on, [`STANDING_HEIGHT`] away.
     fn rounds(&self, radius: f64) -> [Cylinder; 3] {
         let r = radius;
+        let sense = self.sense();
         let tangent = self.tangent(r);
         let [one, other] = &self.feet;
         let foot = |foot: &Foot| Cylinder {
             called: foot.called,
-            through: self.at + foot.facing * r + DVec3::Z * r,
+            through: self.at + (foot.facing + DVec3::Z) * r * sense,
             along: foot.along,
             radius: r,
-            toward: [-DVec3::Z, -foot.facing],
+            toward: [-DVec3::Z * sense, -foot.facing * sense],
             ends: [
                 (self.at + foot.along * tangent, -foot.along),
                 (foot.far.at, foot.far.facing),
@@ -1276,6 +1286,7 @@ impl FootCorner {
             meets: vec![TOP, foot.wall, foot.far.on],
         };
         let axis = self.axis(r);
+        let up = DVec3::Z * sense;
         [
             foot(one),
             foot(other),
@@ -1284,24 +1295,23 @@ impl FootCorner {
                 through: axis,
                 along: DVec3::Z,
                 radius: r,
-                toward: [one.facing, other.facing],
-                ends: [
-                    (axis + DVec3::Z * r, -DVec3::Z),
-                    (axis + DVec3::Z * STANDING_HEIGHT, DVec3::Z),
-                ],
-                meets: vec![STANDING_TOP, one.wall, other.wall],
+                toward: [one.facing * sense, other.facing * sense],
+                ends: [(axis + up * r, -up), (axis + up * STANDING_HEIGHT, up)],
+                meets: vec![self.odd_ends_on, one.wall, other.wall],
             },
         ]
     }
 
     /// The piece of torus a fillet of `radius` on the corner's three edges
-    /// joins the feet's rounds through.
+    /// joins the two like edges' rounds through.
     fn torus(&self, radius: f64) -> Torus {
+        let sense = self.sense();
         Torus {
             axis: self.axis(radius),
             radius,
-            from: self.feet[0].facing,
-            to: self.feet[1].facing,
+            from: self.feet[0].facing * sense,
+            to: self.feet[1].facing * sense,
+            sense,
         }
     }
 
@@ -1374,9 +1384,9 @@ fn round_held(body: &Body, face: usize, round: &Cylinder, pieces: &[usize], what
 
 /// Holds that the face numbered `piece` is the piece of torus `torus` names:
 /// drawn on its torus and only there, its four corners among its triangles',
-/// met first, facing back, by every ray from its tube's centre circle out to
-/// it, and meeting the lower block's top and the rounds `rounds`, one edge
-/// each.
+/// met first by every ray from its tube's centre circle out to it, facing
+/// out of the matter, and meeting the face the two like edges share and the
+/// rounds `rounds`, one edge each.
 fn piece_held(body: &Body, piece: usize, torus: &Torus, rounds: &[usize], what: &str) {
     let which = format!("{what}: the piece of torus, face {piece}");
     curved_and_drawn_on(
@@ -1391,7 +1401,8 @@ fn piece_held(body: &Body, piece: usize, torus: &Torus, rounds: &[usize], what: 
         let from = torus.tube_centre(out);
         for across in [0.1, 0.3, 0.5, 0.7, 0.9] {
             let turn = across * PI / 2.0;
-            let toward = -(out * turn.cos() + DVec3::Z * turn.sin());
+            let toward = -(out * turn.cos() + DVec3::Z * turn.sin() * torus.sense);
+            let facing = -toward * torus.sense;
             let hit = body.ray_hit(from, toward).unwrap_or_else(|| {
                 panic!("{which}: a ray from {from}, on its tube's centre circle, meets nothing")
             });
@@ -1401,11 +1412,11 @@ fn piece_held(body: &Body, piece: usize, torus: &Torus, rounds: &[usize], what: 
                 hit.face
             );
             assert!(
-                hit.normal.distance(-toward) < PLACE,
-                "{which}: where a ray from {from} meets it, it faces {}, not {}, back toward its \
-                 tube's centre circle",
-                hit.normal,
-                -toward
+                hit.normal.distance(facing) < PLACE,
+                "{which}: where a ray from {from} meets it, it faces {}, not {facing}, out of the \
+                 matter: back toward its tube's centre circle where it fills, away from it where \
+                 it cuts",
+                hit.normal
             );
         }
     }
@@ -1413,7 +1424,7 @@ fn piece_held(body: &Body, piece: usize, torus: &Torus, rounds: &[usize], what: 
     assert_eq!(
         sides_met(body, piece),
         sides(&met),
-        "{which} meets the lower block's top and the rounds round it, one edge each"
+        "{which} meets the face the two like edges share and the rounds round it, one edge each"
     );
 }
 
@@ -1659,6 +1670,7 @@ fn stacked_s_foot_corners() -> [FootCorner; 4] {
         feet,
         upright,
         odd_filled: false,
+        odd_ends_on: STANDING_TOP,
     };
     [
         stacked_s_front_right(),
@@ -3329,6 +3341,7 @@ fn ell() -> Body {
     )
 }
 const ELL_VOLUME: f64 = (30.0 * 6.0 + 12.0 * 8.0) * 10.0;
+const FLOOR: usize = 0;
 const ARM_END: usize = 3;
 const ARM_BACK: usize = 4;
 const STEM_RIGHT: usize = 5;
@@ -3370,6 +3383,7 @@ fn ell_s_inner_top_corner() -> FootCorner {
         ],
         upright: "the L's inner upright",
         odd_filled: true,
+        odd_ends_on: FLOOR,
     }
 }
 
@@ -3381,4 +3395,240 @@ fn a_chamfer_on_the_two_top_edges_at_the_l_s_inner_corner_and_the_upright_below_
         &[Cut::Flat],
         "the top of the L's inner corner chamfered",
     );
+}
+
+#[test]
+fn a_fillet_on_the_two_top_edges_at_the_l_s_inner_corner_and_the_upright_below_them_joins_their_rounds_through_a_piece_of_torus_cut_out_in_every_order()
+ {
+    round_the_upright_in_every_order(
+        &[ell_s_inner_top_corner()],
+        &[Cut::Round],
+        "the top of the L's inner corner filleted",
+    );
+}
+
+/// [`ell`] with a block 1 high standing on its top diagonally behind its
+/// inner corner, from (11.2, 5.2) to (11.7, 5.7): its corner nearest the
+/// inner corner 0.3 behind the planes of both walls there, where the corner's
+/// patch cuts the top — the piece of torus out to twice the radius from the
+/// fill's axis, or the cut along the top of the fill's flat — but no top
+/// edge's cut reaches. Its top and walls are numbered nine to thirteen, its
+/// floor gone into the L's top.
+fn ell_with_a_block_behind_its_inner_corner() -> Body {
+    joined(
+        &ell(),
+        Contour::rectangle(DVec2::new(11.2, 5.2), DVec2::new(11.7, 5.7)),
+        STANDING_HEIGHT,
+        1.0,
+    )
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_the_top_of_the_l_s_inner_corner_never_cut_a_block_standing_where_the_corner_s_patch_sweeps()
+ {
+    let corner = ell_s_inner_top_corner();
+    let block = OffTheCorner {
+        from: [11.2, 5.2],
+        to: [11.7, 5.7],
+        gap: 0.3,
+        below: 0.5,
+        called: "a block standing 0.3 behind both walls",
+    };
+    let hair = 20.0 * 1e-9 * 30.0;
+    let part = ell_with_a_block_behind_its_inner_corner();
+    let start = part.faces_end();
+    let kept: Vec<usize> = (start - 5..start).collect();
+    let names = corner
+        .edges()
+        .map(|(_, [first, second])| edge_between(&part, first, second));
+    let mut wrong = Vec::new();
+    for cut in [Cut::Flat, Cut::Round] {
+        let touched = block.touched(cut);
+        for asked in [block.below, 1.0, 2.5] {
+            for order in [[0, 1, 2], [2, 1, 0], [2, 0, 1]] {
+                let what = format!(
+                    "the {} of {asked} on the top of the L's inner corner beside {}, named \
+                     {order:?}, its patch reaching the block at {touched}",
+                    cut.called(),
+                    block.called
+                );
+                let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
+                let step = match cut.laid_on(&part, &list, asked) {
+                    Ok(step) => step,
+                    Err(_) if asked > touched => continue,
+                    Err(reason) => {
+                        wrong.push(format!("{what}: declined, {reason:?}"));
+                        continue;
+                    }
+                };
+                let body = &step.body;
+                let gone: Vec<usize> = (kept.iter().copied())
+                    .filter(|&face| !body.has_face(face))
+                    .collect();
+                if !gone.is_empty() {
+                    wrong.push(format!(
+                        "{what}: took {} and laid a body that cut the block, its faces {gone:?} \
+                         gone, holding {}",
+                        step.taken,
+                        body.volume()
+                    ));
+                    continue;
+                }
+                let expected = asked.min(touched);
+                if (step.asked - asked).abs() > PLACE
+                    || step.taken > expected + PLACE
+                    || step.taken < expected - 10.0 * hair
+                {
+                    wrong.push(format!(
+                        "{what}: asked {} and took {}, where the patch first reaches the block \
+                         at {touched}",
+                        step.asked, step.taken
+                    ));
+                    continue;
+                }
+                let taken = step.taken;
+                let promised = match cut {
+                    Cut::Flat => corner.chamfered(taken),
+                    Cut::Round => corner.filleted(taken),
+                } + block.holds();
+                let drawn = match cut {
+                    Cut::Flat => EXACT * promised,
+                    Cut::Round => corner.drawn_within(&part, taken),
+                };
+                if (body.volume() - promised).abs() > EXACT * promised {
+                    wrong.push(format!(
+                        "{what}: took {taken} and holds {}, where the corner's blend and the \
+                         block whole hold {promised}",
+                        body.volume()
+                    ));
+                    continue;
+                }
+                sound_drawn_within(body, promised, drawn, &what);
+                assert_eq!(
+                    faces_made(&part, body),
+                    (start..=start + 3).collect::<Vec<_>>(),
+                    "{what}: one face for each edge, then the corner's patch"
+                );
+            }
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "the top of the L's inner corner beside a block where its patch cuts keeps the block \
+         whole, its value reduced to where the patch first reaches it, or declined:\n{}",
+        wrong.join("\n")
+    );
+}
+
+/// The L's left top edge, by the faces it lies between: 14 long, from the
+/// front to the stem's back, each square to it. The line of the arm's top
+/// edge's set-back, carried on past the inner corner, would reach it.
+const ELL_LEFT_TOP_EDGE: [usize; 2] = [TOP, 7];
+
+#[test]
+fn a_chamfer_and_a_fillet_on_the_top_of_the_l_s_inner_corner_and_its_left_top_edge_take_the_value_asked()
+ {
+    let part = ell();
+    let start = part.faces_end();
+    let corner = ell_s_inner_top_corner();
+    let edges: Vec<[usize; 2]> = (corner.edges().map(|(_, between)| between).into_iter())
+        .chain([ELL_LEFT_TOP_EDGE])
+        .collect();
+    let middles = [
+        DVec3::new(21.0, 6.0, 10.0),
+        DVec3::new(12.0, 10.0, 10.0),
+        DVec3::new(12.0, 6.0, 5.0),
+        DVec3::new(0.0, 7.0, 10.0),
+    ];
+    let names: Vec<EdgeName> = edges
+        .iter()
+        .map(|&[first, second]| edge_between(&part, first, second))
+        .collect();
+    let mut declined = Vec::new();
+    let mut laid = Vec::new();
+    for cut in [Cut::Flat, Cut::Round] {
+        for value in VALUES {
+            for order in [vec![0, 1, 2, 3], vec![3, 2, 1, 0], vec![3, 0, 1, 2]] {
+                let what = format!(
+                    "the {} of {value} on the top of the L's inner corner and its left top edge, \
+                     named {order:?}",
+                    cut.called()
+                );
+                let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
+                match cut.laid_on(&part, &list, value) {
+                    Ok(step) => laid.push(Case {
+                        order,
+                        cut,
+                        value,
+                        step,
+                        what,
+                    }),
+                    Err(reason) => declined.push(format!("{what}: {reason:?}")),
+                }
+            }
+        }
+    }
+    assert!(
+        declined.is_empty(),
+        "the top of the L's inner corner named with its left top edge, each laid as alone; \
+         declined:\n{}",
+        declined.join("\n")
+    );
+    for case in &laid {
+        let Case {
+            cut,
+            value,
+            step,
+            what,
+            ..
+        } = case;
+        let (cut, value) = (*cut, *value);
+        taken_as_asked(step.asked, step.taken, value, what);
+        let body = &step.body;
+        let (at_the_corner, section) = match cut {
+            Cut::Flat => (corner.chamfered(value), value * value / 2.0),
+            Cut::Round => (corner.filleted(value), value * value * (1.0 - PI / 4.0)),
+        };
+        let promised = at_the_corner - 14.0 * section;
+        let drawn = match cut {
+            Cut::Flat => EXACT * promised,
+            Cut::Round => {
+                corner.drawn_within(&part, value) + DRAWN * reach_of(&part) * PI * value * 14.0
+            }
+        };
+        sound_drawn_within(body, promised, drawn, what);
+        assert_eq!(
+            faces_made(&part, body),
+            (start..=start + 4).collect::<Vec<_>>(),
+            "{what}: one face for each edge, then the corner's patch: {:?}",
+            numbers(body)
+        );
+        let patch = case.patches(&part, &[[0, 1, 2]])[0];
+        for (edge, middle) in middles.iter().enumerate() {
+            lies_about(
+                body,
+                case.laid_on(&part, edge),
+                *middle,
+                2.0 * value,
+                &format!(
+                    "{what}: the face on {:?}, numbered by its rank",
+                    edges[edge]
+                ),
+            );
+        }
+        lies_about(
+            body,
+            patch,
+            corner.at,
+            2.0 * value,
+            &format!("{what}: the corner's patch"),
+        );
+        if cut == Cut::Round {
+            for (edge, round) in corner.rounds(value).iter().enumerate() {
+                round_held(body, case.laid_on(&part, edge), round, &[patch], what);
+            }
+            let rounds: Vec<usize> = (0..3).map(|edge| case.laid_on(&part, edge)).collect();
+            piece_held(body, patch, &corner.torus(value), &rounds, what);
+        }
+    }
 }

@@ -28,6 +28,12 @@
 //!   the click on a box reaching the reader through the panel, in
 //!   `crates/app/tests/the_step_reader.rs` by
 //!   `a_click_on_a_box_reads_the_part_to_it`
+//! - found in review: the part read to a step shows its sketches as well as
+//!   its volumes as that step left them — a sketch read drawn while nothing
+//!   read was raised from it, a sketch past the reading point not drawn,
+//!   whatever its eye — no test: here; held in
+//!   `crates/app/src/screens/viewport/render/tests.rs` by
+//!   `a_part_read_to_a_step_draws_the_sketches_read_as_then_and_none_after_it`
 //! - ◀ ▶ move by one box. ◀ goes to the previous box, ▶ to the next; neither
 //!   goes past the first or the last box —
 //!   `the_arrows_move_the_reading_point_one_box_and_stop_at_either_end`

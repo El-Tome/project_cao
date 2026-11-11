@@ -304,6 +304,17 @@
 //! the part with that volume see-through is drawn in, so that a volume merely
 //! made see-through lights nothing; faces or edges alike, since how the light
 //! is drawn is not the criterion.
+//!
+//! Closes #356 — the whole transcription is in
+//! `crates/app/src/screens/part_tree/state/tests/reader.rs`; this bullet is
+//! the sketches' half of what a frame draws of a part read to a step.
+//! - found in review: « the part shows only its first three steps », its
+//!   sketches as well as its volumes. A sketch read is drawn as if the steps
+//!   after the reading point had not been taken, its eye lit while nothing
+//!   read was raised from it; a sketch past the reading point is not drawn,
+//!   whatever its eye; an eye switched by hand on a sketch read still wins
+//!   over that default; and the part read to its end is drawn as before —
+//!   `a_part_read_to_a_step_draws_the_sketches_read_as_then_and_none_after_it`
 
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef, VolumeState};
 use cao_prefs::config::ViewportConfig;
@@ -3765,5 +3776,60 @@ fn a_volume_not_built_marked_is_drawn_lit_where_its_raw_block_would_stand() {
         lit.len(),
         astray.len(),
         astray.first(),
+    );
+}
+
+#[test]
+fn a_part_read_to_a_step_draws_the_sketches_read_as_then_and_none_after_it() {
+    let mut document = a_block_and_a_sketch_never_used();
+    let mut state = ViewportState::default();
+    let drawn = |state: &ViewportState, document: &mut PartDocument| {
+        let frame = a_frame_of(state, document, &mut SketchEditor::default());
+        let traced = |plane| {
+            let (lines, areas) = drawn_in(&frame, plane);
+            lines > 0 && areas > 0
+        };
+        (traced(WorkPlane::XY), traced(twenty_over_the_block()))
+    };
+
+    let mut read = vec![("unread", drawn(&state, &mut document))];
+    for (box_read_to, rank) in [
+        ("read to the first sketch", 0),
+        ("read to the block", 1),
+        ("read to the second sketch, the last box", 2),
+    ] {
+        state.read_to(rank);
+        read.push((box_read_to, drawn(&state, &mut document)));
+    }
+    assert_eq!(
+        read,
+        [
+            ("unread", (false, true)),
+            ("read to the first sketch", (true, false)),
+            ("read to the block", (false, false)),
+            ("read to the second sketch, the last box", (false, true)),
+        ],
+        "the block's sketch on XY, raised past the first box, and the sketch twenty over \
+         the block, past the second, are not drawn as the steps read have them, as (the \
+         block's sketch drawn, the second sketch drawn)",
+    );
+
+    let mut by_hand = ViewportState::default();
+    for sketch in [0, 1] {
+        by_hand.toggle_eye(&document, sketch);
+        by_hand.toggle_eye(&document, sketch);
+    }
+    assert!(
+        !by_hand.eye_lit(&document, 0) && by_hand.eye_lit(&document, 1),
+        "the fixture wants the block's sketch put out by hand and the second sketch lit by \
+         hand",
+    );
+    by_hand.read_to(0);
+    assert_eq!(
+        drawn(&by_hand, &mut document),
+        (false, false),
+        "read to the first sketch, its eye put out by hand does not keep it out, or the \
+         second sketch, lit by hand but past the reading point, is drawn, as (the block's \
+         sketch drawn, the second sketch drawn)",
     );
 }

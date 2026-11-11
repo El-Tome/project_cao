@@ -3,6 +3,7 @@
 //! undoes nothing and a part always opens read to its end.
 
 use cao_part::PartDocument;
+use cao_part::history::StepKind;
 
 use super::ViewportState;
 use crate::screens::part_tree::state::key_steps;
@@ -45,6 +46,15 @@ impl ViewportState {
     /// Whether the part is read through the `rank`th box of the step reader.
     pub(crate) fn reads_through(&self, rank: usize) -> bool {
         self.reading.point.is_none_or(|last| rank <= last)
+    }
+
+    /// Whether the part is read through the step that opened that sketch.
+    pub(crate) fn reads_through_sketch(&self, document: &PartDocument, sketch: usize) -> bool {
+        key_steps(document)
+            .enumerate()
+            .filter(|(_, (_, _, kind))| *kind == StepKind::Sketch)
+            .nth(sketch)
+            .is_none_or(|(rank, _)| self.reads_through(rank))
     }
 
     /// Follows the part: a key step added since it was last looked at brings

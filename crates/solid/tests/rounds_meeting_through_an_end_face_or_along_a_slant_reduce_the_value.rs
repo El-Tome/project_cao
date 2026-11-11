@@ -175,9 +175,9 @@
 //! Closes #823.
 //!
 //! - Where the set-backs of two edges of one step would meet on a curved
-//!   edge of the part — an arc of a circle, or of a conic — the value is
-//!   reduced to the largest at which they do not, as #792 reduces it on a
-//!   straight one. The arched plate asked 3 takes 2 —
+//!   edge of the part that is an arc of a circle, the value is reduced to the
+//!   largest at which they do not, as #792 reduces it on a straight one. The
+//!   arched plate asked 3 takes 2 —
 //!   `a_fillet_and_a_chamfer_on_the_two_sides_of_an_arched_plate_asked_past_where_their_set_backs_meet_on_its_arc_take_the_value_at_which_they_touch`.
 //!   Read as: the issue's plate, its two sides leaning 30° in from the
 //!   upright at 7 from the arc's centre, and the one whose sides lean 10° at
@@ -187,6 +187,9 @@
 //!   1.9 and 1.2, the value taken whole; the body sound, drawn within the
 //!   tolerance over the arc's wall and the rounds, and holding what the same
 //!   step laid directly at the value taken holds
+//! - The same where the curved edge is an arc of a conic — no test: not read
+//!   yet, its depths along the set-backs being no trigonometric form of one
+//!   parameter as a circle's are; tracked as #882
 //! - Every step #698, #699 and #792 lay — no test: held by their suites, left
 //!   as they are
 //!

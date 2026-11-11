@@ -239,14 +239,17 @@ It can:
   two; 0.70711 and 0.7075 are laid. A round leaving
   the edge's end at a few degrees inwards trims the chamfer like any other
   end face; one leaving it outwards dips outside the edge's face past the
-  end corner, and is covered only while the prism's side, a margin out,
-  reaches that dip: a round of radius `r` leaving outwards at an angle `θ`
-  trims a chamfer of at least about `8·r·(1 − cos θ)`, and below that the
-  chamfer is declined — a slot whose round leaves its front at some 8.5°,
-  radius 2, is cut at 0.2 and declined at 0.1 — unless the least margin
-  above still reaches the dip, as it does for a slot leaving at 2.9° down
-  to a chamfer of some 0.005. A cut that would take a tab or a lump beside
-  the edge away whole is declined too.
+  end corner, by `r·(1 − cos θ)` for a round of radius `r` leaving at `θ`.
+  The prism stands off the edge's faces by the least margin a raise takes,
+  whatever the value, and a cut's by as far again as a curved end face
+  dips past them, read off that face's boundary when the wedge is read
+  (`dip` in `wedge/reading.rs`): it then takes all of the round past the
+  face, and nothing standing in the air beside a face that the chamfer
+  itself never reaches — a lump clear of the cut, or a low block beside a
+  standing block's upright, is left whole (#873). Main's prism stood off by
+  an eighth of the distance, which stood in for that dip and declined a
+  chamfer too small to reach it. A cut that would take a tab beside the
+  edge away whole is declined.
 - **fillet one straight edge** (#697, `Body::fillet` in `body/fillet.rs`,
   the cut in `body/exact/fillet.rs`): the chamfer's step with a radius, the
   edge replaced by one cylinder of that radius tangent to both its faces.

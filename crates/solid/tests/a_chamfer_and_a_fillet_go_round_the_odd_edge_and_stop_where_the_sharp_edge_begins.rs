@@ -116,6 +116,28 @@
 //! `2760 + 5d² − (18 − d)·d²/2 − d√2·d²/2 − tan(22.5°)·d³/3 − d³/6`, and
 //! `2760 + 10·r²(1 − π/4) − (18 − r)·r²(1 − π/4) − (π/2)·r³(11/6 − π/2)`;
 //! the stem's right top edge, 8 to the stem's back, in place of 18.
+//!
+//! Closes #873.
+//!
+//! - The upright alone takes the value whole there: a value is reduced or
+//!   declined only where its flat would meet something —
+//!   `a_chamfer_and_a_fillet_on_a_standing_block_s_upright_alone_beside_a_low_block_take_the_value_asked_their_blend_meeting_nothing`.
+//!   Read as: `stacked()`'s front right upright chamfered and filleted alone,
+//!   one edge, beside the low block 0.2 off the right wall, at 2 — laid
+//!   before — and at 2.2, 2.3, 2.5 and 3; the value taken whole, one face
+//!   made, a sound body of the arithmetic's volume, the block's faces as they
+//!   were. The flat or round stands on the standing block's two walls and
+//!   stops flush on the lower top, and meets nothing at any of these; there
+//!   is no value at which it reaches that block, so no reduction is held
+//! - And so #846's chamfer of the front foot and that upright, the right
+//!   foot sharp, at 2.2, short of 2.3, where its fill's end first reaches the
+//!   block, takes it whole, the block's faces as they were —
+//!   `a_chamfer_and_a_fillet_on_a_foot_and_the_upright_above_it_never_bury_a_block_standing_across_where_the_fill_ends`,
+//!   asked 2.2 besides 2 and 2.5
+//! - What must not break: #801's, #829's and #846's tests, and the guard
+//!   that no blend buries a block — no test: each is held by its own test,
+//!   the guard by the one above, left as it is but for the value it now asks
+//!   too
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -1701,7 +1723,7 @@ fn a_chamfer_and_a_fillet_on_a_foot_and_the_upright_above_it_never_bury_a_block_
             .map(|(_, [first, second])| edge_between(&part, first, second));
         let touched = block.touched();
         for cut in [Cut::Flat, Cut::Round] {
-            for asked in [2.0, 2.5] {
+            for asked in [2.0, 2.2, 2.5] {
                 for order in ORDERS_OF_TWO {
                     let what = format!(
                         "the {} of {asked} on the front foot and the front right upright, the \
@@ -1877,4 +1899,75 @@ fn a_chamfer_and_a_fillet_on_two_corners_each_left_sharp_number_their_end_faces_
             }
         }
     }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_standing_block_s_upright_alone_beside_a_low_block_take_the_value_asked_their_blend_meeting_nothing()
+ {
+    let block = &ACROSS_THE_END[0];
+    let part = joined(
+        &stacked(),
+        Contour::rectangle(DVec2::from(block.from), DVec2::from(block.to)),
+        LOWER_TOP,
+        BLOCK_HEIGHT,
+    );
+    let start = part.faces_end();
+    let faces: Vec<usize> = (start - 5..start).collect();
+    let upright = edge_between(&part, STANDING_FRONT, STANDING_RIGHT);
+    let mut wrong = Vec::new();
+    for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
+        for asked in [2.0, 2.2, 2.3, 2.5, 3.0] {
+            let what = format!(
+                "the {kind} of {asked} on the standing block's front right upright alone, beside \
+                 {}",
+                block.called
+            );
+            let laid = if fillet {
+                part.fillet(&upright, asked)
+                    .map(|done| (done.asked, done.taken, done.body))
+            } else {
+                part.chamfer(&upright, asked)
+                    .map(|done| (done.asked, done.taken, done.body))
+            };
+            let (reported, taken, body) = match laid {
+                Ok(laid) => laid,
+                Err(reason) => {
+                    wrong.push(format!("{what}: declined, {reason:?}"));
+                    continue;
+                }
+            };
+            if (reported - asked).abs() > PLACE || (taken - asked).abs() > PLACE {
+                wrong.push(format!("{what}: asked {reported} and took {taken}"));
+                continue;
+            }
+            let moved: Vec<usize> = (faces.iter().copied())
+                .filter(|&face| !as_it_was(&part, &body, face))
+                .collect();
+            if !moved.is_empty() {
+                wrong.push(format!("{what}: the block's faces {moved:?} gone or moved"));
+                continue;
+            }
+            let v = taken;
+            let (section, drawn) = if fillet {
+                let section = v * v * (1.0 - PI / 4.0);
+                let curved = PI / 2.0 * v * STANDING_HEIGHT;
+                (section, Some(DRAWN * reach_of(&part) * curved))
+            } else {
+                (v * v / 2.0, None)
+            };
+            let promised = STACKED_VOLUME + block.holds() - STANDING_HEIGHT * section;
+            sound_drawn_within(&body, promised, drawn.unwrap_or(EXACT * promised), &what);
+            assert_eq!(
+                faces_made(&part, &body),
+                vec![start],
+                "{what}: the one face laid on the upright"
+            );
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "an upright chamfered or filleted alone beside a low block its blend never reaches takes \
+         the value asked:\n{}",
+        wrong.join("\n")
+    );
 }

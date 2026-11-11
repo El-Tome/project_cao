@@ -1,9 +1,10 @@
 //! The section square to an edge a cut or a fill is raised over: how far it
 //! stands off the edge's faces, out of the part for a cut and into it for a
-//! fill, which is no more than about the value taken or the margin where
-//! that is larger — a result carries the larger reach of its operands, and
-//! every later step decides and draws at it — what closes it, and the frame
-//! it is drawn in, carried along the edge.
+//! fill — the least margin a raise takes, whatever the value, so that the
+//! prism takes nothing standing in the air beside a face that the blend
+//! itself never reaches (#873), and for a cut as far again as a curved face
+//! an end of it runs on over stands out past its faces (#713) — what closes
+//! it, and the frame it is drawn in, carried along the edge.
 
 use glam::{DVec2, DVec3};
 
@@ -12,13 +13,7 @@ use crate::brep::Scale;
 use crate::profile::{Contour, Frame, Run};
 
 /// How far the prism stands off the edge's two faces, past the edge and
-/// past the body's box along it, as a share of the distance it is set back:
-/// far enough that no face of it lies nearly flush with one of the body's,
-/// near enough that the part's reach grows by an eighth of the distance at a
-/// square edge.
-const MARGIN: f64 = 0.125;
-
-/// The least margin, in square roots of the kernel's relative tolerance
+/// past the body's box along it, in square roots of the kernel's relative tolerance
 /// over the edge's slant, times the part's reach. A raise refuses a section
 /// whose area is under its tolerance times its reach, `RELATIVE · reach²`;
 /// however short the distance, a section a margin `m` round the edge holds
@@ -68,19 +63,16 @@ impl Side {
 }
 
 impl Wedge {
-    /// How far the prism stands off the edge's faces, for a cut set back by
-    /// `distance` along them, `across` and `facing` the section's two ways.
-    pub(in crate::body::exact) fn margin(
-        &self,
-        across: DVec3,
-        facing: DVec3,
-        distance: f64,
-        scale: Scale,
-    ) -> f64 {
+    /// How far the prism stands off the edge's faces, `across` and `facing`
+    /// the section's two ways: the least the raise takes, [`SECTION`] square
+    /// roots of the kernel's relative tolerance over the edge's slant, times
+    /// the part's reach, and the wedge's dip past that, so that a cut carried
+    /// on over a round leaving a face outwards takes all of the round past
+    /// the face.
+    pub(in crate::body::exact) fn margin(&self, across: DVec3, facing: DVec3, scale: Scale) -> f64 {
         let first = self.outward[0];
         let slant = (first.dot(across) / first.dot(facing)).abs().min(1.0);
-        let least = SECTION * (Scale::RELATIVE / slant).sqrt() * scale.reach();
-        (distance * MARGIN).max(least)
+        SECTION * (Scale::RELATIVE / slant).sqrt() * scale.reach() + self.dip
     }
 
     /// Which way the prism's sides stand off the edge's faces, along the
@@ -149,7 +141,7 @@ impl Wedge {
     ) -> Prism {
         let [first, second] = self.outward;
         let (across, facing) = self.square();
-        let margin = self.margin(across, facing, set_back, scale);
+        let margin = self.margin(across, facing, scale);
         let off = self.off();
         let [on_first, on_second] = self.into.map(|into| into * set_back);
         let (frame, travel) = self.raised_along(across, margin, bounds);

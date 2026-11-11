@@ -47,9 +47,11 @@ pub(super) use triangle::{cut_across, joined_across};
 /// two faces and the numbers they answer to on the body it was read on, for
 /// each the way it faces and the way into it, square to the edge, how far the
 /// nearer face runs that way from the edge where its blend runs — the most a
-/// chamfer can set back, as a step reads it, endless until then — and whether
-/// the faces meet inwards, the way into either running the way the other
-/// faces: a corner to fill in rather than cut off.
+/// chamfer can set back, as a step reads it, endless until then — how far a
+/// curved face one of its ends runs into stands out past its faces, which a
+/// cut's prism must reach, and whether the faces meet inwards, the way into
+/// either running the way the other faces: a corner to fill in rather than
+/// cut off.
 pub(super) struct Wedge {
     pub point: DVec3,
     pub along: DVec3,
@@ -58,6 +60,7 @@ pub(super) struct Wedge {
     pub outward: [DVec3; 2],
     pub into: [DVec3; 2],
     pub reach: f64,
+    pub dip: f64,
     pub inwards: bool,
 }
 

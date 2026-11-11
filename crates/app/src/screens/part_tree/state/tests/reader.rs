@@ -18,8 +18,12 @@
 //!   back whole — the boxes and the arrows, an arrow going out with the box
 //!   it leads to, the one out of the box read to included, as screen 07 draws
 //!   it — `the_boxes_and_arrows_after_the_reading_point_are_not_applied`; the part
-//!   drawn up to that step included, and whole again from the last box, held
-//!   in `crates/app/src/screens/viewport/matter/tests.rs` by
+//!   computed up to that step included, its design replayed through it with
+//!   each step whole as it now stands, and the volumes' states applied to what
+//!   is read, held in `crates/part/tests/reading_a_part.rs` by
+//!   `a_part_read_through_a_key_step_is_its_design_replayed_through_that_step`;
+//!   that part drawn, and whole again from the last box, held in
+//!   `crates/app/src/screens/viewport/matter/tests.rs` by
 //!   `a_part_read_to_a_step_is_drawn_up_to_it_and_whole_again_from_the_last`;
 //!   the click on a box reaching the reader through the panel, in
 //!   `crates/app/tests/the_step_reader.rs` by

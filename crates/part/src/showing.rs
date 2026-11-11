@@ -13,6 +13,12 @@
 //! laid on a face of a volume left out, or whose face the part shown outlines
 //! otherwise, stays where it is in the part. What a face of the part shown
 //! answers to is read by where it lies, not by its number.
+//!
+//! Read through one of its key steps, as the step reader reads it, the part
+//! shown is its design replayed through the step that key step opens, each
+//! step whole as it now stands: the reader is not the undo stack, which walks
+//! the order things were typed in. A volume past that step is not replayed,
+//! and leaves neither matter nor ghost.
 
 use std::collections::BTreeMap;
 
@@ -20,7 +26,7 @@ use cao_sketch::WorkPlane;
 use cao_solid::Body;
 
 use crate::document::PartDocument;
-use crate::history::ExtrusionMode;
+use crate::history::{ExtrusionMode, History, Step, StepKind};
 use crate::state::PartState;
 
 /// How one volume of the part is shown.
@@ -48,35 +54,49 @@ pub struct Ghost {
 
 /// What a replay of the part shown carries besides the part: each volume's
 /// state, by the number of its step, the plane each sketch has in the part,
-/// and the ghosts laid so far. Empty for the part itself.
+/// the ghosts laid so far, and the operation the replay stops at when the
+/// part is read through one of its key steps. Empty for the part itself.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Showing {
     states: BTreeMap<u32, VolumeState>,
     planes: Vec<WorkPlane>,
     ghosts: Vec<Ghost>,
+    stops_at: Option<u32>,
 }
 
 impl PartDocument {
     /// The part as it is shown with these states, a volume with none opaque.
     /// Replayed apart: the part, its warnings and its cache are left alone.
     pub fn shown(&self, states: &BTreeMap<u32, VolumeState>) -> Shown {
-        let states: BTreeMap<u32, VolumeState> = states
-            .iter()
-            .filter(|(_, state)| **state != VolumeState::Opaque)
-            .map(|(step, state)| (*step, *state))
-            .collect();
+        let states = not_opaque(states);
         if states.is_empty() {
             return Shown {
                 body: self.body().clone(),
                 ghosts: Vec::new(),
             };
         }
+        self.replayed_showing(states, None)
+    }
+
+    /// The part shown as read through its `key_step`th key step in effect —
+    /// a sketch, an extrusion or a revolution, a section being none: the
+    /// design's steps replayed through the one it opens, each whole as it now
+    /// stands, none after it. Through the last, or past it, the part shown.
+    pub fn shown_through(&self, states: &BTreeMap<u32, VolumeState>, key_step: usize) -> Shown {
+        match where_reading_stops(&self.history, key_step) {
+            Some(stop) => self.replayed_showing(not_opaque(states), Some(stop)),
+            None => self.shown(states),
+        }
+    }
+
+    fn replayed_showing(&self, states: BTreeMap<u32, VolumeState>, stops_at: Option<u32>) -> Shown {
         let replayed = PartState::rebuild_showing(
             &self.history,
             Showing {
                 states,
                 planes: self.sketches().iter().map(|sketch| sketch.plane).collect(),
                 ghosts: Vec::new(),
+                stops_at,
             },
         );
         Shown {
@@ -86,7 +106,46 @@ impl PartDocument {
     }
 }
 
+fn not_opaque(states: &BTreeMap<u32, VolumeState>) -> BTreeMap<u32, VolumeState> {
+    states
+        .iter()
+        .filter(|(_, state)| **state != VolumeState::Opaque)
+        .map(|(step, state)| (*step, *state))
+        .collect()
+}
+
+/// The number of the operation opening the step of the design that follows
+/// the one the `key_step`th key step in effect opens; nothing when no key
+/// step in effect comes after it, the part then being read whole.
+fn where_reading_stops(history: &History, key_step: usize) -> Option<u32> {
+    let in_effect = |number: &u32| {
+        history
+            .position_of(*number)
+            .is_some_and(|at| at < history.applied())
+    };
+    let key = |step: &Step| {
+        step.kind() != StepKind::Section && step.operations().first().is_some_and(in_effect)
+    };
+    let steps = history.steps();
+    let (read, _) = steps
+        .iter()
+        .enumerate()
+        .filter(|(_, step)| key(step))
+        .nth(key_step)?;
+    let after = &steps[read + 1..];
+    if !after.iter().any(key) {
+        return None;
+    }
+    after.first()?.operations().first().copied()
+}
+
 impl PartState {
+    /// Whether the replay of the part shown stops at the operation of that
+    /// number, the first after the key step the part is read through.
+    pub(crate) fn stops_at(&self, number: u32) -> bool {
+        self.showing.stops_at == Some(number)
+    }
+
     /// The plane the sketch of that rank has in the part, for the part shown
     /// to lay it on: a sketch on a face or a section of the part stays where
     /// it is in the part, whatever the part shown makes of what it stands on.

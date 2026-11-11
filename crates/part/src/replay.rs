@@ -133,6 +133,9 @@ impl PartState {
         // A corner of a sketch dragged long after an extrusion was raised from
         // it is played with that sketch, so the extrusion is raised again.
         for (number, operation) in history.replay_order() {
+            if state.stops_at(number) {
+                break;
+            }
             state.replaying = number;
             state.replay.setting = 0;
             let before = operation

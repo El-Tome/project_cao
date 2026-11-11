@@ -4145,3 +4145,53 @@ the branch, none the other way. 352000000002266's shrunk case, declined
 
 **Left.** A cone's turns are not read this way: neither its angle nor its
 rays are compared here, so a leaning cone touching a face could still fold.
+
+## #857: the campaign excuses a cone and an elliptic wall the kernel takes as coaxial
+
+Part of #497. Sorting the walls sets' `Answers` failures by cause, on
+`main` at a6d67efd, found 98 of 263 to be one decline the campaign's scope
+promises to excuse: a cone and an elliptic wall drawn 4e-8° to 3e-7° apart,
+about 1e-7 off axis. Decision 11 (`canonical/squared.rs`) turns the later
+leaf onto the earlier for a sine up to a hair of the reach over the leaf's
+lever, about the middle of where the two boxes overlap; `relation/conical.rs`
+then declines the now coaxial pair, `Unsupported`, as the scope's doc says it
+should. The scope read "about the cone's axis" from the tilt and the offset
+as drawn, so it excused none of them. `random_solids/scope.rs` now reads the
+same bound on the tilt, and the axes' gap where the kernel turns them.
+
+The rest of the sort, for the record — each on both kernels and the three
+walls sets, `main` at a6d67efd:
+
+| Group | Cases | Where and why | Carried by |
+| --- | --- | --- | --- |
+| A | 98 | a cone and an elliptic wall laid coaxial and declined | this section |
+| C | 59 | the body's plane caps left uncut, `Undrawn` (on the exact kernel, mostly `Open`) | #858 |
+| B | 47 | `Unverified` in `assembly.rs::verified` | #707, #756 |
+| D | 34 | a cone against a wall closer than a chord's sag | #720 |
+| E | 9 | a cone's rim circle crossing a second cone | #577 |
+| F | 8 | a cylinder and an elliptic wall too near to build | #707, #577 |
+| G | 6 | a `Tie` | #707, #756 |
+| H | 2 | `Unsupported` in `domain/traced/taken.rs` | — |
+
+**How it was measured.** The walls and turned sets, on `main` (#855's
+production code) and on the branch (6f624343), compared seed by seed.
+
+| Set | Exact, `main` | Exact, #857 | Body, `main` | Body, #857 |
+| --- | --- | --- | --- | --- |
+| walls 352… | 40 | 32 | 84 | 58 |
+| walls 353… | 24 | 14 | 79 | 58 |
+| walls 354… | 37 | 30 | 83 | 57 |
+| turned 533300000… | 20 | 20 | 40 | 40 |
+
+The 98 seeds that leave the failures are exactly group A's, and none joins
+them: the walls failures go from 347 to 249. Five tests hold the bound both
+ways — a pair one step past what decision 11 lays is built and not excused,
+and a pair whose axes meet on the wall's sketch plane far from the cone is
+built and not excused, while its mirror, meeting where the kernel turns, is
+declined and excused.
+
+**Left.** The scope assumes the kernel's turn succeeds; with three leaves or
+more, a turn solved over several pairs can fail, and the scope reads the
+earlier leaf's box where the kernel reads the body built so far. A cylinder
+or a cone about the cone's axis is still read as drawn: none of the failures
+is such a pair.

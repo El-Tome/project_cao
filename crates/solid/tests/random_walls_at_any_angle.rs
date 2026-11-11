@@ -255,6 +255,29 @@
 //!   kernels — no test: the production diff changes no executable code (doc
 //!   comments only), so every draw is identical by construction; no campaign
 //!   was run
+//!
+//! A cone and an elliptic wall drawn a hair off coaxial are laid coaxial by
+//! decision 11 before the kernel reads them, and declined as such.
+//!
+//! Closes #857.
+//! - A test of the scope rule holds a cone and an elliptic wall drawn as
+//!   group A's are — a tilt the kernel aligns — as excused, and one drawn
+//!   just past what the kernel aligns as not —
+//!   `seed_353000000005017_an_elliptic_shaft_bored_by_a_cone_leaning_1e_7_degrees_is_declined_and_excused`,
+//!   `the_same_bore_leaning_1_5e_6_degrees_past_what_decision_11_lays_is_built_and_not_excused`,
+//!   and the seed as drawn, judged by the campaign's own check,
+//!   `seed_353000000005017_as_drawn_is_counted_as_declined_on_both_kernels`;
+//!   the axes read apart where the kernel turns the cone, the middle of the
+//!   two leaves' overlap, not on the elliptic wall's sketch plane:
+//!   `a_cone_whose_axis_crosses_the_elliptic_wall_s_on_its_sketch_plane_far_from_the_cone_is_built_and_not_excused`,
+//!   `a_cone_whose_axis_crosses_the_elliptic_wall_s_at_the_cone_s_middle_is_declined_as_coaxial_and_excused`
+//! - The walls sets 352, 353, 354 and the turned set, run against `main`:
+//!   every seed that leaves the failures is one the kernel declines as
+//!   coaxial cone and elliptic wall, and no seed joins them; recorded in
+//!   `docs/exact-kernel-failures.md` — no test: a campaign fails on any
+//!   finding, so the campaigns are run on `main` and on the branch over
+//!   those sets and compared seed by seed, the result recorded in the
+//!   document
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -2628,6 +2651,123 @@ fn seed_25875769010357_is_answered_through_the_application_s_body() {
 #[ignore = "a box floor against a cylinder cap leaning a hair, failing on main too, #707"]
 fn seed_93075255850138_a_floor_against_a_cap_leaning_a_hair_keeps_every_rule() {
     walls_seed_on_the_exact_kernel(93075255850138);
+}
+
+/// Decision 11 turns the cone onto the shaft's axis under a sine of
+/// `Scale::HAIR · eps / lever`, 20 · 1e-9 · 14.49 / 12.80 here: 1.297e-6°.
+fn an_elliptic_shaft_bored_by_a_cone_leaning(degrees: f64) -> Case {
+    Case::new(
+        Leaf::prism(
+            Plane::xz(-0.5),
+            Outline::ellipse([-2.0, 2.0], [-2.0, 0.0], 3.5),
+            -5.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::yz(-2.0),
+            Axis::first(1.9999999965093416).leaning(degrees),
+            Section::bands(-10.486832980505138, &[[24.973665961010276, 0.0, 1.5]])
+                .sloping_to(&[[0.0, 2.0]]),
+            360.0,
+        ))],
+    )
+}
+
+#[test]
+fn seed_353000000005017_an_elliptic_shaft_bored_by_a_cone_leaning_1e_7_degrees_is_declined_and_excused()
+ {
+    let case = an_elliptic_shaft_bored_by_a_cone_leaning(1e-7);
+    assert_eq!(
+        answered(&case, &Exact).err(),
+        Some(Declined::Unsupported),
+        "{case}"
+    );
+    assert_eq!(
+        answered(&case, &Application).err(),
+        Some(Declined::Unsupported),
+        "{case}"
+    );
+    assert!(
+        case.asks_beyond_the_conics(),
+        "the kernel lays the cone along the elliptic wall's axis and declines the \
+         pair as coaxial, which the scope rule promises to excuse\n{case}"
+    );
+}
+
+#[test]
+fn the_same_bore_leaning_1_5e_6_degrees_past_what_decision_11_lays_is_built_and_not_excused() {
+    let case = an_elliptic_shaft_bored_by_a_cone_leaning(1.5e-6);
+    if let Err(declined) = answered(&case, &Exact) {
+        panic!("the kernel builds a cone it does not lay coaxial: {declined:?}\n{case}");
+    }
+    assert!(
+        !case.asks_beyond_the_conics(),
+        "a pair the kernel builds is held to every rule, not excused\n{case}"
+    );
+}
+
+#[test]
+fn seed_353000000005017_as_drawn_is_counted_as_declined_on_both_kernels() {
+    let case = Case::drawn_walls_at_any_angle(353000000005017);
+    let exact = random_solids::held_to_arithmetic(&case, &Exact)
+        .unwrap_or_else(|flaw| panic!("on the exact kernel: {flaw:?}\n{case}"));
+    assert_eq!(exact.declined, 1, "{case}");
+    let applied = random_solids::held_to_arithmetic(&case, &Application)
+        .unwrap_or_else(|flaw| panic!("through the application's body: {flaw:?}\n{case}"));
+    assert_eq!(applied.declined, 1, "{case}");
+}
+
+fn an_elliptic_shaft_60_long_bored_at_50_by_a_cone_leaning(radians: f64, crossing: f64) -> Case {
+    Case::new(
+        Leaf::prism(
+            Plane::xz(0.0),
+            Outline::ellipse([0.0, 0.0], [3.0, 0.0], 2.0),
+            -60.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::yz(0.0),
+            Axis::first(-crossing * radians.tan()).leaning(radians.to_degrees()),
+            Section::bands(48.0, &[[4.0, 0.0, 1.5]]).sloping_to(&[[0.0, 2.5]]),
+            360.0,
+        ))],
+    )
+}
+
+#[test]
+fn a_cone_whose_axis_crosses_the_elliptic_wall_s_on_its_sketch_plane_far_from_the_cone_is_built_and_not_excused()
+ {
+    let case = an_elliptic_shaft_60_long_bored_at_50_by_a_cone_leaning(2.5e-7, 0.0);
+    if let Err(declined) = answered(&case, &Exact) {
+        panic!(
+            "turned about the cone's middle, 50 from where the axes cross, the axes stand \
+             1.25e-5 apart, ten hairs: not coaxial, and built: {declined:?}\n{case}"
+        );
+    }
+    assert!(
+        !case.asks_beyond_the_conics(),
+        "the axes meet on the sketch plane, but the kernel reads them where it turns \
+         the cone, ten hairs apart: a pair it builds is held to every rule\n{case}"
+    );
+}
+
+#[test]
+fn a_cone_whose_axis_crosses_the_elliptic_wall_s_at_the_cone_s_middle_is_declined_as_coaxial_and_excused()
+ {
+    let case = an_elliptic_shaft_60_long_bored_at_50_by_a_cone_leaning(2.5e-7, 50.0);
+    assert_eq!(
+        answered(&case, &Exact).err(),
+        Some(Declined::Unsupported),
+        "{case}"
+    );
+    assert_eq!(
+        answered(&case, &Application).err(),
+        Some(Declined::Unsupported),
+        "{case}"
+    );
+    assert!(
+        case.asks_beyond_the_conics(),
+        "the axes stand ten hairs apart on the sketch plane, but meet where the kernel \
+         turns the cone, which lays them coaxial and declines the pair\n{case}"
+    );
 }
 
 /// The campaigns, compiled only when asked for — `--features campaigns` —

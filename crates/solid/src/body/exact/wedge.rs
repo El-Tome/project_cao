@@ -171,7 +171,7 @@ impl Exact {
             if odd.is_empty() {
                 self.in_turn(names, step, taken, &kind)
             } else {
-                self.round_the_odd(names, &step.wedges, &odd, taken, &kind)
+                self.round_the_odd(names, &step, &odd, taken, &kind)
             }
         })
     }

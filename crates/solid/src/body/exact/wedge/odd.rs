@@ -14,14 +14,15 @@
 //! laid against that as alone, and a piece of torus replaces what the filling
 //! left, as [`super::torus`] lays it; the top of an L's inner corner, the
 //! mirror, is propped, laid, cleared and closed by a piece of torus cut out.
-//! Either way each named edge's
-//! face is numbered by its rank, and every patch — a flat no name finds, a
-//! piece of torus, a corner closed on the way — past them by its corner's
-//! ranks. A corner whose odd edge's other end meets an edge of the list laid
-//! after it is declined: slice 3 of #829 builds a standing block's top
-//! corner, #847 a post whose upright is odd at both ends.
+//! An odd edge whose other end closes a corner of one sense with edges of
+//! the list, an upright with its block's top edges, is laid with them, that
+//! corner closed as #699 closes it. Either way each named edge's face is
+//! numbered by its rank, and every patch — a flat no name finds, a piece of
+//! torus, a corner closed on the way — past them by its corner's ranks. An
+//! odd edge whose other end meets an edge of the list any other way is
+//! declined: #847 builds a post whose upright is odd at both ends.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use glam::DVec3;
 
@@ -65,10 +66,11 @@ pub(in crate::body::exact) enum Around {
 /// `Unsupported` where the two others at such a corner share no face, an
 /// edge is the odd one at one corner and one of the two others at another,
 /// or an odd edge meets at its other end an edge of the list that is odd at
-/// no corner — a standing block's top corner, which slice 3 of #829 builds,
-/// or the far feet of a post odd at both ends, which #847 builds. Odd edges
-/// meeting each other there, the slanted edges of a pyramid at its apex, are
-/// laid together first.
+/// no corner without closing a corner of three edges of one sense with it,
+/// as [`laid_first`] lays them: the far feet of a post odd at both ends,
+/// which #847 builds. Odd edges meeting each other there, the slanted edges
+/// of a pyramid at its apex, and the top edges of a standing block meeting
+/// its uprights at its top corners, are laid with them first.
 pub(super) fn corners(body: &brep::Body, step: &Step) -> Result<Vec<Odd>, Declined> {
     let mut odd: Vec<Odd> = Vec::new();
     for &(at, ranks, along) in &step.three {
@@ -93,15 +95,52 @@ pub(super) fn corners(body: &brep::Body, step: &Step) -> Result<Vec<Odd>, Declin
     let crossed = odd.iter().any(|corner| {
         (odd.iter()).any(|other| other.lone != corner.lone && other.ranks.contains(&corner.lone))
     });
+    let closing = |one: usize, other: usize| {
+        (alike(step).iter()).any(|ranks| ranks.contains(&one) && ranks.contains(&other))
+    };
     let topped = odd.iter().any(|corner| {
         (0..step.edges.len())
             .filter(|&rank| !lone(rank) && !corner.ranks.contains(&rank))
+            .filter(|&rank| !closing(corner.lone, rank))
             .any(|rank| super::corners::meet(body, [step.edges[corner.lone], step.edges[rank]]))
     });
     if crossed || topped {
         return Err(Declined::Unsupported);
     }
     Ok(odd)
+}
+
+/// The corners three of a step's edges meet at, all of one sense, by their
+/// ranks: those #699 closes, and #801 at a pocket's bottom.
+fn alike(step: &Step) -> Vec<[usize; 3]> {
+    (step.three.iter())
+        .map(|&(_, ranks, _)| ranks)
+        .filter(|ranks| {
+            let sense = step.wedges[ranks[0]].inwards;
+            ranks.iter().all(|&rank| step.wedges[rank].inwards == sense)
+        })
+        .collect()
+}
+
+/// The ranks of the edges of a step laid first, ascending: each odd edge of
+/// `odd`, and every edge closing a corner of three of one sense, as [`alike`]
+/// reads them, with one laid first — the top edges of a standing block whose
+/// uprights are odd at their feet, their top corners closed among them as
+/// #699 closes one, before the feet go round the uprights.
+fn laid_first(step: &Step, odd: &[Odd]) -> Vec<usize> {
+    let mut first: BTreeSet<usize> = odd.iter().map(|corner| corner.lone).collect();
+    let closing = alike(step);
+    loop {
+        let before = first.len();
+        for ranks in &closing {
+            if ranks.iter().any(|rank| first.contains(rank)) {
+                first.extend(ranks);
+            }
+        }
+        if first.len() == before {
+            return first.into_iter().collect();
+        }
+    }
 }
 
 /// What a list of edges laid in turn leaves: the body, and the corners three
@@ -127,33 +166,35 @@ impl Exact {
     /// mixed sense `odd` holds gone round its odd edge as the kind's
     /// `meeting` says: by the edge of the face it laid, as
     /// [`Exact::round_the_edge`] lays it, or through a piece of torus, as
-    /// [`Exact::through_a_torus`] lays it, each edge's wedge on this body by
-    /// its rank in `wedges`. The pairs laid as
+    /// [`Exact::through_a_torus`] lays it, `step` what the names find on this
+    /// body. The pairs laid as
     /// one are handed back through a piece of torus alone, where the fillet
     /// reads them; the chamfer, which goes round by that edge, reads none, and
     /// none is handed back that way. Declined as those decline.
     pub(super) fn round_the_odd(
         &self,
         names: &[EdgeName],
-        wedges: &[Wedge],
+        step: &Step,
         odd: &[Odd],
         taken: f64,
         kind: &Kind,
     ) -> Result<(Exact, f64, Vec<Pair>), Declined> {
         match kind.meeting.around {
-            Around::Edge => (self.round_the_edge(names, wedges, odd, taken, kind))
+            Around::Edge => (self.round_the_edge(names, step, odd, taken, kind))
                 .map(|(round, taken)| (round, taken, Vec::new())),
-            Around::Torus => self.through_a_torus(names, wedges, odd, taken, kind),
+            Around::Torus => self.through_a_torus(names, &step.wedges, odd, taken, kind),
         }
     }
 
     /// The body with the edges `names` find laid at `taken`, each corner of
     /// mixed sense `odd` holds gone round its odd edge: the odd edges first,
-    /// alone, then the others — each followed onto what the odd edges left,
-    /// as [`Exact::following`] finds it, its wedge on this body by its rank in
-    /// `wedges` — with, for each such corner, the edge where the face its odd
-    /// edge laid meets the face the two others share, as [`Exact::in_turn`]
-    /// lays each of the two lists with `kind`. The face laid on each named
+    /// with every edge closing a corner of one sense with them, as
+    /// [`laid_first`] reads them on `step`, what the names find on this body;
+    /// then the others — each followed onto what that left, as
+    /// [`Exact::following`] finds it — with, for each such corner, the edge
+    /// where the face its odd edge laid meets the face the two others share,
+    /// as [`Exact::in_turn`] lays each of the two lists with `kind`. The face
+    /// laid on each named
     /// edge is numbered where the steps' numbers ended plus its rank in the
     /// list, and every patch past them, in the order of its corner's ranks
     /// in the list, as [`ranked_patches`] numbers them: the flat laid on each
@@ -169,14 +210,17 @@ impl Exact {
     fn round_the_edge(
         &self,
         names: &[EdgeName],
-        wedges: &[Wedge],
+        step: &Step,
         odd: &[Odd],
         taken: f64,
         kind: &Kind,
     ) -> Result<(Exact, f64), Declined> {
         let start = self.next;
-        let (first, rest): (Vec<usize>, Vec<usize>) =
-            (0..names.len()).partition(|&rank| odd.iter().any(|corner| corner.lone == rank));
+        let wedges = &step.wedges;
+        let first = laid_first(step, odd);
+        let rest: Vec<usize> = (0..names.len())
+            .filter(|rank| !first.contains(rank))
+            .collect();
         let named = |ranks: &[usize]| -> Vec<EdgeName> {
             ranks.iter().map(|&rank| names[rank].clone()).collect()
         };

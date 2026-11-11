@@ -15,8 +15,8 @@
 //! the feet's rounds join through a piece of torus about the upright round's
 //! axis, its tube of the value's radius and its centre circle twice the value
 //! from that axis, tangent to both rounds, to the lower block's top and to
-//! the upright's round. Slice 2, the top of the L's inner corner, is below;
-//! slice 3, every edge of a standing block, is still to come.
+//! the upright's round. Slice 2, the top of the L's inner corner, and slice
+//! 3, every edge of a standing block, are below.
 //!
 //! - The three edges at a standing block's foot corner — two feet and the
 //!   upright above them — leave a closed, sound, drawn body when chamfered or
@@ -88,12 +88,13 @@
 //!   one list the decline test gives up
 //! - Not in the issue's wording, a guard held until slice 3: a foot corner
 //!   named with the top corner of its upright — both feet, the upright and
-//!   the standing block's two top edges at its top — is declined
+//!   the standing block's two top edges at its top — was declined
 //!   `Unsupported`, chamfered or filleted, whatever the order, so that no
-//!   shape ships before a test holds it; the same guard declines a post
-//!   joining a floor plate and a ceiling plate, its upright the odd edge at
-//!   both its ends, which #847 builds. Slice 3 turns it into a body test —
-//!   `a_fillet_and_a_chamfer_on_a_foot_corner_and_the_top_corner_of_its_upright_are_declined_as_unsupported_until_slice_3_builds_them`
+//!   shape shipped before a test held it. Slice 3 turns it into the body
+//!   test below. What the guard still declines is a post joining a floor
+//!   plate and a ceiling plate, its upright the odd edge at both its ends,
+//!   which #847 builds —
+//!   `a_fillet_and_a_chamfer_on_a_post_s_upright_and_the_feet_at_both_its_ends_are_declined_as_unsupported_until_847_builds_them`
 //! - Not in the issue's wording: where the odd edges, laid first, close a
 //!   corner of their own, each face is still numbered as the fourth
 //!   criterion reads it. A triangular pyramid standing on a plate, each
@@ -365,6 +366,52 @@
 //! far end, gives the part the moment times `cot β` whether that edge is
 //! filled or cut. Held another way in the test itself: the body two steps
 //! build, to a hair at 1 and 2.
+//!
+//! Part of #829, its third slice: every edge of a standing block. Its top
+//! corners are convex, each closed as #699 closes one, by a triangle among
+//! flats and a piece of sphere among rounds; its foot corners are gone round
+//! their uprights as the first slice goes round one. Each upright is the odd
+//! edge at its foot and one of three like edges at its top.
+//!
+//! - The twelve edges of a standing block — its four top edges, four
+//!   uprights and four feet — chamfered or filleted at one value in one
+//!   step: its top corners closed as #699 closes a convex corner (a
+//!   triangle, a piece of sphere), its foot corners as slice 1. Closed,
+//!   sound, drawn, volume exact, the same body for the list as given,
+//!   reversed, and one other order —
+//!   `a_chamfer_and_a_fillet_on_the_twelve_edges_of_a_standing_block_close_its_top_corners_as_a_convex_corner_and_its_foot_corners_round_their_uprights`.
+//!   Read as: each edge's face at its rank, lying about its edge's middle, a
+//!   flat facing halfway between its edge's two faces; the eight patches
+//!   after them by their corners' lowest ranks, then the next; at each top
+//!   corner the triangle facing out of it, or the eighth of a sphere `r` in
+//!   from its three faces, touching each, met by rays from its centre and
+//!   meeting its three rounds; at each foot corner the fill along the foot
+//!   of the upright's flat, or the first slice's piece of torus. Chamfered,
+//!   the body two steps leave too, face for face: the block's top half
+//!   first, then the feet and the feet of the uprights' flats
+//! - Beside it, the smaller case it is built from, not in the issue's
+//!   wording: one foot corner and the corner at the top of its upright, both
+//!   feet, the upright and the two top edges at its top, which slice 1's
+//!   guard declined — held the same way, every order —
+//!   `a_chamfer_and_a_fillet_on_a_foot_corner_and_the_top_corner_of_its_upright_close_both_in_one_step`
+//!
+//! The volumes are arithmetic: every edge takes or adds its section along its
+//! whole length, the top corners give back what #699's convex corner gives
+//! back — `2d³/3` among flats, `r³(2 − 7π/12)` among rounds, each corner's
+//! three edges counted whole — and the foot corners add what the first slice
+//! adds round its uprights, the uprights counted once. On the five edges at
+//! both ends of the front right upright, the front right foot corner's own
+//! volume and its two top edges', 10 each:
+//! `7000 − 15d² + 2d³/3 + (20 − 2d + d√2)·d²/2 + 2·tan(22.5°)·d³/3` among
+//! flats, and
+//! `7000 − 30·r²(1 − π/4) + r³(2 − 7π/12) + 2(10 − r)·r²(1 − π/4) + (π/2)·r³(11/6 − π/2)`
+//! among rounds. On the twelve, the four feet and four uprights' octagon or
+//! rounds, and the four top edges' 40 with their four corners:
+//! `7000 − 40d² + 8d³/3 + (40 − 8d + 4d√2)·d²/2 + 8·tan(22.5°)·d³/3` among flats,
+//! and `7000 − 80·r²(1 − π/4) + 4(10 − 2r)·r²(1 − π/4) + 2π·r³(11/6 − π/2) +
+//! 4r³(2 − 7π/12)` among rounds. Held another way in the test, among flats:
+//! the body two steps build, the block's top half and then its feet, to a
+//! hair at 1 and 2.5.
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -2192,20 +2239,552 @@ const BOTH_ENDS_OF_AN_UPRIGHT: [[usize; 2]; 5] = [
     [STANDING_TOP, STANDING_RIGHT],
 ];
 
-#[test]
-fn a_fillet_and_a_chamfer_on_a_foot_corner_and_the_top_corner_of_its_upright_are_declined_as_unsupported_until_slice_3_builds_them()
- {
+/// A corner a list of [`stacked`]'s standing block's edges closes, by its
+/// three edges' places in that list: a foot corner, gone round its upright as
+/// the first slice lays it, its two feet first, then the upright; or the
+/// convex corner at the top of that upright, closed as #699 closes one; and
+/// which corner of [`stacked_s_foot_corners`] it stands at, or above.
+struct OfTheBlock {
+    edges: [usize; 3],
+    foot: bool,
+    under: usize,
+}
+
+/// The way a face of [`stacked`] an edge of its standing block lies between
+/// faces, out of the matter.
+fn facing_of(face: usize) -> DVec3 {
+    match face {
+        TOP | STANDING_TOP => DVec3::Z,
+        STANDING_FRONT => -DVec3::Y,
+        STANDING_RIGHT => DVec3::X,
+        STANDING_BACK => DVec3::Y,
+        STANDING_LEFT => -DVec3::X,
+        _ => panic!("no way known for face {face}"),
+    }
+}
+
+/// Where the middle of an edge of [`stacked`]'s standing block stands, by the
+/// faces it lies between: a foot at the bottom of its wall, a top edge at the
+/// top, an upright halfway up between its two walls.
+fn middle_on_the_block(edge: [usize; 2]) -> DVec3 {
+    let across = |wall: usize| match wall {
+        STANDING_FRONT => DVec2::new(15.0, 5.0),
+        STANDING_RIGHT => DVec2::new(20.0, 10.0),
+        STANDING_BACK => DVec2::new(15.0, 15.0),
+        STANDING_LEFT => DVec2::new(10.0, 10.0),
+        _ => panic!("no wall {wall}"),
+    };
+    match edge {
+        [TOP, wall] => across(wall).extend(LOWER_TOP),
+        [STANDING_TOP, wall] => across(wall).extend(LOWER_TOP + STANDING_HEIGHT),
+        [one, other] => {
+            let middle = across(one) + across(other) - DVec2::new(15.0, 10.0);
+            middle.extend(LOWER_TOP + STANDING_HEIGHT / 2.0)
+        }
+    }
+}
+
+/// Holds that the face numbered `piece` is the piece of sphere closing a
+/// convex corner: drawn on the sphere of `radius` about `centre`, within the
+/// octant the three ways `outward` the corner's faces face bound, touching
+/// each of those faces' planes, met first by every ray from the centre out
+/// into that octant, facing along it, and meeting the three rounds `rounds`,
+/// one edge each.
+fn sphere_held(
+    body: &Body,
+    piece: usize,
+    (centre, radius): (DVec3, f64),
+    outward: [DVec3; 3],
+    rounds: &[usize],
+    what: &str,
+) {
+    let which = format!("{what}: the piece of sphere, face {piece}");
+    let touching = outward.map(|way| centre + way * radius);
+    curved_and_drawn_on(
+        body,
+        piece,
+        |point| {
+            let off = point - centre;
+            (off.length() - radius).abs() < PLACE
+                && outward.iter().all(|&way| off.dot(way) >= -PLACE)
+        },
+        &touching,
+        &which,
+    );
+    for weights in [
+        [1.0, 1.0, 1.0],
+        [3.0, 1.0, 1.0],
+        [1.0, 3.0, 1.0],
+        [1.0, 1.0, 3.0],
+    ] {
+        let way = (0..3)
+            .map(|face| outward[face] * weights[face])
+            .sum::<DVec3>()
+            .normalize();
+        let hit = body
+            .ray_hit(centre, way)
+            .unwrap_or_else(|| panic!("{which}: a ray from its centre {centre} meets nothing"));
+        assert_eq!(
+            hit.face, piece,
+            "{which}: a ray from its centre {centre} meets face {} before it",
+            hit.face
+        );
+        assert!(
+            hit.normal.distance(way) < PLACE,
+            "{which}: where a ray from its centre meets it, it faces {}, not {way}, away from its \
+             centre",
+            hit.normal
+        );
+    }
+    assert_eq!(
+        sides_met(body, piece),
+        sides(rounds),
+        "{which} meets the three rounds, one edge each, and nothing else"
+    );
+}
+
+/// Holds what a step of its blend and value on a list of [`stacked`]'s
+/// standing block's edges `edges`, named in its order, the corners
+/// `corners` closed among them, leaves of the part:
+///
+/// - the value taken whole; a sound body holding `promised`;
+/// - one face for each edge, answering to where the part's numbers ended
+///   plus the edge's rank, lying about the edge's middle, a flat facing
+///   halfway between its edge's two faces; then one patch at each corner,
+///   by the lowest ranks of its edges, then the next; the next step's
+///   numbers past them;
+/// - at a foot corner, the fill along the foot of the upright's flat, or the
+///   piece of torus as the first slice lays it; at a top corner, the
+///   triangle facing out of the corner, or the piece of sphere.
+fn closed_round_the_block(
+    part: &Body,
+    edges: &[[usize; 2]],
+    corners: &[OfTheBlock],
+    case: &Case,
+    promised: f64,
+) {
+    let Case {
+        cut,
+        value,
+        step,
+        what,
+        ..
+    } = case;
+    let (cut, value) = (*cut, *value);
+    taken_as_asked(step.asked, step.taken, value, what);
+    let body = &step.body;
+    let foot_corners = stacked_s_foot_corners();
+    let drawn = match cut {
+        Cut::Flat => EXACT * promised,
+        Cut::Round => {
+            let curved = PI / 2.0 * value * 10.0 * edges.len() as f64
+                + corners.len() as f64 * PI * value * value;
+            DRAWN * reach_of(part) * curved
+        }
+    };
+    sound_drawn_within(body, promised, drawn, what);
+    let start = part.faces_end();
+    assert_eq!(
+        faces_made(part, body),
+        (start..start + edges.len() + corners.len()).collect::<Vec<_>>(),
+        "{what}: one face for each edge, and a patch at each corner after them: {:?}",
+        numbers(body)
+    );
+    assert_eq!(
+        body.faces_end(),
+        start + edges.len() + corners.len(),
+        "{what}: the next step numbers its own faces past the patches"
+    );
+    let laid = |edge: usize| case.laid_on(part, edge);
+    for (edge, &[one, other]) in edges.iter().enumerate() {
+        let which = format!(
+            "{what}: the face on {:?}, numbered by its rank",
+            [one, other]
+        );
+        lies_about(
+            body,
+            laid(edge),
+            middle_on_the_block([one, other]),
+            2.0 * value,
+            &which,
+        );
+        if cut == Cut::Flat {
+            let way = (facing_of(one) + facing_of(other)).normalize();
+            faces_toward(body, laid(edge), way, &which);
+        }
+    }
+    let by_edges: Vec<[usize; 3]> = corners.iter().map(|corner| corner.edges).collect();
+    let patches = case.patches(part, &by_edges);
+    for (corner, patch) in corners.iter().zip(patches) {
+        let under = &foot_corners[corner.under];
+        let [one, other] = under.feet.each_ref().map(|foot| foot.facing);
+        let rounds: Vec<usize> = corner.edges.iter().map(|&edge| laid(edge)).collect();
+        let top = under.at + DVec3::Z * STANDING_HEIGHT;
+        let which = format!(
+            "{what}: the patch {} {}, face {patch}",
+            if corner.foot { "at" } else { "above" },
+            under.called
+        );
+        match (corner.foot, cut) {
+            (true, Cut::Flat) => {
+                faces_toward(body, patch, under.flats_facing().1, &which);
+                lies_about(body, patch, under.at, 2.0 * value, &which);
+            }
+            (true, Cut::Round) => piece_held(body, patch, &under.torus(value), &rounds, &which),
+            (false, Cut::Flat) => {
+                faces_toward(body, patch, (DVec3::Z + one + other).normalize(), &which);
+                lies_about(body, patch, top, 2.0 * value, &which);
+            }
+            (false, Cut::Round) => sphere_held(
+                body,
+                patch,
+                (top - (DVec3::Z + one + other) * value, value),
+                [DVec3::Z, one, other],
+                &rounds,
+                &which,
+            ),
+        }
+    }
+}
+
+/// [`stacked`] chamfered at `value` in two steps on the edges `edges` of its
+/// standing block, the corners `corners` closed among them: first every edge
+/// but the feet, in the order `edges` names them, its top corners closed by
+/// #699's triangles and each upright's flat stopping flush on the lower
+/// block's top; then the feet, in that order, and the feet of the flats laid
+/// on the foot corners' uprights, in the order of `corners`. With it, the
+/// number each edge's flat and each corner's patch answers to there.
+fn chamfered_round_the_block_in_two_steps(
+    edges: &[[usize; 2]],
+    corners: &[OfTheBlock],
+    value: f64,
+) -> (Body, Vec<usize>, Vec<usize>) {
     let part = stacked();
-    let names = BOTH_ENDS_OF_AN_UPRIGHT.map(|[first, second]| edge_between(&part, first, second));
+    let start = part.faces_end();
+    let is_foot = |edge: usize| edges[edge][0] == TOP;
+    let upper: Vec<usize> = (0..edges.len()).filter(|&edge| !is_foot(edge)).collect();
+    let feet: Vec<usize> = (0..edges.len()).filter(|&edge| is_foot(edge)).collect();
+    let names = |body: &Body, ranks: &[usize]| -> Vec<EdgeName> {
+        (ranks.iter())
+            .map(|&edge| edge_between(body, edges[edge][0], edges[edge][1]))
+            .collect()
+    };
+    let first = part
+        .chamfer_edges(&names(&part, &upper), value)
+        .unwrap_or_else(|declined| panic!("the block's top half is chamfered: {declined:?}"));
+    taken_as_asked(first.asked, first.taken, value, "the block's top half");
+    let halfway = first.body;
+    let at_first = |edge: usize| upper.iter().position(|&upper| upper == edge);
+    let tops: Vec<[usize; 3]> = (corners.iter())
+        .filter(|corner| !corner.foot)
+        .map(|corner| {
+            corner
+                .edges
+                .map(|edge| at_first(edge).expect("a top corner's edges"))
+        })
+        .collect();
+    let first_case = Case {
+        order: (0..upper.len()).collect(),
+        cut: Cut::Flat,
+        value,
+        step: Laid {
+            body: halfway.clone(),
+            asked: value,
+            taken: value,
+        },
+        what: String::new(),
+    };
+    let triangles = first_case.patches(&part, &tops);
+    let foot_corners: Vec<&OfTheBlock> = corners.iter().filter(|corner| corner.foot).collect();
+    let flats: Vec<usize> = (foot_corners.iter())
+        .map(|corner| start + at_first(corner.edges[2]).expect("an upright is laid first"))
+        .collect();
+    let second: Vec<EdgeName> = (names(&halfway, &feet).into_iter())
+        .chain(flats.iter().map(|&flat| edge_between(&halfway, TOP, flat)))
+        .collect();
+    let then = halfway.faces_end();
+    let filled = halfway
+        .chamfer_edges(&second, value)
+        .unwrap_or_else(|declined| panic!("the feet round the chamfered uprights: {declined:?}"));
+    taken_as_asked(
+        filled.asked,
+        filled.taken,
+        value,
+        "the feet round the uprights",
+    );
+    let laid: Vec<usize> = (0..edges.len())
+        .map(|edge| match at_first(edge) {
+            Some(rank) => start + rank,
+            None => then + feet.iter().position(|&foot| foot == edge).expect("a foot"),
+        })
+        .collect();
+    let mut tops_laid = triangles.into_iter();
+    let mut feet_laid = (0..foot_corners.len()).map(|place| then + feet.len() + place);
+    let patches: Vec<usize> = (corners.iter())
+        .map(|corner| {
+            if corner.foot {
+                feet_laid.next().expect("a fill for each foot corner")
+            } else {
+                tops_laid.next().expect("a triangle for each top corner")
+            }
+        })
+        .collect();
+    (filled.body, laid, patches)
+}
+
+/// Holds that the edges `edges` of [`stacked`]'s standing block, named in each
+/// of `orders` and blended by each cut at each of [`VALUES`] in one step,
+/// leave what [`closed_round_the_block`] holds, the corners `corners` closed
+/// and the part keeping what `kept` says for the cut and the value; chamfered,
+/// the body [`chamfered_round_the_block_in_two_steps`] builds, face for face,
+/// whose matter `kept` gives too; and the same body whatever the order. Every
+/// list is laid before any body is read.
+fn closed_round_the_block_in_every_order(
+    edges: &[[usize; 2]],
+    corners: &[OfTheBlock],
+    orders: &[Vec<usize>],
+    kept: impl Fn(Cut, f64) -> f64,
+    called: &str,
+) {
+    let part = stacked();
+    let names: Vec<EdgeName> = edges
+        .iter()
+        .map(|&[first, second]| edge_between(&part, first, second))
+        .collect();
+    let in_two_steps = VALUES.map(|value| {
+        let (body, laid, patches) = chamfered_round_the_block_in_two_steps(edges, corners, value);
+        let promised = kept(Cut::Flat, value);
+        assert!(
+            (body.volume() - promised).abs() <= EXACT * promised,
+            "{called}, the chamfer of {value} in two steps, the block's top half then its feet: \
+             the body holds {}, where arithmetic promised {promised}",
+            body.volume()
+        );
+        (body, laid, patches)
+    });
+    let mut laid = Vec::new();
+    let mut declined = Vec::new();
+    for cut in [Cut::Flat, Cut::Round] {
+        for value in VALUES {
+            for order in orders {
+                let what = format!(
+                    "the {} of {value} on {called}, named {order:?}",
+                    cut.called()
+                );
+                let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
+                match cut.laid_on(&part, &list, value) {
+                    Ok(step) => laid.push(Case {
+                        order: order.clone(),
+                        cut,
+                        value,
+                        step,
+                        what,
+                    }),
+                    Err(reason) => declined.push(format!("{what}: {reason:?}")),
+                }
+            }
+        }
+    }
+    assert!(
+        declined.is_empty(),
+        "{called}: every corner closed in one step, the top corners as #699 closes them, the \
+         foot corners as the first slice goes round them; declined:\n{}",
+        declined.join("\n")
+    );
+    let by_edges: Vec<[usize; 3]> = corners.iter().map(|corner| corner.edges).collect();
+    for case in &laid {
+        closed_round_the_block(&part, edges, corners, case, kept(case.cut, case.value));
+        if case.cut == Cut::Flat {
+            let at = VALUES
+                .iter()
+                .position(|&value| value == case.value)
+                .expect("every case is laid at one of the values");
+            let (two_steps, in_two, patches_in_two) = &in_two_steps[at];
+            let to_two_steps: Vec<(usize, usize)> = (0..edges.len())
+                .map(|edge| (case.laid_on(&part, edge), in_two[edge]))
+                .chain(
+                    (case.patches(&part, &by_edges).into_iter())
+                        .zip(patches_in_two.iter().copied()),
+                )
+                .collect();
+            the_same_bodies(
+                two_steps,
+                &case.step.body,
+                &to_two_steps,
+                &format!(
+                    "{}, and the body two steps leave, the block's top half then its feet",
+                    case.what
+                ),
+            );
+        }
+    }
+    for case in &laid {
+        let first = laid
+            .iter()
+            .find(|other| other.cut == case.cut && other.value == case.value)
+            .expect("the case itself is among them");
+        if std::ptr::eq(first, case) {
+            continue;
+        }
+        let [mine, theirs] = [case, first].map(|one| one.patches(&part, &by_edges));
+        let to_first: Vec<(usize, usize)> = (0..edges.len())
+            .map(|edge| (case.laid_on(&part, edge), first.laid_on(&part, edge)))
+            .chain(mine.into_iter().zip(theirs))
+            .collect();
+        the_same_bodies(
+            &first.step.body,
+            &case.step.body,
+            &to_first,
+            &format!("{} and {}", first.what, case.what),
+        );
+    }
+}
+
+/// What a blend of `value` gives back at a convex corner #699 closes, its
+/// three edges' sections each counted along the whole of its edge: `2d³/3`
+/// among flats, `r³(2 − 7π/12)` among rounds.
+fn given_back_at_a_convex_corner(cut: Cut, value: f64) -> f64 {
+    match cut {
+        Cut::Flat => 2.0 * value.powi(3) / 3.0,
+        Cut::Round => value.powi(3) * (2.0 - 7.0 * PI / 12.0),
+    }
+}
+
+/// The section a blend of `value` takes along a square edge.
+fn section_of(cut: Cut, value: f64) -> f64 {
+    match cut {
+        Cut::Flat => value * value / 2.0,
+        Cut::Round => value * value * (1.0 - PI / 4.0),
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_foot_corner_and_the_top_corner_of_its_upright_close_both_in_one_step()
+ {
+    let corner = stacked_s_front_right();
+    closed_round_the_block_in_every_order(
+        &BOTH_ENDS_OF_AN_UPRIGHT,
+        &[
+            OfTheBlock {
+                edges: [0, 1, 2],
+                foot: true,
+                under: 0,
+            },
+            OfTheBlock {
+                edges: [3, 4, 2],
+                foot: false,
+                under: 0,
+            },
+        ],
+        &[
+            vec![0, 1, 2, 3, 4],
+            vec![4, 3, 2, 1, 0],
+            vec![2, 3, 0, 4, 1],
+        ],
+        |cut, value| {
+            let at_the_foot = match cut {
+                Cut::Flat => corner.chamfered(value),
+                Cut::Round => corner.filleted(value),
+            };
+            at_the_foot - 20.0 * section_of(cut, value) + given_back_at_a_convex_corner(cut, value)
+        },
+        "both feet, the front right upright and the two top edges at its top",
+    );
+}
+
+/// The twelve edges of [`stacked`]'s standing block, by the faces each lies
+/// between, in the order the list as given names them: its four top edges,
+/// front, right, back and left; its four uprights, front right, back right,
+/// back left and front left; and its four feet, front, right, back and left.
+const TWELVE_EDGES: [[usize; 2]; 12] = [
+    [STANDING_TOP, STANDING_FRONT],
+    [STANDING_TOP, STANDING_RIGHT],
+    [STANDING_TOP, STANDING_BACK],
+    [STANDING_TOP, STANDING_LEFT],
+    [STANDING_FRONT, STANDING_RIGHT],
+    [STANDING_RIGHT, STANDING_BACK],
+    [STANDING_BACK, STANDING_LEFT],
+    [STANDING_LEFT, STANDING_FRONT],
+    [TOP, STANDING_FRONT],
+    [TOP, STANDING_RIGHT],
+    [TOP, STANDING_BACK],
+    [TOP, STANDING_LEFT],
+];
+
+#[test]
+fn a_chamfer_and_a_fillet_on_the_twelve_edges_of_a_standing_block_close_its_top_corners_as_a_convex_corner_and_its_foot_corners_round_their_uprights()
+ {
+    let tops = [[0, 1, 4], [1, 2, 5], [2, 3, 6], [3, 0, 7]];
+    let feet = [[8, 9, 4], [9, 10, 5], [10, 11, 6], [11, 8, 7]];
+    let corners: Vec<OfTheBlock> = (0..4)
+        .map(|under| OfTheBlock {
+            edges: tops[under],
+            foot: false,
+            under,
+        })
+        .chain((0..4).map(|under| OfTheBlock {
+            edges: feet[under],
+            foot: true,
+            under,
+        }))
+        .collect();
+    closed_round_the_block_in_every_order(
+        &TWELVE_EDGES,
+        &corners,
+        &[
+            (0..12).collect(),
+            (0..12).rev().collect(),
+            vec![8, 0, 4, 9, 1, 5, 10, 2, 6, 11, 3, 7],
+        ],
+        |cut, value| {
+            let round_the_feet = match cut {
+                Cut::Flat => chamfered_all_round(value),
+                Cut::Round => filleted_all_round(value),
+            };
+            round_the_feet - 40.0 * section_of(cut, value)
+                + 4.0 * given_back_at_a_convex_corner(cut, value)
+        },
+        "the twelve edges of the standing block",
+    );
+}
+
+/// [`stacked`] with a plate 30 by 20 by 10 laid on its standing block, from
+/// 20 up: a post between two plates, the plate below's top numbered one, the
+/// post's walls, front, right, back and left, eight to eleven, and the plate
+/// above's floor twelve. The post's uprights meet outwards, and both their
+/// ends are foot corners: on the plate below, its feet there meeting inwards,
+/// and under the plate above, its feet there too.
+fn post_between_two_plates() -> Body {
+    joined(
+        &stacked(),
+        Contour::rectangle(DVec2::ZERO, DVec2::new(30.0, 20.0)),
+        LOWER_TOP + STANDING_HEIGHT,
+        10.0,
+    )
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_a_post_s_upright_and_the_feet_at_both_its_ends_are_declined_as_unsupported_until_847_builds_them()
+ {
+    let part = post_between_two_plates();
+    let ceiling = 12;
+    let five = [
+        [TOP, STANDING_FRONT],
+        [TOP, STANDING_RIGHT],
+        [STANDING_FRONT, STANDING_RIGHT],
+        [ceiling, STANDING_FRONT],
+        [ceiling, STANDING_RIGHT],
+    ]
+    .map(|[first, second]| edge_between(&part, first, second));
     for order in [[0, 1, 2, 3, 4], [4, 3, 2, 1, 0], [2, 3, 0, 4, 1]] {
-        let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
+        let list: Vec<EdgeName> = order.iter().map(|&edge| five[edge].clone()).collect();
         for cut in [Cut::Flat, Cut::Round] {
             assert_eq!(
                 cut.laid_on(&part, &list, 1.0).err(),
                 Some(Declined::Unsupported),
-                "the {} of 1 on both feet, the front right upright and the two top edges at its \
-                 top, named {order:?}: a broken step and its reason, and no body, until slice 3 \
-                 holds what both its ends make",
+                "the {} of 1 on the post's front right upright and the feet at both its ends, \
+                 named {order:?}: a broken step and its reason, and no body, until #847 holds \
+                 what an upright odd at both its ends makes",
                 cut.called()
             );
         }

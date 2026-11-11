@@ -147,7 +147,14 @@
 //!   at its ends, they take 1.5, as they did when every corner of the face
 //!   counted — the wall's edge across the sweep stops the fill where its
 //!   corners no longer do —
-//!   `a_chamfer_and_a_fillet_on_a_foot_alone_and_on_its_corner_stop_where_their_fill_reaches_what_stands_in_its_sweep`
+//!   `a_chamfer_and_a_fillet_on_a_foot_alone_and_on_its_corner_stop_where_their_fill_reaches_what_stands_in_its_sweep`.
+//!   Where a foot enters the sweep between its corners, across the plane a
+//!   fill ends on, the fill stops where it crosses that plane, at a depth
+//!   neither corner has: a slanted wall in front of the front foot, its back
+//!   crossing the plane of the right wall at its middle, 2 in front of the
+//!   foot, its corners 2.5 in front inside the sweep and 1.5 past it, takes
+//!   2 asked 2.5 —
+//!   `a_chamfer_and_a_fillet_on_a_foot_alone_stop_where_a_slanted_wall_s_foot_enters_their_sweep_between_its_corners`
 //! - Found on the way, not in the issue's wording: a block standing where a
 //!   foot corner's patch sweeps — past both walls, out to twice the radius
 //!   from the upright round's axis, or under the fill along the foot of the
@@ -3130,4 +3137,72 @@ fn a_chamfer_and_a_fillet_on_a_foot_corner_never_take_away_a_block_standing_wher
          reduced to where the patch first touches it, or declined:\n{}",
         wrong.join("\n")
     );
+}
+
+/// [`stacked`] with a low slanted wall, 1 high, standing on the lower
+/// block's top in front of the standing block's front right foot: a
+/// parallelogram whose back, the foot facing the standing block, runs from
+/// (18, 2.5) to (22, 3.5), and whose front lies 0.5 in front of it. The front
+/// foot's fill, trimmed at its ends on the planes of the left and right
+/// walls, `x = 10` and `x = 20`, sweeps the lower block's top in front of it;
+/// the wall's back enters that sweep through the plane `x = 20`, crossing it
+/// at its own middle, 2 in front of the foot — between its two corners,
+/// 2.5 in front at (18, 2.5), inside the sweep, and 1.5 at (22, 3.5), past
+/// it. It holds 7002.
+fn stacked_behind_a_slanted_wall() -> Body {
+    joined(
+        &stacked(),
+        Contour::straight(vec![
+            DVec2::new(18.0, 2.0),
+            DVec2::new(22.0, 3.0),
+            DVec2::new(22.0, 3.5),
+            DVec2::new(18.0, 2.5),
+        ]),
+        LOWER_TOP,
+        1.0,
+    )
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_foot_alone_stop_where_a_slanted_wall_s_foot_enters_their_sweep_between_its_corners()
+ {
+    let part = stacked_behind_a_slanted_wall();
+    let volume = STACKED_VOLUME + 4.0 * 0.5 * 1.0;
+    let entered = 2.0;
+    let hair = 20.0 * 1e-9 * 30.0;
+    let foot = [edge_between(&part, TOP, STANDING_FRONT)];
+    for cut in [Cut::Flat, Cut::Round] {
+        for asked in [1.5, 2.5] {
+            let what = format!(
+                "the {} of {asked} on the front foot alone, beside a slanted wall entering its \
+                 sweep {entered} in front of it",
+                cut.called()
+            );
+            let step = cut
+                .laid_on(&part, &foot, asked)
+                .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+            let expected = asked.min(entered);
+            assert!(
+                (step.asked - asked).abs() < PLACE
+                    && step.taken <= expected + PLACE
+                    && step.taken >= expected - 10.0 * hair,
+                "{what}: asked {} and took {}, where the fill first reaches the wall at {entered}, \
+                 where its foot crosses the plane the fill ends on, and not at either of its \
+                 corners, 2.5 in front of the foot and 1.5",
+                step.asked,
+                step.taken
+            );
+            let taken = step.taken;
+            let section = match cut {
+                Cut::Flat => taken * taken / 2.0,
+                Cut::Round => taken * taken * (1.0 - PI / 4.0),
+            };
+            let promised = volume + 10.0 * section;
+            let drawn = match cut {
+                Cut::Flat => EXACT * promised,
+                Cut::Round => DRAWN * reach_of(&part) * PI / 2.0 * taken * 12.0,
+            };
+            sound_drawn_within(&step.body, promised, drawn, &what);
+        }
+    }
 }

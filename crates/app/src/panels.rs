@@ -117,7 +117,7 @@ pub(crate) fn carry_out(
             if let Some(plane) = doc.sketches().get(sketch).map(|s| s.plane) {
                 viewport.light_out();
                 editor.begin_editing(sketch, plane);
-                ribbon.tab = 0;
+                ribbon.enter_sketch();
                 let (center, radius) = commands::sketch_framing(doc, Some(sketch), plane);
                 viewport.look_at_plane(plane, center, radius);
             }

@@ -21,6 +21,8 @@ use super::icons;
 pub struct Ribbon {
     /// Which top-level group is open, by rank.
     pub tab: usize,
+    /// The tab shown before the sketch being edited was entered.
+    tab_before_sketch: Option<usize>,
     /// The tree of what the part is made of, open by default.
     pub part_tree_open: bool,
     /// Whether the run of operations that made the part stands unfolded at
@@ -47,6 +49,7 @@ impl Ribbon {
     pub fn new() -> Self {
         Self {
             tab: 0,
+            tab_before_sketch: None,
             part_tree_open: true,
             history_unfolded: false,
             variables_open: false,
@@ -77,6 +80,19 @@ impl Ribbon {
             .copied()
             .filter(|used| entries.contains(used))
             .or_else(|| entries.first().copied())
+    }
+
+    /// Entering a sketch turns to its tools. The tab it came from is kept
+    /// from the first sketch entered, whichever is reopened after it.
+    pub fn enter_sketch(&mut self) {
+        self.tab_before_sketch.get_or_insert(self.tab);
+        self.tab = 0;
+    }
+
+    pub fn follow_the_canvas(&mut self, before: Option<usize>, after: Option<usize>) {
+        if after.is_some() && after != before {
+            self.enter_sketch();
+        }
     }
 
     pub(super) fn used_from_menu(&mut self, group: &str, command: Command) {

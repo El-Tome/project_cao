@@ -244,6 +244,7 @@ impl CaoApp {
         let beside = crate::panels::Beside { ribbon, variables };
         changed |= crate::panels::beside_the_part(ui, &mut worked_on, viewport, beside, alerted);
 
+        let entering = editor.active_sketch();
         let view = egui::CentralPanel::no_frame().show(ui, |ui| {
             let mut context = screens::SketchContext {
                 document: doc,
@@ -254,6 +255,7 @@ impl CaoApp {
             screens::viewport::show(ui, viewport, &mut context)
         });
         changed |= view.inner.changed;
+        ribbon.follow_the_canvas(entering, editor.active_sketch());
         let copy_panel_let_go_at = view.inner.copy_panel_let_go_at;
 
         let finish_on = settings.shortcuts.chord_for(Command::FinishSketch);

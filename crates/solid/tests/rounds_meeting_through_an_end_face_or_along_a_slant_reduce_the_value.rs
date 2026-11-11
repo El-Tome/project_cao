@@ -214,6 +214,31 @@
 //! depth along the arc is `cᵢ − R·nᵢ·e(θ)`, and the two touch where they are
 //! equal, `(n₂ − n₁)·e(θ) = (c₂ − c₁)/R`, at the depth there; the test holds
 //! that against the least of the larger depth stepped along the arc.
+//!
+//! Closes #824.
+//!
+//! - A round ending on a wall that leans over it is drawn within the
+//!   drawing's tolerance of its exact surface, as it is against an upright
+//!   wall: the hexagon's front top edge filleted 2, its next wall leaning
+//!   over 20° or 40°, encloses the exact body's volume within what the
+//!   tolerance allows its round —
+//!   `a_fillet_on_a_hexagonal_prism_s_front_top_edge_is_drawn_within_the_drawing_s_tolerance_whether_its_next_wall_stands_upright_or_leans_over_it`.
+//!   Read as: upright, 20° and 40°, the hexagon's wall three cut back to
+//!   lean in under its top edge as #792's overhanging hexagon is; the body
+//!   exact, its triangles closed and uncrossed, the value taken whole, and
+//!   the matter they enclose within the drawing's tolerance at the part's
+//!   reach over the round's area along its edge, a side long — the 0.063 the
+//!   issue names, against the exact body's own volume
+//! - Every fillet drawn within the tolerance today — no test: held by every
+//!   test that draws one, in this file and the others, left as they are
+//!
+//! Measured when the issue was taken: the round encloses 0.030 less than the
+//! exact body against the upright wall, 0.145 at 20° and 0.272 at 40°. Every
+//! corner of the round's triangles lies on its cylinder, but the round is
+//! drawn in 52 triangles against the upright wall and in 22 and 16 against
+//! the leaning one, the worst sagging 0.0152 off the cylinder where upright
+//! it sags 0.0017: its turn is sampled coarser once one end is the leaning
+//! wall's trim.
 
 use std::collections::BTreeSet;
 use std::f64::consts::{FRAC_1_SQRT_2, PI, TAU};
@@ -3930,6 +3955,66 @@ fn a_fillet_and_a_chamfer_on_the_two_sides_of_an_arched_plate_bored_through_its_
         wrong.is_empty(),
         "a bore through the arched plate's top, its rim read whole, leaves the value where the \
          two set-backs touch on the arc:\n{}",
+        wrong.join("\n")
+    );
+}
+
+/// The hexagonal prism with its wall three, between the front and wall four,
+/// standing upright as raised or cut back to lean in under its top edge by
+/// `degrees`, as [`leaning_in`] cuts it.
+fn hexagon_with_its_wall_three_leaning(degrees: f64) -> Body {
+    if degrees == 0.0 {
+        return hexagonal_prism();
+    }
+    let [_, from, to, _, _, _] = hexagon_corners();
+    let (_, out) = trapezoid_edge(from, to);
+    let (part, _) = leaning_in(
+        &hexagonal_prism(),
+        [from, to].map(|at| at.extend(HEXAGON_HEIGHT)),
+        out.extend(0.0),
+        degrees,
+    );
+    part
+}
+
+#[test]
+fn a_fillet_on_a_hexagonal_prism_s_front_top_edge_is_drawn_within_the_drawing_s_tolerance_whether_its_next_wall_stands_upright_or_leans_over_it()
+ {
+    let radius = 2.0;
+    let mut wrong = Vec::new();
+    for degrees in [0.0, 20.0, 40.0] {
+        let part = hexagon_with_its_wall_three_leaning(degrees);
+        let what = format!(
+            "the fillet of {radius} on the hexagon's front top edge alone, its wall three leaning \
+             in {degrees} degrees under its top edge"
+        );
+        let step = part
+            .fillet_edges(&[edge_between(&part, TOP, HEXAGON_FRONT)], radius)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+        taken_as_asked(step.asked, step.taken, radius, &what);
+        let body = &step.body;
+        assert!(
+            body.is_exact(),
+            "{what}: the exact kernel computed the body"
+        );
+        let triangles = body.triangles();
+        assert_eq!(closed(&triangles), Ok(()), "{what}");
+        assert_eq!(uncrossed(&triangles), Ok(()), "{what}");
+        let allowed =
+            DRAWN * reach_of(&part) * hexagon_round_to(radius, 0.0, HEXAGON_SIDE / 2.0).area();
+        let short = body.volume() - enclosed(&triangles);
+        if short.abs() > allowed {
+            wrong.push(format!(
+                "{what}: its triangles enclose {short} less than the exact body's {}, where the \
+                 drawing's tolerance allows its round {allowed}",
+                body.volume()
+            ));
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "a round is drawn within the drawing's tolerance of its exact surface, against an upright \
+         wall or one leaning over it:\n{}",
         wrong.join("\n")
     );
 }

@@ -4,6 +4,7 @@
 //! and a counter, then the legend of the alerts' colours. Plain values in,
 //! what was clicked out.
 
+use egui::style::ScrollStyle;
 use egui::text::TextWrapping;
 use egui::{
     Align, Align2, Color32, Frame, Id, Label, Layout, Margin, Response, RichText, ScrollArea,
@@ -13,8 +14,8 @@ use egui::{
 use crate::ui::icon::{self, Icon, IconSize};
 use crate::ui::step_box::{ARROW, BOX, DOT, StepBox, step_arrow, step_box};
 use crate::ui::theme::tokens::{
-    BACKGROUND_CARD, BACKGROUND_HOVER, BORDER_GROUP, RADIUS_BUTTON, RADIUS_CARD, SPACING_L,
-    SPACING_M, SPACING_S, TEXT_QUIET, TEXT_SUBDUED, TEXT_TITLE, TYPOGRAPHY_SIZES_BUTTON,
+    BACKGROUND_CARD, BACKGROUND_HOVER, BORDER_GROUP, BORDER_STRONG, RADIUS_BUTTON, RADIUS_CARD,
+    SPACING_L, SPACING_M, SPACING_S, TEXT_QUIET, TEXT_SUBDUED, TEXT_TITLE, TYPOGRAPHY_SIZES_BUTTON,
     TYPOGRAPHY_SIZES_DETAIL,
 };
 
@@ -24,6 +25,8 @@ const GAP: f32 = 2.0;
 const END: f32 = 18.0;
 /// How many lines the line under the row may take before it is cut short.
 const LINE_ROWS: usize = 2;
+/// The thickness of the row's scroll bar.
+const BAR: f32 = 3.0;
 
 /// What the card shows.
 pub struct ReaderCard<'a> {
@@ -76,6 +79,7 @@ fn row(ui: &mut Ui, card: &ReaderCard<'_>) -> Asked {
     ui.data_mut(|data| data.insert_temp(remembered, current));
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = GAP;
+        quiet_scroll_bar(ui);
         if end(ui, icon::STEP_PREVIOUS, card.previous).clicked() {
             asked = Asked::Previous;
         }
@@ -110,6 +114,24 @@ fn row(ui: &mut Ui, card: &ReaderCard<'_>) -> Asked {
         }
     });
     asked
+}
+
+/// The row's scroll bar, shown once the boxes outgrow it: thin and solid, in
+/// a strip of its own under the boxes rather than floating over them, and in
+/// the card's quiet colours rather than the text's.
+fn quiet_scroll_bar(ui: &mut Ui) {
+    let scroll = &mut ui.spacing_mut().scroll;
+    *scroll = ScrollStyle {
+        bar_width: BAR,
+        bar_inner_margin: GAP,
+        content_margin: scroll.content_margin,
+        ..ScrollStyle::solid()
+    };
+    let visuals = ui.visuals_mut();
+    visuals.extreme_bg_color = BACKGROUND_CARD;
+    visuals.widgets.inactive.bg_fill = BORDER_STRONG;
+    visuals.widgets.hovered.bg_fill = TEXT_QUIET;
+    visuals.widgets.active.bg_fill = TEXT_QUIET;
 }
 
 /// ◀ or ▶: its icon alone, called `name`.

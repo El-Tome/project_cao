@@ -212,6 +212,65 @@
 //! booleans, in the tests themselves: the part joined to each fill trimmed
 //! flush and to each corner's cube, cut among flats by the triangle's plane,
 //! and among rounds less the eighth of the ball, which no fill reaches.
+//!
+//! What closes a pocket's bottom corner is cut back into the corner's walls
+//! by three boxes, and the slack of each box's size shows only where a wall
+//! is thin: there what a box misses stands past the wall, a face of its own,
+//! and the step is declined. A tray holds it, its walls and floor round the
+//! corner thinner than the value. Its volume, and that of a tray whose pocket
+//! is a parallelogram, are arithmetic, the block's outline less the pocket;
+//! the corner closed at a sharp corner is held by the booleans.
+//!
+//! The mutants #835 names that no test kills are equivalent, with the
+//! reason. In `wedge/corners.rs`, `admit` turning `inwards && meeting(edge,
+//! true)` into `||` differs only where two edges meeting inwards are listed
+//! and the third, left out, is straight between flat faces neither way. At a
+//! corner three edges end at, any two share a face, so the third lies
+//! between two of the listed edges' flat faces: straight, and read one way
+//! or the other unless the two lie on one plane, which the kernel merges
+//! into one face. In `fill.rs`, `past_the_end`'s guard `outward.dot(past) !=
+//! 0.0` turned `true` differs only on an end face whose plane holds the
+//! edge's line; that face would meet both of the edge's faces along that
+//! line, and no solid holds such a corner. Its `* signum` turned `/`, and in
+//! `flush.rs` `stops`'s `* signum` turned `/` and its `> 0.0` turned `>=`,
+//! all stand behind a guard that the value is not nought: the sign is then
+//! ±1, by which dividing is multiplying, and nought is never compared. In
+//! `wedge/end.rs`, `merged_at`'s drawing cache guard turned `false` draws
+//! again a body that did not change, as it was drawn.
+//!
+//! Closes #835.
+//! - `wedge/closing.rs`, `Corner::sunk`: `self.at - facing * depth`, `*` → `+`,
+//!   is killed by a tray with walls of 1 and 0.5 chamfered and filleted at 2 —
+//!   `a_chamfer_and_a_fillet_of_2_at_the_bottom_corner_of_a_tray_with_walls_of_1_or_a_half_close_it_inside_its_walls`
+//! - `wedge/triangle.rs`, `joined_across`: the terms of `reach`, `+` → `-` and
+//!   `+` → `*`, are held by a case where a smaller reach leaves part of the
+//!   prism standing past a thin wall: a tray's bottom corners 45° and 26.6°
+//!   wide, walls of 0.5, chamfered at 1, a quarter and 0.3 —
+//!   `a_chamfer_at_a_sharp_bottom_corner_of_a_tray_with_walls_of_a_half_closes_it_inside_its_walls`.
+//!   At a square corner, and at the 111.8° and 68.2° corners above, each of
+//!   the four still reaches far enough
+//! - `wedge/corners.rs`, `admit`: `meeting(edge, !inwards) || inwards &&
+//!   meeting(edge, true)`, `&&` → `||` — no test: equivalent, argued above;
+//!   no solid holds the corner it would answer otherwise
+//! - `wedge/sphere.rs`, `short_of`: `2.0 * centre.distance(corner.at)`, `*` →
+//!   `+`, is killed by a fillet of a quarter on a tray with walls of 1, where
+//!   the larger cube reaches past the boxes that cut it back, and past the
+//!   walls — `a_fillet_of_a_quarter_at_the_bottom_corner_of_a_tray_with_walls_of_1_closes_it_inside_its_walls`
+//! - `fill.rs` `past_the_end`: the `!= 0.0` guard, and `* signum` — no test:
+//!   equivalent, argued above. The guard turned `false`, `!=` turned `==`
+//!   and `*` turned `+` are killed already
+//! - `flush.rs` `stops`: `> 0.0` behind an `!= 0.0` guard, and `* signum` —
+//!   no test: equivalent, argued above
+//! - `wedge/end.rs` `merged_at`: the drawing cache guard, turned `true` or its
+//!   `==` turned `!=`, hands back the drawing of the body before its edges in
+//!   line were made one, which a standing block's feet tell apart —
+//!   `a_chamfer_and_a_fillet_on_concave_edges_leave_a_body_drawn_as_the_same_body_drawn_afresh`;
+//!   turned `false`, it is equivalent, argued above
+//! - Every test of this file,
+//!   `a_chamfer_and_a_fillet_stop_and_mitre_beside_a_concave_edge.rs` and
+//!   `a_chamfer_and_a_fillet_blend_the_corner_their_edges_meet_at.rs` still
+//!   passes — no test: those files are run as they are; this issue adds
+//!   tests and changes none
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -2923,6 +2982,133 @@ fn a_chamfer_and_a_fillet_on_the_three_edges_at_a_bottom_corner_of_a_pocket_with
     );
 }
 
+/// A tray as [`thin_walled_pocket`] is, its front and right walls and its
+/// floor `wall` thick round the pocket's front right bottom corner: a block
+/// from (0, 5 − `wall`, 5 − `wall`) to (20 + `wall`, 20, 10), less the pocket.
+fn tray(wall: f64) -> Body {
+    cut_from(
+        &joined(
+            &Body::default(),
+            Contour::rectangle(DVec2::new(0.0, 5.0 - wall), DVec2::new(20.0 + wall, 20.0)),
+            5.0 - wall,
+            5.0 + wall,
+        ),
+        Contour::rectangle(DVec2::new(10.0, 5.0), DVec2::new(20.0, 15.0)),
+        5.0,
+        6.0,
+    )
+}
+
+fn tray_volume(wall: f64) -> f64 {
+    (20.0 + wall) * (15.0 + wall) * (5.0 + wall) - 10.0 * 10.0 * 5.0
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_of_2_at_the_bottom_corner_of_a_tray_with_walls_of_1_or_a_half_close_it_inside_its_walls()
+ {
+    for wall in [1.0, 0.5] {
+        closed_in_every_order_at(
+            &tray(wall),
+            tray_volume(wall),
+            &pocket_s_bottom_corner(),
+            &ORDERS_OF_THREE,
+            (&[Cut::Flat, Cut::Round], &[2.0]),
+            &format!(
+                "the three edges at the front right bottom corner of a tray whose walls and floor \
+                 there are {wall} thick"
+            ),
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_concave_edges_leave_a_body_drawn_as_the_same_body_drawn_afresh() {
+    let (stacked, pocketed) = (stacked(), pocketed());
+    let [front, right, back, _] = pocket_floor_edges();
+    let [front_right, ..] = pocket_uprights();
+    let [front_foot, ..] = feet();
+    let [front_of_two, right_of_two, ..] = feet();
+    let lists: [(&Body, &str, Vec<Concave>); 7] = [
+        (&pocketed, "the pocket's front floor edge", vec![front]),
+        (
+            &pocketed,
+            "the pocket's front right upright",
+            vec![front_right],
+        ),
+        (
+            &pocketed,
+            "the pocket's right and back floor edges",
+            vec![right, back],
+        ),
+        (
+            &pocketed,
+            "the three edges at the pocket's front right bottom corner",
+            pocket_s_bottom_corner().into(),
+        ),
+        (
+            &stacked,
+            "the standing block's front foot",
+            vec![front_foot],
+        ),
+        (
+            &stacked,
+            "the standing block's front and right feet",
+            vec![front_of_two, right_of_two],
+        ),
+        (&stacked, "the standing block's four feet", feet().into()),
+    ];
+    let mut redrawn = Vec::new();
+    for (part, called, edges) in &lists {
+        let names: Vec<EdgeName> = edges
+            .iter()
+            .map(|edge| edge_between(part, edge.between[0], edge.between[1]))
+            .collect();
+        for cut in [Cut::Flat, Cut::Round] {
+            for value in VALUES {
+                let what = format!("the {} of {value} on {called}", cut.called());
+                let body = cut
+                    .laid_on(part, &names, value)
+                    .unwrap_or_else(|reason| panic!("{what}: declined {reason:?}"))
+                    .body;
+                let afresh = body
+                    .union(&Body::default())
+                    .unwrap_or_else(|reason| panic!("{what}: joined to nothing, {reason:?}"));
+                assert!(
+                    afresh == body,
+                    "{what}: joined to nothing, the body is another"
+                );
+                let (drawn, again) = (body.triangles(), afresh.triangles());
+                if drawn != again {
+                    redrawn.push(format!(
+                        "{what}: {} triangles, {} drawn afresh",
+                        drawn.len(),
+                        again.len()
+                    ));
+                }
+            }
+        }
+    }
+    assert!(
+        redrawn.is_empty(),
+        "a body is drawn as its matter says, whatever built it; drawn otherwise:\n{}",
+        redrawn.join("\n")
+    );
+}
+
+#[test]
+fn a_fillet_of_a_quarter_at_the_bottom_corner_of_a_tray_with_walls_of_1_closes_it_inside_its_walls()
+{
+    closed_in_every_order_at(
+        &tray(1.0),
+        tray_volume(1.0),
+        &pocket_s_bottom_corner(),
+        &ORDERS_OF_THREE,
+        (&[Cut::Round], &[0.25]),
+        "the three edges at the front right bottom corner of a tray whose walls and floor there \
+         are 1 thick",
+    );
+}
+
 /// A block 30 by 20 by 10 with a pocket sunk 5 into its top whose outline is
 /// a parallelogram, (10, 5), (20, 5), (24, 15) and (14, 15), its right and
 /// left walls leaning 4 in 10, numbered as [`pocketed`] is: its corner at
@@ -3054,6 +3240,132 @@ fn a_chamfer_and_a_fillet_on_the_three_edges_at_a_bottom_corner_of_a_pocket_that
             &ORDERS_OF_THREE,
             (&[Cut::Flat, Cut::Round], &VALUES),
             called,
+        );
+    }
+}
+
+/// How thick a [`sharp_tray`]'s walls and floor are round its sharp corner.
+const SHARP_WALL: f64 = 0.5;
+
+/// A tray whose pocket is a parallelogram, (10, 5), (20, 5), (20 + `lean`,
+/// 15) and (10 + `lean`, 15), its right and left walls leaning `lean` in 10,
+/// numbered as [`pocketed`] is: its front left bottom corner as sharp as that
+/// lean makes it, its front and left walls and its floor [`SHARP_WALL`] thick
+/// there. The block stands from z 4.5 to 10, its left wall running along the
+/// pocket's that far out, its right well clear of the pocket.
+fn sharp_tray(lean: f64) -> Body {
+    let [outer_front, outer_back, right] = sharp_tray_outline(lean);
+    cut_from(
+        &joined(
+            &Body::default(),
+            Contour::straight(vec![
+                DVec2::new(outer_front, 5.0 - SHARP_WALL),
+                DVec2::new(right, 5.0 - SHARP_WALL),
+                DVec2::new(right, 20.0),
+                DVec2::new(outer_back, 20.0),
+            ]),
+            5.0 - SHARP_WALL,
+            5.0 + SHARP_WALL,
+        ),
+        Contour::straight(vec![
+            DVec2::new(10.0, 5.0),
+            DVec2::new(20.0, 5.0),
+            DVec2::new(20.0 + lean, 15.0),
+            DVec2::new(10.0 + lean, 15.0),
+        ]),
+        5.0,
+        6.0,
+    )
+}
+
+/// Where the outline of [`sharp_tray`]'s block crosses its front, where it
+/// crosses its back, and where its right side stands: the left side
+/// [`SHARP_WALL`] out from the pocket's left wall, square to it.
+fn sharp_tray_outline(lean: f64) -> [f64; 3] {
+    let slant = lean.hypot(10.0);
+    [
+        10.0 - SHARP_WALL * (slant + lean) / 10.0,
+        10.0 + (15.0 * lean - SHARP_WALL * slant) / 10.0,
+        30.0 + lean,
+    ]
+}
+
+fn sharp_tray_volume(lean: f64) -> f64 {
+    let [outer_front, outer_back, right] = sharp_tray_outline(lean);
+    let height = 15.0 + SHARP_WALL;
+    let area = height * ((right - outer_front) + (right - outer_back)) / 2.0;
+    area * (5.0 + SHARP_WALL) - 10.0 * 10.0 * 5.0
+}
+
+/// The three edges at the front left bottom corner of [`sharp_tray`]: its
+/// floor edges on its front and leaning left walls and the upright between
+/// them. Every edge's far end runs into a wall with the block's matter past
+/// it, but the upright's, at the rim.
+fn sharp_tray_s_bottom_corner(lean: f64) -> [Concave; 3] {
+    let [right, left] = [
+        DVec3::new(-10.0, lean, 0.0).normalize(),
+        DVec3::new(10.0, -lean, 0.0).normalize(),
+    ];
+    let walled = |at: DVec3, on: usize, facing: DVec3| End {
+        at,
+        on,
+        facing,
+        matter_past: true,
+    };
+    [
+        Concave {
+            called: "the sharp tray's floor edge on its front wall",
+            between: [POCKET_FLOOR, POCKET_FRONT],
+            facing: [DVec3::Z, DVec3::Y],
+            ends: [
+                walled(DVec3::new(10.0, 5.0, 5.0), POCKET_LEFT, left),
+                walled(DVec3::new(20.0, 5.0, 5.0), POCKET_RIGHT, right),
+            ],
+        },
+        Concave {
+            called: "the sharp tray's floor edge on its left wall",
+            between: [POCKET_FLOOR, POCKET_LEFT],
+            facing: [DVec3::Z, left],
+            ends: [
+                walled(DVec3::new(10.0 + lean, 15.0, 5.0), POCKET_BACK, -DVec3::Y),
+                walled(DVec3::new(10.0, 5.0, 5.0), POCKET_FRONT, DVec3::Y),
+            ],
+        },
+        Concave {
+            called: "the sharp tray's front left upright",
+            between: [POCKET_LEFT, POCKET_FRONT],
+            facing: [left, DVec3::Y],
+            ends: [
+                walled(DVec3::new(10.0, 5.0, 5.0), POCKET_FLOOR, DVec3::Z),
+                End {
+                    at: DVec3::new(10.0, 5.0, 10.0),
+                    on: TOP,
+                    facing: DVec3::Z,
+                    matter_past: false,
+                },
+            ],
+        },
+    ]
+}
+
+#[test]
+fn a_chamfer_at_a_sharp_bottom_corner_of_a_tray_with_walls_of_a_half_closes_it_inside_its_walls() {
+    for (lean, values, called) in [(10.0, &[1.0, 0.25][..], "45°"), (20.0, &[0.3][..], "26.6°")] {
+        let part = sharp_tray(lean);
+        let edges = sharp_tray_s_bottom_corner(lean);
+        let corners = closed_corners(&edges);
+        closed_held_to(
+            &part,
+            (sharp_tray_volume(lean), &|cut, value| {
+                closed_by_booleans(&part, &edges, &corners, cut, value)
+            }),
+            &edges,
+            &ORDERS_OF_THREE,
+            (&[Cut::Flat], values),
+            &format!(
+                "the three edges at the front left bottom corner of a tray, {called} wide, whose \
+                 walls and floor there are {SHARP_WALL} thick"
+            ),
         );
     }
 }

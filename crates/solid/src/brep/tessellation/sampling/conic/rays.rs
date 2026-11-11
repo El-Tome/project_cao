@@ -8,6 +8,7 @@ use glam::DVec3;
 use super::of_edge;
 use crate::brep::conic::{Conic, Round};
 use crate::brep::curve::Curve;
+use crate::brep::relation::BAND;
 use crate::brep::scale::Scale;
 use crate::brep::surface::Cylinder;
 use crate::brep::tessellation::contact::{Contact, Wall, Zones};
@@ -91,13 +92,23 @@ const TOGETHER: f64 = 1e-3;
 /// horn, cannot be cut (5550117749); each then takes the other's samples as
 /// its wall's rays. Not on two parallel walls: touching along a line, they
 /// are sampled on the rays they share already, which another wall's would
-/// put out of order (5551609285).
+/// put out of order (5551609285). Nor on an elliptic wall and another
+/// leaning off it within #552's band: a sample read from the other wall's
+/// axis lands a drift off its own on the far rim, nothing gathers the two
+/// into one ray as two cylinders' are (`contact/leaning.rs`), and handed to
+/// and fro pass after pass the rim's samples part from the elliptic rim's,
+/// whose chords cross them beside the tip (354000000000100).
 fn leaving_together([one, other]: [&Edge; 2], [first, second]: [&Conic; 2]) -> bool {
     let (Some(ends), Some(theirs)) = (one.ends, other.ends) else {
         return false;
     };
     let [(_, one_axis), (_, other_axis)] = [first, second].map(|conic| about(&conic.round));
-    if one_axis.cross(other_axis).length() <= Scale::RELATIVE
+    let sine = one_axis.cross(other_axis).length();
+    let elliptic = [first, second]
+        .iter()
+        .any(|conic| matches!(conic.round, Round::Elliptic(_)));
+    if sine <= Scale::RELATIVE
+        || (elliptic && sine < BAND)
         || first.plane.normal.cross(second.plane.normal).length() > Scale::RELATIVE
     {
         return false;

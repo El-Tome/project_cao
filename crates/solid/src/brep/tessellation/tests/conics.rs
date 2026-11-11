@@ -1,10 +1,11 @@
-//! Bodies bounded by a conic, built by hand, drawn: each closed, uncrossed,
-//! every triangle of a wall within the tolerance of it, and enclosing the
-//! arithmetic's volume within what the chords take off the walls.
+//! Bodies bounded by a conic, built by hand or by a boolean, drawn: each
+//! closed, uncrossed, every triangle of a wall within the tolerance of it,
+//! and enclosing the arithmetic's volume within what the chords take off the
+//! walls.
 
-use std::f64::consts::PI;
+use std::f64::consts::{PI, TAU};
 
-use glam::DVec3;
+use glam::{DQuat, DVec2, DVec3};
 
 use super::fixtures::{self, HEIGHT, STOCK_RADIUS};
 use super::slanted;
@@ -12,6 +13,7 @@ use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
 use crate::brep::tessellation::Cut;
 use crate::brep::topology::Body;
+use crate::profile::{Contour, Frame, Run};
 use crate::soundness::{closed, enclosed, uncrossed};
 
 /// A thousandth of the stock's radius, the tolerance the application draws
@@ -175,6 +177,55 @@ fn a_wall_bounded_by_a_conic_holds_the_apex_a_boolean_gives_it_and_is_drawn_clos
         assert_eq!(apexes(&body), by_hand, "the apexes the faces hold");
         for tolerance in TOLERANCES {
             held(&body, tolerance, exact);
+        }
+    }
+}
+
+/// An elliptic shaft about Z of half-axes 5 along X and 3.5, from 0 to 5,
+/// bored by a round hole of radius 3.5 about Z leaning `lean` degrees about
+/// Y: on each cap the round rim pokes a hair out of the elliptic one beside
+/// both ends of its minor axis, and leaves two crescents whose tips stand
+/// there.
+fn elliptic_shaft_bored_by_its_minor_radius_leaning(lean: f64) -> Body {
+    let shaft = Contour {
+        corners: vec![DVec2::X * 5.0],
+        runs: vec![Run::Oval {
+            center: DVec2::ZERO,
+            first: DVec2::X * 5.0,
+            second: 3.5,
+            turn: TAU,
+        }],
+    };
+    let ground = Frame {
+        origin: DVec3::ZERO,
+        u: DVec3::X,
+        v: DVec3::Y,
+    };
+    let body = Body::raised(&shaft, &[], ground, DVec3::Z * 5.0).expect("the shaft raises");
+    let turn = DQuat::from_rotation_y(lean.to_radians());
+    let leaning = Frame {
+        origin: turn * (DVec3::NEG_Z * 20.0),
+        u: turn * DVec3::X,
+        v: turn * DVec3::Y,
+    };
+    let bore = Contour {
+        corners: vec![DVec2::X * 3.5],
+        runs: vec![Run::Round {
+            center: DVec2::ZERO,
+            turn: TAU,
+        }],
+    };
+    let tool = Body::raised(&bore, &[], leaning, leaning.normal() * 45.0).expect("the bore raises");
+    body.cut_by(&tool).expect("the bore is cut")
+}
+
+#[test]
+fn the_caps_of_an_elliptic_shaft_bored_by_its_minor_radius_leaning_a_hair_are_cut_and_drawn_closed()
+{
+    for lean in [1e-2, 5e-2] {
+        let body = elliptic_shaft_bored_by_its_minor_radius_leaning(lean);
+        for share in [1e-4, 1e-3, 2e-2] {
+            held(&body, share * body.scale().reach(), body.volume());
         }
     }
 }

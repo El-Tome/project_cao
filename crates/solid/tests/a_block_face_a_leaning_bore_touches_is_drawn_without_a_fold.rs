@@ -17,6 +17,11 @@
 //!   document; the walls sets 352000000000000, 353000000000000 and
 //!   354000000000000 on both kernels and the turned set, run on `main` and on
 //!   the branch and compared seed by seed
+//!
+//! The three draws the campaign gained against `main` are pinned as drawn,
+//! on both kernels: 352000000000787 of the walls set, `Uncrossed` there, and
+//! 533301186 and 533312139 of the turned set, `Closed` on the exact kernel
+//! and `Answers` through the body there.
 
 // The drawing, the promise and the checks are the campaigns'; this file
 // only builds cases and holds them.
@@ -105,4 +110,37 @@ fn seed_352000000002266_the_same_cone_and_bore_keep_every_rule_through_the_appli
     random_solids::holds_through_the_application(
         &a_shaft_cut_by_a_cone_across_then_bored_by_its_radius_1e_5_off_its_axis(),
     );
+}
+
+#[test]
+fn seed_352000000000787_a_shaft_joined_to_a_post_tangent_to_it_leaning_a_hair_then_bored_across_twice_keeps_every_rule()
+ {
+    random_solids::holds_exactly(&Case::drawn_walls_at_any_angle(352000000000787));
+}
+
+#[test]
+fn seed_352000000000787_the_same_shaft_post_and_bores_keep_every_rule_through_the_application_s_body()
+ {
+    random_solids::holds_through_the_application(&Case::drawn_walls_at_any_angle(352000000000787));
+}
+
+#[test]
+fn seed_533301186_a_turn_of_60_degrees_joined_to_a_holed_turn_leaning_1e_3_degrees_and_a_turn_of_225_degrees_keeps_every_rule()
+ {
+    random_solids::holds_exactly(&Case::drawn_turned_off_the_lattice(533301186));
+}
+
+#[test]
+fn seed_533301186_the_same_three_turns_keep_every_rule_through_the_application_s_body() {
+    random_solids::holds_through_the_application(&Case::drawn_turned_off_the_lattice(533301186));
+}
+
+#[test]
+fn seed_533312139_a_holed_turn_leaning_1e_5_degrees_cut_by_three_turns_keeps_every_rule() {
+    random_solids::holds_exactly(&Case::drawn_turned_off_the_lattice(533312139));
+}
+
+#[test]
+fn seed_533312139_the_same_holed_turn_and_cuts_keep_every_rule_through_the_application_s_body() {
+    random_solids::holds_through_the_application(&Case::drawn_turned_off_the_lattice(533312139));
 }

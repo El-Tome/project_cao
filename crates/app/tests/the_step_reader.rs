@@ -234,13 +234,17 @@ fn playing_to_step_three_then_six_leaves_the_history_undo_and_redo_as_they_were(
     }
 }
 
-/// What the reader of a part of six boxes reads: its counter, and whether its
-/// line says the rest is hidden.
-fn read_of_six(app: &driver::App) -> (Option<String>, bool) {
-    let counter = (1..=6)
-        .map(|played| format!("{played} / 6"))
+/// What the reader of a part of `boxes` boxes reads: its counter, and whether
+/// its line says the rest is hidden.
+fn read_of(app: &driver::App, boxes: usize) -> (Option<String>, bool) {
+    let counter = (1..=boxes)
+        .map(|played| format!("{played} / {boxes}"))
         .find(|counter| driver::reads(app, counter));
     (counter, driver::shows_or_says(app, "la suite est masquée"))
+}
+
+fn read_of_six(app: &driver::App) -> (Option<String>, bool) {
+    read_of(app, 6)
 }
 
 #[test]
@@ -271,6 +275,34 @@ fn a_part_saved_while_read_to_step_three_opens_read_to_the_end() {
         read_of_six(&app),
         (Some("6 / 6".to_string()), false),
         "the part put away while read to its third box does not open read to its end, \
+         as (counter, the rest hidden): {:?}",
+        driver::on_screen(&app),
+    );
+}
+
+#[test]
+fn adding_a_step_while_read_to_step_three_brings_the_reading_point_back_to_the_end() {
+    let mut app = a_part_of_four_key_steps("adding_a_step_while_read_to_step_three");
+    driver::click_the_button(&mut app, "Étape 3");
+    assert_eq!(
+        read_of(&app, 4),
+        (Some("3 / 4".to_string()), true),
+        "the fixture wants the part read to its third box before a step is added",
+    );
+
+    driver::bring_into_the_ribbon(&mut app, "Nouvelle esquisse");
+    driver::start_a_sketch(&mut app);
+    let opened = read_of(&app, 5);
+    driver::draw_a_segment(&mut app);
+    driver::finish_the_sketch(&mut app);
+    let finished = read_of(&app, 5);
+
+    let at_the_end = (Some("5 / 5".to_string()), false);
+    assert_eq!(
+        (opened, finished),
+        (at_the_end.clone(), at_the_end),
+        "a sketch added to a part read to its third box of four, once opened and once \
+         finished, does not leave the part read to its end, the new box the one read to, \
          as (counter, the rest hidden): {:?}",
         driver::on_screen(&app),
     );

@@ -34,7 +34,7 @@ impl ViewportState {
     /// the part is read to its end, when the part shown is the part itself.
     pub(crate) fn part_shown(&self, document: &PartDocument) -> Option<Rc<Shown>> {
         let states = self.volume_states(document);
-        let reading_point = self.reading_point;
+        let reading_point = self.reading.point;
         if states.is_empty() && reading_point.is_none() {
             return None;
         }

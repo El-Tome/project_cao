@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 
 use cao_part::PartDocument;
-use cao_part::history::{ExtrusionMode, StepKind};
+use cao_part::history::{ExtrusionMode, Operation, StepKind};
 
 use super::volumes::volume_name;
 use super::{PartTree, sketch_name};
@@ -72,13 +72,8 @@ impl StepReader {
             .map(|body| (body.step, body.mode))
             .collect();
         let (mut sketches, mut volumes) = (0, 0);
-        let steps: Vec<(KeyStep, Option<Problem>)> = document
-            .history
-            .applied_operations()
-            .iter()
-            .enumerate()
-            .filter_map(|(step, operation)| {
-                let kind = StepKind::opened_by(operation)?;
+        let steps: Vec<(KeyStep, Option<Problem>)> = key_steps(document)
+            .filter_map(|(step, operation, kind)| {
                 let name = match kind {
                     StepKind::Sketch => {
                         sketches += 1;
@@ -121,6 +116,17 @@ impl StepReader {
             legend,
         }
     }
+}
+
+/// The key steps in effect, in the part's order — each sketch and each
+/// volume, a section raising nothing — with the place of the operation that
+/// opens each among the operations applied.
+pub fn key_steps(document: &PartDocument) -> impl Iterator<Item = (usize, &Operation, StepKind)> {
+    let applied = document.history.applied_operations().iter().enumerate();
+    applied.filter_map(|(step, operation)| {
+        let kind = StepKind::opened_by(operation).filter(|kind| *kind != StepKind::Section)?;
+        Some((step, operation, kind))
+    })
 }
 
 /// The problem of each badge of the tree's sketches and volumes, by the step

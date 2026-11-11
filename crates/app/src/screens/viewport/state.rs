@@ -15,6 +15,7 @@ use crate::ui::floating_bar::TOP_ABOVE_THE_EDGE as BAR_TOP;
 
 use super::kept_sections::KeptSections;
 use super::navigation::Drag;
+use super::reading::Reading;
 use super::section::Section;
 use super::{matter::Sections, visibility::Visibility};
 
@@ -70,7 +71,7 @@ pub struct ViewportState {
     pub(super) section: Option<Section>,
     pub(crate) kept_sections: KeptSections,
     pub(super) visibility: Visibility,
-    pub(super) reading_point: Option<usize>,
+    pub(super) reading: Reading,
     blinking: Option<Blinking>,
 }
 
@@ -102,7 +103,7 @@ impl Default for ViewportState {
             section: None,
             kept_sections: KeptSections::default(),
             visibility: Visibility::default(),
-            reading_point: None,
+            reading: Reading::default(),
             blinking: None,
         }
     }

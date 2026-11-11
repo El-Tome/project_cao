@@ -46,9 +46,10 @@ pub(super) use triangle::{cut_across, joined_across};
 /// A straight edge between two flat faces: a point of it, the way it runs, its
 /// two faces and the numbers they answer to on the body it was read on, for
 /// each the way it faces and the way into it, square to the edge, how far the
-/// nearer face runs that way from the edge — the most a chamfer can set back —
-/// and whether the faces meet inwards, the way into either running the way the
-/// other faces: a corner to fill in rather than cut off.
+/// nearer face runs that way from the edge where its blend runs — the most a
+/// chamfer can set back, as a step reads it, endless until then — and whether
+/// the faces meet inwards, the way into either running the way the other
+/// faces: a corner to fill in rather than cut off.
 pub(super) struct Wedge {
     pub point: DVec3,
     pub along: DVec3,

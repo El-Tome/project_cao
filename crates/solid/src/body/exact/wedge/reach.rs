@@ -14,27 +14,21 @@ use crate::brep::{self, Curve, Edge, FaceId};
 
 /// How far a face runs along `into` from the edge's line through `point`:
 /// to the nearest corner of its boundary off that line, or to the nearest
-/// point where a round or a conic of its boundary turns back along `into`.
-/// A whole closed edge counts where its turn starts as a corner, so that a
+/// point where a round or a conic of its boundary turns back along `into`. A
+/// whole closed edge counts where its turn starts as a corner, so that a
 /// turning point standing there is not lost between the two ends of the
-/// turn. None where its boundary holds a curve two walls meet along, which
-/// turns back where no closed form says.
-pub(super) fn reach(body: &brep::Body, face: FaceId, into: DVec3, point: DVec3) -> Option<f64> {
-    reach_within(body, face, (into, point), &[])
-}
-
-/// How far a face runs along `into` from the edge's line through `point`, as
-/// [`reach`] reads it, but for the feet of what stands on the face — each
-/// straight edge of its boundary meeting the face beyond inwards — read only
-/// where the edge's blend runs, within the half-spaces `held`: at its ends
-/// they hold, within the tolerance, and where it crosses the plane of one of
-/// them inside the others, as [`entering`] finds it. Its depth is linear
-/// between, so the least of those is where it first stands in the sweep; a
-/// corner of it standing past where the blend stops limits nothing. The
+/// turn. The feet of what stands on the face — each straight edge of its
+/// boundary meeting the face beyond inwards — are read only where the edge's
+/// blend runs, within the half-spaces `held`: each at its ends they hold,
+/// within the tolerance, and where it crosses the plane of one of them inside
+/// the others, as [`entering`] finds it. Its depth is linear between, so the
+/// least of those is where it first stands in the sweep; a corner of it
+/// standing past where the blend stops limits nothing. The
 /// face's own outline, every edge meeting the face beyond outwards, curved or
-/// between faces that are not both flat, is read whole, as [`reach`] reads
-/// it: where the face ends, the laying decides what a blend running past does.
-/// Declined as [`reach`] declines.
+/// between faces that are not both flat, is read whole: where the face
+/// ends, the laying decides what a blend running past does. None where the
+/// boundary holds a curve two walls meet along, which turns back where no
+/// closed form says.
 pub(super) fn reach_within(
     body: &brep::Body,
     face: FaceId,

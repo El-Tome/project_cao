@@ -1,30 +1,27 @@
 //! How a straight edge between two flat faces is read as a [`Wedge`]: its
 //! faces and the numbers they answer to, the way each faces and the way into
-//! each, whether they meet inwards, and how far each runs from the edge.
+//! each, and whether they meet inwards. How far each runs from the edge is a
+//! step's to read, where the edge's blend runs.
 
-use glam::DVec3;
-
-use super::{Wedge, reach};
+use super::Wedge;
 use crate::brep::{self, Curve, Declined, EdgeId, FaceId, Surface};
 
 impl Wedge {
     /// The wedge of an edge straight between two flat faces, whether or not
-    /// it runs on tangentially into the next edge: a step reads that on the
-    /// body as given, before it lays anything.
+    /// it runs on tangentially into the next edge — a step reads that on the
+    /// body as given, before it lays anything — its reach left endless, for
+    /// the step to read where the edge's blend runs. Declined `Unsupported`
+    /// where a boundary of either face holds a curve two walls meet along,
+    /// whose turning back no closed form says.
     pub(super) fn read(body: &brep::Body, edge: EdgeId) -> Result<Wedge, Declined> {
         let wedge = Wedge::faced(body, edge)?;
-        let reach_of = |face: FaceId, into: DVec3| reach::reach(body, face, into, wedge.point);
-        let [(one, into_one), (other, into_other)] =
-            [0, 1].map(|side| (wedge.faces[side], wedge.into[side]));
-        let (Some(first_reach), Some(second_reach)) =
-            (reach_of(one, into_one), reach_of(other, into_other))
-        else {
+        let meeting = (wedge.faces.iter())
+            .flat_map(|&face| body.face(face).loops.iter().flatten())
+            .any(|coedge| matches!(body.curve(body.edge(coedge.edge).curve), Curve::Meet(_)));
+        if meeting {
             return Err(Declined::Unsupported);
-        };
-        Ok(Wedge {
-            reach: first_reach.min(second_reach),
-            ..wedge
-        })
+        }
+        Ok(wedge)
     }
 
     /// The wedge of an edge straight between two flat faces, but for how far

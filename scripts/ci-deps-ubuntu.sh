@@ -4,8 +4,9 @@
 # from the cause.
 set -eu
 
-sudo apt-get update
-sudo apt-get install -y --no-install-recommends \
+"$(dirname "$0")/ci-apt-sources.sh"
+sudo apt-get -o Acquire::Retries=5 update
+sudo apt-get install -y --no-install-recommends -o Acquire::Retries=5 \
     libxkbcommon-dev libxkbcommon-x11-dev \
     libwayland-dev wayland-protocols \
     libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \

@@ -70,6 +70,8 @@ pub struct ViewportState {
     pub(super) section: Option<Section>,
     pub(crate) kept_sections: KeptSections,
     pub(super) visibility: Visibility,
+    #[cfg_attr(not(test), expect(dead_code))]
+    pub(super) reading_point: Option<usize>,
     blinking: Option<Blinking>,
 }
 
@@ -101,6 +103,7 @@ impl Default for ViewportState {
             section: None,
             kept_sections: KeptSections::default(),
             visibility: Visibility::default(),
+            reading_point: None,
             blinking: None,
         }
     }

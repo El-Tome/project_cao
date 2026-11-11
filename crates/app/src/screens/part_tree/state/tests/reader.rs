@@ -15,8 +15,9 @@
 //! - A click sets the reading point. Clicking a box makes the part computed up
 //!   to that step included; the boxes after it are marked as not applied, and
 //!   so are the arrows between them. Clicking the last box brings the part
-//!   back whole — the boxes and the arrows,
-//!   `the_boxes_and_arrows_after_the_reading_point_are_not_applied`; the part
+//!   back whole — the boxes and the arrows, an arrow going out with the box
+//!   it leads to, the one out of the box read to included, as screen 07 draws
+//!   it — `the_boxes_and_arrows_after_the_reading_point_are_not_applied`; the part
 //!   drawn up to that step included, and whole again from the last box, held
 //!   in `crates/app/src/screens/viewport/matter/tests.rs` by
 //!   `a_part_read_to_a_step_is_drawn_up_to_it_and_whole_again_from_the_last`;
@@ -148,5 +149,79 @@ fn one_box_per_sketch_and_per_volume_in_the_part_s_order_and_none_for_a_section(
         nothing.boxes.is_empty(),
         "a part nothing was done to has a box: {:?}",
         kinds_and_names(&nothing),
+    );
+}
+
+#[test]
+fn an_undone_step_is_no_box() {
+    let lang = french();
+    let mut document = a_part();
+    assert_eq!(
+        kinds_and_names(&StepReader::of(&document, &lang)),
+        [
+            (StepKind::Sketch, "Esquisse 1"),
+            (StepKind::Extrusion, "Extrusion 1"),
+            (StepKind::Sketch, "Esquisse 2"),
+        ],
+        "the fixture wants a sketch, its block raised and a second sketch read as three boxes",
+    );
+
+    document.undo();
+    document.undo();
+
+    assert_eq!(
+        kinds_and_names(&StepReader::of(&document, &lang)),
+        [(StepKind::Sketch, "Esquisse 1")],
+        "the second sketch and the block undone, still there to be redone, are read as boxes",
+    );
+}
+
+/// Which boxes stand applied, left to right, and which of the arrows between
+/// them.
+fn applied(reader: &StepReader) -> (Vec<bool>, Vec<bool>) {
+    let boxes = reader.boxes.iter().map(|step| step.applied).collect();
+    (boxes, reader.arrows.clone())
+}
+
+#[test]
+fn the_boxes_and_arrows_after_the_reading_point_are_not_applied() {
+    let lang = french();
+    let document = a_part_with_every_kind_of_key_step_and_a_section();
+    let mut viewport = ViewportState::default();
+    let read = |viewport: &ViewportState| applied(&StepReader::seen(&document, viewport, &lang));
+
+    assert_eq!(
+        read(&viewport),
+        (vec![true; 6], vec![true; 5]),
+        "a part nobody has read yet is not read to its end, as (boxes, arrows) applied",
+    );
+
+    viewport.read_to(2);
+    assert_eq!(
+        read(&viewport),
+        (
+            vec![true, true, true, false, false, false],
+            vec![true, true, false, false, false],
+        ),
+        "read to the third of six boxes, the three boxes after it and the three arrows \
+         leading to them are not the only ones read not applied, as (boxes, arrows) applied",
+    );
+
+    viewport.read_to(0);
+    assert_eq!(
+        read(&viewport),
+        (
+            vec![true, false, false, false, false, false],
+            vec![false; 5],
+        ),
+        "read to the first box, every box after it and every arrow do not read not applied, \
+         as (boxes, arrows) applied",
+    );
+
+    viewport.read_to(5);
+    assert_eq!(
+        read(&viewport),
+        (vec![true; 6], vec![true; 5]),
+        "the last box clicked does not bring every box and every arrow back applied",
     );
 }

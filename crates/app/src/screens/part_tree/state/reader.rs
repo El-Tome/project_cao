@@ -8,20 +8,35 @@ use cao_part::history::StepKind;
 use super::sketch_name;
 use super::volumes::volume_name;
 use crate::lang::Catalogue;
+use crate::screens::viewport::ViewportState;
 
 /// One key step, named as its row in the tree is.
 #[derive(Clone, Debug, PartialEq)]
 pub struct KeyStep {
     pub kind: StepKind,
     pub name: String,
+    /// Played: at or before the reading point.
+    pub applied: bool,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct StepReader {
     pub boxes: Vec<KeyStep>,
+    /// One between each two boxes, applied when the box it leads to is.
+    pub arrows: Vec<bool>,
 }
 
 impl StepReader {
+    /// The part read to the point the canvas reads it to.
+    pub fn seen(document: &PartDocument, viewport: &ViewportState, lang: &Catalogue) -> Self {
+        let mut boxes = Self::of(document, lang).boxes;
+        for (rank, step) in boxes.iter_mut().enumerate() {
+            step.applied = viewport.reads_through(rank);
+        }
+        Self::arrowed(boxes)
+    }
+
+    /// The part read to its end.
     pub fn of(document: &PartDocument, lang: &Catalogue) -> Self {
         let (mut sketches, mut volumes) = (0, 0);
         let boxes = document
@@ -41,9 +56,18 @@ impl StepReader {
                     }
                     StepKind::Section => return None,
                 };
-                Some(KeyStep { kind, name })
+                Some(KeyStep {
+                    kind,
+                    name,
+                    applied: true,
+                })
             })
             .collect();
-        Self { boxes }
+        Self::arrowed(boxes)
+    }
+
+    fn arrowed(boxes: Vec<KeyStep>) -> Self {
+        let arrows = boxes.iter().skip(1).map(|step| step.applied).collect();
+        Self { boxes, arrows }
     }
 }

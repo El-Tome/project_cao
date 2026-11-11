@@ -68,8 +68,11 @@ impl Exact {
     /// mirror: the inner upright's fill ending one radius below the top, each
     /// top edge's round on the plane through the fill's axis square to its
     /// wall, and the corner closed by a piece of torus cut out about that
-    /// axis, its centre circle one radius below the top. Rounds that would meet only on a curved edge are not
-    /// measured, and declined where they meet. The rounds are numbered, in the
+    /// axis, its centre circle one radius below the top. An upright named
+    /// with its block's top edges closes its top corner with them by a piece
+    /// of sphere, as above: every edge of a standing block in one step.
+    /// Rounds that would meet only on a curved edge are not measured, and
+    /// declined where they meet. The rounds are numbered, in the
     /// order the names come, where the steps' numbers ended; a full round
     /// answers to both its edges' numbers. Declined `Distance`: a radius that
     /// is no length, one whose round would stand off the faces it replaces by

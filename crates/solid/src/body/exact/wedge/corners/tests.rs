@@ -5,11 +5,13 @@
 //! three edges at a corner of mixed sense — a standing block's foot corner,
 //! two feet and the upright above them, and the top of an L's inner corner,
 //! two top edges and the upright below them (#829); a foot and the upright
-//! above it, the other foot left sharp, the upright gone round as the odd
-//! edge (#846); and no other corner but a convex one. It is the first guard a step's corners meet: a list it lets
-//! through by mistake — a cut and a fill meeting at a corner — is declined
-//! further on all the same, so a step on the whole body cannot tell which
-//! reading declined it. Here the corner's own answer is held.
+//! above it, the other foot left sharp, and the L's top edge and its inner
+//! upright, the other top edge left sharp, the upright gone round as the odd
+//! edge (#846); and no other corner but a convex one. It is the first guard a
+//! step's corners meet: a list it lets through by mistake — a cut and a fill
+//! meeting at a corner — is declined further on all the same, so a step on
+//! the whole body cannot tell which reading declined it. Here the corner's
+//! own answer is held.
 
 use glam::{DVec2, DVec3};
 
@@ -210,10 +212,18 @@ fn a_foot_and_the_upright_above_it_are_taken_with_no_corner_beside_an_edge_which
 }
 
 #[test]
-fn an_l_s_top_edge_and_its_inner_upright_are_declined() {
-    let list = [[TOP, ARM_BACK], [ARM_BACK, STEM_RIGHT]];
+fn an_l_s_top_edge_and_its_inner_upright_are_taken_with_no_corner_beside_an_edge_whichever_the_list_names_first()
+ {
+    let top_edge = [TOP, ARM_BACK];
+    let upright = [ARM_BACK, STEM_RIGHT];
 
-    assert_eq!(admitted(&ell(), &list), Err(Declined::Unsupported));
+    for list in [[top_edge, upright], [upright, top_edge]] {
+        assert_eq!(
+            admitted(&ell(), &list),
+            Ok(Vec::new()),
+            "{list:?}: the other top edge left sharp, the upright gone round as the odd edge"
+        );
+    }
 }
 
 #[test]

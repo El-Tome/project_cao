@@ -3,8 +3,8 @@
 //! corner of one sense with it, then the others with the edge where its face
 //! meets the face they share — a chamfer's flat's foot, or a fill's top —
 //! and, where one of the two others is left sharp (#846), the flat along that
-//! edge held in the air on the plane square to the sharp edge, its end a face
-//! of its own.
+//! edge held on the plane square to the sharp edge — a fill's in the air, a
+//! cut's dug into the top —, its end a face of its own.
 
 use std::collections::BTreeSet;
 
@@ -141,8 +141,9 @@ impl Exact {
         Ok((Exact { next, ..renamed }, taken))
     }
 
-    /// Where the fill along the edge `edge` of this body ends at the wall of
-    /// an edge left sharp at the corner `at`, running from it `away`: held on
+    /// Where the fill or the cut along the edge `edge` of this body ends at
+    /// the wall of an edge left sharp at the corner `at`, running from it
+    /// `away`: held on
     /// the plane square to that edge through the end of `edge` on its line,
     /// as [`Held`] reads it. Declined `Unsupported` where neither end of
     /// `edge` stands on that line.

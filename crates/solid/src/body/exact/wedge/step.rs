@@ -22,8 +22,9 @@ use crate::brep::{self, Declined, EdgeId, EdgeName, Scale};
 /// face they share, as [`pairs::facing`] reads them; the corners two of them
 /// meet at beside a third that is not convex with them, as
 /// [`corners::admit`] takes them; the corners three of them meet at, as
-/// [`corners::of_three`] reads them; and the ends of fills held in the air,
-/// none unless a step going round an odd edge holds them (#846).
+/// [`corners::of_three`] reads them; and the ends of cuts and fills held on
+/// a plane of their own, none unless a step going round an odd edge holds
+/// them (#846).
 pub(super) struct Step {
     pub edges: Vec<EdgeId>,
     pub wedges: Vec<Wedge>,

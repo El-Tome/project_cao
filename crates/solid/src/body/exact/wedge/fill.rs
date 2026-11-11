@@ -8,16 +8,14 @@
 
 mod round;
 
-use std::collections::BTreeMap;
-
 use glam::DVec3;
 
 use super::end::{beyond, end_face};
-use super::flush::Held;
-use super::overlap::{ENDS, Overlap, STRIDE};
+use super::flush::{Held, holding};
+use super::overlap::Overlap;
 use super::{Prism, Wedge};
 use crate::body::exact::Exact;
-use crate::brep::{self, Declined, EdgeId, FaceId, Plane, Surface};
+use crate::brep::{self, Declined, EdgeId, FaceId, Surface};
 
 impl Exact {
     /// The body with the corner along each of `edges`, read on `on`, filled in
@@ -26,7 +24,7 @@ impl Exact {
     /// its ends are trimmed by and the overlaps it takes number their faces
     /// past its own: each end of it trimmed flush on the surface of the face
     /// the first edge ends on — or, at an end one of `held` holds, on the
-    /// plane it holds it at, in the air, as [`held_at`] trims it, that end
+    /// plane it holds it at, in the air, as [`Held::beyond`] trims it, that end
     /// left standing as a face of its own — joined to each of `overlaps`, what it takes past
     /// a corner it shares with a fill laid before it beside a convex edge,
     /// and joined to the body, every face of the prism that merged into one
@@ -65,9 +63,8 @@ impl Exact {
         for (end, past) in ends.into_iter().zip([-wedge.along, wedge.along]) {
             let face = end_face(on, end, wedge.faces).ok_or(Declined::Unsupported)?;
             let point = on.vertex(end).point;
-            let holding = (held.iter()).position(|end| end.at.distance(point) <= eps);
-            let beyond_the_end = match holding {
-                Some(index) => held_at(&held[index], prism, ENDS + index as u32 * STRIDE)?,
+            let beyond_the_end = match holding(held, point, eps) {
+                Some((end, number)) => end.beyond(prism, number)?,
                 None => past_the_end(on, face, point, past, prism)?,
             };
             trimmed = trimmed.cut_by(&beyond_the_end)?;
@@ -91,22 +88,6 @@ impl Exact {
         let next = edges.len() as u32;
         self.joined(&Exact { next, ..trimmed })?.merged_at(&corners)
     }
-}
-
-/// The solid to cut from the prism so that it ends on the plane `end` holds
-/// it at, in the air: the box [`beyond`] raises on that plane, on the side
-/// `end` points away to, its faces numbered `number`, so that the end it
-/// leaves standing is told apart from a face of the prism until the step
-/// numbers it. Declined as [`beyond`] declines.
-fn held_at(end: &Held, prism: &Prism, number: u32) -> Result<Exact, Declined> {
-    let (plane, _) = Plane::through(end.at, end.away);
-    let solid = beyond(prism, &plane, end.away)?;
-    Ok(Exact::of(
-        solid.brep.renumbered_by(|_| number),
-        0,
-        0,
-        BTreeMap::new(),
-    ))
 }
 
 /// The solid to cut from the prism so that it ends flush on the surface of

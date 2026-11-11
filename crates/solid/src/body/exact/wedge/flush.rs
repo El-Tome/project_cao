@@ -9,11 +9,13 @@
 //! of two edges meeting at a corner beside an edge of the other sense, whose
 //! prism takes with it what both prisms hold past that corner.
 
+use std::collections::BTreeMap;
+
 use glam::DVec3;
 
 use super::corners::Beside;
 use super::end::{beyond, end_face};
-use super::overlap::{Overlap, overlap};
+use super::overlap::{ENDS, Overlap, STRIDE, overlap};
 use super::{Prism, Wedge};
 use crate::body::exact::Exact;
 use crate::brep::{self, Declined, EdgeId, FaceId, Plane, Scale, Surface, VertexId};
@@ -81,14 +83,41 @@ pub(super) struct Flush<'a> {
     held: Vec<Held>,
 }
 
-/// An end a fill stops at in the air (#846), whatever face its edge runs
-/// into there: the corner it ends at, and the way square to the plane through
-/// it the fill is trimmed off towards — the way along the edge left sharp at
-/// a corner of mixed sense, where its wall begins.
+/// An end a cut or a fill stops at on a plane of its own (#846), whatever
+/// face its edge runs into there: the corner it ends at, and the way square
+/// to the plane through it the prism is trimmed off towards — the way along
+/// the edge left sharp at a corner of mixed sense, where its wall begins. A
+/// fill's end stands there in the air, a cut's end digs into the matter.
 #[derive(Clone, Copy)]
 pub(super) struct Held {
     pub at: DVec3,
     pub away: DVec3,
+}
+
+impl Held {
+    /// The solid to cut from the prism so that it ends on the plane this end
+    /// holds it at: the box [`beyond`] raises on that plane, on the side it
+    /// points away to, its faces numbered `number`, so that the end it leaves
+    /// is told apart from a face of the prism until the step numbers it.
+    /// Declined as [`beyond`] declines.
+    pub fn beyond(&self, prism: &Prism, number: u32) -> Result<Exact, Declined> {
+        let (plane, _) = Plane::through(self.at, self.away);
+        let solid = beyond(prism, &plane, self.away)?;
+        Ok(Exact::of(
+            solid.brep.renumbered_by(|_| number),
+            0,
+            0,
+            BTreeMap::new(),
+        ))
+    }
+}
+
+/// Where among `held` the end of a prism at `point` is held, and the number
+/// the end it leaves there takes, past [`ENDS`] by its rank among them.
+pub(super) fn holding(held: &[Held], point: DVec3, eps: f64) -> Option<(&Held, u32)> {
+    (held.iter().enumerate())
+        .find(|(_, end)| end.at.distance(point) <= eps)
+        .map(|(index, end)| (end, ENDS + index as u32 * STRIDE))
 }
 
 impl<'a> Flush<'a> {
@@ -177,13 +206,13 @@ impl Exact {
     /// numbered nought and counted as raised, so that the solids its ends are
     /// trimmed by and the overlaps it takes number their faces past its own:
     /// a fill trimmed flush at both ends and joined, as [`Exact::filled`]
-    /// lays it; a cut trimmed flush at each of its [`stops`], joined to each
-    /// overlap, and cut, the trimmed ends and the overlaps merged into the
-    /// faces they meet, as [`Exact::merged_at`] merges them at the corners the
-    /// edge ended at and the points the overlaps clear, and carried past any
-    /// other end. Declined `Unsupported` where a cut has an end held in the
-    /// air, which no cut lays yet; otherwise as the trims, the joins and the
-    /// booleans decline.
+    /// lays it; a cut trimmed at each end `flush` holds on the plane it holds
+    /// it at, that end left a face of its own dug into the matter, flush at
+    /// each of its other [`stops`], joined to each overlap, and cut, the ends
+    /// trimmed flush and the overlaps merged into the faces they meet, as
+    /// [`Exact::merged_at`] merges them at the corners the edge ended at and
+    /// the points the overlaps clear, and carried past any other end. Declined
+    /// as the trims, the joins and the booleans decline.
     pub(super) fn laid_flush(
         &self,
         flush: &Flush,
@@ -196,11 +225,17 @@ impl Exact {
             let ends = (&flush.overlaps[..], &flush.held[..]);
             return self.filled(flush.on, &edges, ends, prism, tool);
         }
-        if !flush.held.is_empty() {
-            return Err(Declined::Unsupported);
-        }
-        let stops = stops(flush.on, flush.edge, wedge);
+        let eps = flush.on.scale().eps();
         let mut trimmed = tool;
+        let ends = flush.on.edge(flush.edge).ends.into_iter().flatten();
+        for end in ends.map(|end| flush.on.vertex(end).point) {
+            if let Some((held, number)) = holding(&flush.held, end, eps) {
+                trimmed = trimmed.cut_by(&held.beyond(prism, number)?)?;
+            }
+        }
+        let stops: Vec<Stop> = (stops(flush.on, flush.edge, wedge).into_iter())
+            .filter(|stop| holding(&flush.held, stop.corner, eps).is_none())
+            .collect();
         for stop in &stops {
             trimmed = trimmed.cut_by(&stop.beyond(prism)?)?;
         }

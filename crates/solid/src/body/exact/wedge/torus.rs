@@ -17,12 +17,14 @@
 //! the prop; once every edge is laid, the sector the filling would fill is
 //! cut away instead, prop and all, and the four faces it leaves are replaced
 //! by the piece of torus facing away from its tube's centre, the matter
-//! inside the tube. Where one foot is left sharp (#846), the filling's side
-//! square to it lies on the plane through the axis where that foot's wall
-//! begins: the piece of torus runs round the whole arc there and stops on
-//! that plane along the meridian of its tube, which parts the filling's side
-//! into the piece's end section, a square of the value's side less a quarter
-//! disc, and what the piece replaces.
+//! inside the tube. Where one foot, or one top edge, is left sharp (#846),
+//! the side of the filling or the clearing square to it lies on the plane
+//! through the axis where that edge's wall begins: the piece of torus runs
+//! round the whole arc there and stops on that plane along the meridian of
+//! its tube, which parts that side into the piece's end section, a square of
+//! the value's side less a quarter disc — standing in the air at a foot
+//! corner and facing along the sharp edge, dug into the top at the L's and
+//! facing back along it — and what the piece replaces.
 
 use std::f64::consts::FRAC_1_SQRT_2;
 use std::ops::Range;
@@ -169,7 +171,9 @@ impl Exact {
     /// concave and the two others cut. Where one of the two others is left
     /// sharp, the loop's stretch on the plane through the axis square to it
     /// is closed by the arc of the tube's meridian there, and bounds the end
-    /// section, numbered next after the piece, flat on that plane; the rest,
+    /// section, numbered next after the piece, flat on that plane and facing
+    /// along the sharp edge where the odd edge is convex, back along it where
+    /// it is concave; the rest,
     /// closed by the same arc, bounds the piece. Declined `Unsupported` where
     /// those faces make no one loop towards the rest of the body — of four
     /// edges where no edge is left sharp, of one stretch on that plane and
@@ -231,7 +235,8 @@ impl Exact {
         };
         let round = [round, vec![Coedge { edge: arc, forward }]].concat();
         let flat = [flat, vec![end]].concat();
-        let (plane, turned) = Plane::through(axis, away);
+        let facing = if wedge.inwards { -away } else { away };
+        let (plane, turned) = Plane::through(axis, facing);
         let face = Face {
             flipped: turned,
             numbers: vec![self.next + 1],

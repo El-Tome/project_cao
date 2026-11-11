@@ -24,8 +24,8 @@
 //! declined: #847 builds a post whose upright is odd at both ends. Where one
 //! of the two others is left sharp, the flat along the odd edge's face goes
 //! round it only up to the plane square to that edge where its wall begins,
-//! held there in the air, its end a face of its own numbered after the
-//! patches; a fillet's piece of torus runs round the whole arc there, and
+//! held there — a fill's in the air, a cut's dug into the top —, its end a
+//! face of its own numbered after the patches; a fillet's piece of torus runs round the whole arc there, and
 //! stops on that plane at a flat end section of its own, numbered as the
 //! chamfer's end is.
 

@@ -38,16 +38,25 @@
 //!   the top of its fill, and its end face cut into the top, on the plane
 //!   square to the sharp top edge where the fill meets that edge's wall. The
 //!   arm's back top edge is named, as the decline test named it, and the
-//!   stem's right top edge in turn — no test: built later on this branch,
-//!   the L's pair still declined today
+//!   stem's right top edge in turn — chamfered,
+//!   `a_chamfer_on_a_top_edge_at_the_l_s_inner_corner_and_the_upright_below_it_cuts_round_the_upright_s_fill_and_stops_where_the_sharp_top_edge_begins`;
+//!   filleted,
+//!   `a_fillet_on_a_top_edge_at_the_l_s_inner_corner_and_the_upright_below_it_cuts_round_the_upright_s_fill_through_a_piece_of_torus_and_stops_where_the_sharp_top_edge_begins`.
+//!   Held as the foot corner is, every way mirrored: the end face facing back
+//!   along the sharp top edge, toward the corner, the matter past it; the
+//!   fillet's end section a square less a quarter disc cut into the top and
+//!   down the sharp edge's wall; the sharp top edge one edge from the stem's
+//!   back, or the arm's end, to the end face
 //! - The decline test
 //!   `a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_declined_as_unsupported`
 //!   loses its last two lists, which become the body tests above; if nothing
-//!   is left in it, it goes — no test: a change to that test, in
-//!   `a_chamfer_and_a_fillet_blend_the_corner_their_edges_meet_at.rs`; and in
-//!   `wedge/corners/tests.rs`, where the corner's own answer is read, a foot
-//!   and the upright above it, and the L's top edge and its inner upright, are
-//!   taken with no corner beside an edge, as #829's corners of mixed sense are
+//!   is left in it, it goes — no test: nothing was left in it, and it went
+//!   from `a_chamfer_and_a_fillet_blend_the_corner_their_edges_meet_at.rs`
+//!   with the fixtures only it used, that file's #699 criterion now pointing
+//!   here; and in `wedge/corners/tests.rs`, where the corner's own answer is
+//!   read, a foot and the upright above it, and the L's top edge and its
+//!   inner upright, are taken with no corner beside an edge whichever the
+//!   list names first, as #829's corners of mixed sense are
 //! - What must not break: #699's, #801's and #829's corner tests — no test:
 //!   each is held by its own file, left as it is
 //!
@@ -203,9 +212,10 @@ struct FarEnd {
     facing: DVec3,
 }
 
-/// A foot at a foot corner: what it is called, the standing block's wall it
-/// runs along, the way that wall faces, out of the matter, the way the foot
-/// runs from the corner, and the wall its far end runs into.
+/// A foot at a foot corner, or a top edge at the top of the L's inner corner:
+/// what it is called, the wall it runs along, the way that wall faces, out of
+/// the matter, the way it runs from the corner, and the wall its far end runs
+/// into.
 struct Foot {
     called: &'static str,
     wall: usize,
@@ -214,13 +224,19 @@ struct Foot {
     far: FarEnd,
 }
 
-/// A foot corner of a block standing on another, one of its feet and the
-/// upright above it named and the other foot left sharp: what it is called,
-/// the part and the matter it holds, where the corner stands on the lower
-/// block's top, the foot named and the foot left sharp, and what the upright
-/// between their walls is called. Its two named edges are named, in every
-/// list here, by their place in [`SharpCorner::edges`]: the foot, then the
-/// upright.
+/// A corner of mixed sense with one of its two like edges named with the odd
+/// edge and the other left sharp: what it is called, the part and the matter
+/// it holds, where the corner stands on the face the two like edges share,
+/// the like edge named and the one left sharp, what the odd edge between
+/// their walls is called, whether that edge meets inwards and is filled, its
+/// neighbours cut, and the face it ends on, [`STANDING_HEIGHT`] from the face
+/// the two share. At a foot corner of a block standing on another the two are
+/// its feet, filled, and the odd edge the upright above them, cut, ending on
+/// the standing block's top; at the top of an L's inner corner the two are
+/// its top edges, cut, and the odd edge the inner upright below them, filled,
+/// ending on the L's floor. Its two named edges are named, in every list
+/// here, by their place in [`SharpCorner::edges`]: the like edge, then the
+/// odd edge.
 struct SharpCorner {
     called: &'static str,
     part: fn() -> Body,
@@ -229,14 +245,17 @@ struct SharpCorner {
     named: Foot,
     sharp: Foot,
     upright: &'static str,
+    odd_filled: bool,
+    odd_ends_on: usize,
 }
 
 /// Where a chamfer of a value on a [`SharpCorner`] lays its flats out, as the
-/// module's documentation does: where the upright's flat leaves the named
-/// foot's wall and where it leaves the sharp foot's, on the lower block's
-/// top; the outer corner of the mitre between the named foot's fill and the
-/// fill along the flat's foot; and the outer corner of that fill's end, on the
-/// plane square to the sharp foot.
+/// module's documentation does: where the odd edge's flat leaves the named
+/// edge's wall and where it leaves the sharp edge's, on the face the two
+/// share; the far corner, on that face, of the mitre between the named
+/// edge's flat and the flat along the end of the odd edge's; and the far
+/// corner, on that face, of that flat's end, on the plane square to the
+/// sharp edge.
 struct RoundTheFlat {
     leaves_named: DVec3,
     leaves_sharp: DVec3,
@@ -246,7 +265,7 @@ struct RoundTheFlat {
 
 impl SharpCorner {
     /// What each of the two named edges is called, and the two faces it lies
-    /// between: the foot, then the upright.
+    /// between: the like edge, then the odd edge.
     fn edges(&self) -> [(&'static str, [usize; 2]); 2] {
         [
             (self.named.called, [TOP, self.named.wall]),
@@ -265,20 +284,33 @@ impl SharpCorner {
         PI - self.angle()
     }
 
-    /// The way the upright's flat faces, out of the matter: halfway between
+    /// The way the odd edge's flat faces, out of the matter: halfway between
     /// its two walls' ways.
     fn flat_facing(&self) -> DVec3 {
         (self.named.facing + self.sharp.facing).normalize()
     }
 
-    /// How far the lines along the named foot shrink a unit out from its wall,
-    /// where the wall at its far end leans across it.
+    /// One where the odd edge is cut and its two neighbours filled, minus one
+    /// where it is filled and they are cut: the sign of what each blend gives
+    /// the part.
+    fn sense(&self) -> f64 {
+        if self.odd_filled { -1.0 } else { 1.0 }
+    }
+
+    /// The way the odd edge runs from the face the two like edges share: up
+    /// from the lower block's top, down from the L's top.
+    fn up(&self) -> DVec3 {
+        DVec3::Z * self.sense()
+    }
+
+    /// How far the lines along the named edge shrink a unit out from its
+    /// wall, where the wall at its far end leans across it.
     fn lean(&self) -> f64 {
         let foot = &self.named;
         foot.facing.dot(foot.far.facing) / foot.along.dot(foot.far.facing)
     }
 
-    /// How long the named foot runs from the corner to the wall at its far
+    /// How long the named edge runs from the corner to the wall at its far
     /// end, along its own wall.
     fn named_length(&self) -> f64 {
         (self.named.far.at - self.at).dot(self.named.along)
@@ -292,25 +324,32 @@ impl SharpCorner {
         let leaves_named = self.at + a * d;
         let leaves_sharp = self.at + b * d;
         let run = (b - a).normalize();
+        let sense = self.sense();
         RoundTheFlat {
             leaves_named,
             leaves_sharp,
-            mitre: leaves_named + (self.named.facing - a * (self.turn() / 4.0).tan()) * d,
-            end: leaves_sharp + (self.flat_facing() + run / half.tan()) * d,
+            mitre: leaves_named + (self.named.facing * sense - a * (self.turn() / 4.0).tan()) * d,
+            end: leaves_sharp + (self.flat_facing() * sense + run / half.tan()) * d,
         }
     }
 
-    /// What the part holds once the named foot and the upright are chamfered
-    /// at `value`, as the module's documentation derives it.
+    /// What the part holds once the named edge and the odd edge are chamfered
+    /// at `value`, as the module's documentation derives it: every term taken
+    /// where a foot corner adds it, at the top of the L's inner corner, but
+    /// the lean's, which a cut's lines inside the wall shorten where a fill's
+    /// outside it lengthen.
     fn chamfered(&self, value: f64) -> f64 {
         let d = value;
         let half = self.angle() / 2.0;
-        self.volume - STANDING_HEIGHT * d * d * self.angle().sin() / 2.0
-            + (self.named_length() - d) * d * d / 2.0
-            - self.lean() * d.powi(3) / 6.0
-            + 2.0 * d * half.sin() * d * d / 2.0
-            + (self.turn() / 4.0).tan() * d.powi(3) / 3.0
-            + d.powi(3) / 6.0 / half.tan()
+        let sense = self.sense();
+        self.volume
+            + sense
+                * (-STANDING_HEIGHT * d * d * self.angle().sin() / 2.0
+                    + (self.named_length() - d) * d * d / 2.0
+                    - self.lean() * d.powi(3) / 6.0 * sense
+                    + 2.0 * d * half.sin() * d * d / 2.0
+                    + (self.turn() / 4.0).tan() * d.powi(3) / 3.0
+                    + d.powi(3) / 6.0 / half.tan())
     }
 
     /// How far from the corner along each wall a round of `radius` on the
@@ -319,40 +358,48 @@ impl SharpCorner {
         radius / (self.angle() / 2.0).tan()
     }
 
-    /// Where the axis of a round of `radius` on the upright stands on the
-    /// lower block's top: `radius` in from both walls.
+    /// Where the axis of a round of `radius` on the odd edge stands on the
+    /// face the two like edges share: `radius` in from both walls where the
+    /// odd edge is cut, `radius` out from them where it is filled.
     fn axis(&self, radius: f64) -> DVec3 {
-        self.at + self.named.along * self.tangent(radius) - self.named.facing * radius
+        self.at + self.named.along * self.tangent(radius)
+            - self.named.facing * radius * self.sense()
     }
 
-    /// What the part holds once the named foot and the upright are filleted
-    /// at `radius`, as the module's documentation derives it.
+    /// What the part holds once the named edge and the odd edge are filleted
+    /// at `radius`, as the module's documentation derives it, signed as
+    /// [`SharpCorner::chamfered`] signs it.
     fn filleted(&self, radius: f64) -> f64 {
         let r = radius;
         let tangent = self.tangent(r);
-        self.volume - STANDING_HEIGHT * (r * tangent - self.turn() * r * r / 2.0)
-            + (self.named_length() - tangent) * r * r * (1.0 - PI / 4.0)
-            - self.lean() * r.powi(3) * (5.0 / 6.0 - PI / 4.0)
-            + self.turn() * r.powi(3) * (11.0 / 6.0 - PI / 2.0)
+        let sense = self.sense();
+        self.volume
+            + sense
+                * (-STANDING_HEIGHT * (r * tangent - self.turn() * r * r / 2.0)
+                    + (self.named_length() - tangent) * r * r * (1.0 - PI / 4.0)
+                    - self.lean() * r.powi(3) * (5.0 / 6.0 - PI / 4.0) * sense
+                    + self.turn() * r.powi(3) * (11.0 / 6.0 - PI / 2.0))
     }
 
     /// The rounds a fillet of `radius` on the two named edges leaves, in the
-    /// order of [`SharpCorner::edges`]: the foot's, from the plane through the
-    /// upright round's axis square to its wall to the plane of the face at its
-    /// far end; and the upright's, from the circle where the piece of torus
-    /// meets it, `radius` over the lower block's top, to the standing block's
-    /// top.
+    /// order of [`SharpCorner::edges`]: the like edge's, from the plane
+    /// through the odd edge round's axis square to its wall to the plane of
+    /// the face at its far end; and the odd edge's, from the circle where the
+    /// piece of torus meets it, `radius` from the face the two like edges
+    /// share, to the face it ends on, [`STANDING_HEIGHT`] away.
     fn rounds(&self, radius: f64) -> [Cylinder; 2] {
         let r = radius;
+        let sense = self.sense();
         let foot = &self.named;
         let axis = self.axis(r);
+        let up = self.up();
         [
             Cylinder {
                 called: foot.called,
-                through: self.at + (foot.facing + DVec3::Z) * r,
+                through: self.at + (foot.facing + DVec3::Z) * r * sense,
                 along: foot.along,
                 radius: r,
-                toward: [-DVec3::Z, -foot.facing],
+                toward: [-DVec3::Z * sense, -foot.facing * sense],
                 ends: [
                     (self.at + foot.along * self.tangent(r), -foot.along),
                     (foot.far.at, foot.far.facing),
@@ -364,35 +411,33 @@ impl SharpCorner {
                 through: axis,
                 along: DVec3::Z,
                 radius: r,
-                toward: [foot.facing, self.sharp.facing],
-                ends: [
-                    (axis + DVec3::Z * r, -DVec3::Z),
-                    (axis + DVec3::Z * STANDING_HEIGHT, DVec3::Z),
-                ],
-                meets: vec![STANDING_TOP, foot.wall, self.sharp.wall],
+                toward: [foot.facing * sense, self.sharp.facing * sense],
+                ends: [(axis + up * r, -up), (axis + up * STANDING_HEIGHT, up)],
+                meets: vec![self.odd_ends_on, foot.wall, self.sharp.wall],
             },
         ]
     }
 
     /// The piece of torus a fillet of `radius` on the two named edges lays
-    /// round the upright's round, over the whole of its arc: from the named
-    /// foot's round to the plane through its axis square to the sharp foot.
+    /// round the odd edge's round, over the whole of its arc: from the named
+    /// edge's round to the plane through its axis square to the sharp edge.
     fn torus(&self, radius: f64) -> Torus {
+        let sense = self.sense();
         Torus {
             axis: self.axis(radius),
             radius,
-            from: self.named.facing,
-            to: self.sharp.facing,
-            sense: 1.0,
+            from: self.named.facing * sense,
+            to: self.sharp.facing * sense,
+            sense,
             shared: TOP,
         }
     }
 
     /// What the triangles of a fillet of `radius` on the two named edges may
     /// enclose apart from its matter: the drawing's tolerance at the part's
-    /// own reach, over the curved faces — the foot's round along its foot and
-    /// a radius past it, the upright's round along the standing block's
-    /// height, and the piece of torus, `θ·r²(π − 1)`.
+    /// own reach, over the curved faces — the named edge's round along its
+    /// edge and a radius past it, the odd edge's round along its height, and
+    /// the piece of torus, `θ·r²(π − 1)`.
     fn drawn_within(&self, part: &Body, radius: f64) -> f64 {
         let r = radius;
         let foot = PI / 2.0 * r * (self.named_length() + r);
@@ -434,7 +479,239 @@ fn stacked_s_front_right() -> SharpCorner {
             },
         },
         upright: "the standing block's front right upright",
+        odd_filled: false,
+        odd_ends_on: STANDING_TOP,
     }
+}
+
+/// The lower block of [`stacked`] with a block standing on it whose outline
+/// is not a rectangle, #801's trapezoid: its front from (10, 5) to (20, 5),
+/// its right wall leaning out from there to (24, 15), its back running from
+/// there to (10, 15) and its left wall upright, numbered as [`stacked`]'s.
+/// Its corner at the front right foot holds 111.8° of matter, the one at the
+/// back right 68.2°; the two on the left are square.
+fn leaning_stacked() -> Body {
+    joined(
+        &joined(
+            &Body::default(),
+            Contour::rectangle(DVec2::ZERO, DVec2::new(30.0, 20.0)),
+            0.0,
+            10.0,
+        ),
+        Contour::straight(vec![
+            DVec2::new(10.0, 5.0),
+            DVec2::new(20.0, 5.0),
+            DVec2::new(24.0, 15.0),
+            DVec2::new(10.0, 15.0),
+        ]),
+        10.0,
+        10.0,
+    )
+}
+
+/// What [`leaning_stacked`] holds: the lower block, and the trapezoid 10 at
+/// its front and 14 at its back, 10 deep, raised 10.
+const LEANING_STACKED_VOLUME: f64 = 30.0 * 20.0 * 10.0 + (10.0 + 14.0) / 2.0 * 10.0 * 10.0;
+
+/// The way the trapezoid's leaning right wall faces, out of the matter.
+fn leaning_wall_facing() -> DVec3 {
+    DVec3::new(10.0, -4.0, 0.0).normalize()
+}
+
+/// The way the trapezoid's leaning right wall runs, from its front to its
+/// back.
+fn leaning_wall_along() -> DVec3 {
+    DVec3::new(4.0, 10.0, 0.0).normalize()
+}
+
+/// The two feet of [`leaning_stacked`]'s front right foot corner, (20, 5, 10),
+/// its obtuse one, 111.8° of matter: its front foot, running to the left
+/// wall, and its right foot, along the leaning wall to the back wall, which
+/// leans across it.
+fn leaning_s_obtuse_feet() -> [Foot; 2] {
+    [
+        Foot {
+            called: "the leaning block's front foot",
+            wall: STANDING_FRONT,
+            facing: -DVec3::Y,
+            along: -DVec3::X,
+            far: FarEnd {
+                on: STANDING_LEFT,
+                at: DVec3::new(10.0, 5.0, LOWER_TOP),
+                facing: -DVec3::X,
+            },
+        },
+        Foot {
+            called: "the leaning block's right foot",
+            wall: STANDING_RIGHT,
+            facing: leaning_wall_facing(),
+            along: leaning_wall_along(),
+            far: FarEnd {
+                on: STANDING_BACK,
+                at: DVec3::new(24.0, 15.0, LOWER_TOP),
+                facing: DVec3::Y,
+            },
+        },
+    ]
+}
+
+/// The two feet of [`leaning_stacked`]'s back right foot corner, (24, 15,
+/// 10), its acute one, 68.2° of matter: its right foot, along the leaning
+/// wall to the front wall, which leans across it, and its back foot, running
+/// to the left wall.
+fn leaning_s_acute_feet() -> [Foot; 2] {
+    [
+        Foot {
+            called: "the leaning block's right foot",
+            wall: STANDING_RIGHT,
+            facing: leaning_wall_facing(),
+            along: -leaning_wall_along(),
+            far: FarEnd {
+                on: STANDING_FRONT,
+                at: DVec3::new(20.0, 5.0, LOWER_TOP),
+                facing: -DVec3::Y,
+            },
+        },
+        Foot {
+            called: "the leaning block's back foot",
+            wall: STANDING_BACK,
+            facing: DVec3::Y,
+            along: -DVec3::X,
+            far: FarEnd {
+                on: STANDING_LEFT,
+                at: DVec3::new(10.0, 15.0, LOWER_TOP),
+                facing: -DVec3::X,
+            },
+        },
+    ]
+}
+
+/// A foot corner of [`leaning_stacked`], `called`, at `at`, with each of the
+/// two feet `feet` gives named in turn with the upright between them, called
+/// `upright`, the other foot left sharp.
+fn each_foot_named(
+    called: &'static str,
+    at: DVec3,
+    feet: fn() -> [Foot; 2],
+    upright: &'static str,
+) -> [SharpCorner; 2] {
+    [false, true].map(|swapped| {
+        let [one, other] = feet();
+        let [named, sharp] = if swapped { [other, one] } else { [one, other] };
+        SharpCorner {
+            called,
+            part: leaning_stacked,
+            volume: LEANING_STACKED_VOLUME,
+            at,
+            named,
+            sharp,
+            upright,
+            odd_filled: false,
+            odd_ends_on: STANDING_TOP,
+        }
+    })
+}
+
+/// [`leaning_stacked`]'s two foot corners that are not square, each foot of
+/// each named in turn with the upright above it, the other foot left sharp:
+/// the obtuse corner's front foot, then its right foot; the acute corner's
+/// right foot, then its back foot.
+fn leaning_s_corners() -> Vec<SharpCorner> {
+    let obtuse = each_foot_named(
+        "the leaning block's front right foot corner, 111.8° of matter",
+        DVec3::new(20.0, 5.0, LOWER_TOP),
+        leaning_s_obtuse_feet,
+        "the leaning block's front right upright",
+    );
+    let acute = each_foot_named(
+        "the leaning block's back right foot corner, 68.2° of matter",
+        DVec3::new(24.0, 15.0, LOWER_TOP),
+        leaning_s_acute_feet,
+        "the leaning block's back right upright",
+    );
+    obtuse.into_iter().chain(acute).collect()
+}
+
+/// The L of #699's and #801's tests: an arm 30 long and 6 deep along the
+/// front, and at its left end a stem 12 wide reaching back to 14, raised 10.
+/// Its floor is numbered nought, its top one and its walls from the front
+/// round: the front two, the arm's right end three, the arm's back four, the
+/// stem's right side five, the stem's back six and the left seven. The arm's
+/// back and the stem's right side meet inwards along the inner upright at
+/// (12, 6), 10 high; the top edges on them meet outwards above it. It holds
+/// 2760.
+fn ell() -> Body {
+    joined(
+        &Body::default(),
+        Contour::straight(vec![
+            DVec2::new(0.0, 0.0),
+            DVec2::new(30.0, 0.0),
+            DVec2::new(30.0, 6.0),
+            DVec2::new(12.0, 6.0),
+            DVec2::new(12.0, 14.0),
+            DVec2::new(0.0, 14.0),
+        ]),
+        0.0,
+        STANDING_HEIGHT,
+    )
+}
+const ELL_VOLUME: f64 = (30.0 * 6.0 + 12.0 * 8.0) * 10.0;
+const FLOOR: usize = 0;
+const ARM_END: usize = 3;
+const ARM_BACK: usize = 4;
+const STEM_RIGHT: usize = 5;
+const STEM_BACK: usize = 6;
+
+/// The two top edges at the top of [`ell`]'s inner corner, (12, 6, 10),
+/// square: the arm's back top edge, running to the arm's end, and the stem's
+/// right top edge, running to the stem's back.
+fn ell_s_inner_top_edges() -> [Foot; 2] {
+    [
+        Foot {
+            called: "the L's arm's back top edge",
+            wall: ARM_BACK,
+            facing: DVec3::Y,
+            along: DVec3::X,
+            far: FarEnd {
+                on: ARM_END,
+                at: DVec3::new(30.0, 6.0, STANDING_HEIGHT),
+                facing: DVec3::X,
+            },
+        },
+        Foot {
+            called: "the L's stem's right top edge",
+            wall: STEM_RIGHT,
+            facing: DVec3::X,
+            along: DVec3::Y,
+            far: FarEnd {
+                on: STEM_BACK,
+                at: DVec3::new(12.0, 14.0, STANDING_HEIGHT),
+                facing: DVec3::Y,
+            },
+        },
+    ]
+}
+
+/// The top of [`ell`]'s inner corner, each of its two top edges named in
+/// turn with the inner upright below them, the other left sharp: the arm's
+/// back top edge, as the decline test named it, then the stem's right top
+/// edge.
+fn ell_s_inner_corners() -> [SharpCorner; 2] {
+    [false, true].map(|swapped| {
+        let [one, other] = ell_s_inner_top_edges();
+        let [named, sharp] = if swapped { [other, one] } else { [one, other] };
+        SharpCorner {
+            called: "the top of the L's inner corner",
+            part: ell,
+            volume: ELL_VOLUME,
+            at: DVec3::new(12.0, 6.0, STANDING_HEIGHT),
+            named,
+            sharp,
+            upright: "the L's inner upright",
+            odd_filled: true,
+            odd_ends_on: FLOOR,
+        }
+    })
 }
 
 /// The names of every edge between the faces numbered `first` and `second`.
@@ -915,19 +1192,28 @@ impl Case {
     }
 }
 
-/// Holds that the foot `foot`, left sharp, is still one straight edge between
-/// the lower block's top and its wall, from the face at its far end to the
-/// face numbered `end`: the one edge between those two faces, the faces met
-/// at its ends those two, and its wall's corners where the step leaves them —
-/// its own two at its far end, and from `from` up, where the step left the
-/// wall, the corner at `from` itself, the one `up` above it where the blend
-/// beside it starts, and the one at the wall's top.
-fn left_sharp(body: &Body, foot: &Foot, end: usize, (from, up): (DVec3, f64), what: &str) {
+/// Holds that the corner's sharp edge is still one straight edge between the
+/// face the two like edges share and its wall, from the face at its far end
+/// to the face numbered `end`: the one edge between those two faces, the
+/// faces met at its ends those two, and its wall's corners where the step
+/// leaves them — its own two at its far end, and from `from`, where the step
+/// left the wall, the corner at `from` itself, the one `blend` along the odd
+/// edge's way from it, where the blend beside it starts, and the one at the
+/// wall's other end, [`STANDING_HEIGHT`] that way.
+fn left_sharp(
+    body: &Body,
+    corner: &SharpCorner,
+    end: usize,
+    (from, blend): (DVec3, f64),
+    what: &str,
+) {
+    let foot = &corner.sharp;
     let between = edges_between(body, TOP, foot.wall);
     assert_eq!(
         between.len(),
         1,
-        "{what}: {} is one edge between the lower block's top and its wall: {between:?}",
+        "{what}: {} is one edge between the face it shares with the other and its wall: \
+         {between:?}",
         foot.called
     );
     let mut ends = between[0].ends.clone();
@@ -939,35 +1225,38 @@ fn left_sharp(body: &Body, foot: &Foot, end: usize, (from, up): (DVec3, f64), wh
         "{what}: {} runs from the face at its far end to the end face",
         foot.called
     );
-    let top = DVec3::Z * STANDING_HEIGHT;
+    let height = corner.up() * STANDING_HEIGHT;
     corners_are(
         body,
         foot.wall,
         &[
             from,
-            from + DVec3::Z * up,
-            from + top,
+            from + corner.up() * blend,
+            from + height,
             foot.far.at,
-            foot.far.at + top,
+            foot.far.at + height,
         ],
         &format!("{what}: the wall of {}", foot.called),
     );
 }
 
-/// Holds what a chamfer of its value on a corner's named foot and upright,
-/// named in its order, leaves of the part:
+/// Holds what a chamfer of its value on a corner's named like edge and odd
+/// edge, named in its order, leaves of the part:
 ///
 /// - the value taken whole; a sound body holding what
 ///   [`SharpCorner::chamfered`] promises;
 /// - one flat for each named edge, answering to where the part's numbers
-///   ended plus the edge's rank in the list, then the fill along the foot of
-///   the upright's flat, then the fill's end face, and the next step's
-///   numbers past them; no face of the part gone;
-/// - each of those flats facing the way it lies, the fill along the flat's
-///   foot and the end face with the corners [`SharpCorner::round_the_flat`]
-///   lays out, the end face on the plane square to the sharp foot;
-/// - and the sharp foot left one edge, as [`left_sharp`] holds it.
-fn stopped_where_the_sharp_foot_begins(corner: &SharpCorner, part: &Body, case: &Case) {
+///   ended plus the edge's rank in the list, then the flat along the end of
+///   the odd edge's flat — the fill along its foot, or the cut along its top
+///   — then that flat's end face, and the next step's numbers past them; no
+///   face of the part gone;
+/// - each of those flats facing the way it lies, the flat along the end of
+///   the odd edge's flat and the end face with the corners
+///   [`SharpCorner::round_the_flat`] lays out, the end face on the plane
+///   square to the sharp edge, facing along it at a foot corner, where the
+///   air is past it, and back along it at the L's, where matter is;
+/// - and the sharp edge left one edge, as [`left_sharp`] holds it.
+fn stopped_where_the_sharp_edge_begins(corner: &SharpCorner, part: &Body, case: &Case) {
     let Case {
         value, step, what, ..
     } = case;
@@ -983,7 +1272,7 @@ fn stopped_where_the_sharp_foot_begins(corner: &SharpCorner, part: &Body, case: 
         faces_made(part, body),
         (start..=end).collect::<Vec<_>>(),
         "{what}: one flat for each named edge, numbered in the order the step names them, then \
-         the fill along the foot of the upright's flat, then the fill's end face: {:?}",
+         the flat along the end of the odd edge's flat, then its end face: {:?}",
         numbers(body)
     );
     assert_eq!(
@@ -1007,12 +1296,12 @@ fn stopped_where_the_sharp_foot_begins(corner: &SharpCorner, part: &Body, case: 
         );
     }
     let laid = corner.round_the_flat(d);
-    let up = DVec3::Z * d;
+    let up = corner.up() * d;
     faces_toward(
         body,
         patch,
         (DVec3::Z + flat).normalize(),
-        &format!("{what}: the fill along the foot of the upright's flat"),
+        &format!("{what}: the flat along the end of the odd edge's flat"),
     );
     corners_are(
         body,
@@ -1024,34 +1313,32 @@ fn stopped_where_the_sharp_foot_begins(corner: &SharpCorner, part: &Body, case: 
             laid.leaves_sharp + up,
         ],
         &format!(
-            "{what}: the fill along the foot of the upright's flat, mitred to the named foot's \
-             and ending on the plane square to the sharp foot"
+            "{what}: the flat along the end of the odd edge's flat, mitred to the named edge's \
+             and ending on the plane square to the sharp edge"
         ),
     );
     faces_toward(
         body,
         end,
-        corner.sharp.along,
-        &format!(
-            "{what}: the fill's end face, square to {}",
-            corner.sharp.called
-        ),
+        corner.sharp.along * corner.sense(),
+        &format!("{what}: the end face, square to {}", corner.sharp.called),
     );
     corners_are(
         body,
         end,
         &[laid.leaves_sharp, laid.end, laid.leaves_sharp + up],
         &format!(
-            "{what}: the fill's end face, where the wall of {} begins",
+            "{what}: the end face, where the wall of {} begins",
             corner.sharp.called
         ),
     );
-    left_sharp(body, &corner.sharp, end, (laid.leaves_sharp, d), what);
+    left_sharp(body, corner, end, (laid.leaves_sharp, d), what);
 }
 
 /// Holds, at every one of [`VALUES`], the list as given and reversed, what
-/// `held` holds of what the blend `cut` leaves of the corner's named foot and
-/// upright, and that the two orders leave the same body, face for face.
+/// `held` holds of what the blend `cut` leaves of the corner's named like
+/// edge and odd edge, and that the two orders leave the same body, face for
+/// face.
 fn in_both_orders(corner: &SharpCorner, cut: Cut, held: fn(&SharpCorner, &Body, &Case)) {
     let part = (corner.part)();
     assert!(
@@ -1105,47 +1392,52 @@ fn a_chamfer_on_a_foot_and_the_upright_above_it_goes_round_the_upright_s_flat_an
     in_both_orders(
         &stacked_s_front_right(),
         Cut::Flat,
-        stopped_where_the_sharp_foot_begins,
+        stopped_where_the_sharp_edge_begins,
     );
 }
 
 /// Holds that the face numbered `end` is the end section a fillet of
-/// `radius` leaves where its piece of torus ends at the start of the sharp
-/// foot's wall: flat, facing along the sharp foot, on the plane square to it
-/// through `from`, where the upright's round leaves that wall; its corners
-/// on a square of `radius` standing on the lower block's top and out from
-/// that wall, less the quarter disc about the square's far top corner — on
-/// its foot along that top, on its side up that wall, or on the arc — with
-/// the three ends of those among them; and meeting the lower block's top,
-/// that wall and the piece of torus `piece`, one edge each.
+/// `radius` on `corner` leaves where its piece of torus ends at the start of
+/// the sharp edge's wall: flat, on the plane square to that edge through
+/// `from`, where the odd edge's round leaves that wall, facing along it at a
+/// foot corner and back along it at the L's; its corners on a square of
+/// `radius` from `from`, along the odd edge's way and away from the wall
+/// into the like edges' blends — out into the air at a foot corner, into
+/// the matter at the L's — less the quarter disc about the square's far
+/// corner: on its side along the face the two share, on its side along that
+/// wall, or on the arc, with the three ends of those among them; and meeting
+/// the face the two share, that wall and the piece of torus `piece`, one
+/// edge each.
 fn section_held(
     body: &Body,
     end: usize,
-    (sharp, from): (&Foot, DVec3),
-    (radius, piece): (f64, usize),
+    corner: &SharpCorner,
+    (from, radius, piece): (DVec3, f64, usize),
     what: &str,
 ) {
+    let sharp = &corner.sharp;
+    let away = sharp.facing * corner.sense();
     let which = format!("{what}: the end section, face {end}");
-    faces_toward(body, end, sharp.along, &which);
+    faces_toward(body, end, sharp.along * corner.sense(), &which);
     let plane = body
         .plane_of(end)
         .unwrap_or_else(|| panic!("{which}: the body offers no plane on it"));
     let r = radius;
-    for corner in &plane.corners {
-        let off = *corner - from;
-        let [along, out, up] = [sharp.along, sharp.facing, DVec3::Z].map(|way| off.dot(way));
+    for point in &plane.corners {
+        let off = *point - from;
+        let [along, out, up] = [sharp.along, away, corner.up()].map(|way| off.dot(way));
         let within = |at: f64| (-PLACE..=r + PLACE).contains(&at);
         assert!(
             along.abs() < PLACE
                 && ((up.abs() < PLACE && within(out))
                     || (out.abs() < PLACE && within(up))
                     || (((out - r).hypot(up - r) - r).abs() < PLACE && within(out) && within(up))),
-            "{which}: a corner at {corner}, off the square of {r} less its quarter disc on the \
+            "{which}: a corner at {point}, off the square of {r} less its quarter disc on the \
              plane square to {} where its wall begins",
             sharp.called
         );
     }
-    for point in [from, from + sharp.facing * r, from + DVec3::Z * r] {
+    for point in [from, from + away * r, from + corner.up() * r] {
         assert!(
             (plane.corners.iter()).any(|corner| corner.distance(point) < PLACE),
             "{which}: no corner at {point}, among {:?}",
@@ -1155,13 +1447,14 @@ fn section_held(
     assert_eq!(
         sides_met(body, end),
         sides(&[TOP, sharp.wall, piece]),
-        "{which} meets the lower block's top, the wall of {} and the piece of torus, one edge each",
+        "{which} meets the face the like edges share, the wall of {} and the piece of torus, \
+         one edge each",
         sharp.called
     );
 }
 
-/// Holds what a fillet of its value on a corner's named foot and upright,
-/// named in its order, leaves of the part:
+/// Holds what a fillet of its value on a corner's named like edge and odd
+/// edge, named in its order, leaves of the part:
 ///
 /// - the value taken whole; a sound body holding what
 ///   [`SharpCorner::filleted`] promises;
@@ -1173,13 +1466,13 @@ fn section_held(
 ///   lays them out, meeting the faces of the part it lies between, the one
 ///   at its far end, and the piece;
 /// - the piece of torus on its torus and only there, over the whole arc of
-///   the upright's round, from the named foot's round to the plane through
-///   its axis square to the sharp foot; met first, facing back, by every ray
-///   from its tube's centre circle out to it; meeting the lower block's top,
-///   the two rounds and the end section, one edge each;
+///   the odd edge's round, from the named edge's round to the plane through
+///   its axis square to the sharp edge; met first, facing out of the matter,
+///   by every ray from its tube's centre circle out to it; meeting the face
+///   the like edges share, the two rounds and the end section, one edge each;
 /// - the end section on that plane, as [`section_held`] holds it;
-/// - and the sharp foot left one edge, as [`left_sharp`] holds it.
-fn stopped_round_the_round_where_the_sharp_foot_begins(
+/// - and the sharp edge left one edge, as [`left_sharp`] holds it.
+fn stopped_round_the_round_where_the_sharp_edge_begins(
     corner: &SharpCorner,
     part: &Body,
     case: &Case,
@@ -1224,8 +1517,8 @@ fn stopped_round_the_round_where_the_sharp_foot_begins(
         what,
     );
     let from = corner.at + corner.sharp.along * corner.tangent(r);
-    section_held(body, end, (&corner.sharp, from), (r, piece), what);
-    left_sharp(body, &corner.sharp, end, (from, r), what);
+    section_held(body, end, corner, (from, r, piece), what);
+    left_sharp(body, corner, end, (from, r), what);
 }
 
 #[test]
@@ -1234,6 +1527,39 @@ fn a_fillet_on_a_foot_and_the_upright_above_it_goes_round_the_upright_s_round_an
     in_both_orders(
         &stacked_s_front_right(),
         Cut::Round,
-        stopped_round_the_round_where_the_sharp_foot_begins,
+        stopped_round_the_round_where_the_sharp_edge_begins,
     );
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_foot_and_the_upright_above_it_at_a_corner_that_is_not_square_stop_where_the_sharp_foot_begins()
+ {
+    for corner in leaning_s_corners() {
+        in_both_orders(&corner, Cut::Flat, stopped_where_the_sharp_edge_begins);
+        in_both_orders(
+            &corner,
+            Cut::Round,
+            stopped_round_the_round_where_the_sharp_edge_begins,
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_on_a_top_edge_at_the_l_s_inner_corner_and_the_upright_below_it_cuts_round_the_upright_s_fill_and_stops_where_the_sharp_top_edge_begins()
+ {
+    for corner in ell_s_inner_corners() {
+        in_both_orders(&corner, Cut::Flat, stopped_where_the_sharp_edge_begins);
+    }
+}
+
+#[test]
+fn a_fillet_on_a_top_edge_at_the_l_s_inner_corner_and_the_upright_below_it_cuts_round_the_upright_s_fill_through_a_piece_of_torus_and_stops_where_the_sharp_top_edge_begins()
+ {
+    for corner in ell_s_inner_corners() {
+        in_both_orders(
+            &corner,
+            Cut::Round,
+            stopped_round_the_round_where_the_sharp_edge_begins,
+        );
+    }
 }

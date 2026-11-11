@@ -74,7 +74,11 @@ impl Exact {
     /// foot and the upright above it, the other foot left sharp, go round the
     /// upright's round the same way, the piece of torus over the whole arc and
     /// stopping on the plane square to the sharp foot where that foot's wall
-    /// begins, its end section a flat face numbered after the piece.
+    /// begins, its end section a flat face numbered after the piece; and a
+    /// top edge at an L's inner corner and the upright below it, the other top
+    /// edge left sharp, the mirror, the piece of torus cut out over the whole
+    /// arc and its end section dug into the top, facing back along the sharp
+    /// top edge.
     /// Rounds that would meet only on a curved edge are not measured, and
     /// declined where they meet. The rounds are numbered, in the
     /// order the names come, where the steps' numbers ended; a full round

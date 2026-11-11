@@ -199,8 +199,8 @@ impl Exact {
     /// read on the body as given. `mitred` numbers the faces laid before it at
     /// a corner it shares, which its own face meets in a mitre, and `open`
     /// holds where it stops at a corner an edge laid after it completes, as
-    /// [`flush::open`] reads them; a fill's end standing at one of `held` is
-    /// held there, in the air, as [`Exact::filled`] holds it.
+    /// [`flush::open`] reads them; an end standing at one of `held` is held
+    /// on its plane, as [`Exact::laid_flush`] holds it.
     fn laid(
         &self,
         name: &EdgeName,

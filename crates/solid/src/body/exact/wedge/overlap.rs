@@ -24,13 +24,13 @@ use crate::brep::{self, Declined, EdgeId, Scale, VertexId};
 /// stand once every edge is laid.
 pub(super) const OVERLAPS: u32 = 1 << 30;
 
-/// Where the numbers of the faces a fill's ends held in the air leave start
-/// (#846): past the overlaps' and below the pieces', a stretch of [`STRIDE`]
+/// Where the numbers of the faces the ends of cuts and fills held on a plane
+/// of their own leave start (#846): past the overlaps' and below the pieces', a stretch of [`STRIDE`]
 /// for each end, so that a laying leaves them standing as no overlap is left,
 /// and the step numbers each once every edge is laid.
 pub(super) const ENDS: u32 = OVERLAPS + (1 << 29);
 
-/// How many numbers each end held in the air has from [`ENDS`]: room for the
+/// How many numbers each end held on its plane has from [`ENDS`]: room for the
 /// numbers a boolean moves it by.
 pub(super) const STRIDE: u32 = 1 << 20;
 

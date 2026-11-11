@@ -17,7 +17,16 @@
 //! the prop; once every edge is laid, the sector the filling would fill is
 //! cut away instead, prop and all, and the four faces it leaves are replaced
 //! by the piece of torus facing away from its tube's centre, the matter
-//! inside the tube.
+//! inside the tube. Where one foot, or one top edge, is left sharp (#846),
+//! the side of the filling or the clearing square to it lies on the plane
+//! through the axis where that edge's wall begins: the piece of torus runs
+//! round the whole arc there and stops on that plane along the meridian of
+//! its tube, which parts that side into the piece's end section, a square of
+//! the value's side less a quarter disc — standing in the air at a foot
+//! corner and facing along the sharp edge, dug into the top at the L's and
+//! facing back along it — and what the piece replaces.
+
+mod loops;
 
 use std::f64::consts::FRAC_1_SQRT_2;
 use std::ops::Range;
@@ -25,13 +34,15 @@ use std::ops::Range;
 use glam::{DVec2, DVec3};
 
 use super::Wedge;
-use super::odd::{Odd, ranked_patches};
+use super::odd::{NONE, Odd, ranked_patches};
 use super::overlap::OVERLAPS;
 use super::pairs::Pair;
 use super::sphere::lap;
 use super::step::Kind;
 use crate::body::exact::Exact;
-use crate::brep::{Declined, EdgeName, Face, FaceId, Surface, SurfaceId, Torus};
+use crate::brep::{
+    Circle, Coedge, Declined, EdgeName, Face, FaceId, Plane, Surface, SurfaceId, Torus,
+};
 use crate::profile::{Contour, Frame, Run};
 
 impl Exact {
@@ -47,7 +58,8 @@ impl Exact {
     /// each corner closed by its piece of torus, as [`Exact::torused`] lays
     /// it, every patch — a piece of torus, or the face closing a corner three
     /// edges of the list meet at — numbered past them in the order of its
-    /// corner's ranks, as [`ranked_patches`] numbers them. Declined
+    /// corner's ranks, as [`ranked_patches`] numbers them, and each end
+    /// section a corner left sharp leaves past every patch. Declined
     /// `Unsupported` where joining the fillings, or cutting the clearings,
     /// takes away a face of the body it is laid on but a filling's — a block
     /// standing where a corner's patch sweeps, which the filling would
@@ -119,14 +131,25 @@ impl Exact {
         let mut patches: Vec<([usize; 3], u32)> = (closings.into_iter().enumerate())
             .map(|(index, ranks)| (ranks, after + index as u32))
             .collect();
+        let mut ends = Vec::new();
         for (index, corner) in odd.iter().enumerate() {
-            let rounds = corner.ranks.map(|rank| start + rank as u32);
+            let rounds: Vec<u32> = (corner.ranks.iter())
+                .filter(|&&rank| rank != NONE)
+                .map(|&rank| start + rank as u32)
+                .collect();
             let left = OVERLAPS + index as u32;
             patches.push((corner.ranks, closed.next));
-            closed = closed.torused(left, corner, &wedges[corner.lone], taken, rounds)?;
+            if corner.sharp.is_some() {
+                ends.push(closed.next + 1);
+            }
+            closed = closed.torused(left, corner, &wedges[corner.lone], taken, &rounds)?;
         }
         closed.overlaps_covered()?;
-        let moved = ranked_patches(patches, after);
+        let past = after + patches.len() as u32;
+        let mut moved = ranked_patches(patches, after);
+        for (place, &end) in ends.iter().enumerate() {
+            moved.insert(end, past + place as u32);
+        }
         let renamed = closed.renamed_by(|number| moved.get(&number).copied().unwrap_or(number));
         Ok((renamed, taken, pairs))
     }
@@ -146,12 +169,20 @@ impl Exact {
     /// the steps' numbers end: facing its tube's centre circle, the matter
     /// outside the tube, where the odd edge is convex and the two others
     /// filled; facing away from it, the matter inside, where the odd edge is
-    /// concave and the two others cut. Declined `Unsupported` where those
-    /// faces make no one loop of four edges towards the rest of the body, or
-    /// the piece left anything but its face, its every corner a corner of one
-    /// of the three `rounds`, as [`Exact::cut_along`] reads it; `Unverified`
-    /// where the loop strays off the torus, as
-    /// [`crate::brep::Body::replaced`] reads it; `Undrawn` where the piece
+    /// concave and the two others cut. Where one of the two others is left
+    /// sharp, the loop's stretch on the plane through the axis square to it
+    /// is closed by the arc of the tube's meridian there, and bounds the end
+    /// section, numbered next after the piece, flat on that plane and facing
+    /// along the sharp edge where the odd edge is convex, back along it where
+    /// it is concave; the rest,
+    /// closed by the same arc, bounds the piece. Declined `Unsupported` where
+    /// those faces make no one loop towards the rest of the body — of four
+    /// edges where no edge is left sharp, of one stretch on that plane and
+    /// another off it where one is —, or the patch left anything but its
+    /// faces, every corner of the piece a corner of one of the `rounds` or
+    /// of the end section, as [`Exact::cut_along`] reads it; `Unverified`
+    /// where the loop strays off the surface it is laid on, as
+    /// [`crate::brep::Body::replaced_by`] reads it; `Undrawn` where a face
     /// cannot be cut into triangles.
     fn torused(
         &self,
@@ -159,25 +190,75 @@ impl Exact {
         corner: &Odd,
         wedge: &Wedge,
         value: f64,
-        rounds: [u32; 3],
+        rounds: &[u32],
     ) -> Result<Exact, Declined> {
         let gone: Vec<FaceId> = self.named(left as usize).collect();
-        let lap = lap(&self.brep, &gone)
-            .filter(|lap| lap.len() == 4)
-            .ok_or(Declined::Unsupported)?;
+        let lap = lap(&self.brep, &gone).ok_or(Declined::Unsupported)?;
         let tube = DVec2::new(value, 2.0 * value);
         let middle = tube - DVec2::splat(value * FRAC_1_SQRT_2);
         let axis = axis_at(corner, wedge, value);
         let torus = Torus::through(axis, corner.up, tube, value, middle);
-        let face = Face {
+        let piece = |lap: Vec<Coedge>| Face {
             surface: SurfaceId(0),
             flipped: !wedge.inwards,
             loops: vec![lap],
             numbers: vec![self.next],
             poles: Vec::new(),
         };
-        let closed = self.patched(&gone, Surface::Torus(torus), face, self.next + 1)?;
-        if closed.cut_along(&[], self, 1, &rounds, &[]) {
+        let Some(away) = corner.sharp else {
+            if lap.len() != 4 {
+                return Err(Declined::Unsupported);
+            }
+            let brep = self
+                .brep
+                .replaced(&gone, Surface::Torus(torus), piece(lap))?;
+            let closed = self.patched(brep, self.next + 1)?;
+            return self.closed_as(closed, 1, rounds);
+        };
+        let eps = self.brep.scale().eps();
+        let on_the_end = |at: DVec3| away.dot(at - axis).abs() <= eps;
+        let (round, flat) =
+            loops::parted(&self.brep, &lap, on_the_end).ok_or(Declined::Unsupported)?;
+        let [from, to] = [round.last(), round.first()]
+            .map(|coedge| coedge.and_then(|&coedge| loops::ends(&self.brep, coedge)));
+        let (Some([_, from]), Some([to, _])) = (from, to) else {
+            return Err(Declined::Unsupported);
+        };
+        let way = (ways(wedge).into_iter())
+            .min_by(|one, other| one.dot(away).abs().total_cmp(&other.dot(away).abs()))
+            .ok_or(Declined::Unsupported)?;
+        let centre = axis + way * 2.0 * value + corner.up * value;
+        let meridian = Circle::about(centre, away, value);
+        let through = centre - (way + corner.up) * (value * FRAC_1_SQRT_2);
+        let (on, arc, forward) = self.brep.with_arc(meridian, [from, to], through);
+        let end = Coedge {
+            edge: arc,
+            forward: !forward,
+        };
+        let round = [round, vec![Coedge { edge: arc, forward }]].concat();
+        let flat = [flat, vec![end]].concat();
+        let facing = if wedge.inwards { -away } else { away };
+        let (plane, turned) = Plane::through(axis, facing);
+        let face = Face {
+            flipped: turned,
+            numbers: vec![self.next + 1],
+            ..piece(flat)
+        };
+        let faces = vec![
+            (Surface::Torus(torus), piece(round)),
+            (Surface::Plane(plane), face),
+        ];
+        let closed = self.patched(on.replaced_by(&gone, faces)?, self.next + 2)?;
+        let rounds = [rounds, &[self.next + 1]].concat();
+        self.closed_as(closed, 2, &rounds)
+    }
+
+    /// `closed`, which closed a corner of this body with `laid` faces, as
+    /// [`Exact::cut_along`] holds it: nothing left but those faces, every
+    /// corner of the first a corner of a face numbered in `rounds`. Declined
+    /// `Unsupported` where it does not hold.
+    fn closed_as(&self, closed: Exact, laid: u32, rounds: &[u32]) -> Result<Exact, Declined> {
+        if closed.cut_along(&[], self, laid, rounds, &[]) {
             Ok(closed)
         } else {
             Err(Declined::Unsupported)

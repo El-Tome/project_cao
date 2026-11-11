@@ -61,7 +61,15 @@ impl Exact {
     /// top's two reflex corners. An upright named with its block's top edges
     /// is chamfered with them first, the top corner closed by its triangle,
     /// before the feet go round it: every edge of a standing block in one
-    /// step. Flats that would meet only on a curved edge are not measured,
+    /// step. A foot and the upright above it, the other foot left sharp, go
+    /// round the upright the same way, the fill along its flat's foot ending
+    /// on the plane square to the sharp foot where the flat meets that foot's
+    /// wall, its end a small face standing in the air, numbered after the
+    /// fill; and a top edge at an L's inner corner and the upright below it,
+    /// the other top edge left sharp, the mirror, the cut along the top of the
+    /// upright's flat ending on the plane square to the sharp top edge, its
+    /// end a small face dug into the top and facing back along that edge.
+    /// Flats that would meet only on a curved edge are not measured,
     /// and declined where they meet.
     /// A distance shorter than the kernel can set a cut back from an edge is
     /// declined first; `Lost`, an edge its name no longer finds. Unsupported: a

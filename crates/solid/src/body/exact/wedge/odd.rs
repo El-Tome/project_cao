@@ -1,5 +1,6 @@
 //! A corner three edges of one step meet at, two of one sense and the odd one
-//! of the other (#829): the foot corner of a block standing on another, two
+//! of the other (#829), named or one of the two left out and left sharp
+//! (#846): the foot corner of a block standing on another, two
 //! concave feet and the convex upright above them, and its mirror, the top
 //! of an L's inner corner, two convex top edges and the concave upright below
 //! them. A cut and a fill laid in turn there meet in nothing, so the two
@@ -20,9 +21,17 @@
 //! numbered by its rank, and every patch — a flat no name finds, a piece of
 //! torus, a corner closed on the way — past them by its corner's ranks. An
 //! odd edge whose other end meets an edge of the list any other way is
-//! declined: #847 builds a post whose upright is odd at both ends.
+//! declined: #847 builds a post whose upright is odd at both ends. Where one
+//! of the two others is left sharp, the flat along the odd edge's face goes
+//! round it only up to the plane square to that edge where its wall begins,
+//! held there — a fill's in the air, a cut's dug into the top —, its end a
+//! face of its own numbered after the patches; a fillet's piece of torus runs round the whole arc there, and
+//! stops on that plane at a flat end section of its own, numbered as the
+//! chamfer's end is.
 
-use std::collections::{BTreeMap, BTreeSet};
+mod edge;
+
+use std::collections::BTreeMap;
 
 use glam::DVec3;
 
@@ -30,19 +39,26 @@ use super::Wedge;
 use super::pairs::Pair;
 use super::step::{Kind, Step};
 use crate::body::exact::Exact;
-use crate::brep::{self, Curve, Declined, EdgeName};
+use crate::brep::{self, Curve, Declined, EdgeId, EdgeName};
 
-/// A corner of mixed sense: where it stands, its three edges' ranks in the
-/// list, from the lowest, the rank of its odd edge and the way that edge runs
-/// from it, and the numbers of the face its two others share, which the odd
-/// edge stops flush on there.
+/// A corner of mixed sense: where it stands, its edges' ranks in the list,
+/// from the lowest — the third [`NONE`] where one of its edges is left out —
+/// the rank of its odd edge and the way that edge runs from it, the numbers
+/// of the face its two others share, which the odd edge stops flush on there,
+/// and, where one of those two is left out and left sharp (#846), the way it
+/// runs from the corner.
 pub(super) struct Odd {
     pub at: DVec3,
     pub ranks: [usize; 3],
     pub lone: usize,
     pub up: DVec3,
     pub on: Vec<u32>,
+    pub sharp: Option<DVec3>,
 }
+
+/// The rank a corner of mixed sense gives the edge it leaves out: past every
+/// rank, so that its corner is numbered by its two named edges' ranks.
+pub(super) const NONE: usize = usize::MAX;
 
 /// What a kind lays round the odd edge of a corner of mixed sense.
 #[derive(Clone, Copy)]
@@ -89,6 +105,34 @@ pub(super) fn corners(body: &brep::Body, step: &Step) -> Result<Vec<Odd>, Declin
             lone: ranks[lone],
             up: along[lone],
             on: one.numbers[shared].clone(),
+            sharp: None,
+        });
+    }
+    for (at, pair, third) in super::corners::sharp(body, &step.edges) {
+        let left = Wedge::faced(body, third)?;
+        let [named, lone] = if step.wedges[pair[0]].inwards == left.inwards {
+            pair
+        } else {
+            [pair[1], pair[0]]
+        };
+        let away = |edge: EdgeId| {
+            let ends = body.edge(edge).ends.into_iter().flatten();
+            let far = ends.map(|end| body.vertex(end).point);
+            far.max_by(|one, other| one.distance(at).total_cmp(&other.distance(at)))
+                .map(|point| (point - at).normalize())
+                .ok_or(Declined::Unsupported)
+        };
+        let foot = &step.wedges[named];
+        let shared = (0..2)
+            .find(|&side| left.faces.contains(&foot.faces[side]))
+            .ok_or(Declined::Unsupported)?;
+        odd.push(Odd {
+            at,
+            ranks: [pair[0], pair[1], NONE],
+            lone,
+            up: away(step.edges[lone])?,
+            on: foot.numbers[shared].clone(),
+            sharp: Some(away(third)?),
         });
     }
     let lone = |rank: usize| odd.iter().any(|corner| corner.lone == rank);
@@ -121,32 +165,6 @@ fn alike(step: &Step) -> Vec<[usize; 3]> {
         })
         .collect()
 }
-
-/// The ranks of the edges of a step laid first, ascending: each odd edge of
-/// `odd`, and every edge closing a corner of three of one sense, as [`alike`]
-/// reads them, with one laid first — the top edges of a standing block whose
-/// uprights are odd at their feet, their top corners closed among them as
-/// #699 closes one, before the feet go round the uprights.
-fn laid_first(step: &Step, odd: &[Odd]) -> Vec<usize> {
-    let mut first: BTreeSet<usize> = odd.iter().map(|corner| corner.lone).collect();
-    let closing = alike(step);
-    loop {
-        let before = first.len();
-        for ranks in &closing {
-            if ranks.iter().any(|rank| first.contains(rank)) {
-                first.extend(ranks);
-            }
-        }
-        if first.len() == before {
-            return first.into_iter().collect();
-        }
-    }
-}
-
-/// What a list of edges laid in turn leaves: the body, and the corners three
-/// of its edges meet at, by their ranks in the list, in the order their
-/// closing faces are numbered.
-type Laid = (Exact, Vec<[usize; 3]>);
 
 /// The numbers the faces closing a step's corners take, each corner by its
 /// three edges' ranks, from the lowest, and the number its face answers to:
@@ -186,108 +204,6 @@ impl Exact {
         }
     }
 
-    /// The body with the edges `names` find laid at `taken`, each corner of
-    /// mixed sense `odd` holds gone round its odd edge: the odd edges first,
-    /// with every edge closing a corner of one sense with them, as
-    /// [`laid_first`] reads them on `step`, what the names find on this body;
-    /// then the others — each followed onto what that left, as
-    /// [`Exact::following`] finds it — with, for each such corner, the edge
-    /// where the face its odd edge laid meets the face the two others share,
-    /// as [`Exact::in_turn`] lays each of the two lists with `kind`. The face
-    /// laid on each named
-    /// edge is numbered where the steps' numbers ended plus its rank in the
-    /// list, and every patch past them, in the order of its corner's ranks
-    /// in the list, as [`ranked_patches`] numbers them: the flat laid on each
-    /// edge no name finds, at its corner of mixed sense — the fill along a
-    /// flat's foot, the cut along a fill's top — and the face closing
-    /// a corner three edges of either list meet at — the apex of a pyramid
-    /// whose slanted edges are laid first. Declined `Unsupported` where
-    /// either list gives less than `taken`, as [`Step::bound`] reads it on
-    /// the body it is laid on, an edge cannot be followed, the odd edge's
-    /// face meets the face its two others share along no edge or several, or
-    /// an edge no name finds is of a corner the second list closes; otherwise
-    /// as [`Exact::cut_off`] declines either list.
-    fn round_the_edge(
-        &self,
-        names: &[EdgeName],
-        step: &Step,
-        odd: &[Odd],
-        taken: f64,
-        kind: &Kind,
-    ) -> Result<(Exact, f64), Declined> {
-        let start = self.next;
-        let wedges = &step.wedges;
-        let first = laid_first(step, odd);
-        let rest: Vec<usize> = (0..names.len())
-            .filter(|rank| !first.contains(rank))
-            .collect();
-        let named = |ranks: &[usize]| -> Vec<EdgeName> {
-            ranks.iter().map(|&rank| names[rank].clone()).collect()
-        };
-        let (laid, closed_first) = self.laid_at(&named(&first), taken, kind)?;
-        let edges_on = (odd.iter())
-            .map(|corner| {
-                let at = first
-                    .binary_search(&corner.lone)
-                    .map_err(|_| Declined::Unsupported)?;
-                laid.edge_on(start + at as u32, &corner.on)
-            })
-            .collect::<Result<Vec<_>, Declined>>()?;
-        let followed = (rest.iter())
-            .map(|&rank| laid.following(&names[rank], &wedges[rank]))
-            .collect::<Result<Vec<_>, Declined>>()?;
-        let following: Vec<EdgeName> = followed.into_iter().chain(edges_on).collect();
-        let (round, closed_after) = laid.laid_at(&following, taken, kind)?;
-        let back = |ranks: &[usize], corner: [usize; 3]| -> Result<[usize; 3], Declined> {
-            let mut back = [0; 3];
-            for (into, rank) in back.iter_mut().zip(corner) {
-                *into = *ranks.get(rank).ok_or(Declined::Unsupported)?;
-            }
-            back.sort();
-            Ok(back)
-        };
-        let after_first = start + first.len() as u32;
-        let after_rest = laid.next + rest.len() as u32;
-        let mut patches = Vec::new();
-        for (index, &corner) in closed_first.iter().enumerate() {
-            patches.push((back(&first, corner)?, after_first + index as u32));
-        }
-        for (index, corner) in odd.iter().enumerate() {
-            patches.push((corner.ranks, after_rest + index as u32));
-        }
-        for (index, &corner) in closed_after.iter().enumerate() {
-            let number = laid.next + following.len() as u32 + index as u32;
-            patches.push((back(&rest, corner)?, number));
-        }
-        let mut moved = ranked_patches(patches, start + names.len() as u32);
-        let laid_on = (first.iter().map(|&rank| (start, rank)))
-            .enumerate()
-            .chain(rest.iter().map(|&rank| (laid.next, rank)).enumerate());
-        for (index, (from, rank)) in laid_on {
-            moved.insert(from + index as u32, start + rank as u32);
-        }
-        let renamed = round.renamed_by(|number| moved.get(&number).copied().unwrap_or(number));
-        Ok((renamed, taken))
-    }
-
-    /// The body with the edges `names` find on it laid in turn at `taken`, as
-    /// [`Exact::in_turn`] lays them with `kind`, and the corners three of them
-    /// meet at, by their ranks, in the order their closing faces are
-    /// numbered. Declined `Unsupported` where they give less than `taken`, as
-    /// [`Step::bound`] reads it on this body, by more than the body's
-    /// tolerance — a limit the value was taken at, read again through a
-    /// mitre, comes back a rounding short of it; otherwise as
-    /// [`Exact::cut_off`] declines them.
-    fn laid_at(&self, names: &[EdgeName], taken: f64, kind: &Kind) -> Result<Laid, Declined> {
-        let step = self.step(names, kind)?;
-        if taken - step.bound(&self.brep, taken, kind) > self.brep.scale().eps() {
-            return Err(Declined::Unsupported);
-        }
-        let closed = step.three.iter().map(|&(_, ranks, _)| ranks).collect();
-        let (laid, _, _) = self.in_turn(names, step, taken, kind)?;
-        Ok((laid, closed))
-    }
-
     /// The name on this body of the edge `name` found as `wedge` on a body
     /// laid on since, which may have moved both its ends: the one straight
     /// edge between the sides the name records, its every end on the line
@@ -311,22 +227,6 @@ impl Exact {
             });
         match (found.next(), found.next()) {
             (Some((_, found)), None) => Ok(found.clone()),
-            _ => Err(Declined::Unsupported),
-        }
-    }
-
-    /// The name of the one edge where the face laid answering to `laid`
-    /// meets the face answering to `on` alone. Declined `Unsupported` where
-    /// they meet along no edge, or several.
-    fn edge_on(&self, laid: u32, on: &[u32]) -> Result<EdgeName, Declined> {
-        let mut edges = (self.named(laid as usize))
-            .flat_map(|face| self.brep.face(face).loops.iter().flatten())
-            .map(|coedge| coedge.edge)
-            .filter(|&edge| {
-                (self.brep.uses(edge).iter()).any(|&(face, _)| self.brep.numbers(face) == on)
-            });
-        match (edges.next(), edges.next()) {
-            (Some(edge), None) => Ok(self.edges[edge.0 as usize].clone()),
             _ => Err(Declined::Unsupported),
         }
     }

@@ -112,36 +112,38 @@
 //!   `a_fillet_on_two_of_a_corner_s_three_edges_mitres_their_rounds_on_an_ellipse_and_leaves_the_third_edge_sharp_one_radius_short`
 //! - A corner with a concave edge, and any corner the kernel cannot blend,
 //!   gives a broken step with its reason, never an open body. Decision: a
-//!   corner is blended only when every one of its edges is convex; the inner
-//!   corner of an L-shaped block and the bottom of a pocket are declined —
-//!   `a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_declined_as_unsupported`;
-//!   the reason is `Unsupported`, the kernel's word for a shape it does not
-//!   build, until #801, the follow-up issue the decision promised, builds
-//!   those corners. Its first slice builds every edge at such a corner alone
-//!   — the L's top and floor edges at its inner corner, a pocket's rim, a
-//!   standing block's uprights, each stopping flush on the face it runs into
-//!   — and two convex edges meeting where the third is concave, mitred, the
-//!   third left sharp: the L's two top edges at its inner corner and two edges
-//!   of a pocket's rim, which this test declined before, held now in
+//!   corner was blended only when every one of its edges was convex; the
+//!   inner corner of an L-shaped block and the bottom of a pocket were
+//!   declined `Unsupported`, the kernel's word for a shape it does not build,
+//!   until #801, the follow-up issue the decision promised, built those
+//!   corners. Its first slice builds every edge at such a corner alone — the
+//!   L's top and floor edges at its inner corner, a pocket's rim, a standing
+//!   block's uprights, each stopping flush on the face it runs into — and
+//!   two convex edges meeting where the third is concave, mitred, the third
+//!   left sharp: the L's two top edges at its inner corner and two edges of a
+//!   pocket's rim, held now in
 //!   `a_chamfer_and_a_fillet_stop_and_mitre_beside_a_concave_edge.rs`. Its
 //!   second slice builds two concave edges meeting where the third is convex,
 //!   mitred, the third left sharp: two feet of a block standing on another,
-//!   meeting where its upright meets outwards, and its four feet, which this
-//!   test declined before, held now in
+//!   meeting where its upright meets outwards, and its four feet, held now in
 //!   `a_chamfer_and_a_fillet_fill_concave_edges_meeting_at_a_corner.rs`. Its
 //!   third slice builds a pocket's floor edges and uprights alone, each fill
 //!   trimmed flush on the faces at its ends, and two of the three concave
 //!   edges at a pocket's bottom corner, mitred, the third left sharp: two
-//!   edges of its floor, or one and the upright it meets, which this test
-//!   declined before, held now in that same file. #829's first slice builds
-//!   the three edges at a standing block's foot corner, two feet and the
-//!   upright above them, and its second the three at the top of the L's
-//!   inner corner, its two top edges and the inner upright below them, which
-//!   this test declined before, held now in
+//!   edges of its floor, or one and the upright it meets, held now in that
+//!   same file. #829's first slice builds the three edges at a standing
+//!   block's foot corner, two feet and the upright above them, and its second
+//!   the three at the top of the L's inner corner, its two top edges and the
+//!   inner upright below them, held now in
 //!   `a_chamfer_and_a_fillet_go_round_the_odd_edge_at_a_corner_of_mixed_sense.rs`.
-//!   The lists left here are a cut meeting a fill at a corner, declined at
-//!   the corner itself, each of their edges laid alone — a foot and the
-//!   upright above it, the L's top edge and its inner upright — until #846
+//!   #846 builds a cut meeting a fill at a corner whose third edge is left
+//!   sharp — a foot and the upright above it, the other foot left sharp, and
+//!   the L's top edge and its inner upright, the other top edge left sharp —
+//!   held now in
+//!   `a_chamfer_and_a_fillet_go_round_the_odd_edge_and_stop_where_the_sharp_edge_begins.rs`
+//!   — no test: the test that declined these corners here went with #846,
+//!   every list it held having become a body test in the files above; any
+//!   other corner the kernel cannot blend is the criterion below's
 //! - A full round, two parallel edges whose rounds meet across the face they
 //!   share, meeting a third edge of the list at a corner, was not built here:
 //!   the fillet was declined `Unsupported` whichever edge the list names
@@ -1310,104 +1312,6 @@ fn tool_between(part: &Body, [from, to]: [DVec2; 2], from_height: f64, height: f
         DVec3::Z * height,
     )
     .expect("the tool raises")
-}
-
-/// A block 30 by 20 by 10 with another, 10 by 10 by 10, standing on the
-/// middle of its top: the upper block's walls, front, right, back and left,
-/// numbered eight to eleven, its top seven, its floor gone into the lower
-/// block's top. Its four feet, where its walls meet that top, meet inwards;
-/// two meet at each of its four corners, where its upright edge meets
-/// outwards.
-fn stacked() -> Body {
-    joined_to(
-        &block([30.0, 20.0, 10.0]),
-        [DVec2::new(10.0, 5.0), DVec2::new(20.0, 15.0)],
-        10.0,
-        10.0,
-    )
-}
-
-/// The numbers of the walls of the block standing on the other, from the
-/// front round to the left.
-const STANDING: [usize; 4] = [8, 9, 10, 11];
-
-/// The outline of an L: an arm 30 long and 6 deep along the front, and at its
-/// left end a stem 12 wide reaching back to 14. Raised 10, its walls are
-/// numbered from the front round: the front two, the arm's right end three,
-/// the arm's back four, the stem's right side five, the stem's back six and
-/// the left seven. The arm's back and the stem's right side meet inwards, in
-/// the L's inner corner.
-fn ell() -> Body {
-    raised(
-        Contour::straight(vec![
-            DVec2::new(0.0, 0.0),
-            DVec2::new(30.0, 0.0),
-            DVec2::new(30.0, 6.0),
-            DVec2::new(12.0, 6.0),
-            DVec2::new(12.0, 14.0),
-            DVec2::new(0.0, 14.0),
-        ]),
-        10.0,
-    )
-}
-const ARM_BACK: usize = 4;
-const STEM_RIGHT: usize = 5;
-
-#[test]
-fn a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_declined_as_unsupported()
- {
-    let value = 1.0;
-    let stacked = stacked();
-    let feet: Vec<EdgeName> = STANDING
-        .iter()
-        .map(|&wall| edge_between(&stacked, TOP, wall))
-        .collect();
-    for (foot, name) in STANDING.iter().zip(&feet) {
-        let which = format!("the foot of the standing block's wall {foot}, alone");
-        stacked
-            .fillet(name, value)
-            .unwrap_or_else(|declined| panic!("{which}: the fillet declined, {declined:?}"));
-        stacked
-            .chamfer(name, value)
-            .unwrap_or_else(|declined| panic!("{which}: the chamfer declined, {declined:?}"));
-    }
-    let ell = ell();
-    let names = |body: &Body, pairs: &[[usize; 2]]| -> Vec<EdgeName> {
-        pairs
-            .iter()
-            .map(|&[first, second]| edge_between(body, first, second))
-            .collect()
-    };
-
-    for (what, body, list) in [
-        (
-            "a foot of the standing block and the upright above it",
-            &stacked,
-            vec![
-                feet[0].clone(),
-                edge_between(&stacked, STANDING[0], STANDING[1]),
-            ],
-        ),
-        (
-            "a top edge at the L's inner corner and the L's inner upright",
-            &ell,
-            names(&ell, &[[TOP, ARM_BACK], [ARM_BACK, STEM_RIGHT]]),
-        ),
-    ] {
-        let filleted = body.fillet_edges(&list, value).err();
-        let chamfered = body.chamfer_edges(&list, value).err();
-
-        assert_eq!(
-            filleted,
-            Some(Declined::Unsupported),
-            "the fillet on {what}: a broken step and its reason, and no body"
-        );
-        assert_eq!(
-            chamfered,
-            Some(Declined::Unsupported),
-            "the chamfer on {what}: a broken step and its reason, and no body"
-        );
-    }
 }
 
 #[test]

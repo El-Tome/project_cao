@@ -13,7 +13,7 @@ use glam::DVec3;
 
 use super::flush::stops;
 use super::{Prism, Wedge};
-use crate::body::exact::{Exact, PIECES};
+use crate::body::exact::Exact;
 use crate::brep::{self, Declined, EdgeId, Scale, VertexId};
 
 /// Where the numbers of an overlap's faces start: above any a step gives and
@@ -23,6 +23,16 @@ use crate::brep::{self, Declined, EdgeId, Scale, VertexId};
 /// — is told apart from a face of a prism, and the step declined should one
 /// stand once every edge is laid.
 pub(super) const OVERLAPS: u32 = 1 << 30;
+
+/// Where the numbers of the faces the ends of cuts and fills held on a plane
+/// of their own leave start (#846): past the overlaps' and below the pieces', a stretch of [`STRIDE`]
+/// for each end, so that a laying leaves them standing as no overlap is left,
+/// and the step numbers each once every edge is laid.
+pub(super) const ENDS: u32 = OVERLAPS + (1 << 29);
+
+/// How many numbers each end held on its plane has from [`ENDS`]: room for the
+/// numbers a boolean moves it by.
+pub(super) const STRIDE: u32 = 1 << 20;
 
 /// What two prisms carried past a corner both hold past the faces their edges
 /// stop flush on there, every face of it numbered [`OVERLAPS`], and the points
@@ -76,11 +86,11 @@ pub(super) fn overlap(
 
 impl Exact {
     /// Declined `Unsupported` where a face of an overlap, numbered from
-    /// [`OVERLAPS`], still stands on the body once every edge is laid: one no
-    /// later edge covered.
+    /// [`OVERLAPS`] short of [`ENDS`], still stands on the body once every
+    /// edge is laid: one no later edge covered.
     pub(super) fn overlaps_covered(&self) -> Result<(), Declined> {
         let left = (self.brep.face_ids())
-            .any(|face| (self.brep.numbers(face).iter()).any(|n| (OVERLAPS..PIECES).contains(n)));
+            .any(|face| (self.brep.numbers(face).iter()).any(|n| (OVERLAPS..ENDS).contains(n)));
         if left {
             Err(Declined::Unsupported)
         } else {

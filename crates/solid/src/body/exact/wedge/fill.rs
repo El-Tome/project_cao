@@ -11,6 +11,7 @@ mod round;
 use glam::DVec3;
 
 use super::end::{beyond, end_face};
+use super::flush::{Held, holding};
 use super::overlap::Overlap;
 use super::{Prism, Wedge};
 use crate::body::exact::Exact;
@@ -22,7 +23,9 @@ impl Exact {
     /// edge, numbered from nought and counted as raised, so that the solids
     /// its ends are trimmed by and the overlaps it takes number their faces
     /// past its own: each end of it trimmed flush on the surface of the face
-    /// the first edge ends on, joined to each of `overlaps`, what it takes past
+    /// the first edge ends on — or, at an end one of `held` holds, on the
+    /// plane it holds it at, in the air, as [`Held::beyond`] trims it, that end
+    /// left standing as a face of its own — joined to each of `overlaps`, what it takes past
     /// a corner it shares with a fill laid before it beside a convex edge,
     /// and joined to the body, every face of the prism that merged into one
     /// of the body's answering to the body's numbers alone, so that the face
@@ -46,7 +49,7 @@ impl Exact {
         &self,
         on: &brep::Body,
         edges: &[(EdgeId, &Wedge)],
-        overlaps: &[Overlap],
+        (overlaps, held): (&[Overlap], &[Held]),
         prism: &Prism,
         tool: Exact,
     ) -> Result<Exact, Declined> {
@@ -54,12 +57,17 @@ impl Exact {
             return Err(Declined::Unsupported);
         };
         let ends = on.edge(edge).ends.ok_or(Declined::Unsupported)?;
+        let eps = on.scale().eps();
         let mut trimmed = tool;
         let mut end_faces = Vec::new();
         for (end, past) in ends.into_iter().zip([-wedge.along, wedge.along]) {
             let face = end_face(on, end, wedge.faces).ok_or(Declined::Unsupported)?;
             let point = on.vertex(end).point;
-            trimmed = trimmed.cut_by(&past_the_end(on, face, point, past, prism)?)?;
+            let beyond_the_end = match holding(held, point, eps) {
+                Some((end, number)) => end.beyond(prism, number)?,
+                None => past_the_end(on, face, point, past, prism)?,
+            };
+            trimmed = trimmed.cut_by(&beyond_the_end)?;
             end_faces.push(face);
         }
         let mut corners = Vec::new();

@@ -3,6 +3,7 @@ use std::path::Path;
 use cao_part::PartDocument;
 
 use crate::lang::Catalogue;
+use crate::screens::part_tree::TreeAction;
 use crate::screens::part_tree::state::{About, Flagged, PartTree};
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::ViewportState;
@@ -51,6 +52,35 @@ impl Alert {
             title: alerts::title(lang, flagged.name, flagged.problem),
             sentence: alerts::why(lang, flagged.problem, flagged.unstable),
         }
+    }
+
+    /// What one of its buttons asks of the tree. « Modifier » asks what a
+    /// double-click on the row does; « Montrer » stands a sketch's row
+    /// selected, the sketch left closed, and switches a section on, never off.
+    /// A volume's buttons ask nothing yet.
+    pub fn asks(&self, button: AlertButton) -> TreeAction {
+        match (button, self.about) {
+            (AlertButton::Show, About::Sketch(sketch)) => TreeAction::MarkSketch(sketch),
+            (AlertButton::Show, About::Section(id)) => TreeAction::SwitchSectionOn(id),
+            (AlertButton::Modify, About::Sketch(sketch)) => TreeAction::EditSketch(sketch),
+            (AlertButton::Modify, About::Section(id)) => TreeAction::EditSection(id),
+            (_, About::Volume { .. }) => TreeAction::None,
+        }
+    }
+}
+
+/// « Montrer » and « Modifier », under each alert.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AlertButton {
+    Show,
+    Modify,
+}
+
+impl AlertButton {
+    /// « Modifier » takes the user into what it reopens; after « Montrer »
+    /// the next alert is still to be looked at.
+    pub fn closes_the_list(self) -> bool {
+        self == Self::Modify
     }
 }
 

@@ -27,6 +27,8 @@ pub(super) struct Visibility {
     /// The row the hand is on in the tree, kept apart from `lit` so that
     /// leaving it puts out no light a click left.
     hovered: Option<Points>,
+    /// The sketch whose row in the tree stands selected though it is closed.
+    marked: Option<usize>,
     /// The volumes set by hand, by the number of the operation that made
     /// them, as the eyes are.
     volumes: BTreeMap<u32, VolumeState>,
@@ -41,6 +43,7 @@ impl Default for Visibility {
             eyes: BTreeMap::new(),
             lit: None,
             hovered: None,
+            marked: None,
             volumes: BTreeMap::new(),
             shown: RefCell::new(None),
         }
@@ -76,14 +79,26 @@ impl ViewportState {
     }
 
     /// Lights a row of the tree on the canvas, or puts it out when it is the
-    /// one already lit.
+    /// one already lit; a sketch marked is no longer.
     pub(crate) fn light(&mut self, row: Points) {
         self.visibility.lit = (self.visibility.lit != Some(row)).then_some(row);
+        self.visibility.marked = None;
     }
 
     pub(crate) fn light_out(&mut self) {
         self.visibility.lit = None;
         self.visibility.hovered = None;
+        self.visibility.marked = None;
+    }
+
+    /// Stands a closed sketch's row selected in the tree, until a light is put
+    /// out or a row is lit.
+    pub(crate) fn mark_sketch(&mut self, sketch: usize) {
+        self.visibility.marked = Some(sketch);
+    }
+
+    pub(crate) fn marked_sketch(&self) -> Option<usize> {
+        self.visibility.marked
     }
 
     pub(crate) fn hovered_in_the_tree(&self) -> Option<Points> {

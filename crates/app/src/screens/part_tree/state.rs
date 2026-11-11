@@ -102,6 +102,8 @@ pub struct Drawn {
     /// Being drawn on; and hidden, which the one drawn on never is.
     pub open: bool,
     pub dimmed: bool,
+    /// Standing selected: being drawn on, or marked though closed.
+    pub selected: bool,
     pub areas: Vec<Row>,
     pub strokes: Vec<Row>,
     pub dimensions: Vec<Row>,
@@ -296,6 +298,7 @@ fn drawn(
         plane: String::new(),
         open: false,
         dimmed: false,
+        selected: false,
         areas: (0..sketch.regions().len())
             .map(|rank| Row {
                 name: numbered(lang, "part_tree.area", rank + 1),

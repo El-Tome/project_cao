@@ -44,11 +44,31 @@
 //!   each kind of problem is titled and says is held case by case beside the
 //!   title bar's presenter, by `each_alert_is_titled_by_its_element_and_its_problem`
 //!   and `each_alert_says_why_in_a_sentence`
-//! - then « Montrer » (selects the element and lights it in the view) —
-//!   `show_selects_the_element_and_lights_it_in_the_view`
-//! - and « Modifier » (reopens the step) —
-//!   `modify_reopens_the_step_the_alert_is_about`; for a kept section, which
-//!   is no step, it reopens the section, as decided when the list was taken up
+//! - then « Montrer » (selects the element …) — for a sketch, its row in the
+//!   tree stands selected, the sketch left closed; for a kept section, it is
+//!   switched on as a click on its row does, and a second « Montrer » leaves it
+//!   on — `show_selects_the_sketch_or_the_section_and_leaves_the_list_open`;
+//!   for a volume, under the bullet Tom decided, below
+//! - « … and lights it in the view », for a sketch and a kept section — no
+//!   test: put off, nothing to hold it with yet. Nothing lights a whole sketch
+//!   today, the tree's light being of one row under it, and a section whose
+//!   face is gone cuts nothing, so switching it on changes nothing in the view.
+//!   Lighting a whole element is what « Montrer » on a volume adds; whether a
+//!   sketch takes the same light waits on that
+//! - and « Modifier » (reopens the step) — for a sketch, what a double-click
+//!   on its row does; for a kept section, which is no step, the section
+//!   reopened in its tool, as a double-click on its row does too, decided when
+//!   the list was taken up —
+//!   `modify_reopens_the_step_the_alert_is_about_and_closes_the_list`, and what
+//!   the button asks is held beside the title bar's presenter by
+//!   `modify_asks_what_a_double_click_on_the_sketch_or_the_section_s_row_asks`;
+//!   for an extrusion, under the bullet Tom decided, below
+//! - decided when « Montrer » and « Modifier » were taken up, the redesign
+//!   saying nothing of it: the list stays open after « Montrer », the next
+//!   alert still to be looked at, and closes after « Modifier », the user now in
+//!   the sketch or the section —
+//!   `show_selects_the_sketch_or_the_section_and_leaves_the_list_open` and
+//!   `modify_reopens_the_step_the_alert_is_about_and_closes_the_list`
 //! - The list follows the part live — `the_open_list_follows_the_part_live`
 //! - ✕, Escape or a click elsewhere closes it —
 //!   `the_cross_escape_or_a_click_elsewhere_closes_the_list`
@@ -328,6 +348,174 @@ fn the_cross_escape_or_a_click_elsewhere_closes_the_list() {
         "the list does not close as the issue asks:\n  {}",
         wrong.join("\n  "),
     );
+}
+
+#[test]
+fn modify_reopens_the_step_the_alert_is_about_and_closes_the_list() {
+    let mut wrong = Vec::new();
+
+    let mut app = a_part_with_two_alerts("modify_reopens_the_sketch");
+    let open_before = driver::a_sketch_is_open(&app);
+    driver::click_the_button(&mut app, "2 alertes");
+    click_the_alert_s(&mut app, SKETCH_OFF_ITS_FACE, "Modifier");
+    let bar = the_title_bar(&app);
+    if open_before
+        || !driver::a_sketch_is_open(&app)
+        || !bar.iter().any(|read| read == "Esquisse 2")
+    {
+        wrong.push(format!(
+            "« Modifier » on « {SKETCH_OFF_ITS_FACE} » did not reopen « Esquisse 2 », as a \
+             double-click on its row does: a sketch open before {open_before}, after {}, and \
+             the title bar reads {bar:?}",
+            driver::a_sketch_is_open(&app),
+        ));
+    }
+    if driver::reads(&app, HEADING) {
+        wrong.push("the list stands open over the sketch « Modifier » reopened".to_owned());
+    }
+
+    let mut app = a_part_with_a_section_off_its_face("modify_reopens_the_section");
+    let tool_before = the_section_tool_is_open(&app);
+    driver::click_the_button(&mut app, "2 alertes");
+    click_the_alert_s(&mut app, FACE_LOST, "Modifier");
+    let bar = the_title_bar(&app);
+    if tool_before
+        || !the_section_tool_is_open(&app)
+        || !bar.iter().any(|read| read == "Vue en coupe")
+    {
+        wrong.push(format!(
+            "« Modifier » on « {FACE_LOST} » did not reopen the section in its tool, as a \
+             double-click on its row does: the tool open before {tool_before}, after {}, and \
+             the title bar reads {bar:?}",
+            the_section_tool_is_open(&app),
+        ));
+    }
+    if driver::reads(&app, HEADING) {
+        wrong.push("the list stands open over the section « Modifier » reopened".to_owned());
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "« Modifier » does not reopen what its alert is about:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn show_selects_the_sketch_or_the_section_and_leaves_the_list_open() {
+    let mut wrong = Vec::new();
+
+    let mut app = a_part_with_two_alerts("show_selects_the_sketch");
+    let before = the_row_is_selected(&app, "Esquisse 2");
+    driver::click_the_button(&mut app, "2 alertes");
+    click_the_alert_s(&mut app, SKETCH_OFF_ITS_FACE, "Montrer");
+    let after = the_row_is_selected(&app, "Esquisse 2");
+    if before || !after {
+        wrong.push(format!(
+            "« Montrer » on « {SKETCH_OFF_ITS_FACE} » did not select the row of « Esquisse 2 » \
+             in the tree: selected before {before}, after {after}"
+        ));
+    }
+    if driver::a_sketch_is_open(&app) {
+        wrong.push(format!(
+            "« Montrer » on « {SKETCH_OFF_ITS_FACE} » opened the sketch, which is « Modifier »'s \
+             to do"
+        ));
+    }
+    if !driver::reads(&app, HEADING) {
+        wrong.push(format!(
+            "« Montrer » on « {SKETCH_OFF_ITS_FACE} » closed the list"
+        ));
+    }
+
+    let mut app = a_part_with_a_section_off_its_face("show_selects_the_section");
+    let before = the_row_is_selected(&app, "Coupe 1");
+    driver::click_the_button(&mut app, "2 alertes");
+    click_the_alert_s(&mut app, FACE_LOST, "Montrer");
+    let once = the_row_is_selected(&app, "Coupe 1");
+    let still_open = driver::reads(&app, HEADING);
+    if still_open {
+        click_the_alert_s(&mut app, FACE_LOST, "Montrer");
+    }
+    let twice = the_row_is_selected(&app, "Coupe 1");
+    if before || !once || !twice {
+        wrong.push(format!(
+            "« Montrer » on « {FACE_LOST} » did not switch « Coupe 1 » on in the tree, or a second \
+             « Montrer » switched it off: on before {before}, after one {once}, after two {twice}"
+        ));
+    }
+    if the_section_tool_is_open(&app) {
+        wrong.push(format!(
+            "« Montrer » on « {FACE_LOST} » opened the section tool, which is « Modifier »'s to do"
+        ));
+    }
+    if !still_open || !driver::reads(&app, HEADING) {
+        wrong.push(format!("« Montrer » on « {FACE_LOST} » closed the list"));
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "« Montrer » does not select what its alert is about, the list left open:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+/// Whether the row of the tree that reads exactly this stands selected: the
+/// sketch open, the section switched on.
+fn the_row_is_selected(app: &driver::App, name: &str) -> bool {
+    driver::the_row(app, name)
+        .is_some_and(|row| row.accesskit_node().toggled() == Some(egui::accesskit::Toggled::True))
+}
+
+/// What the sketch laid on the block's face is alerted for, once the block's
+/// sketch is emptied.
+const SKETCH_OFF_ITS_FACE: &str = "Esquisse 2 · face perdue";
+
+/// A block whose sketch was emptied once a section was laid on its face: the
+/// title bar counts « 2 alertes », the block's extrusion having lost its area
+/// and « Coupe 1 » its face.
+fn a_part_with_a_section_off_its_face(test: &str) -> driver::App {
+    let mut app = driver::a_block(test);
+    lay_a_section_on_the_block_s_face(&mut app);
+    empty_the_block_s_sketch(&mut app);
+    assert!(
+        driver::in_the_tree(&app, "Coupe 1") && the_button_reading(&app, "2 alertes").is_some(),
+        "the block's sketch emptied under a section on its face, the tree holds no « Coupe 1 » \
+         or the title bar does not count « 2 alertes »: {:?}",
+        the_title_bar(&app),
+    );
+    app
+}
+
+/// Clicks the button named `action` of the alert titled `title`, in the open
+/// list: the first of that name under its title.
+fn click_the_alert_s(app: &mut driver::App, title: &str, action: &str) {
+    let at = the_alert_s_button(app, title, action).unwrap_or_else(|| {
+        panic!(
+            "the open list offers no « {action} » under « {title} »; the screen shows {:?}",
+            driver::on_screen(app),
+        )
+    });
+    driver::click_at(app, at.center());
+}
+
+fn the_alert_s_button(app: &driver::App, title: &str, action: &str) -> Option<egui::Rect> {
+    let list = the_list(app)?;
+    let (_, at) = texts_within(app, list)
+        .into_iter()
+        .find(|(text, _)| text == title)?;
+    app.query_all_by_label(action)
+        .filter(|node| node.accesskit_node().role() == Role::Button)
+        .map(|node| node.rect())
+        .filter(|button| {
+            list.contains(button.center()) && button.top() >= at.bottom() - HUGGED_WITHIN
+        })
+        .min_by(|one, other| one.top().total_cmp(&other.top()))
+}
+
+/// Whether the section tool is open: its « Inverser » is its own.
+fn the_section_tool_is_open(app: &driver::App) -> bool {
+    driver::a_button_reads(app, "Inverser")
 }
 
 /// What a hand does to the application.

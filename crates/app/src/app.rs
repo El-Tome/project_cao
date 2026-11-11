@@ -189,10 +189,9 @@ impl CaoApp {
         // An error raised on this screen goes to the title bar's pill, which
         // the frame's end settles; until then the shell holds it.
         let at_start = editor.message.clone();
-        let error = title_bar.covering.as_ref().map(|held| held.error.as_str());
-        let bar = screens::title_bar::TitleBar::of(doc, path, editor, viewport, error, lang);
-        let mut back_to_menu = screens::title_bar::show(ui, &bar, &mut title_bar.alerts_open, lang);
-        let mut changed = false;
+        let (mut back_to_menu, alerted) =
+            screens::title_bar::run(ui, doc, path, editor, viewport, title_bar, lang);
+        let mut changed = crate::panels::carry_out(alerted, doc, editor, viewport, ribbon);
         let mut asked: Vec<Command> = Vec::new();
 
         let mut drawn = screens::ribbon::Drawn {

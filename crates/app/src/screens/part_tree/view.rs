@@ -212,7 +212,7 @@ fn drawn(ui: &mut egui::Ui, drawing: &Drawn, asked: &mut Asked<'_>, lang: &Catal
     let badge = drawing.badge.map(|found| said::badge(lang, found));
     let heading = TreeRow {
         name: &drawing.name,
-        selected: drawing.open,
+        selected: drawing.selected,
         dimmed: drawing.dimmed,
         value: Some(&drawing.plane),
         badge: badge.as_deref().zip(drawing.badge.map(Problem::level)),

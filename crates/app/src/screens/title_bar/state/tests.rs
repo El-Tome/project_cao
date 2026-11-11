@@ -56,6 +56,12 @@
 //!   says — `each_alert_says_why_in_a_sentence`. The icon, and the sentence
 //!   standing under the title, are the view's, held in
 //!   `crates/app/tests/the_alerts.rs`
+//! - and « Modifier » (reopens the step) — for a sketch and a kept section, it
+//!   asks the tree what a double-click on the row asks, `EditSketch` and
+//!   `EditSection` —
+//!   `modify_asks_what_a_double_click_on_the_sketch_or_the_section_s_row_asks`;
+//!   that the sketch or the section is then open is held in
+//!   `crates/app/tests/the_alerts.rs`
 //! - Every problem detected today is still shown: as an alert now —
 //!   `each_problem_of_the_part_is_an_alert_at_its_level`, one part for each
 //!   problem the tree wears a badge for today; and what the pill said of a
@@ -84,6 +90,7 @@ use chrono::{DateTime, Utc};
 use glam::{DVec2, DVec3};
 
 use super::*;
+use crate::screens::part_tree::TreeAction;
 use crate::ui::badge::Level;
 
 const SAVE_FAILED: &str = "L'échange avec /CAO/Platine.caopart s'est arrêté en chemin.";
@@ -425,6 +432,33 @@ fn each_alert_says_why_in_a_sentence() {
     assert_ne!(
         area_lost, sketch_off,
         "an area lost and a face lost say the same thing",
+    );
+}
+
+#[test]
+fn modify_asks_what_a_double_click_on_the_sketch_or_the_section_s_row_asks() {
+    let asked = read_off_the_bar(
+        &[
+            a_sketch_off_its_face,
+            a_block,
+            two_sections_one_off_its_face,
+        ],
+        |bar| -> Vec<(About, TreeAction)> {
+            bar.alerts
+                .iter()
+                .map(|alert| (alert.about, alert.asks(AlertButton::Modify)))
+                .collect()
+        },
+    );
+
+    assert_eq!(
+        asked,
+        [
+            (About::Sketch(0), TreeAction::EditSketch(0)),
+            (About::Section(1), TreeAction::EditSection(1)),
+        ],
+        "« Modifier » on the alert of a sketch or of a kept section does not ask to reopen \
+         it, as a double-click on its row in the tree does",
     );
 }
 

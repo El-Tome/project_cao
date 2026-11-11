@@ -28,6 +28,7 @@ impl PartTree {
         for drawing in &mut tree.sketches {
             drawing.open = editor.active_sketch() == Some(drawing.sketch);
             drawing.dimmed = !drawing.open && !viewport.eye_lit(document, drawing.sketch);
+            drawing.selected = drawing.open || viewport.marked_sketch() == Some(drawing.sketch);
         }
         for body in &mut tree.bodies {
             body.shown = viewport.volume_mode(document, body.step);

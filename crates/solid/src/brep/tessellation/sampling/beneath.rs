@@ -123,3 +123,6 @@ fn through_rims(line: &Line, edge: &Edge, rims: &[DVec3], cylinder: &Cylinder) -
         .map(|at| line.point(at))
         .collect()
 }
+
+#[cfg(test)]
+mod tests;

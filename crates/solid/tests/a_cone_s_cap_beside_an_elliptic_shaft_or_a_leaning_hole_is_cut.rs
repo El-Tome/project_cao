@@ -35,6 +35,14 @@
 //! is the cap's radius: the rim, sampled alone on the cone's grid, had a
 //! chord sag across the elliptic rim beside the tip.
 //!
+//! The mutants of `sampling/beneath.rs` this file, the library's tests and
+//! the campaigns' let live are killed beside the code, in
+//! `sampling/beneath/tests.rs`, which reads what `beneath::walls` keeps:
+//! the sag window's arithmetic by a sample within twice a sixteenth's sag
+//! and one past it, the face test's `&&` by samples beyond the bore's face,
+//! and its `==` by a sample whose place on the bore only the shaft's face
+//! holds. None of them is equivalent.
+//!
 //! A pair of walls a hair off parallel with a third wall across them, five
 //! with a plane cap uncut, to #866: #858's elliptic shaft and leaning round
 //! (352000000009685, which holds without its cross bore), two rounds

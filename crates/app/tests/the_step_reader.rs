@@ -307,3 +307,96 @@ fn adding_a_step_while_read_to_step_three_brings_the_reading_point_back_to_the_e
         driver::on_screen(&app),
     );
 }
+
+/// How far a place of the chrome may move before it is taken to have moved,
+/// in points.
+const STILL: f32 = 0.5;
+
+/// The reader's row as it stands: ◀ and ▶, and which boxes of the `boxes`
+/// the part has stand between them, counting from one.
+struct Row {
+    previous: egui::Rect,
+    next: egui::Rect,
+    seen: Vec<usize>,
+}
+
+fn the_reader_s_row(app: &driver::App, boxes: usize) -> Row {
+    let end = |name: &str| {
+        driver::the_row(app, name)
+            .unwrap_or_else(|| panic!("no « {name} » at the end of the reader's row"))
+            .rect()
+    };
+    let (previous, next) = (end("Étape précédente"), end("Étape suivante"));
+    let seen = (1..=boxes)
+        .filter(|rank| {
+            driver::the_row(app, &format!("Étape {rank}")).is_some_and(|node| {
+                let at = node.rect();
+                at.left() >= previous.right() && at.right() <= next.left()
+            })
+        })
+        .collect();
+    Row {
+        previous,
+        next,
+        seen,
+    }
+}
+
+fn add_a_sketch(app: &mut driver::App) {
+    driver::bring_into_the_ribbon(app, "Nouvelle esquisse");
+    driver::start_a_sketch(app);
+    driver::draw_a_segment(app);
+    driver::finish_the_sketch(app);
+}
+
+#[test]
+fn forty_steps_scroll_sideways_in_the_row_rather_than_overflowing_the_panel() {
+    let mut app = driver::open("forty_steps_scroll_sideways");
+    driver::create_a_part(&mut app, "Platine");
+    add_a_sketch(&mut app);
+    assert_eq!(
+        read_of(&app, 1),
+        (Some("1 / 1".to_string()), false),
+        "the fixture wants a part of one step",
+    );
+    let one = the_reader_s_row(&app, 1);
+    let canvas_beside_one = driver::canvas(&app).left();
+    assert!(
+        one.seen == [1] && driver::the_row(&app, "Étape 2").is_none(),
+        "with one step the row does not show exactly one box between ◀ and ▶: {:?} seen, \
+         showing {:?}",
+        one.seen,
+        driver::on_screen(&app),
+    );
+
+    for _ in 1..40 {
+        add_a_sketch(&mut app);
+    }
+    assert_eq!(
+        read_of(&app, 40),
+        (Some("40 / 40".to_string()), false),
+        "the fixture wants a part of forty steps",
+    );
+    let forty = the_reader_s_row(&app, 40);
+    let canvas_beside_forty = driver::canvas(&app).left();
+
+    let moved: Vec<(&str, f32, f32)> = [
+        ("◀", one.previous.left(), forty.previous.left()),
+        ("▶", one.next.right(), forty.next.right()),
+        ("the canvas", canvas_beside_one, canvas_beside_forty),
+    ]
+    .into_iter()
+    .filter(|(_, then, now)| (now - then).abs() > STILL)
+    .collect();
+    assert!(
+        moved.is_empty(),
+        "forty steps pushed the row out of the panel, or the panel wider, as (what, left or \
+         right edge with one step, with forty): {moved:?}",
+    );
+    assert!(
+        !forty.seen.is_empty() && forty.seen.len() < 40,
+        "of forty boxes, {} stand between ◀ and ▶: the row does not scroll sideways with \
+         some of them in view and the rest out of it",
+        forty.seen.len(),
+    );
+}

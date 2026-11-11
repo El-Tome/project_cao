@@ -18,6 +18,7 @@ use crate::ui::tree_row::{Eye, TreeRow, folding_row, tree_note, tree_row};
 use crate::wording::part_tree::{self as said, Problem, Rubric};
 
 mod history;
+mod reader;
 pub use history::compact_confirm;
 
 /// What the tree reads to mark its rows, and the one thing asked of it.
@@ -53,7 +54,7 @@ pub fn panel(
         .resizable(true)
         .default_size(240.0)
         .show(ui, |ui| {
-            asked.action = history::at_the_bottom(ui, document, history_unfolded, lang);
+            asked.action = history::at_the_bottom(ui, document, viewport, history_unfolded, lang);
             show(ui, &mut asked, lang);
         });
     (asked.action, asked.hovering)

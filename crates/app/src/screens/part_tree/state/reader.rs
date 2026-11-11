@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 
 use cao_part::PartDocument;
-use cao_part::history::StepKind;
+use cao_part::history::{ExtrusionMode, StepKind};
 
 use super::volumes::volume_name;
 use super::{PartTree, sketch_name};
@@ -18,6 +18,9 @@ use crate::wording::part_tree::{self as said, Problem};
 #[derive(Clone, Debug, PartialEq)]
 pub struct KeyStep {
     pub kind: StepKind,
+    /// Whether a volume adds matter or takes it away, as its row in the tree
+    /// says; nothing for a sketch.
+    pub mode: Option<ExtrusionMode>,
     pub name: String,
     /// Played: at or before the reading point.
     pub applied: bool,
@@ -55,12 +58,19 @@ impl StepReader {
     }
 
     /// The part read to its end.
+    #[cfg_attr(not(test), expect(dead_code))]
     pub fn of(document: &PartDocument, lang: &Catalogue) -> Self {
         Self::read(document, lang, |_| true)
     }
 
     fn read(document: &PartDocument, lang: &Catalogue, played: impl Fn(usize) -> bool) -> Self {
-        let problems = problems(&PartTree::of(document, lang));
+        let tree = PartTree::of(document, lang);
+        let problems = problems(&tree);
+        let modes: HashMap<usize, ExtrusionMode> = tree
+            .bodies
+            .iter()
+            .map(|body| (body.step, body.mode))
+            .collect();
         let (mut sketches, mut volumes) = (0, 0);
         let steps: Vec<(KeyStep, Option<Problem>)> = document
             .history
@@ -80,21 +90,21 @@ impl StepReader {
                     }
                     StepKind::Section => return None,
                 };
-                Some((kind, name, problems.get(&step).copied()))
+                let mode = modes.get(&step).copied();
+                Some((kind, mode, name, problems.get(&step).copied()))
             })
             .enumerate()
-            .map(|(rank, (kind, name, problem))| {
+            .map(|(rank, (kind, mode, name, problem))| {
                 let applied = played(rank);
                 let alert = problem.map(Problem::level);
-                (
-                    KeyStep {
-                        kind,
-                        name,
-                        applied,
-                        alert,
-                    },
-                    problem,
-                )
+                let step = KeyStep {
+                    kind,
+                    mode,
+                    name,
+                    applied,
+                    alert,
+                };
+                (step, problem)
             })
             .collect();
         let line = line(lang, &steps);

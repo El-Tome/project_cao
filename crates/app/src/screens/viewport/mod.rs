@@ -17,8 +17,6 @@ pub(crate) use input::{take as take_a_selection, take_everything};
 mod matter;
 mod navigation;
 mod opening_view;
-// Until the panel draws the step reader (#356): `expect` fails the day it does.
-#[cfg_attr(not(test), expect(dead_code))]
 mod reading;
 mod render;
 mod section;

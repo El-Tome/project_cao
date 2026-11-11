@@ -25,16 +25,13 @@ use crate::wording::{self, formula, plane};
 mod clicks;
 mod flagged;
 mod history;
-// Until the panel draws the reader (#356): `expect` fails the day it does.
-#[cfg_attr(not(test), expect(dead_code))]
 mod reader;
 mod seen;
 mod volumes;
 pub use clicks::*;
 pub use flagged::{About, Flagged};
 pub use history::History;
-#[cfg_attr(not(test), expect(unused_imports))]
-pub use reader::StepReader;
+pub use reader::{KeyStep, StepReader};
 pub use seen::Offered;
 use volumes::volume;
 

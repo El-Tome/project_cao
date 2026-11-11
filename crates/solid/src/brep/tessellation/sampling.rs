@@ -183,7 +183,7 @@ impl Samples {
         }
         abreast.withhold(&mut contacts);
         let alone = Contact::default();
-        let mut places = Places::new(eps * TOLD);
+        let mut places = Places::new(2.0 * eps);
         for id in body.edge_ids() {
             let edge = body.edge(id);
             let between = match body.curve(edge.curve) {

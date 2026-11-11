@@ -68,6 +68,11 @@
 //!   area is lost — `show_asks_to_mark_the_volume_the_alert_is_about`; its
 //!   row selected is held in `crates/app/tests/the_alerts.rs`, and its light in
 //!   `crates/app/src/screens/viewport/render/tests.rs`
+//! - decided by Tom when the work opened: « Modifier » on an extrusion's alert
+//!   reopens the extrusion, its panel filled with its values — what the button
+//!   asks, the step's panel reopened, for an extrusion not built, a revolution
+//!   built unstably and an extrusion whose area is lost, the list closing —
+//!   `modify_asks_to_reopen_the_extrusion_or_revolution_the_alert_is_about_and_closes_the_list`
 //! - Every problem detected today is still shown: as an alert now —
 //!   `each_problem_of_the_part_is_an_alert_at_its_level`, one part for each
 //!   problem the tree wears a badge for today; and what the pill said of a
@@ -497,6 +502,42 @@ fn show_asks_to_mark_the_volume_the_alert_is_about() {
         read.iter().all(|alerts| alerts.len() == 1) && wrong.is_empty(),
         "« Montrer » on the alert of a volume not built, built unstably, or whose area is \
          lost, does not ask to mark that volume: {read:?}",
+    );
+}
+
+#[test]
+fn modify_asks_to_reopen_the_extrusion_or_revolution_the_alert_is_about_and_closes_the_list() {
+    let asked = |laid: &[fn(&mut PartDocument)]| -> Vec<(About, TreeAction)> {
+        read_off_the_bar(laid, |bar| {
+            bar.alerts
+                .iter()
+                .map(|alert| (alert.about, alert.asks(AlertButton::Modify)))
+                .collect()
+        })
+    };
+
+    let read = [
+        asked(&[a_ball_under_a_slanted_circle_raised]),
+        asked(&[a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin]),
+        asked(&[a_block_whose_area_is_gone]),
+    ];
+
+    let wrong: Vec<&(About, TreeAction)> = read
+        .iter()
+        .flatten()
+        .filter(|(about, action)| match about {
+            About::Volume { step } => *action != TreeAction::EditExtrusion(*step),
+            _ => true,
+        })
+        .collect();
+    assert!(
+        read.iter().all(|alerts| alerts.len() == 1) && wrong.is_empty(),
+        "« Modifier » on the alert of an extrusion not built, a revolution built unstably, or an \
+         extrusion whose area is lost, does not ask to reopen it: {read:?}",
+    );
+    assert!(
+        AlertButton::Modify.closes_the_list(),
+        "« Modifier » leaves the list open over the extrusion it reopens",
     );
 }
 

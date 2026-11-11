@@ -191,7 +191,7 @@ impl CaoApp {
         let at_start = editor.message.clone();
         let (mut back_to_menu, alerted) =
             screens::title_bar::run(ui, doc, path, editor, viewport, title_bar, lang);
-        let mut changed = crate::panels::carry_out(alerted, doc, editor, viewport, ribbon);
+        let mut changed = false;
         let mut asked: Vec<Command> = Vec::new();
 
         let mut drawn = screens::ribbon::Drawn {
@@ -242,7 +242,7 @@ impl CaoApp {
         }
 
         let beside = crate::panels::Beside { ribbon, variables };
-        changed |= crate::panels::beside_the_part(ui, doc, editor, viewport, beside, lang);
+        changed |= crate::panels::beside_the_part(ui, &mut worked_on, viewport, beside, alerted);
 
         let view = egui::CentralPanel::no_frame().show(ui, |ui| {
             let mut context = screens::SketchContext {

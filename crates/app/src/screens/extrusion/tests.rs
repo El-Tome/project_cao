@@ -26,6 +26,25 @@
 //! that changes nothing no longer blames the axis —
 //! `a_revolution_across_its_axis_makes_matter_and_has_nothing_to_say`,
 //! `a_revolution_that_changes_nothing_says_so_without_blaming_the_axis`.
+//!
+//! Closes #736 — the whole transcription is in `crates/app/tests/the_alerts.rs`;
+//! these bullets are the extrusion panel's half of one decision there.
+//! - decided by Tom when the work opened: « Modifier » on an extrusion's alert
+//!   reopens the extrusion, its panel filled with its values — an extrusion
+//!   reopens on its sketch, its mode, its height as written, its direction and
+//!   the places its areas were picked at —
+//!   `an_extrusion_reopens_on_the_values_it_was_raised_with`; a revolution on
+//!   its mode, its axis, its angle as written and its places —
+//!   `a_revolution_reopens_on_its_axis_and_its_angle`
+//! - and « Appliquer » on it changes that step rather than raising another:
+//!   the design keeps its steps, the step reads its new values, and the part is
+//!   raised from them — `applying_a_reopened_extrusion_changes_its_step_rather_than_raising_another`
+//!
+//! A step is reopened by its place in the history, as the Part panel and the
+//! alerts name a volume, and reopens on what the part now replays it as,
+//! `PartDocument::raised_as`: once changed, on its change. A height or an angle
+//! the other way along the plane reopens as written the right way with the
+//! direction reversed, which is how the panel wrote it.
 
 use cao_part::{Operation, PartDocument, PointRef, RevolutionAxis};
 use cao_sketch::{PointId, SketchAxis, WorkPlane};
@@ -352,5 +371,178 @@ fn an_extrusion_built_at_an_unstable_lean_says_so_once_applied() {
     assert!(
         document.body().volume() < before,
         "the slice is taken out all the same"
+    );
+}
+
+/// Where `a_square_raised_then_cut_the_other_way` picks its area.
+const IN_THE_SQUARE: DVec2 = DVec2::new(1.0, 2.0);
+
+/// The square raised 5, then cut 3 the other way along the plane, both from
+/// the square's one area.
+fn a_square_raised_then_cut_the_other_way() -> PartDocument {
+    let mut document = a_part_with_a_square();
+    for (distance, mode) in [(5.0, ExtrusionMode::Add), (-3.0, ExtrusionMode::Cut)] {
+        document.apply(Operation::Extrude {
+            sketch: 0,
+            areas: document.areas_at(0, &[IN_THE_SQUARE]),
+            distance: distance.into(),
+            mode,
+        });
+    }
+    document
+}
+
+/// Where the square is raised, then cut, in its history.
+const THE_RAISE: usize = 2;
+const THE_CUT: usize = 3;
+
+/// What the panel reopened on a step holds: its sketch, its mode, its shape,
+/// its height as written, whether it goes the other way, and its picks.
+type Held = (
+    Option<usize>,
+    Option<ExtrusionMode>,
+    Shape,
+    String,
+    bool,
+    Vec<DVec2>,
+);
+
+fn held(extrusion: &ExtrusionState) -> Held {
+    (
+        extrusion.sketch,
+        extrusion.mode,
+        extrusion.shape,
+        extrusion.distance_input.clone(),
+        extrusion.reversed,
+        extrusion.picks.clone(),
+    )
+}
+
+#[test]
+fn an_extrusion_reopens_on_the_values_it_was_raised_with() {
+    let document = a_square_raised_then_cut_the_other_way();
+
+    let reopened = [THE_RAISE, THE_CUT]
+        .map(|step| ExtrusionState::reopened(&document, step).as_ref().map(held));
+
+    assert_eq!(
+        reopened,
+        [
+            Some((
+                Some(0),
+                Some(ExtrusionMode::Add),
+                Shape::Straight,
+                "5".to_owned(),
+                false,
+                vec![IN_THE_SQUARE],
+            )),
+            Some((
+                Some(0),
+                Some(ExtrusionMode::Cut),
+                Shape::Straight,
+                "3".to_owned(),
+                true,
+                vec![IN_THE_SQUARE],
+            )),
+        ],
+        "the square raised 5 and cut 3 the other way do not reopen on the values they were \
+         raised with",
+    );
+}
+
+#[test]
+fn a_revolution_reopens_on_its_axis_and_its_angle() {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XZ,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::new(0.0, 5.0)),
+        opposite: PointRef::New(DVec2::new(10.0, 10.0)),
+        construction: false,
+    });
+    let beside_the_axis = DVec2::new(5.0, 7.5);
+    document.apply(Operation::Revolve {
+        sketch: 0,
+        areas: document.areas_at(0, &[beside_the_axis]),
+        axis: RevolutionAxis::Sketch(SketchAxis::U),
+        angle: 90.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+
+    let reopened = ExtrusionState::reopened(&document, 2).map(|extrusion| {
+        (
+            extrusion.sketch,
+            extrusion.mode,
+            extrusion.shape,
+            extrusion.axis,
+            extrusion.angle_input.clone(),
+            extrusion.reversed,
+            extrusion.picks.clone(),
+        )
+    });
+
+    assert_eq!(
+        reopened,
+        Some((
+            Some(0),
+            Some(ExtrusionMode::Add),
+            Shape::Revolution,
+            RevolutionAxis::Sketch(SketchAxis::U),
+            "90".to_owned(),
+            false,
+            vec![beside_the_axis],
+        )),
+        "a rectangle turned 90° about the sketch's first axis does not reopen on its revolution",
+    );
+}
+
+#[test]
+fn applying_a_reopened_extrusion_changes_its_step_rather_than_raising_another() {
+    let mut document = a_square_raised_then_cut_the_other_way();
+    let steps = document.history.steps().len();
+    let raised = document
+        .history
+        .number_at(THE_RAISE)
+        .expect("the square is raised");
+    let mut extrusion =
+        ExtrusionState::reopened(&document, THE_RAISE).expect("the square's raise reopens");
+    extrusion.distance_input = "12".to_owned();
+
+    let applied = apply_extrusion(
+        &mut document,
+        &mut extrusion,
+        &mut None,
+        &Catalogue::french(),
+    );
+
+    let raised_so = Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[IN_THE_SQUARE]),
+        distance: 12.0.into(),
+        mode: ExtrusionMode::Add,
+    };
+    let mut wrong = Vec::new();
+    if !applied {
+        wrong.push("nothing was applied".to_owned());
+    }
+    if document.history.steps().len() != steps {
+        wrong.push(format!(
+            "the design has {} steps where it had {steps}",
+            document.history.steps().len(),
+        ));
+    }
+    if document.raised_as(raised) != Some(&raised_so) {
+        wrong.push(format!(
+            "the square's raise reads {:?}, not raised 12",
+            document.raised_as(raised),
+        ));
+    }
+    assert!(
+        wrong.is_empty(),
+        "the square's raise, reopened and applied at 12, did not change its own step:\n  {}",
+        wrong.join("\n  "),
     );
 }

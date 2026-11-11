@@ -54,10 +54,10 @@ impl Alert {
         }
     }
 
-    /// What one of its buttons asks of the tree. « Modifier » asks what a
-    /// double-click on the row does; « Montrer » marks a sketch or a volume,
-    /// the sketch left closed, and switches a section on, never off. A
-    /// volume's « Modifier » asks nothing yet.
+    /// What one of its buttons asks of the tree. « Modifier » reopens what
+    /// the alert is about, a sketch or a section as a double-click on its row
+    /// does; « Montrer » marks a sketch or a volume, the sketch left closed,
+    /// and switches a section on, never off.
     pub fn asks(&self, button: AlertButton) -> TreeAction {
         match (button, self.about) {
             (AlertButton::Show, About::Sketch(sketch)) => TreeAction::MarkSketch(sketch),
@@ -65,7 +65,7 @@ impl Alert {
             (AlertButton::Show, About::Volume { step }) => TreeAction::MarkVolume(step),
             (AlertButton::Modify, About::Sketch(sketch)) => TreeAction::EditSketch(sketch),
             (AlertButton::Modify, About::Section(id)) => TreeAction::EditSection(id),
-            (AlertButton::Modify, About::Volume { .. }) => TreeAction::None,
+            (AlertButton::Modify, About::Volume { step }) => TreeAction::EditExtrusion(step),
         }
     }
 }

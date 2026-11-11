@@ -20,6 +20,9 @@ pub enum TreeAction {
     /// Stand the row of the volume made at this step of the history selected,
     /// and light its raw block.
     MarkVolume(usize),
+    /// Reopen the extrusion or the revolution at this step of the history, its
+    /// panel filled with its values.
+    EditExtrusion(usize),
     /// Show this sketch on the canvas, or stop showing it.
     ToggleEye(usize),
     /// Take this into the open sketch's selection, alone or added to it.

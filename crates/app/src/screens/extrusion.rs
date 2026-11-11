@@ -1,5 +1,7 @@
-use cao_part::{ExtrusionMode, Formula, RevolutionAxis, Unusable, Variables};
-use cao_sketch::SketchAxis;
+use cao_part::{
+    ExtrusionMode, Formula, Operation, PartDocument, RevolutionAxis, Unusable, Variables,
+};
+use cao_sketch::{Area, SketchAxis};
 use glam::DVec2;
 
 use crate::lang::Catalogue;
@@ -39,6 +41,17 @@ pub struct ExtrusionState {
     pub distance_input: String,
     /// Whether the matter goes the other way along the plane.
     pub reversed: bool,
+    /// The step of matter the panel was reopened on, which applying changes
+    /// rather than raising another.
+    pub reopened: Option<Reopened>,
+}
+
+/// A step of matter reopened: the number of the operation that raised it, and
+/// the areas it stands on, kept as they were while the picks are left alone.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Reopened {
+    pub raised_by: u32,
+    pub areas: Vec<Area>,
 }
 
 impl Default for ExtrusionState {
@@ -54,6 +67,7 @@ impl Default for ExtrusionState {
             angle_input: String::new(),
             distance_input: String::new(),
             reversed: false,
+            reopened: None,
         }
     }
 }
@@ -73,6 +87,57 @@ impl ExtrusionState {
             axis: RevolutionAxis::Sketch(SketchAxis::V),
             ..Self::default()
         };
+    }
+
+    /// The panel reopened on the step of matter at `step` in the history, as
+    /// the part now replays it: its sketch, its mode, its shape, its value as
+    /// written, and the places its areas were picked at. A value the other way
+    /// along the plane comes back written the right way, the direction
+    /// reversed. Nothing for any other step.
+    pub fn reopened(document: &PartDocument, step: usize) -> Option<Self> {
+        let raised_by = document.history.number_at(step)?;
+        let (sketch, areas, value, mode, axis) = match document.raised_as(raised_by)? {
+            Operation::Extrude {
+                sketch,
+                areas,
+                distance,
+                mode,
+            } => (*sketch, areas, distance, *mode, None),
+            Operation::Revolve {
+                sketch,
+                areas,
+                axis,
+                angle,
+                mode,
+            } => (*sketch, areas, angle, *mode, Some(*axis)),
+            _ => return None,
+        };
+        let variables = document.variables();
+        let reversed = value
+            .value(&variables.values())
+            .is_some_and(|value| value < 0.0);
+        let written = match reversed {
+            true => variables.written(&value.clone().negated()),
+            false => variables.written(value),
+        };
+        let mut reopened = Self::default();
+        reopened.offer(sketch);
+        reopened.mode = Some(mode);
+        reopened.picks = areas.iter().map(|area| area.inside).collect();
+        reopened.reversed = reversed;
+        match axis {
+            Some(axis) => {
+                reopened.shape = Shape::Revolution;
+                reopened.axis = axis;
+                reopened.angle_input = written;
+            }
+            None => reopened.distance_input = written,
+        }
+        reopened.reopened = Some(Reopened {
+            raised_by,
+            areas: areas.clone(),
+        });
+        Some(reopened)
     }
 
     pub fn is_revolving(&self) -> bool {
@@ -131,6 +196,16 @@ impl ExtrusionState {
     }
 }
 
+impl Reopened {
+    /// Whether these picks are the places its areas were picked at.
+    fn is_picked_at(&self, picks: &[DVec2]) -> bool {
+        picks
+            .iter()
+            .copied()
+            .eq(self.areas.iter().map(|area| area.inside))
+    }
+}
+
 fn signed(input: &str, reversed: bool, variables: &Variables) -> Option<(Formula, f64)> {
     let (written, value) = variables
         .size_of(input)
@@ -148,7 +223,7 @@ fn signed(input: &str, reversed: bool, variables: &Variables) -> Option<(Formula
 /// sentence of the extrusion's own outlived the extrusion, and stood beside
 /// whatever the drawing was saying.
 pub fn apply_extrusion(
-    doc: &mut cao_part::PartDocument,
+    doc: &mut PartDocument,
     extrusion: &mut ExtrusionState,
     notice: &mut Option<String>,
     lang: &Catalogue,
@@ -160,13 +235,20 @@ pub fn apply_extrusion(
         return false;
     }
 
-    let step = doc.history.next_number();
+    let reopened = extrusion.reopened.take();
+    let step = reopened
+        .as_ref()
+        .map_or_else(|| doc.history.next_number(), |reopened| reopened.raised_by);
     let before = doc.body().volume();
     // The areas are named here and never worked out again: what the click
     // meant is what the drawing said at the moment of the click.
-    let areas = doc.areas_at(sketch, &std::mem::take(&mut extrusion.picks));
+    let picks = std::mem::take(&mut extrusion.picks);
+    let areas = match &reopened {
+        Some(reopened) if reopened.is_picked_at(&picks) => reopened.areas.clone(),
+        _ => doc.areas_at(sketch, &picks),
+    };
     let operation = if extrusion.is_revolving() {
-        cao_part::Operation::Revolve {
+        Operation::Revolve {
             sketch,
             areas,
             axis: extrusion.axis,
@@ -176,7 +258,7 @@ pub fn apply_extrusion(
             mode,
         }
     } else {
-        cao_part::Operation::Extrude {
+        Operation::Extrude {
             sketch,
             areas,
             distance: extrusion
@@ -185,7 +267,13 @@ pub fn apply_extrusion(
             mode,
         }
     };
-    doc.apply(operation);
+    doc.apply(match reopened {
+        Some(reopened) => Operation::EditMatter {
+            raised_by: reopened.raised_by,
+            to: Box::new(operation),
+        },
+        None => operation,
+    });
 
     // An extrusion that changes nothing is worth saying out loud: a cut that
     // misses the matter looks exactly like a tool that did not work. One the

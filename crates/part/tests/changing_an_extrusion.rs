@@ -22,6 +22,13 @@
 //! - decided when the extrusion's change was taken up: a revolution is changed
 //!   the same way, the one road serving both steps of matter —
 //!   `a_revolution_changed_after_it_was_turned_is_turned_again_from_its_new_angle`
+//! - found when the change was made: compacting the history keeps the change,
+//!   the step written down as it now stands, where reading the operations as
+//!   first done would raise the block from its old values and drop the change
+//!   — `compacting_the_history_keeps_the_change_of_an_extrusion`. Written after
+//!   the code it holds, and passing from the first run: the compaction reads
+//!   `applied_as_raised`, and reading `applied_operations` there instead is
+//!   the one-line change it fails on
 //!
 //! The change is an operation of its own, `Operation::EditMatter`, rather than
 //! the first operation rewritten in place: undo, redo and going back to a step
@@ -389,5 +396,38 @@ fn a_revolution_changed_after_it_was_turned_is_turned_again_from_its_new_angle()
          holds {as_if_turned_so}, and reads {:?}",
         document.body().volume(),
         document.raised_as(raised),
+    );
+}
+
+#[test]
+fn compacting_the_history_keeps_the_change_of_an_extrusion() {
+    let mut document = two_blocks(4.0);
+    let raised = number_of(&document, THE_FIRST_BLOCK);
+    let changed = the_first_block_raised(&document, 10.0);
+    document.apply(Operation::EditMatter {
+        raised_by: raised,
+        to: Box::new(changed),
+    });
+
+    document.compact_history();
+
+    let as_if_raised_so = two_blocks(10.0).body().volume();
+    let first_block_reads: Vec<&Operation> = document
+        .history
+        .applied_operations()
+        .iter()
+        .enumerate()
+        .filter(|(_, operation)| matches!(operation, Operation::Extrude { .. }))
+        .filter_map(|(at, _)| document.raised_as(number_of(&document, at)))
+        .take(1)
+        .collect();
+    let raised_ten = |operation: &&Operation| matches!(operation, Operation::Extrude { distance, .. } if *distance == 10.0.into());
+    assert!(
+        same_volume(document.body().volume(), as_if_raised_so)
+            && first_block_reads.iter().all(raised_ten)
+            && !first_block_reads.is_empty(),
+        "the first block, changed from 4 to 10 then the history compacted, leaves {} where the \
+         blocks raised 10 and 2 hold {as_if_raised_so}, and reads {first_block_reads:?}",
+        document.body().volume(),
     );
 }

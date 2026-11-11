@@ -93,11 +93,24 @@
 //!   `the_alert_colours_are_set_and_reset_in_preferences_appearance`
 //! - decided by Tom when the work opened: « Modifier » on an extrusion's alert
 //!   reopens the extrusion, its panel filled with its values, where no
-//!   extrusion could be reopened before —
-//!   `modify_on_an_extrusion_s_alert_reopens_it_with_its_values`; the part's
-//!   half, a step of matter changed after it was raised and raised again in
-//!   its own step, is held first and apart, in
-//!   `crates/part/tests/changing_an_extrusion.rs`
+//!   extrusion could be reopened before — on the circle the kernel declines,
+//!   the panel opens on its height and its direction, the list closed;
+//!   « Annuler » leaves the part as it was; turned the other way and applied,
+//!   the part keeps its steps, the step reads its new values and the alert and
+//!   its count go — `modify_on_an_extrusion_s_alert_reopens_it_with_its_values`.
+//!   Held apart besides: the part's half, a step of matter changed after it
+//!   was raised and raised again in its own step, compaction included, in
+//!   `crates/part/tests/changing_an_extrusion.rs`; what the button asks, for an
+//!   extrusion and a revolution alike, by
+//!   `modify_asks_to_reopen_the_extrusion_or_revolution_the_alert_is_about_and_closes_the_list`
+//!   in `crates/app/src/screens/title_bar/state/tests.rs`; the panel reopened
+//!   on an extrusion's or a revolution's values, and « Appliquer » changing
+//!   the step rather than raising another, in
+//!   `crates/app/src/screens/extrusion/tests.rs`; and the volume's row reading
+//!   its new values, by `a_volume_changed_after_it_was_raised_reads_its_new_values`,
+//!   in `crates/app/src/screens/part_tree/state/tests.rs`. Through the alert
+//!   only the extrusion is driven: a revolution reopens through the same panel
+//!   and the same step, held below the screen
 //! - decided by Tom when the work opened: « Montrer » on a volume's alert
 //!   selects the volume and lights it in the view — its row in the tree stands
 //!   selected, for a volume not built and for one built unstably, the list
@@ -533,6 +546,110 @@ fn show_on_a_volume_s_alert_selects_its_row_and_leaves_the_list_open() {
         "« Montrer » does not select the volume its alert is about, the list left open:\n  {}",
         wrong.join("\n  "),
     );
+}
+
+#[test]
+fn modify_on_an_extrusion_s_alert_reopens_it_with_its_values() {
+    let test = "modify_on_an_extrusion_s_alert_reopens_it_with_its_values";
+    let mut app = a_part_opened_from(test, a_ball_under_a_slanted_circle_raised);
+    let mut as_written = PartDocument::new("Platine", chrono::Utc::now());
+    a_ball_under_a_slanted_circle_raised(&mut as_written);
+    let steps = as_written.history.steps().len();
+    let raised = as_written
+        .history
+        .number_at(THE_SLANTED_CIRCLE)
+        .expect("the circle is raised");
+    assert!(
+        the_button_reading(&app, "1 alerte").is_some(),
+        "the ball under the slanted circle does not open on one alert: {:?}",
+        the_title_bar(&app),
+    );
+
+    reopen_the_circle(&mut app);
+    let mut wrong = not_reopened_on_ten_the_other_way(&app);
+    if driver::reads(&app, HEADING) {
+        wrong.push("the list stands open over the extrusion « Modifier » reopened".to_owned());
+    }
+    assert!(
+        wrong.is_empty(),
+        "« Modifier » on « {NOT_BUILT} » does not reopen the extrusion on its values:\n  {}\nThe \
+         screen shows {:?}",
+        wrong.join("\n  "),
+        driver::on_screen(&app),
+    );
+
+    driver::click_the_button(&mut app, "Annuler");
+    if the_button_reading(&app, "1 alerte").is_none() {
+        wrong.push(format!(
+            "closed with « Annuler », the extrusion changed the part all the same: {:?}",
+            the_title_bar(&app),
+        ));
+    }
+    reopen_the_circle(&mut app);
+    driver::click(&mut app, "Sens inverse");
+    driver::click_the_button(&mut app, "Appliquer");
+    let counted: Vec<String> = the_title_bar(&app)
+        .into_iter()
+        .filter(|read| read.contains("alerte"))
+        .collect();
+    if !counted.is_empty() {
+        wrong.push(format!(
+            "turned the other way and applied, the circle still counts {counted:?}"
+        ));
+    }
+    let part = driver::the_part_put_away(&mut app, test, "Platine");
+    if part.history.steps().len() != steps {
+        wrong.push(format!(
+            "the part has {} steps where it was written with {steps}",
+            part.history.steps().len(),
+        ));
+    }
+    if !matches!(
+        part.raised_as(raised),
+        Some(Operation::Extrude { distance, .. }) if *distance == 10.0.into()
+    ) {
+        wrong.push(format!(
+            "the circle's step reads {:?}, not raised 10 the right way",
+            part.raised_as(raised),
+        ));
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "the extrusion reopened from its alert, turned the other way and applied, did not change \
+         its own step:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+/// What the slanted circle's step is alerted for.
+const NOT_BUILT: &str = "Extrusion 2 · non construite";
+
+/// Where the slanted circle is raised in the history of
+/// `a_ball_under_a_slanted_circle_raised`.
+const THE_SLANTED_CIRCLE: usize = 6;
+
+/// « Modifier » on the slanted circle's alert, the list opened for it.
+fn reopen_the_circle(app: &mut driver::App) {
+    driver::click_the_button(app, "1 alerte");
+    click_the_alert_s(app, NOT_BUILT, "Modifier");
+}
+
+/// What keeps the extrusion panel from standing open on the slanted circle's
+/// values: a height of 10, the other way along its plane.
+fn not_reopened_on_ten_the_other_way(app: &driver::App) -> Vec<String> {
+    if !driver::says(app, "Hauteur :") {
+        return vec!["no extrusion panel asks for a « Hauteur : »".to_owned()];
+    }
+    let mut wrong = Vec::new();
+    let height = driver::field_beside(app, "Hauteur :");
+    if height != "10" {
+        wrong.push(format!("its height reads « {height} », not « 10 »"));
+    }
+    if !driver::is_on(app, "Sens inverse") {
+        wrong.push("« Sens inverse » is not ticked, where the circle goes down".to_owned());
+    }
+    wrong
 }
 
 /// The part `laid` makes, written over the file of a part named « Platine »

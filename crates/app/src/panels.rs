@@ -4,13 +4,13 @@
 use cao_part::PartDocument;
 
 use crate::commands;
-use crate::lang::Catalogue;
-use crate::screens;
+use crate::screens::extrusion::ExtrusionState;
 use crate::screens::part_tree::TreeAction;
 use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
 use crate::screens::variables::VariablesPanel;
 use crate::screens::viewport::ViewportState;
+use crate::screens::{self, SketchContext};
 
 /// What the panels keep between frames: which of them are open, and what the
 /// panel of variables is part-way through.
@@ -20,22 +20,28 @@ pub(crate) struct Beside<'a> {
 }
 
 /// Draws the panels the ribbon has open beside the part, and carries out what
-/// was asked in them. Returns true when the part was changed.
+/// was asked in them, and what an alert's button asked of the tree. Returns
+/// true when the part was changed.
 pub(crate) fn beside_the_part(
     ui: &mut egui::Ui,
-    doc: &mut PartDocument,
-    editor: &mut SketchEditor,
+    context: &mut SketchContext<'_>,
     viewport: &mut ViewportState,
     Beside { ribbon, variables }: Beside<'_>,
-    lang: &Catalogue,
+    alerted: TreeAction,
 ) -> bool {
-    let mut changed = false;
+    let (doc, editor, extrusion, lang) = (
+        &mut *context.document,
+        &mut *context.editor,
+        &mut *context.extrusion,
+        context.lang,
+    );
+    let mut changed = carry_out(alerted, doc, editor, extrusion, viewport, ribbon);
     if ribbon.part_tree_open {
         let unfolded = ribbon.history_unfolded;
         let (action, hovered) =
             screens::part_tree::panel(ui, doc, editor, viewport, unfolded, lang);
         screens::part_tree::state::hover(doc, editor, viewport, hovered);
-        changed |= carry_out(action, doc, editor, viewport, ribbon);
+        changed |= carry_out(action, doc, editor, extrusion, viewport, ribbon);
     } else {
         screens::part_tree::state::hover(doc, editor, viewport, None);
         viewport.light_out();
@@ -94,6 +100,7 @@ pub(crate) fn carry_out(
     action: TreeAction,
     doc: &mut PartDocument,
     editor: &mut SketchEditor,
+    extrusion: &mut ExtrusionState,
     viewport: &mut ViewportState,
     ribbon: &mut Ribbon,
 ) -> bool {
@@ -110,6 +117,13 @@ pub(crate) fn carry_out(
         }
         TreeAction::MarkSketch(sketch) => viewport.mark_sketch(sketch),
         TreeAction::MarkVolume(step) => viewport.mark_volume(step),
+        TreeAction::EditExtrusion(step) => {
+            if let Some(reopened) = ExtrusionState::reopened(doc, step) {
+                editor.close();
+                *extrusion = reopened;
+                ribbon.tab = 1;
+            }
+        }
         TreeAction::ToggleEye(sketch) => viewport.toggle_eye(doc, sketch),
         TreeAction::Select { what, adding } => {
             screens::part_tree::state::take(editor, what, adding);

@@ -96,8 +96,9 @@ impl Exact {
     /// given, one edge named twice, two edges meeting at any other corner where
     /// an edge meets inwards, an edge whose set-backs meet those of two others
     /// — rounds closing on themselves, #790 — an edge of a full round meeting
-    /// another edge of the list at a corner but the edge at its end, one of a
-    /// round bottom meeting any, and a cut that left anything but its round —
+    /// another edge of the list at a corner but the edge at its end or the two
+    /// of a pointed end, one of a round bottom meeting any, and a cut that
+    /// left anything but its round —
     /// a face of the prism, the round in two
     /// pieces or with a corner on neither of the edge's faces, a face the body
     /// held, but the edge's two, taken away whole — as where a round leaving

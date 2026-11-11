@@ -104,8 +104,9 @@ impl Exact {
     /// as given, its prism cut from what the earlier cuts left, as
     /// [`Exact::laid_as`] lays it, so that the matter of every edge's prism
     /// goes whatever the order — and an edge bounding the face two cuts laid
-    /// together meet across, meeting both at a corner, meets their one prism
-    /// the same way, at their value, as [`pairs::at_their_ends`] reads it, the
+    /// together meet across, meeting both at a corner, or one and an edge of a
+    /// pointed end with it that meets the other, meets their one prism the
+    /// same way, at their value, as [`pairs::at_their_ends`] reads it, the
     /// two read on the body as given. Two edges of one sense meeting at a
     /// corner beside an edge of the other sense left out of the list, as
     /// [`corners::admit`] admits it — two cuts beside a concave edge, two fills

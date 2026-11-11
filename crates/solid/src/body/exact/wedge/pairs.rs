@@ -2,7 +2,8 @@
 //! (#698): the bound they set on the one value, so that their set-backs do
 //! not cross on it, the pairs whose set-backs meet across it, which are laid
 //! as one, and the edges of the list such a pair is mitred against at a
-//! corner (#803): each edge at its end, bounding the face that is gone.
+//! corner (#803): each edge at its end, bounding the face that is gone, one
+//! across it or the two of a pointed end (#843).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -120,14 +121,16 @@ pub(super) fn meeting(
 
 /// Each edge of `edges` bounding the face a pair of `pairs` whose faces meet
 /// outwards meet across, of no pair itself, that meets both of the pair at a
-/// corner — the edge at their end, whose cut is laid in turn against the one
-/// prism they are taken off with — by its rank, with the pair's value, the
-/// radius that prism is raised at, so that its cut meets theirs where they
-/// meet across the face even where the value taken stands a hair short of
-/// it. Declined `Unsupported` where an edge of a pair meets another of
-/// `edges` at a corner any other way: a full round meeting an upright
-/// (#837), or one of its edges alone, a round bottom meeting any edge
-/// (#838), a slope meeting any.
+/// corner — the edge at their end — or one of them and another such edge
+/// that meets the other — each edge of a pointed end (#843) — whose cut is
+/// laid in turn against the one prism they are taken off with and against
+/// its neighbours, by its rank, with the pair's value, the radius that prism
+/// is raised at, so that its cut meets theirs where they meet across the
+/// face even where the value taken stands a hair short of it. Declined
+/// `Unsupported` where an edge of a pair meets another of `edges` at a
+/// corner any other way: a full round meeting an upright (#837), or one of
+/// its edges alone, a round bottom meeting any edge (#838), a slope meeting
+/// any.
 pub(super) fn at_their_ends(
     body: &brep::Body,
     edges: &[EdgeId],
@@ -146,12 +149,16 @@ pub(super) fn at_their_ends(
         let [first, second] = [&wedges[one], &wedges[other]];
         let outwards = !first.inwards && !second.inwards;
         let across = first.faces.iter().find(|face| second.faces.contains(face));
+        let bounding = |rank: usize| {
+            !members.contains(&rank) && across.is_some_and(|face| wedges[rank].faces.contains(face))
+        };
+        let reaching = |rank: usize, far: usize| {
+            meets(far, rank)
+                || (0..edges.len()).any(|tip| bounding(tip) && meets(rank, tip) && meets(far, tip))
+        };
         for rank in (0..edges.len()).filter(|&rank| meets(one, rank) || meets(other, rank)) {
-            let at_their_end = outwards
-                && meets(one, rank)
-                && meets(other, rank)
-                && !members.contains(&rank)
-                && across.is_some_and(|face| wedges[rank].faces.contains(face));
+            let at_their_end =
+                outwards && bounding(rank) && reaching(rank, one) && reaching(rank, other);
             if !at_their_end {
                 return Err(Declined::Unsupported);
             }

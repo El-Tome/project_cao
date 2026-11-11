@@ -8,19 +8,22 @@
 //!
 //! Closes #526.
 //! - an extrusion the exact kernel declines says so, rather than that it made
-//!   nothing — `an_extrusion_the_kernel_declines_says_so_rather_than_that_it_made_nothing`
+//!   nothing — since #736 it says so as an alert of the part, the pill handed
+//!   nothing, and still never that it made nothing —
+//!   `an_extrusion_not_built_or_unstable_is_an_alert_and_no_message`
 //! - an exact cut that misses the matter still says it removed nothing, though
 //!   the kernel handed back a body built anew —
 //!   `a_cut_that_misses_the_exact_matter_says_it_removed_nothing`
 //!
 //! Closes #552.
 //! - a step the kernel built at a lean it reads unstably says so once applied,
-//!   with the lean, rather than nothing —
-//!   `an_extrusion_built_at_an_unstable_lean_says_so_once_applied`
+//!   with the lean, rather than nothing — since #736 as an alert of the part
+//!   whose sentence carries the lean —
+//!   `an_extrusion_not_built_or_unstable_is_an_alert_and_no_message`
 //! - a step it declined says it was declined, as before — no test: a decline
 //!   hands back no body, so no note, and
-//!   `an_extrusion_the_kernel_declines_says_so_rather_than_that_it_made_nothing`
-//!   holds the sentence
+//!   `an_extrusion_not_built_or_unstable_is_an_alert_and_no_message` holds the
+//!   sentence, an alert's since #736
 //!
 //! Since #533 an area across its axis is turned on both sides, so a revolution
 //! that changes nothing no longer blames the axis —
@@ -39,6 +42,13 @@
 //! - and « Appliquer » on it changes that step rather than raising another:
 //!   the design keeps its steps, the step reads its new values, and the part is
 //!   raised from them — `applying_a_reopened_extrusion_changes_its_step_rather_than_raising_another`
+//! - What describes the part leaves the message pill: an extrusion not built
+//!   or unstable is an alert — applied, an extrusion the kernel declines and a
+//!   cut it makes at an unstable lean hand the pill nothing, and the part lists
+//!   each as an alert saying what the pill used to —
+//!   `an_extrusion_not_built_or_unstable_is_an_alert_and_no_message`. It
+//!   replaces the two tests that held the pill's sentences under #526 and
+//!   #552, whose assertions are what this changes
 //!
 //! A step is reopened by its place in the history, as the Part panel and the
 //! alerts name a volume, and reopens on what the part now replays it as,
@@ -46,12 +56,17 @@
 //! the other way along the plane reopens as written the right way with the
 //! direction reversed, which is how the panel wrote it.
 
+use std::path::Path;
+
 use cao_part::{Operation, PartDocument, PointRef, RevolutionAxis};
 use cao_sketch::{PointId, SketchAxis, WorkPlane};
 use chrono::Utc;
 use glam::DVec3;
 
 use super::*;
+use crate::screens::sketch::SketchEditor;
+use crate::screens::title_bar::TitleBar;
+use crate::screens::viewport::ViewportState;
 
 fn a_part_with_a_square() -> PartDocument {
     let mut document = PartDocument::new("part", Utc::now());
@@ -220,26 +235,6 @@ fn a_ball_under_a_slanted_circle() -> PartDocument {
 }
 
 #[test]
-fn an_extrusion_the_kernel_declines_says_so_rather_than_that_it_made_nothing() {
-    let lang = Catalogue::french();
-    let mut document = a_ball_under_a_slanted_circle();
-    let mut extrusion = ExtrusionState::default();
-    extrusion.offer(1);
-    extrusion.picks = vec![DVec2::ZERO];
-    extrusion.reversed = true;
-    extrusion.arm(ExtrusionMode::Add);
-    let mut notice = None;
-
-    assert!(apply_extrusion(
-        &mut document,
-        &mut extrusion,
-        &mut notice,
-        &lang
-    ));
-    assert_eq!(notice, Some(lang.t("extrusion.declined")));
-}
-
-#[test]
 fn a_cut_that_misses_the_exact_matter_says_it_removed_nothing() {
     let lang = Catalogue::french();
     let mut document = a_part_with_a_square();
@@ -344,10 +339,24 @@ fn a_shaft_and_a_rectangle_standing_on_its_axis() -> PartDocument {
 }
 
 #[test]
-fn an_extrusion_built_at_an_unstable_lean_says_so_once_applied() {
+fn an_extrusion_not_built_or_unstable_is_an_alert_and_no_message() {
     let lang = Catalogue::french();
-    let mut document = a_shaft_and_a_rectangle_standing_on_its_axis();
-    let before = document.body().volume();
+    let mut declined = a_ball_under_a_slanted_circle();
+    let mut extrusion = ExtrusionState::default();
+    extrusion.offer(1);
+    extrusion.picks = vec![DVec2::ZERO];
+    extrusion.reversed = true;
+    extrusion.arm(ExtrusionMode::Add);
+    let mut said_of_the_decline = None;
+    assert!(apply_extrusion(
+        &mut declined,
+        &mut extrusion,
+        &mut said_of_the_decline,
+        &lang
+    ));
+
+    let mut unstable = a_shaft_and_a_rectangle_standing_on_its_axis();
+    let before = unstable.body().volume();
     let mut extrusion = ExtrusionState::default();
     extrusion.offer(1);
     extrusion.shape = Shape::Revolution;
@@ -355,23 +364,61 @@ fn an_extrusion_built_at_an_unstable_lean_says_so_once_applied() {
     extrusion.angle_input = "0.01".to_string();
     extrusion.picks = vec![DVec2::new(0.0, 20.0)];
     extrusion.arm(ExtrusionMode::Cut);
-    let mut notice = None;
-
+    let mut said_of_the_lean = None;
     assert!(apply_extrusion(
-        &mut document,
+        &mut unstable,
         &mut extrusion,
-        &mut notice,
+        &mut said_of_the_lean,
         &lang
     ));
 
     assert_eq!(
-        notice,
-        Some(lang.t_with("extrusion.unstable_along", &[("angle", "0.01")])),
+        [
+            (said_of_the_decline, alerts_of(&declined, &lang)),
+            (said_of_the_lean, alerts_of(&unstable, &lang)),
+        ],
+        [
+            (
+                None,
+                vec![(
+                    "Extrusion 2 · non construite".to_owned(),
+                    lang.t("extrusion.declined"),
+                )],
+            ),
+            (
+                None,
+                vec![(
+                    "Révolution 2 · instable".to_owned(),
+                    lang.t_with("extrusion.unstable_along", &[("angle", "0.01")]),
+                )],
+            ),
+        ],
+        "an extrusion the kernel declines and a slice it cuts at an unstable lean are not said \
+         as alerts alone, as (what the pill is handed, the part's alerts as title and sentence)",
     );
     assert!(
-        document.body().volume() < before,
+        unstable.body().volume() < before,
         "the slice is taken out all the same"
     );
+}
+
+/// The part's alerts, each as its title and its sentence, as the title bar
+/// lists them with nothing open on the part.
+fn alerts_of(document: &PartDocument, lang: &Catalogue) -> Vec<(String, String)> {
+    let editor = SketchEditor::default();
+    let viewport = ViewportState::default();
+    let bar = TitleBar::of(
+        document,
+        Path::new("part.caopart"),
+        &editor,
+        &viewport,
+        None,
+        lang,
+    );
+    bar.alerts
+        .iter()
+        .map(|alert| (alert.title.clone(), alert.sentence.clone()))
+        .collect()
 }
 
 /// Where `a_square_raised_then_cut_the_other_way` picks its area.

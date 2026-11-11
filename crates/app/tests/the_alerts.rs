@@ -74,16 +74,35 @@
 //!   the sketch or the section —
 //!   `show_selects_the_sketch_or_the_section_and_leaves_the_list_open` and
 //!   `modify_reopens_the_step_the_alert_is_about_and_closes_the_list`
+//! - found when « Montrer » was tried with the Part panel closed, which put
+//!   out its light at every frame: « Montrer » opens the Part panel, so that
+//!   the row it selects is seen and its light holds, for a sketch and for a
+//!   volume — `show_with_the_part_panel_closed_opens_it_on_the_row_selected`
 //! - The list follows the part live — `the_open_list_follows_the_part_live`
 //! - ✕, Escape or a click elsewhere closes it —
 //!   `the_cross_escape_or_a_click_elsewhere_closes_the_list`
 //! - What describes the part leaves the message pill: an extrusion not built
-//!   or unstable is an alert —
-//!   `an_extrusion_not_built_or_unstable_is_an_alert_and_no_message`
-//! - and stays while it is true —
-//!   `an_alert_stays_while_its_problem_holds_and_goes_with_it`
-//! - The pill keeps what answers a gesture —
+//!   or unstable is an alert — on screen, the circle the kernel declines,
+//!   applied again as it was, says nothing in the pill while its alert stays —
+//!   `an_alert_stays_while_its_problem_holds_and_goes_with_it`; for a decline
+//!   and for a cut at an unstable lean alike, the pill handed nothing and the
+//!   alert saying what the pill used to, by
+//!   `an_extrusion_not_built_or_unstable_is_an_alert_and_no_message`, in
+//!   `crates/app/src/screens/extrusion/tests.rs`
+//! - and stays while it is true — through a message said since, until the
+//!   circle is turned the right way and built, and back with the undo of that
+//!   turn — `an_alert_stays_while_its_problem_holds_and_goes_with_it`
+//! - The pill keeps what answers a gesture — the extrusion turned into a cut
+//!   that misses the matter says « Rien enlevé … » on the title bar's row —
 //!   `an_extrusion_that_changes_nothing_still_says_so_in_the_pill`
+//! - found when the pill was sorted out: an export's refusal — a STEP of a
+//!   part made of facets or of a curve that will not fit, an STL whose
+//!   triangles do not cover the part — answers the export asked, and stays in
+//!   the pill — no test: held by
+//!   `a_declined_export_asks_no_destination_writes_nothing_and_says_so`,
+//!   `a_level_refused_suggests_only_a_level_that_is_written` and
+//!   `a_body_no_level_covers_is_told_that_no_level_fits`, in
+//!   `crates/app/src/export/tests.rs`, which this issue leaves alone
 //! - The same two colours for the tree's badges —
 //!   `a_badge_and_an_alert_of_one_level_wear_the_same_colours`
 //! - and, later, the reader's boxes — no test: out of scope here, as the issue
@@ -621,6 +640,145 @@ fn modify_on_an_extrusion_s_alert_reopens_it_with_its_values() {
         wrong.join("\n  "),
     );
 }
+
+#[test]
+fn an_alert_stays_while_its_problem_holds_and_goes_with_it() {
+    let mut app = a_part_opened_from(
+        "an_alert_stays_while_its_problem_holds",
+        a_ball_under_a_slanted_circle_raised,
+    );
+    let mut wrong = Vec::new();
+    wrong.extend(alerted_as_wanted(&app, "opened", true));
+
+    reopen_the_circle(&mut app);
+    driver::click_the_button(&mut app, "Appliquer");
+    if driver::says(&app, DECLINED) {
+        wrong.push(format!(
+            "applied again as it was, the circle the kernel declines is said in the pill: {:?}",
+            driver::said(&app),
+        ));
+    }
+    wrong.extend(alerted_as_wanted(&app, "applied again as it was", true));
+
+    driver::press_with_command(&mut app, egui::Key::N);
+    assert!(
+        driver::says(&app, "Choisissez un plan d'esquisse"),
+        "a new sketch asked with its shortcut does not ask for a plane, which leaves the pill \
+         nothing else to say: {:?}",
+        driver::said(&app),
+    );
+    wrong.extend(alerted_as_wanted(
+        &app,
+        "the pill saying something else",
+        true,
+    ));
+    driver::press(&mut app, egui::Key::Escape);
+
+    reopen_the_circle(&mut app);
+    driver::click(&mut app, "Sens inverse");
+    driver::click_the_button(&mut app, "Appliquer");
+    wrong.extend(alerted_as_wanted(
+        &app,
+        "turned the other way, built",
+        false,
+    ));
+
+    driver::press_with_command(&mut app, egui::Key::Z);
+    wrong.extend(alerted_as_wanted(&app, "the turn undone", true));
+
+    assert!(
+        wrong.is_empty(),
+        "the circle's alert does not follow its problem rather than the pill:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn an_extrusion_that_changes_nothing_still_says_so_in_the_pill() {
+    let mut app = a_part_opened_from(
+        "an_extrusion_that_changes_nothing_still_says_so",
+        a_ball_under_a_slanted_circle_raised,
+    );
+
+    reopen_the_circle(&mut app);
+    driver::click(&mut app, "Enlèvement de matière");
+    driver::click(&mut app, "Sens inverse");
+    driver::click_the_button(&mut app, "Appliquer");
+
+    let bar = the_topmost_reading(&app, "Accueil");
+    let said: Vec<egui::Rect> = app
+        .query_all_by_role(Role::Label)
+        .filter(|node| {
+            node.accesskit_node()
+                .value()
+                .is_some_and(|said| said.starts_with(NOTHING_REMOVED))
+        })
+        .map(|node| node.rect())
+        .collect();
+    assert!(
+        said.iter().any(|at| bar.y_range().contains(at.center().y)),
+        "the circle turned into a cut up and away from the ball, applied, does not say « \
+         {NOTHING_REMOVED} … » on the title bar's row, at {bar:?}; it is said at {said:?}, the \
+         screen saying {:?}",
+        driver::said(&app),
+    );
+}
+
+#[test]
+fn show_with_the_part_panel_closed_opens_it_on_the_row_selected() {
+    let mut wrong = Vec::new();
+    let sketch = a_part_with_two_alerts("show_with_the_part_panel_closed_on_a_sketch");
+    let volume = a_part_opened_from(
+        "show_with_the_part_panel_closed_on_a_volume",
+        a_ball_under_a_slanted_circle_raised,
+    );
+    for (mut app, count, alert, row) in [
+        (sketch, "2 alertes", SKETCH_OFF_ITS_FACE, "Esquisse 2"),
+        (volume, "1 alerte", NOT_BUILT, "Extrusion 2"),
+    ] {
+        driver::click_the_button(&mut app, "Pièce");
+        assert!(
+            !driver::in_the_tree(&app, row),
+            "« Pièce » clicked, the Part panel still shows « {row} »: {:?}",
+            driver::on_screen(&app),
+        );
+        driver::click_the_button(&mut app, count);
+        click_the_alert_s(&mut app, alert, "Montrer");
+        app.run();
+        if !driver::in_the_tree(&app, row) || !the_row_is_selected(&app, row) {
+            wrong.push(format!(
+                "« Montrer » on « {alert} » with the Part panel closed: the row of « {row} » is \
+                 shown {}, selected {}",
+                driver::in_the_tree(&app, row),
+                the_row_is_selected(&app, row),
+            ));
+        }
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "« Montrer » does not open the Part panel on what it selects:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+/// The start of what a cut that misses the matter says.
+const NOTHING_REMOVED: &str = "Rien enlevé";
+
+/// What is wrong when the title bar does not count « 1 alerte » `when` the
+/// alert is `wanted`, or counts it when it is not.
+fn alerted_as_wanted(app: &driver::App, when: &str, wanted: bool) -> Option<String> {
+    (the_button_reading(app, "1 alerte").is_some() != wanted).then(|| {
+        format!(
+            "{when}, the title bar reads {:?}, the alert {} wanted",
+            the_title_bar(app),
+            if wanted { "is" } else { "is not" },
+        )
+    })
+}
+
+/// The start of what the pill said of an extrusion the kernel declines.
+const DECLINED: &str = "Le noyau exact ne sait pas encore construire";
 
 /// What the slanted circle's step is alerted for.
 const NOT_BUILT: &str = "Extrusion 2 · non construite";

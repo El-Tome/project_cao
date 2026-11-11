@@ -105,6 +105,12 @@ pub(crate) fn carry_out(
     ribbon: &mut Ribbon,
 ) -> bool {
     let mut changed = false;
+    // What « Montrer » marks is seen on its row of the Part panel, and a panel
+    // shut puts the mark out.
+    ribbon.part_tree_open |= matches!(
+        action,
+        TreeAction::MarkSketch(_) | TreeAction::MarkVolume(_) | TreeAction::SwitchSectionOn(_)
+    );
     match action {
         TreeAction::EditSketch(sketch) => {
             if let Some(plane) = doc.sketches().get(sketch).map(|s| s.plane) {

@@ -8,6 +8,7 @@ mod chain;
 mod closing;
 mod corners;
 mod end;
+mod extent;
 mod fill;
 mod flush;
 mod odd;
@@ -161,7 +162,7 @@ impl Exact {
                 tool: &tool,
                 meeting,
             };
-            let step = self.step(names)?;
+            let step = self.step(names, &kind)?;
             let taken = step.bound(&self.brep, asked, &kind);
             let odd = odd::corners(&self.brep, &step)?;
             if odd.is_empty() {

@@ -117,6 +117,25 @@
 //!   front foot on the line of the first's, its front right foot corner the
 //!   body as alone —
 //!   `a_chamfer_and_a_fillet_on_a_foot_corner_follow_each_foot_and_not_another_block_s_foot_on_the_same_line`
+//! - Found on the way, not in the issue's wording: a foot corner named with
+//!   edges of the lower block's outline beyond its feet — its top right
+//!   edge, its top front edge, or its front right top corner, the three
+//!   edges there — takes the value asked, chamfered or filleted, each laid as
+//!   alone: the volume the corner's own less each outline edge's, the
+//!   numbering by rank, the patches after. The step was declined `Travel`:
+//!   at a corner whose three edges are all named, each foot's set-back was
+//!   read on past the corner without end, reaching the far edge at no
+//!   value —
+//!   `a_chamfer_and_a_fillet_on_a_foot_corner_and_edges_of_the_lower_block_s_outline_beyond_its_feet_take_the_value_asked`
+//! - Found on the way, not in the issue's wording: a foot corner beside a
+//!   second block that none of its blends reaches takes the value asked,
+//!   chamfered at 2.5 as filleted, the volume the corner's own and the
+//!   block's. The chamfer was declined `Unsupported`, the fill along the foot
+//!   of the upright's flat read as reaching the block's back left corner
+//!   along its line past its mitre with the right foot, at `3.5/√2`. #801's
+//!   own step on the three feet round an upright chamfered earlier reads it
+//!   the same way and takes `3.5/√2` there; this test does not hold that path —
+//!   `a_chamfer_and_a_fillet_on_a_foot_corner_beside_a_block_its_flat_s_foot_reaches_only_past_its_mitre_take_the_value_asked`
 //!
 //! The volumes are arithmetic. The lower block is 30 by 20 by 10 and the
 //! block standing on it 10 by 10 by 10, 7000 together. The corner is the
@@ -2612,6 +2631,292 @@ fn a_chamfer_on_two_triangular_pyramids_slanted_edges_and_feet_numbers_both_apex
                         "{what}: the patch at {at}, numbered after every edge's flat by the lowest \
                          ranks of its edges"
                     ),
+                );
+            }
+        }
+    }
+}
+
+/// The lower block of [`stacked`]'s outline edges a foot corner is named
+/// with, each list by the faces its edges lie between, how long they are in
+/// all, and whether three of them close a corner: its top right edge, beyond
+/// the right foot; its top front edge, beyond the front foot; and the convex
+/// corner of its top at the front right, its two top edges there and its
+/// upright, all three beyond the foot corner's feet.
+const OUTLINE_BEYOND_THE_FEET: [(&[[usize; 2]], f64, bool, &str); 3] = [
+    (&[[TOP, 3]], 20.0, false, "the lower block's top right edge"),
+    (&[[TOP, 2]], 30.0, false, "the lower block's top front edge"),
+    (
+        &[[TOP, 2], [TOP, 3], [2, 3]],
+        60.0,
+        true,
+        "the lower block's front right top corner",
+    ),
+];
+
+/// Where the middle of each of [`stacked`]'s edges a list in
+/// [`OUTLINE_BEYOND_THE_FEET`] names stands, by the faces it lies between.
+fn middle_of(edge: [usize; 2]) -> DVec3 {
+    match edge {
+        [TOP, 3] => DVec3::new(30.0, 10.0, 10.0),
+        [TOP, 2] => DVec3::new(15.0, 0.0, 10.0),
+        [2, 3] => DVec3::new(30.0, 0.0, 5.0),
+        [TOP, STANDING_FRONT] => DVec3::new(15.0, 5.0, 10.0),
+        [TOP, STANDING_RIGHT] => DVec3::new(20.0, 10.0, 10.0),
+        [STANDING_FRONT, STANDING_RIGHT] => DVec3::new(20.0, 5.0, 15.0),
+        _ => panic!("no middle known for the edge between {edge:?}"),
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_foot_corner_and_edges_of_the_lower_block_s_outline_beyond_its_feet_take_the_value_asked()
+ {
+    let part = stacked();
+    let start = part.faces_end();
+    let corner = stacked_s_front_right();
+    let corner_edges = corner.edges().map(|(_, between)| between);
+    let mut declined = Vec::new();
+    let mut laid = Vec::new();
+    for (outline, along, closes, called) in OUTLINE_BEYOND_THE_FEET {
+        let edges: Vec<[usize; 2]> = corner_edges.iter().chain(outline).copied().collect();
+        let count = edges.len();
+        let orders: Vec<Vec<usize>> = vec![
+            (0..count).collect(),
+            (0..count).rev().collect(),
+            (3..count).chain(0..3).collect(),
+        ];
+        let names: Vec<EdgeName> = edges
+            .iter()
+            .map(|&[first, second]| edge_between(&part, first, second))
+            .collect();
+        for cut in [Cut::Flat, Cut::Round] {
+            for value in [1.0, 2.0] {
+                for order in &orders {
+                    let what = format!(
+                        "the {} of {value} on the front right foot corner and {called}, named \
+                         {order:?}",
+                        cut.called()
+                    );
+                    let list: Vec<EdgeName> =
+                        order.iter().map(|&edge| names[edge].clone()).collect();
+                    match cut.laid_on(&part, &list, value) {
+                        Ok(step) => laid.push((
+                            edges.clone(),
+                            along,
+                            closes,
+                            Case {
+                                order: order.clone(),
+                                cut,
+                                value,
+                                step,
+                                what,
+                            },
+                        )),
+                        Err(reason) => declined.push(format!("{what}: {reason:?}")),
+                    }
+                }
+            }
+        }
+    }
+    assert!(
+        declined.is_empty(),
+        "a foot corner named with edges of the lower block's outline beyond its feet, each laid \
+         as alone; declined:\n{}",
+        declined.join("\n")
+    );
+    for (edges, along, closes, case) in &laid {
+        let Case {
+            cut,
+            value,
+            step,
+            what,
+            ..
+        } = case;
+        let (cut, value) = (*cut, *value);
+        taken_as_asked(step.asked, step.taken, value, what);
+        let body = &step.body;
+        let at_the_corner = match cut {
+            Cut::Flat => corner.chamfered(value),
+            Cut::Round => corner.filleted(value),
+        };
+        let outline = if *closes {
+            taken_at_a_convex_corner(cut, *along, value)
+        } else {
+            along
+                * match cut {
+                    Cut::Flat => value * value / 2.0,
+                    Cut::Round => value * value * (1.0 - PI / 4.0),
+                }
+        };
+        let promised = at_the_corner - outline;
+        let drawn = match cut {
+            Cut::Flat => EXACT * promised,
+            Cut::Round => {
+                corner.drawn_within(&part, value) + DRAWN * reach_of(&part) * PI * value * along
+            }
+        };
+        sound_drawn_within(body, promised, drawn, what);
+        let patches: usize = if *closes { 2 } else { 1 };
+        assert_eq!(
+            faces_made(&part, body),
+            (start..start + edges.len() + patches).collect::<Vec<_>>(),
+            "{what}: one face for each edge, and the patches after them: {:?}",
+            numbers(body)
+        );
+        let corners: Vec<[usize; 3]> = if *closes {
+            vec![[0, 1, 2], [3, 4, 5]]
+        } else {
+            vec![[0, 1, 2]]
+        };
+        let numbered = case.patches(&part, &corners);
+        for (edge, &between) in edges.iter().enumerate() {
+            lies_about(
+                body,
+                case.laid_on(&part, edge),
+                middle_of(between),
+                2.0 * value,
+                &format!("{what}: the face on {between:?}, numbered by its rank"),
+            );
+        }
+        lies_about(
+            body,
+            numbered[0],
+            corner.at,
+            2.0 * value,
+            &format!("{what}: the foot corner's patch"),
+        );
+        if *closes {
+            lies_about(
+                body,
+                numbered[1],
+                DVec3::new(30.0, 0.0, 10.0),
+                2.0 * value,
+                &format!("{what}: the patch closing the lower block's top corner"),
+            );
+        }
+        match cut {
+            Cut::Flat => {
+                let (facing, foot_facing) = corner.flats_facing();
+                for (edge, way) in facing.into_iter().enumerate() {
+                    faces_toward(
+                        body,
+                        case.laid_on(&part, edge),
+                        way,
+                        &format!("{what}: the flat at the foot corner"),
+                    );
+                }
+                faces_toward(
+                    body,
+                    numbered[0],
+                    foot_facing,
+                    &format!("{what}: the fill along the foot of the upright's flat"),
+                );
+            }
+            Cut::Round => {
+                for (edge, round) in corner.rounds(value).iter().enumerate() {
+                    round_held(body, case.laid_on(&part, edge), round, &[numbered[0]], what);
+                }
+                let rounds: Vec<usize> = (0..3).map(|edge| case.laid_on(&part, edge)).collect();
+                piece_held(body, numbered[0], &corner.torus(value), &rounds, what);
+            }
+        }
+    }
+}
+
+/// [`stacked`] with a second block, 4 by 4 by 5, standing on the lower
+/// block's top 5 to the right of the first, from (25, 5) to (29, 9): no
+/// blend of the first's front right foot corner reaches it at 2.5, though the
+/// line of the fill along the foot of that upright's flat, read on past its
+/// mitre with the right foot, reaches the block's back left corner, (25, 9),
+/// at `3.5/√2`. Its faces are numbered twelve to seventeen; it holds 7080.
+fn stacked_beside_a_block_past_the_flat_s_mitre() -> Body {
+    joined(
+        &stacked(),
+        Contour::rectangle(DVec2::new(25.0, 5.0), DVec2::new(29.0, 9.0)),
+        LOWER_TOP,
+        5.0,
+    )
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_foot_corner_beside_a_block_its_flat_s_foot_reaches_only_past_its_mitre_take_the_value_asked()
+ {
+    let part = stacked_beside_a_block_past_the_flat_s_mitre();
+    let start = part.faces_end();
+    let corner = FootCorner {
+        part: stacked_beside_a_block_past_the_flat_s_mitre,
+        volume: STACKED_VOLUME + 4.0 * 4.0 * 5.0,
+        ..stacked_s_front_right()
+    };
+    let names = corner
+        .edges()
+        .map(|(_, [first, second])| edge_between(&part, first, second));
+    let mut declined = Vec::new();
+    let mut laid = Vec::new();
+    for cut in [Cut::Flat, Cut::Round] {
+        for value in [1.0, 2.5] {
+            for order in ORDERS_OF_THREE {
+                let what = format!(
+                    "the {} of {value} on the front right foot corner beside the second block, \
+                     named {:?}",
+                    cut.called(),
+                    order.map(|edge| corner.edges()[edge].0)
+                );
+                let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
+                match cut.laid_on(&part, &list, value) {
+                    Ok(step) => laid.push(Case {
+                        order: order.to_vec(),
+                        cut,
+                        value,
+                        step,
+                        what,
+                    }),
+                    Err(reason) => declined.push(format!("{what}: {reason:?}")),
+                }
+            }
+        }
+    }
+    assert!(
+        declined.is_empty(),
+        "the front right foot corner beside a block no blend of it reaches; declined:\n{}",
+        declined.join("\n")
+    );
+    for case in &laid {
+        let Case {
+            cut,
+            value,
+            step,
+            what,
+            ..
+        } = case;
+        match cut {
+            Cut::Round => joined_through_a_piece_of_torus(&corner, &part, case),
+            Cut::Flat => {
+                taken_as_asked(step.asked, step.taken, *value, what);
+                let body = &step.body;
+                let promised = corner.chamfered(*value);
+                sound_drawn_within(body, promised, EXACT * promised, what);
+                assert_eq!(
+                    faces_made(&part, body),
+                    (start..=start + 3).collect::<Vec<_>>(),
+                    "{what}: one flat for each edge, then the fill along the foot of the \
+                     upright's flat: {:?}",
+                    numbers(body)
+                );
+                let (facing, foot_facing) = corner.flats_facing();
+                for (edge, way) in facing.into_iter().enumerate() {
+                    faces_toward(
+                        body,
+                        case.laid_on(&part, edge),
+                        way,
+                        &format!("{what}: the flat laid on {}", corner.edges()[edge].0),
+                    );
+                }
+                faces_toward(
+                    body,
+                    start + 3,
+                    foot_facing,
+                    &format!("{what}: the fill along the foot of the upright's flat"),
                 );
             }
         }

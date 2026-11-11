@@ -10,7 +10,9 @@ use std::collections::BTreeSet;
 use glam::DVec3;
 
 use super::corners::{self, Beside, Three};
+use super::extent::runs;
 use super::flush::{self, Flush};
+use super::reach::reach_within;
 use super::{Meeting, Prism, Together, Wedge, closing, pairs, set_backs};
 use crate::body::exact::Exact;
 use crate::brep::{self, Declined, EdgeId, EdgeName, Scale};
@@ -30,11 +32,13 @@ pub(super) struct Step {
 }
 
 impl Exact {
-    /// The step the names make on this body. Declined `Lost` where a name no
-    /// longer finds its edge, and `Unsupported` where an edge is not a
+    /// The step the names make on this body, each edge's reach read only
+    /// where its blend runs once it is laid, as [`runs`] holds it for the
+    /// kind's `set_back`, with [`reach_within`]. Declined `Lost` where a name
+    /// no longer finds its edge, and `Unsupported` where an edge is not a
     /// wedge, two names find one edge, or the corners are declined as
     /// [`corners::admit`] and [`corners::of_three`] decline them.
-    pub(super) fn step(&self, names: &[EdgeName]) -> Result<Step, Declined> {
+    pub(super) fn step(&self, names: &[EdgeName], kind: &Kind) -> Result<Step, Declined> {
         let found = names
             .iter()
             .map(|name| self.wedge(name, Wedge::of))
@@ -46,7 +50,27 @@ impl Exact {
         }
         let beside = corners::admit(&self.brep, &edges)?;
         let three = corners::of_three(&self.brep, &edges)?;
-        let wedges: Vec<Wedge> = found.into_iter().map(|(_, wedge)| wedge).collect();
+        let mut wedges: Vec<Wedge> = found.into_iter().map(|(_, wedge)| wedge).collect();
+        let reached = |rank: usize, side: usize| {
+            let held = runs(
+                &self.brep,
+                (&edges, &wedges),
+                &beside,
+                (rank, side),
+                rank,
+                &kind.set_back,
+            );
+            let wedge = &wedges[rank];
+            let from = (wedge.into[side], wedge.point);
+            reach_within(&self.brep, wedge.faces[side], from, &held)
+        };
+        let reaches = (0..wedges.len())
+            .map(|rank| Some(reached(rank, 0)?.min(reached(rank, 1)?)))
+            .collect::<Option<Vec<f64>>>()
+            .ok_or(Declined::Unsupported)?;
+        for (wedge, reach) in wedges.iter_mut().zip(reaches) {
+            wedge.reach = reach;
+        }
         let facing = pairs::facing(&wedges);
         Ok(Step {
             edges,

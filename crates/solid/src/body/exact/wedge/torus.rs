@@ -63,7 +63,7 @@ impl Exact {
         let followed = (names.iter().zip(wedges))
             .map(|(name, wedge)| filled.following(name, wedge))
             .collect::<Result<Vec<_>, Declined>>()?;
-        let step = filled.step(&followed)?;
+        let step = filled.step(&followed, kind)?;
         let closings: Vec<[usize; 3]> = step.three.iter().map(|&(_, ranks, _)| ranks).collect();
         let (laid, _, pairs) = filled.in_turn(&followed, step, taken, kind)?;
         let lent = filled.next - start;

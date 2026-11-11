@@ -98,10 +98,10 @@ pub(super) fn corners(body: &brep::Body, step: &Step) -> Result<Vec<Odd>, Declin
     Ok(odd)
 }
 
-/// What a list of edges laid in turn leaves: the body, the pairs it laid as
-/// one, and the corners three of its edges meet at, by their ranks in the
-/// list, in the order their closing faces are numbered.
-type Laid = (Exact, Vec<Pair>, Vec<[usize; 3]>);
+/// What a list of edges laid in turn leaves: the body, and the corners three
+/// of its edges meet at, by their ranks in the list, in the order their
+/// closing faces are numbered.
+type Laid = (Exact, Vec<[usize; 3]>);
 
 /// The numbers the faces closing a step's corners take, each corner by its
 /// three edges' ranks, from the lowest, and the number its face answers to:
@@ -121,8 +121,10 @@ impl Exact {
     /// mixed sense `odd` holds gone round its odd edge as the kind's
     /// `meeting` says: by its foot, as [`Exact::round_the_foot`] lays it, or
     /// through a piece of torus, as [`Exact::through_a_torus`] lays it, each
-    /// edge's wedge on this body by its rank in `wedges`. Declined as those
-    /// decline.
+    /// edge's wedge on this body by its rank in `wedges`. The pairs laid as
+    /// one are handed back through a piece of torus alone, where the fillet
+    /// reads them; the chamfer, which goes round by the foot, reads none, and
+    /// none is handed back that way. Declined as those decline.
     pub(super) fn round_the_odd(
         &self,
         names: &[EdgeName],
@@ -132,7 +134,8 @@ impl Exact {
         kind: &Kind,
     ) -> Result<(Exact, f64, Vec<Pair>), Declined> {
         match kind.meeting.around {
-            Around::Foot => self.round_the_foot(names, wedges, odd, taken, kind),
+            Around::Foot => (self.round_the_foot(names, wedges, odd, taken, kind))
+                .map(|(round, taken)| (round, taken, Vec::new())),
             Around::Torus => self.through_a_torus(names, wedges, odd, taken, kind),
         }
     }
@@ -153,9 +156,8 @@ impl Exact {
     /// either list gives less than `taken`, as [`Step::bound`] reads it on
     /// the body it is laid on, an edge cannot be followed, the odd edge's
     /// face meets the face its two others share along no edge or several, or
-    /// an edge no name finds is one of two laid together or of a corner the
-    /// second list closes; otherwise as [`Exact::cut_off`] declines either
-    /// list.
+    /// an edge no name finds is of a corner the second list closes; otherwise
+    /// as [`Exact::cut_off`] declines either list.
     fn round_the_foot(
         &self,
         names: &[EdgeName],
@@ -163,14 +165,14 @@ impl Exact {
         odd: &[Odd],
         taken: f64,
         kind: &Kind,
-    ) -> Result<(Exact, f64, Vec<Pair>), Declined> {
+    ) -> Result<(Exact, f64), Declined> {
         let start = self.next;
         let (first, rest): (Vec<usize>, Vec<usize>) =
             (0..names.len()).partition(|&rank| odd.iter().any(|corner| corner.lone == rank));
         let named = |ranks: &[usize]| -> Vec<EdgeName> {
             ranks.iter().map(|&rank| names[rank].clone()).collect()
         };
-        let (laid, before, closed_first) = self.laid_at(&named(&first), taken, kind)?;
+        let (laid, closed_first) = self.laid_at(&named(&first), taken, kind)?;
         let feet = (odd.iter())
             .map(|corner| {
                 let at = first
@@ -183,7 +185,7 @@ impl Exact {
             .map(|&rank| laid.following(&names[rank], &wedges[rank]))
             .collect::<Result<Vec<_>, Declined>>()?;
         let following: Vec<EdgeName> = followed.into_iter().chain(feet).collect();
-        let (round, after, closed_after) = laid.laid_at(&following, taken, kind)?;
+        let (round, closed_after) = laid.laid_at(&following, taken, kind)?;
         let back = |ranks: &[usize], corner: [usize; 3]| -> Result<[usize; 3], Declined> {
             let mut back = [0; 3];
             for (into, rank) in back.iter_mut().zip(corner) {
@@ -212,25 +214,24 @@ impl Exact {
         for (index, (from, rank)) in laid_on {
             moved.insert(from + index as u32, start + rank as u32);
         }
-        let pairs = [ranked_back(&first, before)?, ranked_back(&rest, after)?].concat();
         let renamed = round.renamed_by(|number| moved.get(&number).copied().unwrap_or(number));
-        Ok((renamed, taken, pairs))
+        Ok((renamed, taken))
     }
 
     /// The body with the edges `names` find on it laid in turn at `taken`, as
-    /// [`Exact::in_turn`] lays them with `kind`, the pairs it laid as one, and
-    /// the corners three of them meet at, by their ranks, in the order their
-    /// closing faces are numbered. Declined `Unsupported` where they give
-    /// less than `taken`, as [`Step::bound`] reads it on this body; otherwise
-    /// as [`Exact::cut_off`] declines them.
+    /// [`Exact::in_turn`] lays them with `kind`, and the corners three of them
+    /// meet at, by their ranks, in the order their closing faces are
+    /// numbered. Declined `Unsupported` where they give less than `taken`, as
+    /// [`Step::bound`] reads it on this body; otherwise as [`Exact::cut_off`]
+    /// declines them.
     fn laid_at(&self, names: &[EdgeName], taken: f64, kind: &Kind) -> Result<Laid, Declined> {
-        let step = self.step(names)?;
+        let step = self.step(names, kind)?;
         if step.bound(&self.brep, taken, kind) < taken {
             return Err(Declined::Unsupported);
         }
         let closed = step.three.iter().map(|&(_, ranks, _)| ranks).collect();
-        let (laid, _, pairs) = self.in_turn(names, step, taken, kind)?;
-        Ok((laid, pairs, closed))
+        let (laid, _, _) = self.in_turn(names, step, taken, kind)?;
+        Ok((laid, closed))
     }
 
     /// The name on this body of the edge `name` found as `wedge` on a body
@@ -297,14 +298,4 @@ impl Exact {
         }
         renamed
     }
-}
-
-/// The pairs a list laid, each edge by the rank `ranks` gives it in the
-/// step's list rather than its own. Declined `Unsupported` where an edge of a
-/// pair is past `ranks`: an edge no name finds.
-fn ranked_back(ranks: &[usize], pairs: Vec<Pair>) -> Result<Vec<Pair>, Declined> {
-    let back = |rank: usize| ranks.get(rank).copied().ok_or(Declined::Unsupported);
-    (pairs.into_iter())
-        .map(|(one, other, value)| Ok((back(one)?, back(other)?, value)))
-        .collect()
 }

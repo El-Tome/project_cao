@@ -1,10 +1,12 @@
 //! How far a face runs from an edge of it, square to the edge: the most a
-//! chamfer or a fillet of the edge can set back along that face.
+//! chamfer or a fillet of the edge can set back along that face — on the
+//! whole face, or only where the edge's blend runs on it (#829).
 
 use std::f64::consts::PI;
 
 use glam::DVec3;
 
+use super::extent::Within;
 use crate::brep::{self, Curve, Edge, FaceId};
 
 /// How far a face runs along `into` from the edge's line through `point`:
@@ -15,6 +17,22 @@ use crate::brep::{self, Curve, Edge, FaceId};
 /// turn. None where its boundary holds a curve two walls meet along, which
 /// turns back where no closed form says.
 pub(super) fn reach(body: &brep::Body, face: FaceId, into: DVec3, point: DVec3) -> Option<f64> {
+    reach_within(body, face, (into, point), &[])
+}
+
+/// How far a face runs along `into` from the edge's line through `point`, as
+/// [`reach`] reads it, counting only the corners and turning points the
+/// half-spaces `held` hold within the tolerance, where the edge's blend runs:
+/// a corner of the face standing past where the blend stops limits nothing,
+/// and a blend may run into a face across one of its edges, as it does at an
+/// end it is trimmed on. Declined as [`reach`] declines.
+pub(super) fn reach_within(
+    body: &brep::Body,
+    face: FaceId,
+    (into, point): (DVec3, DVec3),
+    held: &[Within],
+) -> Option<f64> {
+    let eps = body.scale().eps();
     let mut far = Vec::new();
     for coedge in body.face(face).loops.iter().flatten() {
         let edge = body.edge(coedge.edge);
@@ -24,9 +42,11 @@ pub(super) fn reach(body: &brep::Body, face: FaceId, into: DVec3, point: DVec3) 
         }
         far.extend(turning_back(body, edge, into)?);
     }
-    let eps = body.scale().eps();
+    let within =
+        |at: &DVec3| (held.iter()).all(|&(normal, offset)| normal.dot(*at) - offset <= eps);
     Some(
         far.into_iter()
+            .filter(within)
             .map(|at| into.dot(at - point))
             .filter(|&off| off > eps)
             .fold(f64::INFINITY, f64::min),

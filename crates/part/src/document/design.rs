@@ -254,9 +254,10 @@ pub(super) fn read<R: Read + Seek>(
     Ok((history, read))
 }
 
-/// How many steps of each kind have gone by, which is what names their
-/// folders: the rank the operations already speak in, so that `sketch-1` is
-/// the sketch those operations call 1.
+/// How many steps of each kind have gone by in the order of the part, which is
+/// what names their folders. Until a step is put in among the others, it is
+/// also the rank the operations speak in, so that `sketch-1` is the sketch
+/// those operations call 1.
 #[derive(Default)]
 struct Ranks {
     sketches: usize,

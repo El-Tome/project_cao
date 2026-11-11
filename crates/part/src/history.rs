@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 mod cut_change;
 mod edits;
+mod insertion;
 mod matter_change;
 mod numbering;
 mod operation;
@@ -73,7 +74,8 @@ impl History {
         &self.operations
     }
 
-    /// The major steps of the design, in the order they were made.
+    /// The major steps of the design, in the order of the part: the order they
+    /// were made, but for a step put in among the others.
     pub fn steps(&self) -> &[Step] {
         &self.steps
     }
@@ -206,32 +208,30 @@ impl History {
     /// Which step an operation belongs to is worked out from the operation
     /// itself, so it is never read back wrong: a design written before that
     /// was decided comes back grouped the way it is replayed, rather than the
-    /// way it happened to be filed.
+    /// way it happened to be filed. Only an operation opening a step is taken
+    /// at the index's word, which lists it first in that step: a step put in
+    /// among the others stands in the index where it is in the part, not where
+    /// its number would put it.
     fn regroup(&mut self) {
-        let kinds: Vec<StepKind> = self.steps.iter().map(Step::kind).collect();
-        let mut steps: Vec<Step> = kinds.iter().map(|kind| Step::opened(*kind)).collect();
+        let mut steps: Vec<Step> = self
+            .steps
+            .iter()
+            .map(|step| Step::opened(step.kind()))
+            .collect();
         let mut variables = Vec::new();
-        let mut opened = 0;
         for (number, operation) in self.numbers.iter().zip(&self.operations) {
             if matches!(operation, Operation::Variable(_)) {
                 variables.push(*number);
                 continue;
             }
             let owner = match StepKind::opened_by(operation) {
-                Some(_) => {
-                    opened += 1;
-                    opened - 1
-                }
-                None => {
-                    let Some(step) =
-                        StepKind::owner(&steps, operation).filter(|step| *step < opened)
-                    else {
-                        continue;
-                    };
-                    step
-                }
+                Some(_) => self
+                    .steps
+                    .iter()
+                    .position(|step| step.operations().first() == Some(number)),
+                None => StepKind::owner(&steps, operation),
             };
-            if let Some(step) = steps.get_mut(owner) {
+            if let Some(step) = owner.and_then(|owner| steps.get_mut(owner)) {
                 step.record(*number);
             }
         }

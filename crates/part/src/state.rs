@@ -125,7 +125,7 @@ impl PartState {
             }
             Operation::CreateSketch { plane, on } => {
                 let plane = self.plane_for(*plane, on);
-                self.sketches.push(Sketch::new(plane));
+                self.lay_sketch(Sketch::new(plane));
                 None
             }
             Operation::AddPoint {

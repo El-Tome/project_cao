@@ -51,6 +51,12 @@ impl StepKind {
         }
     }
 
+    /// Whether a step of this kind is a key step of the part — a sketch, an
+    /// extrusion, a revolution — which a section, raising nothing, is not.
+    pub(crate) fn is_key(self) -> bool {
+        self != Self::Section
+    }
+
     /// Which of these steps an operation that opens none is recorded under:
     /// the sketch it edits, or the section it changes, by rank in its kind;
     /// the step of matter it changes, by the number of the operation that
@@ -66,12 +72,26 @@ impl StepKind {
             (None, Some(section)) => (Self::Section, section),
             (None, None) => return None,
         };
-        steps
+        kind.in_the_order_made(steps).get(rank).map(|(_, at)| *at)
+    }
+
+    /// The steps of this kind among `steps`, each as the number of the
+    /// operation that opened it and its place, in the order they were made.
+    ///
+    /// That is the rank a sketch or a section is named by, and not its rank in
+    /// the order of the part: a step put in among the others would otherwise
+    /// take the name of the one it lands before, and every operation recorded
+    /// on that one would replay on it. A step nothing has opened yet is none of
+    /// them.
+    pub(crate) fn in_the_order_made(self, steps: &[Step]) -> Vec<(u32, usize)> {
+        let mut made: Vec<(u32, usize)> = steps
             .iter()
             .enumerate()
-            .filter(|(_, step)| step.kind == kind)
-            .map(|(at, _)| at)
-            .nth(rank)
+            .filter(|(_, step)| step.kind == self)
+            .filter_map(|(at, step)| Some((*step.operations.first()?, at)))
+            .collect();
+        made.sort_unstable();
+        made
     }
 }
 

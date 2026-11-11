@@ -17,6 +17,7 @@ use crate::state::PartState;
 
 mod design;
 mod geometry_cache;
+mod insertion;
 mod matter;
 mod rule_in_place;
 mod sections;

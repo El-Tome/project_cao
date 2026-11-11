@@ -101,16 +101,18 @@ impl PartState {
             Operation::CreateSketchOnSection { section, plane } => {
                 // The part shown lays it where it is in the part, whatever its
                 // section cuts of the part shown.
-                let cut = self.plane_in_the_part(self.sketches.len()).or_else(|| {
-                    self.sections
-                        .get(*section)
-                        .and_then(|kept| self.found(*section, kept).cutting_plane())
-                        .map(|cut| facing_as(cut, plane))
-                });
+                let cut = self
+                    .plane_in_the_part(self.sketch_being_made())
+                    .or_else(|| {
+                        self.sections
+                            .get(*section)
+                            .and_then(|kept| self.found(*section, kept).cutting_plane())
+                            .map(|cut| facing_as(cut, plane))
+                    });
                 if cut.is_none() {
-                    self.adrift.insert(self.sketches.len());
+                    self.adrift.insert(self.sketch_being_made());
                 }
-                self.sketches.push(Sketch::new(cut.unwrap_or(*plane)));
+                self.lay_sketch(Sketch::new(cut.unwrap_or(*plane)));
             }
             _ => {}
         }

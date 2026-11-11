@@ -23,13 +23,13 @@ impl PartState {
         let Some(anchor) = on else {
             return recorded;
         };
-        if let Some(plane) = self.plane_in_the_part(self.sketches.len()) {
+        if let Some(plane) = self.plane_in_the_part(self.sketch_being_made()) {
             return plane;
         }
         if let Some(plane) = self.face_now(anchor) {
             return plane;
         }
-        self.adrift.insert(self.sketches.len());
+        self.adrift.insert(self.sketch_being_made());
         recorded
     }
 

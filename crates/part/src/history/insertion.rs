@@ -7,23 +7,6 @@
 use super::{History, Operation, Step, StepKind};
 
 impl History {
-    /// Where the `key_step`th key step in effect stands among the steps,
-    /// counted from nothing in the order of the part.
-    pub(crate) fn place_of_key_step(&self, key_step: usize) -> Option<usize> {
-        let in_effect = |number: &u32| {
-            self.position_of(*number)
-                .is_some_and(|at| at < self.applied)
-        };
-        self.steps
-            .iter()
-            .enumerate()
-            .filter(|(_, step)| {
-                step.kind().is_key() && step.operations().first().is_some_and(in_effect)
-            })
-            .map(|(at, _)| at)
-            .nth(key_step)
-    }
-
     /// Records an operation opening a step of that kind, the step put in right
     /// after the `key_step`th key step in effect — at the end past the last.
     /// What was undone is dropped first, as for anything recorded.

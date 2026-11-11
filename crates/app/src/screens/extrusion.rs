@@ -233,11 +233,26 @@ fn signed(input: &str, reversed: bool, variables: &Variables) -> Option<(Formula
 /// `notice` is the one sentence the screen shows, whoever wrote it last. A
 /// sentence of the extrusion's own outlived the extrusion, and stood beside
 /// whatever the drawing was saying.
+#[cfg_attr(not(test), expect(dead_code))]
 pub fn apply_extrusion(
     doc: &mut PartDocument,
     extrusion: &mut ExtrusionState,
     notice: &mut Option<String>,
     lang: &Catalogue,
+) -> bool {
+    apply_extrusion_with(doc, extrusion, notice, lang, |doc, operation| {
+        doc.apply(operation);
+    })
+}
+
+/// The same, the step recorded by `record`: the canvas puts a new one in at
+/// the box the part is read to.
+pub fn apply_extrusion_with(
+    doc: &mut PartDocument,
+    extrusion: &mut ExtrusionState,
+    notice: &mut Option<String>,
+    lang: &Catalogue,
+    record: impl FnOnce(&mut PartDocument, Operation),
 ) -> bool {
     let (Some(sketch), Some(mode)) = (extrusion.sketch, extrusion.mode) else {
         return false;
@@ -300,13 +315,16 @@ pub fn apply_extrusion(
         }
         None => doc.body().volume(),
     };
-    doc.apply(match reopened {
-        Some(reopened) => Operation::EditMatter {
-            raised_by: reopened.raised_by,
-            to: Box::new(operation),
+    record(
+        doc,
+        match reopened {
+            Some(reopened) => Operation::EditMatter {
+                raised_by: reopened.raised_by,
+                to: Box::new(operation),
+            },
+            None => operation,
         },
-        None => operation,
-    });
+    );
 
     // An extrusion that changes nothing is worth saying out loud: a cut that
     // misses the matter looks exactly like a tool that did not work. One the

@@ -11,16 +11,16 @@
 //! Closes #737 — this file holds the part's half of each criterion. The
 //! reader's half — where the reading point goes, the boxes dashed, the names
 //! the panel shows — belongs to `cao_app`, and is transcribed under a block of
-//! its own in `crates/app/tests/the_step_reader.rs` when its tests are written.
+//! its own in `crates/app/tests/the_step_reader.rs`.
 //! - The reading point is at step 3 of 6; the user creates a sketch, an
 //!   extrusion…: the new step is inserted after step 3 —
 //!   `a_sketch_and_its_extrusion_made_while_read_through_step_three_go_in_after_it`
 //! - The reading point stays on the new step, the rest still dashed. More steps
 //!   can be inserted after it; ▶ (or a click on the last box) plays the rest —
 //!   no test: here, the reading point and the dashed boxes are the reader's,
-//!   held in `crates/app/tests/the_step_reader.rs`, where
-//!   `adding_a_step_while_read_to_step_three_brings_the_reading_point_back_to_the_end`
-//!   pins the opposite today. The part's half — a second step put in after the
+//!   held in `crates/app/tests/the_step_reader.rs` by
+//!   `the_reading_point_stays_on_each_step_inserted_and_the_rest_plays_after_them`.
+//!   The part's half — a second step put in after the
 //!   one just inserted, and the part read past it whole — is asserted by
 //!   `a_sketch_and_its_extrusion_made_while_read_through_step_three_go_in_after_it`
 //! - The rest replays on top of the new step. A step that loses what it stood

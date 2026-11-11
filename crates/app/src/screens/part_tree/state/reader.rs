@@ -7,8 +7,7 @@ use std::collections::HashMap;
 use cao_part::PartDocument;
 use cao_part::history::{ExtrusionMode, Operation, StepKind};
 
-use super::volumes::volume_name;
-use super::{PartTree, sketch_name};
+use super::PartTree;
 use crate::lang::Catalogue;
 use crate::screens::viewport::ViewportState;
 use crate::ui::badge::Level;
@@ -74,20 +73,10 @@ impl StepReader {
             .iter()
             .map(|body| (body.step, body.mode))
             .collect();
-        let (mut sketches, mut volumes) = (0, 0);
+        let names = names(&tree);
         let mut steps: Vec<(KeyStep, Option<Problem>)> = key_steps(document)
-            .filter_map(|(step, operation, kind)| {
-                let name = match kind {
-                    StepKind::Sketch => {
-                        sketches += 1;
-                        sketch_name(lang, sketches)
-                    }
-                    StepKind::Extrusion | StepKind::Revolution => {
-                        volumes += 1;
-                        volume_name(lang, operation, volumes)?
-                    }
-                    StepKind::Section => return None,
-                };
+            .filter_map(|(step, _, kind)| {
+                let name = names.get(&step)?.to_string();
                 let mode = modes.get(&step).copied();
                 Some((kind, mode, name, problems.get(&step).copied()))
             })
@@ -130,11 +119,22 @@ impl StepReader {
 /// volume, a section raising nothing — with the place of the operation that
 /// opens each among the operations applied.
 pub fn key_steps(document: &PartDocument) -> impl Iterator<Item = (usize, &Operation, StepKind)> {
-    let applied = document.history.applied_operations().iter().enumerate();
-    applied.filter_map(|(step, operation)| {
-        let kind = StepKind::opened_by(operation).filter(|kind| *kind != StepKind::Section)?;
-        Some((step, operation, kind))
+    let history = &document.history;
+    history.key_steps().filter_map(|(_, step)| {
+        let operation = history.operations().get(step)?;
+        Some((step, operation, StepKind::opened_by(operation)?))
     })
+}
+
+/// The name of each row of the tree's sketches and volumes, by the step in the
+/// design the row stands for: what its box is called too.
+fn names(tree: &PartTree) -> HashMap<usize, &str> {
+    let sketches = tree.sketches.iter().map(|drawn| (drawn.step, &drawn.name));
+    let volumes = tree.bodies.iter().map(|body| (body.step, &body.name));
+    sketches
+        .chain(volumes)
+        .map(|(step, name)| (step, name.as_str()))
+        .collect()
 }
 
 /// The problem of each badge of the tree's sketches and volumes, by the step

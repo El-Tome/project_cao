@@ -14,13 +14,41 @@
 //! - The reading point is not saved. A part saved while read to step 3 opens
 //!   read to the end — `a_part_saved_while_read_to_step_three_opens_read_to_the_end`
 //! - Adding a step brings the reading point back to the end first (until
-//!   #737) —
-//!   `adding_a_step_while_read_to_step_three_brings_the_reading_point_back_to_the_end`
+//!   #737) — no test: #737 turned it round, the step now going in at the
+//!   reading point and the reading point staying on it; its block below holds
+//!   that
 //! - Forty steps scroll sideways in the row rather than overflowing the panel
 //!   — `forty_steps_scroll_sideways_in_the_row_rather_than_overflowing_the_panel`
 //! - found in review, and seen in the app on a part of eight steps read to its
 //!   end, its last box out of view: the row scrolls to the box read to, unread,
 //!   clicked or moved to by ◀ ▶ — `the_row_scrolls_to_the_box_read_to`
+//!
+//! Closes #737 — the reader's half of each criterion that has one; the part's
+//! half, and the criteria that have no other, are in
+//! `crates/part/tests/inserting_a_step.rs`.
+//! - The reading point is at step 3 of 6; the user creates a sketch, an
+//!   extrusion…: the new step is inserted after step 3 — the tools, which put
+//!   the step in at the reading point rather than at the end —
+//!   `the_reading_point_stays_on_each_step_inserted_and_the_rest_plays_after_them`
+//! - The reading point stays on the new step, the rest still dashed. More steps
+//!   can be inserted after it; ▶ (or a click on the last box) plays the rest —
+//!   `the_reading_point_stays_on_each_step_inserted_and_the_rest_plays_after_them`
+//! - Names: a sketch inserted between « Esquisse 2 » and « Esquisse 3 » takes
+//!   the next number, « Esquisse 4 ». The others are not renumbered — the names
+//!   the panel shows —
+//!   `a_sketch_inserted_after_the_second_takes_the_next_number_and_the_others_keep_theirs`
+//! - Undo takes back the last action in time, even one inserted in the middle;
+//!   the reading point does not move unless its box disappears. The history
+//!   lists actions in the order they were done; the reader shows steps in the
+//!   order of the part — the reading point, and the two lists —
+//!   `undoing_an_insertion_moves_the_reading_point_only_when_its_box_goes`,
+//!   `the_history_lists_the_order_done_and_the_reader_the_order_of_the_part`
+//!
+//! The rest dashed is read off the counter: the boxes played are the first
+//! ones, as many as it says, and every box after them is dashed. Which box is
+//! read to is told by the line under the row, whose first word is its kind,
+//! « Esquisse » or « Extrusion »: by its kind rather than its number, so that
+//! the reading point is held apart from the names #737 changes.
 //!
 //! A box is found by the name it gives whoever cannot see its icon, « Étape
 //! n », its place in the row counting from one; ◀ and ▶ by theirs, « Étape
@@ -29,6 +57,7 @@
 //! and a gesture that finds a row by a part of its name would find two.
 
 use egui_kittest::kittest::{NodeT, Queryable};
+use glam::DVec2;
 
 mod driver;
 
@@ -307,31 +336,140 @@ fn a_part_saved_while_read_to_step_three_opens_read_to_the_end() {
     );
 }
 
-#[test]
-fn adding_a_step_while_read_to_step_three_brings_the_reading_point_back_to_the_end() {
-    let mut app = a_part_of_four_key_steps("adding_a_step_while_read_to_step_three");
-    driver::click_the_button(&mut app, "Étape 3");
-    assert_eq!(
-        read_of(&app, 4),
-        (Some("3 / 4".to_string()), true),
-        "the fixture wants the part read to its third box before a step is added",
-    );
+/// Where the hole of `a_block_with_a_hole` is drawn, on YZ inside the block's
+/// face, as two corners and a place inside them.
+const THE_HOLE: [DVec2; 3] = [
+    DVec2::new(20.0, 20.0),
+    DVec2::new(60.0, -20.0),
+    DVec2::new(40.0, 0.0),
+];
 
+/// Where the sketch inserted draws the rectangle it raises, on YZ beside the
+/// block, clear of it, as two corners and a place inside them.
+const BESIDE_THE_BLOCK: [DVec2; 3] = [
+    DVec2::new(-60.0, 40.0),
+    DVec2::new(-30.0, -40.0),
+    DVec2::new(-45.0, 0.0),
+];
+
+/// Draws a rectangle in the open sketch, then extrudes it 10 mm, as `mode`
+/// says, from the sketch the extrusion offers as `picked`: what
+/// `driver::a_block` does, up to « Appliquer ».
+fn extrude_a_rectangle(
+    app: &mut driver::App,
+    [corner, opposite, inside]: [DVec2; 3],
+    picked: &str,
+    mode: &str,
+) {
+    driver::click(app, "Rectangle (R)");
+    driver::click_at_sketch_point(app, corner);
+    driver::click_at_sketch_point(app, opposite);
+    driver::click_exactly(app, "Extrusion");
+    driver::click_the_button(app, picked);
+    driver::click(app, mode);
+    driver::click_at_sketch_point(app, inside);
+    driver::click(app, "Appliquer");
+}
+
+/// Leaves the extrusion, finishes the sketch, and brings back the ribbon's
+/// sketch tab, as `driver::a_block` does after « Appliquer ».
+fn finish_after_extruding(app: &mut driver::App) {
+    driver::press(app, egui::Key::Escape);
+    driver::finish_the_sketch(app);
+    driver::click_the_button(app, "Esquisse");
+}
+
+/// « Bloc » with a hole, the part of #737's « To try it »: a second sketch on
+/// YZ, a rectangle inside the block's face cut through it. Four boxes,
+/// « Esquisse 1 », « Extrusion 1 », « Esquisse 2 », « Extrusion 2 ».
+fn a_block_with_a_hole(test: &str) -> driver::App {
+    let mut app = driver::a_block(test);
     driver::bring_into_the_ribbon(&mut app, "Nouvelle esquisse");
     driver::start_a_sketch(&mut app);
-    let opened = read_of(&app, 5);
-    driver::draw_a_segment(&mut app);
-    driver::finish_the_sketch(&mut app);
-    let finished = read_of(&app, 5);
-
-    let at_the_end = (Some("5 / 5".to_string()), false);
-    assert_eq!(
-        (opened, finished),
-        (at_the_end.clone(), at_the_end),
-        "a sketch added to a part read to its third box of four, once opened and once \
-         finished, does not leave the part read to its end, the new box the one read to, \
-         as (counter, the rest hidden): {:?}",
+    extrude_a_rectangle(&mut app, THE_HOLE, "2", "Enlèvement de matière");
+    finish_after_extruding(&mut app);
+    assert!(
+        driver::in_the_tree(&app, "Extrusion 2")
+            && read_of(&app, 4) == (Some("4 / 4".to_string()), false),
+        "the fixture wants a part of four boxes read to its end, its hole « Extrusion 2 »: \
+         {:?}",
         driver::on_screen(&app),
+    );
+    app
+}
+
+/// Every text on screen, names and values alike.
+fn texts(app: &driver::App) -> Vec<String> {
+    let mut texts = driver::on_screen(app);
+    texts.extend(driver::said(app));
+    texts
+}
+
+/// Where the reader stands: its counter « n / total », whatever the total, and
+/// the kind of the step read to — the first word of the line under the row —
+/// while that line says the rest is hidden; no kind while the part is read
+/// whole.
+fn where_the_reader_stands(app: &driver::App) -> (Option<String>, Option<String>) {
+    let texts = texts(app);
+    let counter = texts
+        .iter()
+        .find(|text| {
+            text.split_once(" / ").is_some_and(|(played, total)| {
+                played.parse::<usize>().is_ok() && total.parse::<usize>().is_ok()
+            })
+        })
+        .cloned();
+    let kind = texts
+        .iter()
+        .find(|text| text.ends_with("· la suite est masquée"))
+        .and_then(|line| line.split_whitespace().next())
+        .map(str::to_string);
+    (counter, kind)
+}
+
+fn stands(counter: &str, kind: Option<&str>) -> (Option<String>, Option<String>) {
+    (Some(counter.to_string()), kind.map(str::to_string))
+}
+
+#[test]
+fn the_reading_point_stays_on_each_step_inserted_and_the_rest_plays_after_them() {
+    let mut app = a_block_with_a_hole("the_reading_point_stays_on_each_step_inserted");
+    driver::click_the_button(&mut app, "Étape 3");
+    assert_eq!(
+        where_the_reader_stands(&app),
+        stands("3 / 4", Some("Esquisse")),
+        "the fixture wants the part read to its second sketch, the hole after it hidden",
+    );
+
+    let mut read = Vec::new();
+    driver::bring_into_the_ribbon(&mut app, "Nouvelle esquisse");
+    driver::start_a_sketch(&mut app);
+    read.push(("a sketch opened", where_the_reader_stands(&app)));
+    extrude_a_rectangle(&mut app, BESIDE_THE_BLOCK, "3", "Ajout de matière");
+    read.push(("its rectangle raised", where_the_reader_stands(&app)));
+    finish_after_extruding(&mut app);
+    read.push(("the sketch finished", where_the_reader_stands(&app)));
+    driver::click_the_button(&mut app, "Étape suivante");
+    read.push(("▶", where_the_reader_stands(&app)));
+    driver::click_the_button(&mut app, "Étape précédente");
+    read.push(("◀", where_the_reader_stands(&app)));
+    driver::click_the_button(&mut app, "Étape 6");
+    read.push(("« Étape 6 » clicked", where_the_reader_stands(&app)));
+
+    assert_eq!(
+        read,
+        [
+            ("a sketch opened", stands("4 / 5", Some("Esquisse"))),
+            ("its rectangle raised", stands("5 / 6", Some("Extrusion"))),
+            ("the sketch finished", stands("5 / 6", Some("Extrusion"))),
+            ("▶", stands("6 / 6", None)),
+            ("◀", stands("5 / 6", Some("Extrusion"))),
+            ("« Étape 6 » clicked", stands("6 / 6", None)),
+        ],
+        "read to its third box of four, the part takes a sketch and then the extrusion of \
+         that sketch: the reader does not stay on each step as it is put in, the box after \
+         it the hole and dashed, nor play the hole again from ▶ or the last box, as (gesture, \
+         (counter, the kind of the step read to while the rest is hidden))",
     );
 }
 

@@ -2,19 +2,18 @@
 //! the canvas's own, never the history's nor saved, so that reading a part
 //! undoes nothing and a part always opens read to its end.
 
-use cao_part::PartDocument;
-use cao_part::history::StepKind;
+use cao_part::history::{Operation, StepKind};
+use cao_part::{Outcome, PartDocument};
 
 use super::ViewportState;
-use crate::screens::part_tree::state::key_steps;
 
 /// The box the part is read to, by its rank among the reader's boxes, none
-/// while it is read to its end; and how many key steps the part had when it
-/// was last looked at.
+/// while it is read to its end; and whether a step put in has moved it since
+/// the canvas last looked.
 #[derive(Default)]
 pub(super) struct Reading {
     pub(super) point: Option<usize>,
-    key_steps: usize,
+    moved: bool,
 }
 
 impl ViewportState {
@@ -53,21 +52,37 @@ impl ViewportState {
 
     /// Whether the part is read through the step that opened that sketch.
     pub(crate) fn reads_through_sketch(&self, document: &PartDocument, sketch: usize) -> bool {
-        key_steps(document)
-            .enumerate()
-            .filter(|(_, (_, _, kind))| *kind == StepKind::Sketch)
-            .nth(sketch)
-            .is_none_or(|(rank, _)| self.reads_through(rank))
+        document
+            .history
+            .key_step_of_sketch(sketch)
+            .is_none_or(|rank| self.reads_through(rank))
     }
 
-    /// Follows the part: a key step added since it was last looked at brings
-    /// it back to its end, where the new step is, until a step can be added
-    /// at the reading point (#737). One taken away moves nothing. Says whether
-    /// the reading point moved.
-    pub(crate) fn keep_reading_up_with(&mut self, document: &PartDocument) -> bool {
-        let key_steps = key_steps(document).count();
-        let added = key_steps > self.reading.key_steps;
-        self.reading.key_steps = key_steps;
-        added && self.reading.point.take().is_some()
+    /// Records an operation made on the part as it is read. One that opens a
+    /// key step while the part is read to a box goes in right after that box,
+    /// and the part is read to the new one, the rest still unread; anything
+    /// else, or anything made while the part is read whole, is recorded as it
+    /// always is.
+    pub(crate) fn record_where_read(
+        &mut self,
+        document: &mut PartDocument,
+        operation: Operation,
+    ) -> Option<Outcome> {
+        let Some(point) = self.reading.point else {
+            return document.apply(operation);
+        };
+        let opens_a_box = StepKind::opened_by(&operation).is_some_and(StepKind::is_key);
+        let outcome = document.insert_after(point, operation);
+        if opens_a_box {
+            self.reading.point = Some(point + 1);
+            self.reading.moved = true;
+        }
+        outcome
+    }
+
+    /// Whether a step put in has moved the reading point since this was last
+    /// asked: the panel, drawn before the gesture, has to catch up.
+    pub(crate) fn reading_moved(&mut self) -> bool {
+        std::mem::take(&mut self.reading.moved)
     }
 }

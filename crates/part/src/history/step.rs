@@ -53,7 +53,7 @@ impl StepKind {
 
     /// Whether a step of this kind is a key step of the part — a sketch, an
     /// extrusion, a revolution — which a section, raising nothing, is not.
-    pub(crate) fn is_key(self) -> bool {
+    pub fn is_key(self) -> bool {
         self != Self::Section
     }
 

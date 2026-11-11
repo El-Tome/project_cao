@@ -64,9 +64,10 @@ pub(super) fn choose_a_plane(
             .map(|section| Operation::CreateSketchOnSection { section, plane }),
         _ => None,
     };
-    context
-        .document
-        .apply(laid.unwrap_or(Operation::CreateSketch { plane, on }));
+    state.record_where_read(
+        context.document,
+        laid.unwrap_or(Operation::CreateSketch { plane, on }),
+    );
     let sketch = context.document.sketches().len() - 1;
     let plane = context.document.sketches()[sketch].plane;
     context.editor.begin_editing(sketch, plane);

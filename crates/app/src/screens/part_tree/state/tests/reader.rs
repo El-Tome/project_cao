@@ -71,8 +71,10 @@
 //!   `crates/app/tests/the_step_reader.rs` by
 //!   `a_part_saved_while_read_to_step_three_opens_read_to_the_end`
 //! - Adding a step brings the reading point back to the end first (until
-//!   #737) — no test: here; held in `crates/app/tests/the_step_reader.rs` by
-//!   `adding_a_step_while_read_to_step_three_brings_the_reading_point_back_to_the_end`
+//!   #737) — no test: #737 turned it round, the step going in at the reading
+//!   point and the reading point staying on it; held in
+//!   `crates/app/tests/the_step_reader.rs` by
+//!   `the_reading_point_stays_on_each_step_inserted_and_the_rest_plays_after_them`
 //! - Forty steps scroll sideways in the row rather than overflowing the panel
 //!   — no test: here; held in `crates/app/tests/the_step_reader.rs` by
 //!   `forty_steps_scroll_sideways_in_the_row_rather_than_overflowing_the_panel`;

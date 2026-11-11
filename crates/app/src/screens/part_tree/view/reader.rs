@@ -30,18 +30,16 @@ pub(super) fn reader(
     let called: Vec<String> = (1..=reader.boxes.len())
         .map(|rank| lang.t_with("part_tree.reader.step", &[("rank", &rank.to_string())]))
         .collect();
-    let read_to = reader.boxes.iter().rposition(|step| step.applied);
     let boxes: Vec<StepBox<'_>> = reader
         .boxes
         .iter()
         .zip(&called)
-        .enumerate()
-        .map(|(rank, (step, called))| StepBox {
+        .map(|(step, called)| StepBox {
             icon: icon_of(step),
             called,
             name: &step.name,
             applied: step.applied,
-            current: read_to == Some(rank),
+            current: step.current,
             alert: step.alert.map(worn),
         })
         .collect();
@@ -64,7 +62,7 @@ pub(super) fn reader(
         legend: &legend,
     };
     match reader_card(ui, &card) {
-        Asked::Box(rank) => TreeAction::ReadTo(rank),
+        Asked::Box(rank) => TreeAction::ReadTo(rank, reader.boxes.len()),
         Asked::Previous => TreeAction::ReadPrevious(reader.boxes.len()),
         Asked::Next => TreeAction::ReadNext(reader.boxes.len()),
         Asked::Nothing => TreeAction::None,

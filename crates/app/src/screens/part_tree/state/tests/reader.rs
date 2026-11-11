@@ -34,6 +34,10 @@
 //!   whatever its eye — no test: here; held in
 //!   `crates/app/src/screens/viewport/render/tests.rs` by
 //!   `a_part_read_to_a_step_draws_the_sketches_read_as_then_and_none_after_it`
+//! - found in review: which box is the one read to is the presenter's to say,
+//!   not the view's — exactly one box is current, the box read to, the last
+//!   while the part is read to its end, none on a part with no box —
+//!   `exactly_the_box_read_to_is_current`
 //! - ◀ ▶ move by one box. ◀ goes to the previous box, ▶ to the next; neither
 //!   goes past the first or the last box —
 //!   `the_arrows_move_the_reading_point_one_box_and_stop_at_either_end`
@@ -206,7 +210,7 @@ fn the_boxes_and_arrows_after_the_reading_point_are_not_applied() {
         "a part nobody has read yet is not read to its end, as (boxes, arrows) applied",
     );
 
-    viewport.read_to(2);
+    viewport.read_to(2, 6);
     assert_eq!(
         read(&viewport),
         (
@@ -217,7 +221,7 @@ fn the_boxes_and_arrows_after_the_reading_point_are_not_applied() {
          leading to them are not the only ones read not applied, as (boxes, arrows) applied",
     );
 
-    viewport.read_to(0);
+    viewport.read_to(0, 6);
     assert_eq!(
         read(&viewport),
         (
@@ -228,7 +232,7 @@ fn the_boxes_and_arrows_after_the_reading_point_are_not_applied() {
          as (boxes, arrows) applied",
     );
 
-    viewport.read_to(5);
+    viewport.read_to(5, 6);
     assert_eq!(
         read(&viewport),
         (vec![true; 6], vec![true; 5]),
@@ -271,10 +275,10 @@ fn the_arrows_move_the_reading_point_one_box_and_stop_at_either_end() {
          box at a time to the first and on to the last, or goes past either",
     );
 
-    viewport.read_to(2);
+    viewport.read_to(2, boxes);
     viewport.read_next(boxes);
     let after_the_third = played(&document, &viewport);
-    viewport.read_to(5);
+    viewport.read_to(5, boxes);
     viewport.read_previous(boxes);
     let before_the_last = played(&document, &viewport);
     assert_eq!(
@@ -368,7 +372,7 @@ fn a_box_wears_the_worst_alert_of_its_own_step_even_past_the_reading_point() {
          error — or wears one its step has not, or one of the step before it",
     );
 
-    viewport.read_to(0);
+    viewport.read_to(0, 7);
     let read_to_the_first = StepReader::seen(&document, &viewport, &lang);
     assert!(
         read_to_the_first
@@ -406,7 +410,7 @@ fn the_line_under_the_row_names_the_step_its_alert_the_rest_hidden_and_the_count
     let mut viewport = ViewportState::default();
     let mut lines = vec![the_line(&document, &viewport)];
     for key_step in [4, 3, 0, 5, 6] {
-        viewport.read_to(key_step);
+        viewport.read_to(key_step, 7);
         lines.push(the_line(&document, &viewport));
     }
 
@@ -453,5 +457,57 @@ fn the_line_under_the_row_names_the_step_its_alert_the_rest_hidden_and_the_count
             (Level::Error, "erreur".to_string()),
         ],
         "the legend does not read each level's word beside its colour",
+    );
+}
+
+#[test]
+fn exactly_the_box_read_to_is_current() {
+    let lang = french();
+    let document = a_part_with_every_kind_of_key_step_and_a_section();
+    let current = |reader: StepReader| -> Vec<usize> {
+        reader
+            .boxes
+            .iter()
+            .enumerate()
+            .filter(|(_, step)| step.current)
+            .map(|(rank, _)| rank)
+            .collect()
+    };
+    let mut viewport = ViewportState::default();
+
+    let mut seen = vec![current(StepReader::seen(&document, &viewport, &lang))];
+    viewport.read_to(2, 6);
+    seen.push(current(StepReader::seen(&document, &viewport, &lang)));
+    viewport.read_previous(6);
+    seen.push(current(StepReader::seen(&document, &viewport, &lang)));
+    viewport.read_next(6);
+    seen.push(current(StepReader::seen(&document, &viewport, &lang)));
+    viewport.read_to(0, 6);
+    seen.push(current(StepReader::seen(&document, &viewport, &lang)));
+    viewport.read_to(5, 6);
+    seen.push(current(StepReader::seen(&document, &viewport, &lang)));
+    seen.push(current(StepReader::of(&document, &lang)));
+
+    assert_eq!(
+        seen,
+        [
+            vec![5],
+            vec![2],
+            vec![1],
+            vec![2],
+            vec![0],
+            vec![5],
+            vec![5]
+        ],
+        "unread, read to the third box, ◀, ▶, read to the first, to the last, then read to \
+         its end: the box read to is not the one current, or not the only one",
+    );
+    assert!(
+        current(StepReader::of(
+            &PartDocument::new("Test", at("2026-01-02T09:00:00Z")),
+            &lang,
+        ))
+        .is_empty(),
+        "a part with no box has one current",
     );
 }

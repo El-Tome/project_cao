@@ -82,7 +82,25 @@
 //!   the last box, never the part drawn for a reading point set before it,
 //!   the part itself left whole —
 //!   `a_part_read_to_a_step_is_drawn_up_to_it_and_whole_again_from_the_last`
+//! - found in review: the reader's boxes and the part's own reading count the
+//!   key steps apart, the one over the steps applied, the other over the
+//!   design; tied together, a section between two of them and a step undone
+//!   after them, each box read to draws what the part read through that box
+//!   holds — `each_box_read_to_draws_the_part_read_through_that_box`
+//! - found in review: the last box clicked, or any past it, reads the part as
+//!   unread, the canvas drawing the part itself rather than a copy of it read
+//!   through every step — `the_last_box_clicked_reads_the_part_as_unread`
+//!
+//! A step undone always stands after every step applied, in the list and in
+//! the design alike: an undo moves the cursor back, and what is done next
+//! drops what was undone. So the part's own reading could count undone steps
+//! and still read every box applied to the same place; the boxes could not,
+//! since one box more would name a step the part does not have. A section
+//! between two key steps is what can set the two counts apart.
 
+use std::collections::BTreeMap;
+
+use cao_part::history::{SectionAsked, SideDrawing};
 use cao_part::{ExtrusionMode, Operation, PointRef};
 use cao_render::CubeFace;
 use cao_render::camera::CubeZone;
@@ -91,6 +109,8 @@ use cao_solid::profile::{Contour, Frame, Profile};
 use glam::{DVec2, DVec3, Vec2};
 
 use super::*;
+use crate::lang::Catalogue;
+use crate::screens::part_tree::state::StepReader;
 use crate::screens::viewport::{ViewMode, ViewportState};
 
 const ABOVE: Vec3 = Vec3::new(0.0, 0.0, 10.0);
@@ -770,7 +790,7 @@ fn a_part_read_to_a_step_is_drawn_up_to_it_and_whole_again_from_the_last() {
 
     drawn_and_kept(&viewport);
     for key_step in [1, 0, 3, 2] {
-        viewport.read_to(key_step);
+        viewport.read_to(key_step, 4);
         drawn_and_kept(&viewport);
     }
 
@@ -786,5 +806,126 @@ fn a_part_read_to_a_step_is_drawn_up_to_it_and_whole_again_from_the_last() {
         "unread, then read to the block, to the first sketch, to the slab and to the second \
          sketch, a frame draws {read:?}, not {expected:?}: the whole part, the block alone, \
          nothing, the whole part again and the block alone",
+    );
+}
+
+/// A square of side 10 raised 10 into a block, a section kept across it, a
+/// square of side 10 at x = 40 raised 5 into a slab, then a third square at
+/// x = 80 raised 3 and that raise undone: five boxes, the section and the
+/// undone raise none of them.
+fn a_part_with_a_section_between_its_steps_and_a_step_undone() -> PartDocument {
+    let mut document = PartDocument::new("part", chrono::Utc::now());
+    let square = |document: &mut PartDocument, sketch: usize, corner: DVec2, distance: f64| {
+        document.apply(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+            on: None,
+        });
+        document.apply(Operation::AddRectangle {
+            sketch,
+            corner: PointRef::New(corner),
+            opposite: PointRef::New(corner + DVec2::splat(10.0)),
+            construction: false,
+        });
+        document.apply(Operation::Extrude {
+            sketch,
+            areas: document.areas_at(sketch, &[corner + DVec2::splat(5.0)]),
+            distance: distance.into(),
+            mode: ExtrusionMode::Add,
+        });
+    };
+    square(&mut document, 0, DVec2::ZERO, 10.0);
+    document.apply(Operation::SaveSection(SectionAsked {
+        plane: WorkPlane::YZ,
+        on: None,
+        offset: 5.0,
+        behind: SideDrawing::SeeThrough,
+        in_front: SideDrawing::Opaque,
+        tilt_about_u_degrees: 0.0,
+        tilt_about_v_degrees: 0.0,
+        pivot: DVec3::ZERO,
+    }));
+    square(&mut document, 1, DVec2::new(40.0, 0.0), 5.0);
+    square(&mut document, 2, DVec2::new(80.0, 0.0), 3.0);
+    document.undo();
+    document
+}
+
+#[test]
+fn each_box_read_to_draws_the_part_read_through_that_box() {
+    const VOLUME: f64 = 1e-6;
+    let document = a_part_with_a_section_between_its_steps_and_a_step_undone();
+    let boxes: Vec<String> = StepReader::of(&document, &Catalogue::french())
+        .boxes
+        .into_iter()
+        .map(|step| step.name)
+        .collect();
+    assert_eq!(
+        boxes,
+        [
+            "Esquisse 1",
+            "Extrusion 1",
+            "Esquisse 2",
+            "Extrusion 2",
+            "Esquisse 3"
+        ],
+        "the reader does not list the five steps applied, the section and the raise undone \
+         left out",
+    );
+
+    let same = |one: Option<f64>, other: Option<f64>| match (one, other) {
+        (Some(one), Some(other)) => (one - other).abs() <= VOLUME * other.max(1.0),
+        (None, None) => true,
+        _ => false,
+    };
+    let mut apart = Vec::new();
+    for (rank, holds) in [
+        (0, None),
+        (1, Some(1000.0)),
+        (2, Some(1000.0)),
+        (3, Some(1500.0)),
+        (4, Some(1500.0)),
+    ] {
+        let mut viewport = ViewportState::default();
+        viewport.read_to(rank, boxes.len());
+        let drawn = matter_drawn(&viewport, &document);
+        let read = document.shown_through(&BTreeMap::new(), rank).body;
+        let read = (!read.is_empty()).then(|| read.volume());
+        if !(same(drawn, holds) && same(read, holds)) {
+            apart.push(format!(
+                "« {} »: drawn {drawn:?}, the part read through it {read:?}, not {holds:?}",
+                boxes[rank],
+            ));
+        }
+    }
+    assert!(
+        apart.is_empty(),
+        "a box read to does not draw what the part read through that box holds:\n{}",
+        apart.join("\n"),
+    );
+}
+
+#[test]
+fn the_last_box_clicked_reads_the_part_as_unread() {
+    let document = a_block_and_a_slab_beside_it();
+    let mut viewport = ViewportState::default();
+    viewport.read_to(1, 4);
+    assert!(
+        viewport.part_shown(&document).is_some(),
+        "the fixture wants the part read to its block drawn apart from the part itself",
+    );
+
+    let mut copied = Vec::new();
+    for clicked in [3, 9] {
+        viewport.read_to(1, 4);
+        viewport.read_to(clicked, 4);
+        if viewport.part_shown(&document).is_some() {
+            copied.push(clicked);
+        }
+    }
+    assert!(
+        copied.is_empty(),
+        "read to the box of rank {copied:?} of four, the last or past it, the canvas draws a \
+         copy of the part read through every step rather than the part itself, as it does \
+         unread",
     );
 }

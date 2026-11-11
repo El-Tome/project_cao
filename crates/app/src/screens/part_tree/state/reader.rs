@@ -24,6 +24,9 @@ pub struct KeyStep {
     pub name: String,
     /// Played: at or before the reading point.
     pub applied: bool,
+    /// The box read to: the last played, the last of all while the part is
+    /// read to its end.
+    pub current: bool,
     /// The level of the gravest alert of its own step, as its row in the
     /// tree wears it, wherever the part is read to.
     pub alert: Option<Level>,
@@ -72,7 +75,7 @@ impl StepReader {
             .map(|body| (body.step, body.mode))
             .collect();
         let (mut sketches, mut volumes) = (0, 0);
-        let steps: Vec<(KeyStep, Option<Problem>)> = key_steps(document)
+        let mut steps: Vec<(KeyStep, Option<Problem>)> = key_steps(document)
             .filter_map(|(step, operation, kind)| {
                 let name = match kind {
                     StepKind::Sketch => {
@@ -97,11 +100,16 @@ impl StepReader {
                     mode,
                     name,
                     applied,
+                    current: false,
                     alert,
                 };
                 (step, problem)
             })
             .collect();
+        let played = steps.iter().filter(|(step, _)| step.applied).count();
+        if let Some((step, _)) = played.checked_sub(1).and_then(|last| steps.get_mut(last)) {
+            step.current = true;
+        }
         let line = line(lang, &steps);
         let boxes: Vec<KeyStep> = steps.into_iter().map(|(step, _)| step).collect();
         let arrows = boxes.iter().skip(1).map(|step| step.applied).collect();
@@ -140,11 +148,10 @@ fn problems(tree: &PartTree) -> HashMap<usize, Problem> {
         .collect()
 }
 
-/// The line under the row, read off the last box played: the box read to,
-/// or the last of all while the part is read to its end.
+/// The line under the row, read off the box read to.
 fn line(lang: &Catalogue, steps: &[(KeyStep, Option<Problem>)]) -> Option<ReadingLine> {
     let played = steps.iter().filter(|(step, _)| step.applied).count();
-    let (step, problem) = steps.get(played.checked_sub(1)?)?;
+    let (step, problem) = steps.iter().find(|(step, _)| step.current)?;
     let named = match problem {
         Some(problem) => lang.t_with(
             "part_tree.reader.alerted",

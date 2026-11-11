@@ -164,7 +164,7 @@ pub(crate) fn carry_out(
             changed = true;
         }
         TreeAction::AskToCompact => ribbon.history_compact_confirm = true,
-        TreeAction::ReadTo(rank) => viewport.read_to(rank),
+        TreeAction::ReadTo(rank, boxes) => viewport.read_to(rank, boxes),
         TreeAction::ReadPrevious(boxes) => viewport.read_previous(boxes),
         TreeAction::ReadNext(boxes) => viewport.read_next(boxes),
         TreeAction::None => {}

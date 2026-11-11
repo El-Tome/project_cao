@@ -3798,7 +3798,7 @@ fn a_part_read_to_a_step_draws_the_sketches_read_as_then_and_none_after_it() {
         ("read to the block", 1),
         ("read to the second sketch, the last box", 2),
     ] {
-        state.read_to(rank);
+        state.read_to(rank, 3);
         read.push((box_read_to, drawn(&state, &mut document)));
     }
     assert_eq!(
@@ -3824,7 +3824,7 @@ fn a_part_read_to_a_step_draws_the_sketches_read_as_then_and_none_after_it() {
         "the fixture wants the block's sketch put out by hand and the second sketch lit by \
          hand",
     );
-    by_hand.read_to(0);
+    by_hand.read_to(0, 3);
     assert_eq!(
         drawn(&by_hand, &mut document),
         (false, false),

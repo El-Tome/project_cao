@@ -18,10 +18,13 @@ pub(super) struct Reading {
 }
 
 impl ViewportState {
-    /// Reads the part to the `rank`th box of the step reader, that one
-    /// included; the last box, or any past it, reads it whole.
-    pub(crate) fn read_to(&mut self, rank: usize) {
-        self.reading.point = Some(rank);
+    /// Reads the part to the `rank`th of the step reader's `boxes`, that one
+    /// included; the last box, or any past it, reads it to its end, as unread.
+    pub(crate) fn read_to(&mut self, rank: usize, boxes: usize) {
+        if boxes == 0 {
+            return;
+        }
+        self.reading.point = (rank + 1 < boxes).then_some(rank);
     }
 
     /// ◀: reads the part to the box before the one it is read to, among

@@ -52,8 +52,8 @@ pub enum TreeAction {
     /// Ask whether to rewrite the history down to the steps that still
     /// describe the part.
     AskToCompact,
-    /// Read the part through this box of the step reader.
-    ReadTo(usize),
+    /// Read the part through this box of the step reader, among this many.
+    ReadTo(usize, usize),
     /// Read the part one box back, or one box on, among this many boxes.
     ReadPrevious(usize),
     ReadNext(usize),

@@ -5,7 +5,7 @@
 use glam::DVec3;
 
 use super::FaceHit;
-use crate::brep::{self, FaceId};
+use crate::brep::{self, FaceId, Scale};
 use crate::mesh::{Mesh, ray_triangle};
 
 /// How far the triangles may stand from the exact surfaces, as a share of the
@@ -20,6 +20,19 @@ use crate::mesh::{Mesh, ray_triangle};
 /// are drawn this fine closed and uncrossed, each in a millisecond or two.
 pub(super) const DRAWN: f64 = 2e-4;
 
+/// How far `body` itself reaches from the origin, as [`Scale`] reads a reach,
+/// and never further than its scale's: what its triangles' tolerance is a
+/// share of. The scale of a body cut by a tool wider than itself carries the
+/// tool's reach, so that a later operation never decides finer than that
+/// cut did (#824); the tool is gone, and the part is drawn at its own size.
+fn reach(body: &brep::Body) -> f64 {
+    let scale = body.scale().reach();
+    body.bounds().map_or(scale, |(low, high)| {
+        let own = Scale::of(low.abs().max(high.abs()).max_element());
+        own.reach().min(scale)
+    })
+}
+
 #[derive(Clone, Debug, Default)]
 pub(super) struct Drawn {
     pub triangles: Vec<[DVec3; 3]>,
@@ -30,7 +43,7 @@ pub(super) struct Drawn {
 impl Drawn {
     /// The triangles of a body, each beside the face it was cut from.
     pub fn of(body: &brep::Body) -> Drawn {
-        let cut = body.triangles_by_face(DRAWN * body.scale().reach());
+        let cut = body.triangles_by_face(DRAWN * reach(body));
         Drawn {
             triangles: cut.triangles,
             faces: cut.faces,

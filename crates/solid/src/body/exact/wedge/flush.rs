@@ -72,6 +72,38 @@ pub(super) fn open(
         .collect()
 }
 
+/// The stops of the edge of rank `rank` in `edges`, each edge of the step
+/// with its wedge on `given`, the body as given, on the faces of each listed
+/// edge laid after it that its set-back and an earlier one's cross on, as
+/// `crossing` holds them (#822): the crossing ends on that edge's wall,
+/// which its own cut takes away once it is laid.
+pub(super) fn completing(
+    given: &brep::Body,
+    rank: usize,
+    edges: &[(EdgeId, &Wedge)],
+    crossing: &[(usize, [usize; 2])],
+) -> Vec<Stop> {
+    let mut stops = Vec::new();
+    for &(between, [_, later]) in crossing {
+        if later != rank || between < rank {
+            continue;
+        }
+        let (edge, wedge) = edges[between];
+        let Some([end, _]) = given.edge(edge).ends else {
+            continue;
+        };
+        for away in wedge.outward {
+            stops.push(Stop {
+                plane: Plane::through(wedge.point, away).0,
+                away,
+                end,
+                corner: wedge.point,
+            });
+        }
+    }
+    stops
+}
+
 /// Where the ends of an edge a step lays are read: `on`, the body it is laid
 /// on, or the body as given, for an edge meeting one laid before it at a
 /// corner; the edge there; and what its prism takes with it past each corner

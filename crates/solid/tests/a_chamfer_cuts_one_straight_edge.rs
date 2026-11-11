@@ -2108,14 +2108,12 @@ fn a_chamfer_a_hair_above_the_kernel_s_tolerance_is_cut_or_named_too_short_and_d
 
 /// Rounds leaving the slot's front outwards at several degrees, each with
 /// the chamfers laid over them and the volume each holds, which the
-/// arithmetic of [`slot_cut_off_at`] gives as well; and the chamfers too small
-/// for the round's dip below the front, which today's cut, a margin out, does
-/// not reach: about `8·r·(1 − cos θ)` and below, at a round of radius `r`
-/// leaving at `θ`.
+/// arithmetic of [`slot_cut_off_at`] gives as well: since #873 the cut
+/// stands off the edge's faces as far as the round dips past them, and every
+/// chamfer is laid over it, down to the smallest.
 struct Outwards {
     degrees: f64,
     laid: &'static [(f64, f64)],
-    short: &'static [f64],
 }
 
 const LEAVING_OUTWARDS: [Outwards; 3] = [
@@ -2127,7 +2125,6 @@ const LEAVING_OUTWARDS: [Outwards; 3] = [
             (1.0, 2366.021157),
             (2.0, 2321.574673),
         ],
-        short: &[],
     },
     Outwards {
         degrees: 8.5,
@@ -2137,12 +2134,15 @@ const LEAVING_OUTWARDS: [Outwards; 3] = [
             (1.0, 2377.694014),
             (2.0, 2333.019429),
         ],
-        short: &[],
     },
     Outwards {
         degrees: 15.0,
-        laid: &[(1.0, 2402.657417), (2.0, 2357.475779)],
-        short: &[0.2, 0.5],
+        laid: &[
+            (0.2, 2416.960964),
+            (0.5, 2413.848061),
+            (1.0, 2402.657417),
+            (2.0, 2357.475779),
+        ],
     },
 ];
 
@@ -2150,12 +2150,7 @@ const LEAVING_OUTWARDS: [Outwards; 3] = [
 fn a_chamfer_on_a_slot_s_front_runs_on_over_a_round_leaving_it_outwards_at_several_degrees_trimmed_by_the_round_s_wall()
  {
     let mut wrong = Vec::new();
-    for Outwards {
-        degrees,
-        laid,
-        short,
-    } in LEAVING_OUTWARDS
-    {
+    for Outwards { degrees, laid } in LEAVING_OUTWARDS {
         let off = 2.0 * degrees.to_radians().tan();
         let slot = slot_off_tangent_by(off);
         let edge = edge_between(&slot, TOP, FRONT);
@@ -2176,23 +2171,11 @@ fn a_chamfer_on_a_slot_s_front_runs_on_over_a_round_leaving_it_outwards_at_sever
                 Err(declined) => wrong.push(format!("{what}: declined, {declined:?}")),
             }
         }
-        for &d in short {
-            let what = format!(
-                "a chamfer of {d} on the slot's front, its round leaving the front outwards at \
-                 {degrees} degrees, short of the {} a cut a margin out reaches the round's dip at",
-                8.0 * 2.0 * (1.0 - degrees.to_radians().cos())
-            );
-            match slot.chamfer(&edge, d) {
-                Ok(chamfered) => chamfered_over_the_round(&slot, &chamfered, (off, d), &what),
-                Err(Declined::Unsupported) => {}
-                Err(declined) => wrong.push(format!("{what}: declined, {declined:?}")),
-            }
-        }
     }
     assert!(
         wrong.is_empty(),
         "a chamfer on a slot's front runs on over a round leaving it outwards at several \
-         degrees, laid wherever its cut reaches the round's dip:\n{}",
+         degrees, laid at every value:\n{}",
         wrong.join("\n")
     );
 }
@@ -2332,4 +2315,176 @@ fn a_chamfer_and_a_fillet_on_an_edge_whose_end_leaves_outwards_along_a_large_rou
          no slice past its own section:\n{}",
         wrong.join("\n")
     );
+}
+
+/// The slot of [`slot_off_tangent_by`] with its round end an ellipse of
+/// semi-axes 3 along the front and 2.05 across it, drawn through the front's
+/// end and the back's: it leaves the front outwards at some 8.7° and dips
+/// 0.05 below the front's line, a curve the kernel reads for how far it
+/// reaches by stepping along it rather than in closed form.
+fn slot_ending_on_an_ellipse() -> Body {
+    let (along, across): (f64, f64) = (3.0, 2.05);
+    let off = (along * along * (1.0 - 4.0 / (across * across))).sqrt();
+    let centre = DVec2::new(28.0 + off, 2.0);
+    raised(
+        Contour {
+            corners: vec![
+                DVec2::ZERO,
+                DVec2::new(28.0, 0.0),
+                DVec2::new(28.0 + 2.0 * off, 4.0),
+                DVec2::new(0.0, 4.0),
+            ],
+            runs: vec![
+                Run::Straight,
+                Run::Oval {
+                    center: centre,
+                    first: DVec2::new(along, 0.0),
+                    second: across,
+                    turn: PI,
+                },
+                Run::Straight,
+                Run::Straight,
+            ],
+        },
+        20.0,
+    )
+}
+
+/// The part with a lump standing in the air in front of its front, from x =
+/// 10 to 12, from `near` in front of the front's plane to 0.3 further, and
+/// from 19.6 up to 19.95, under its top: beyond the plane of a chamfer of 0.2
+/// or more on the top front edge, and clear of its section. Gives the part
+/// and the lump's own matter.
+fn with_a_lump_in_front(part: &Body, near: f64) -> (Body, f64) {
+    (
+        joined_to(
+            part,
+            Contour::rectangle(DVec2::new(10.0, -near - 0.3), DVec2::new(12.0, -near)),
+            19.6,
+            0.35,
+        ),
+        2.0 * 0.3 * 0.35,
+    )
+}
+
+/// Holds that a chamfer of `value` on the top front edge of `part`, with a
+/// lump in front of it as [`with_a_lump_in_front`] stands one, is laid as it
+/// is on `alone`, the part without the lump, and leaves the lump whole: the
+/// value taken whole; the body holding what the step leaves of `alone`, and
+/// the lump's `lump` besides, its triangles enclosing that within `drawn`;
+/// every face of the part kept and one made; each face of the lump where it
+/// was. Says what it found among `wrong`.
+fn left_the_lump_whole(
+    (alone, part, lump): (&Body, &Body, f64),
+    (value, drawn): (f64, f64),
+    what: &str,
+    wrong: &mut Vec<String>,
+) {
+    let laid = [alone, part].map(|one| one.chamfer(&edge_between(one, TOP, FRONT), value));
+    let [Ok(without), Ok(with)] = laid else {
+        wrong.push(format!("{what}: declined, {:?}", laid.map(|one| one.err())));
+        return;
+    };
+    if (with.taken - value).abs() > PLACE {
+        wrong.push(format!("{what}: took {}", with.taken));
+        return;
+    }
+    let body = &with.body;
+    let promised = without.body.volume() + lump;
+    if (body.volume() - promised).abs() > EXACT * promised {
+        wrong.push(format!(
+            "{what}: holds {}, where the step on the part alone and the lump hold {promised}",
+            body.volume()
+        ));
+        return;
+    }
+    let mut kept_and_made = numbers(part);
+    kept_and_made.insert(part.faces_end());
+    if numbers(body) != kept_and_made {
+        wrong.push(format!(
+            "{what}: the faces {:?}, where {kept_and_made:?}",
+            numbers(body)
+        ));
+        return;
+    }
+    for face in (alone.faces_end()..part.faces_end()).filter(|&face| part.has_face(face)) {
+        let [was, is] = [part, body].map(|one| one.plane_of(face));
+        let (Some(was), Some(is)) = (was, is) else {
+            wrong.push(format!("{what}: the lump's face {face} is not flat"));
+            continue;
+        };
+        let among = |corners: &[DVec3], point: &DVec3| {
+            corners.iter().any(|corner| corner.distance(*point) < PLACE)
+        };
+        if was.normal.distance(is.normal) > PLACE
+            || !was.corners.iter().all(|point| among(&is.corners, point))
+            || !is.corners.iter().all(|point| among(&was.corners, point))
+        {
+            wrong.push(format!("{what}: the lump's face {face} moved"));
+        }
+    }
+    sound_drawn_within(body, promised, drawn, what);
+}
+
+#[test]
+fn a_chamfer_on_a_slot_s_front_leaves_a_lump_in_the_air_just_past_its_round_s_dip_whole() {
+    let circle = |degrees: f64| {
+        let off = 2.0 * f64::to_radians(degrees).tan();
+        let radius = (4.0 + off * off).sqrt();
+        (slot_off_tangent_by(off), radius - 2.0)
+    };
+    let slots = [
+        (
+            "a round leaving the front outwards at 8.5 degrees",
+            circle(8.5),
+        ),
+        (
+            "a round leaving the front outwards at 15 degrees",
+            circle(15.0),
+        ),
+        (
+            "an elliptic end leaving the front outwards at 8.7 degrees",
+            (slot_ending_on_an_ellipse(), 0.05),
+        ),
+    ];
+    let mut wrong = Vec::new();
+    for (called, (slot, dip)) in slots {
+        let (part, lump) = with_a_lump_in_front(&slot, dip + 0.03);
+        for value in [0.2, 0.5, 1.0] {
+            let what = format!(
+                "a chamfer of {value} on the front of a slot ending on {called}, dipping {dip:.4} \
+                 below the front's line, with a lump in the air {:.4} in front of the front",
+                dip + 0.03
+            );
+            let drawn = 2e-4 * 31.0 * PI * 2.1 * 20.0;
+            left_the_lump_whole((&slot, &part, lump), (value, drawn), &what, &mut wrong);
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "a chamfer's cut stands off the edge's faces only as far as the round at its end dips \
+         past them, and leaves whole a lump standing further out:\n{}",
+        wrong.join("\n")
+    );
+}
+
+#[test]
+fn a_chamfer_leaves_a_lump_in_the_air_a_little_more_than_the_least_margin_in_front_of_its_edge_whole()
+ {
+    let block = block_to_chamfer();
+    let least = 3.0 * 1e-9f64.sqrt() * 30.0;
+    let (part, lump) = with_a_lump_in_front(&block, 1.2 * least);
+    let mut wrong = Vec::new();
+    left_the_lump_whole(
+        (&block, &part, lump),
+        (3.0, EXACT * 6000.0),
+        &format!(
+            "a chamfer of 3 on the block's top front edge, a lump in the air {} in front of its \
+             front, 1.2 of the least margin the raise takes there, three square roots of the \
+             kernel's relative tolerance times the part's reach",
+            1.2 * least
+        ),
+        &mut wrong,
+    );
+    assert!(wrong.is_empty(), "{}", wrong.join("\n"));
 }

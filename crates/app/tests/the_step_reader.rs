@@ -232,6 +232,30 @@ fn playing_to_step_three_then_six_leaves_the_history_undo_and_redo_as_they_were(
             "« {asked} » on the part read does not do what it does on the same part never read",
         );
     }
+
+    let line = "4. Esquisse 2";
+    go_back_to(&mut read, line);
+    go_back_to(&mut never_read, line);
+    let gone_back = standing(&mut read);
+    assert!(
+        gone_back.redo,
+        "the fixture wants a click on « {line} » to put the part back, leaving something to \
+         redo: {gone_back:?}",
+    );
+    assert_eq!(
+        gone_back,
+        standing(&mut never_read),
+        "a click on « {line} » in the history of the part read does not put it back where it \
+         puts the same part never read",
+    );
+}
+
+/// A click on a line of the history, which puts the part back to just after
+/// that action; the history folded again after it.
+fn go_back_to(app: &mut driver::App, line: &str) {
+    click_the_history_s_header(app);
+    driver::click_the_button(app, line);
+    click_the_history_s_header(app);
 }
 
 /// What the reader of a part of `boxes` boxes reads: its counter, and whether
@@ -313,7 +337,9 @@ fn adding_a_step_while_read_to_step_three_brings_the_reading_point_back_to_the_e
 const STILL: f32 = 0.5;
 
 /// The reader's row as it stands: ◀ and ▶, and which boxes of the `boxes`
-/// the part has stand between them, counting from one.
+/// the part has stand between them, counting from one. ▶ closes a row as wide
+/// as the card, which is as wide as the panel: a panel grown wider, or a row
+/// run past its end, moves it.
 struct Row {
     previous: egui::Rect,
     next: egui::Rect,
@@ -360,7 +386,6 @@ fn forty_steps_scroll_sideways_in_the_row_rather_than_overflowing_the_panel() {
         "the fixture wants a part of one step",
     );
     let one = the_reader_s_row(&app, 1);
-    let canvas_beside_one = driver::canvas(&app).left();
     assert!(
         one.seen == [1] && driver::the_row(&app, "Étape 2").is_none(),
         "with one step the row does not show exactly one box between ◀ and ▶: {:?} seen, \
@@ -378,12 +403,10 @@ fn forty_steps_scroll_sideways_in_the_row_rather_than_overflowing_the_panel() {
         "the fixture wants a part of forty steps",
     );
     let forty = the_reader_s_row(&app, 40);
-    let canvas_beside_forty = driver::canvas(&app).left();
 
     let moved: Vec<(&str, f32, f32)> = [
         ("◀", one.previous.left(), forty.previous.left()),
         ("▶", one.next.right(), forty.next.right()),
-        ("the canvas", canvas_beside_one, canvas_beside_forty),
     ]
     .into_iter()
     .filter(|(_, then, now)| (now - then).abs() > STILL)

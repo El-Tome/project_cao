@@ -4231,3 +4231,37 @@ seed — 33 of the 59 through the body, and 13 on the exact kernel. **Gains:**
 
 **Left**, to #861: a cone's plane cap instead of a round rim (eight seeds),
 #858's pair with a third wall beside it (three), and the rest of the 26.
+
+## #861: a cone's plane cap beside an elliptic shaft or a leaning hole
+
+Of the 26 seeds #858 left, twelve leave a cone's plane cap uncut: beside an
+elliptic shaft a hair off parallel (nine), or a round hole leaning 3° to 15°
+(three). A circle lying on no cylinder of the body — a cone's cap rim — stands
+on a stand-in cylinder of its radius (`contact::walls`), but
+`sampling/beneath.rs` skipped every wall that is not a surface of the body,
+so that rim never took rays through the samples of the curves just inside it
+on its cap, as a cylinder's rim does. Sampled on its own grid, its chord near
+the tip passed inside the elliptic rim's samples and the cap's outline crossed
+itself. A stand-in wall now takes those rays, a sample counting on the plane
+of one of its circles since it holds no face.
+
+**How it was measured.** The walls and turned sets on `main` (59f9e801) and
+on the branch, compared seed by seed.
+
+| Set | Exact, `main` | Exact, #861 | Body, `main` | Body, #861 |
+| --- | --- | --- | --- | --- |
+| walls 352… | 28 | 16 | 47 | 43 |
+| walls 353… | 12 | 7 | 47 | 43 |
+| walls 354… | 23 | 13 | 46 | 40 |
+| turned 533300000… | 20 | 20 | 40 | 40 |
+
+No regression. The walls failures go from 203 to 162. Through the body the
+twelve cone caps hold — 12 of the 26 #858 left, so 45 of its 59 now hold — and
+two seeds outside them; on the exact kernel 27 seeds stop being
+`Open`, most of them outside #858's 59 — the cone rim's missing rays left
+caps open well beyond that family. **Gains**, body: 352000000001257, 352000000001305, 352000000002235, 352000000005723, 353000000003224, 353000000005523, 353000000016799, 353000000017454, 354000000000709, 354000000002316, 354000000003072, 354000000006518, 354000000010845, 354000000016139. Exact: 352000000000936, 352000000001257, 352000000001305, 352000000002235, 352000000002366, 352000000002462, 352000000002610, 352000000003076, 352000000003165, 352000000003578, 352000000005351, 352000000005723, 353000000000151, 353000000001304, 353000000002418, 353000000003224, 353000000005523, 354000000000682, 354000000002316, 354000000002461, 354000000003072, 354000000003253, 354000000003404, 354000000003890, 354000000004122, 354000000004221, 354000000004292.
+
+**Left**, to #866: a plane cap beside a third wall (five seeds), a curved wall
+uncut beside an elliptic shaft a hair off parallel (nine), and a cone's cap
+beside an elliptic shaft 1e-4 off across its major axis, which still stays
+uncut (pinned, ignored).

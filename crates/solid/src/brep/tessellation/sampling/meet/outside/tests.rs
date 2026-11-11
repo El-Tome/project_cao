@@ -6,8 +6,9 @@ use glam::{DVec2, DVec3};
 use super::{kept_outside, pierced, sag_at, sampled_angles};
 use crate::brep::curve::{Meet, Wall as Carried};
 use crate::brep::surface::{Cylinder, Surface};
-use crate::brep::tessellation::contact::{Wall, Zones};
+use crate::brep::tessellation::contact::{self, Wall, Zones};
 use crate::brep::tessellation::sampling::steps::{divisions_in, span};
+use crate::brep::tessellation::sampling::taken;
 use crate::brep::tessellation::tests::fixtures;
 use crate::brep::topology::{Body, Coedge, EdgeId, SurfaceId};
 
@@ -869,16 +870,17 @@ fn passes_through(start: DVec3, end: DVec3, corners: &[DVec3; 3], room: f64) -> 
 }
 
 #[test]
-fn a_chord_within_the_grid_s_sag_of_a_wall_whose_face_is_sampled_closer_than_its_grid_near_the_vertex_passes_through_none_of_its_triangles()
+fn a_wall_whose_face_is_parted_closer_than_its_grid_near_the_vertex_takes_a_ray_at_each_vertex_and_no_chord_of_the_meet_passes_through_its_triangles()
  {
     let to = FRAC_PI_2 + 0.3;
     let closer = 0.01;
+    let parted: Vec<f64> = (-3..=20)
+        .map(|step| FRAC_PI_2 + closer * step as f64)
+        .collect();
     let laid = Layout {
         to,
         faced: Some([0.0, fixtures::HEIGHT]),
-        parted: (-3..=20)
-            .map(|step| FRAC_PI_2 + closer * step as f64)
-            .collect(),
+        parted: parted.clone(),
         ..Layout::quarter(10.0)
     }
     .laid();
@@ -900,17 +902,36 @@ fn a_chord_within_the_grid_s_sag_of_a_wall_whose_face_is_sampled_closer_than_its
         "the chord dips deeper than the wall's grid sags"
     );
 
-    let walls = [laid.wall];
-    let zones = Zones::of(&laid.body, &walls);
-    let contacts = BTreeMap::new();
+    let fineness = (TOLERANCE, span(&laid.body));
+    let all = contact::walls(&laid.body);
+    let zones = Zones::of(&laid.body, &all);
+    let meets = vec![Vec::new(); laid.body.edge_ids().count()];
+    let contacts = contact::contacts(
+        &laid.body,
+        &all,
+        &zones,
+        &meets,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        fineness,
+    );
+    let rays = taken(&Carried::Cylinder(wall), &wall, &all, &contacts);
+    for angle in &parted {
+        assert!(
+            rays.iter()
+                .any(|ray| ((ray - angle + PI).rem_euclid(TAU) - PI).abs() < 1e-9),
+            "the wall takes no ray at its vertex at {angle}: {rays:?}"
+        );
+    }
+
     let kept = kept_outside(
         &laid.body,
         laid.edge,
         &laid.meet,
-        &walls,
-        (TOLERANCE, span(&laid.body)),
+        &[laid.wall],
+        fineness,
         Vec::new(),
-        (&walls, &zones, &contacts),
+        (&all, &zones, &contacts),
     );
 
     let cut = laid.body.triangles_by_face(TOLERANCE);

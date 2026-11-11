@@ -98,7 +98,7 @@
 //!   crosses, the test pins that it holds and the sag stays read from the
 //!   grid — no test: in this file; held beside the pass, in
 //!   `crates/solid/src/brep/tessellation/sampling/meet/outside/tests.rs`, by
-//!   `a_chord_within_the_grid_s_sag_of_a_wall_whose_face_is_sampled_closer_than_its_grid_near_the_vertex_passes_through_none_of_its_triangles`
+//!   `a_wall_whose_face_is_parted_closer_than_its_grid_near_the_vertex_takes_a_ray_at_each_vertex_and_no_chord_of_the_meet_passes_through_its_triangles`
 //! - The two shrunk cases are each pinned as a test that holds, or named with
 //!   the family they belong to and the issue that carries it —
 //!   `seed_353000000016959_shrunk_a_shaft_bored_6e_8_inside_its_wall_and_joined_to_a_cone_leaning_45_degrees_keeps_every_rule_through_the_application_s_body`,
@@ -109,6 +109,10 @@
 //!   walls sets 352000000000000, 353000000000000 and 354000000000000 and the
 //!   turned set run on `main` and on the branch and compared seed by seed,
 //!   recorded in a document
+//!
+//! The sag stays read from the wall's grid and its rays: the rays already
+//! carry every vertex lying on the wall, so a face sampled closer than the
+//! grid near the vertex is sampled at angles the sag reads.
 //!
 //! Neither shrunk case is this pass's: with the pass taken out, each crosses
 //! on `main` with the same two triangles, bit for bit. 353000000016959's are

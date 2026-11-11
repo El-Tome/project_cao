@@ -5,9 +5,13 @@
 //! reaches only where its blend runs (#829), as [`super::extent`] holds it:
 //! two fills on the lower block's top round a standing block's chamfered
 //! uprights, whose lines would cross far out on that top, never reach its
-//! far edge.
+//! far edge. On an arc of a circle bounding a face of each (#823) — the
+//! curved end of a plate whose sides converge on it — they meet where the
+//! larger of their two depths is least along the arc, which no longer moves
+//! in proportion along it as on a straight edge.
 
 use std::collections::BTreeMap;
+use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
@@ -15,7 +19,7 @@ use super::chain::TANGENT;
 use super::corners::Beside;
 use super::extent::{Ranked, Within, runs, span};
 use super::{Wedge, corners};
-use crate::brep::{self, Curve, EdgeId};
+use crate::brep::{self, Circle, Curve, EdgeId};
 
 /// The values at which an edge's set-back along one of its faces reaches
 /// either end of an edge of the body bounding that face: the distance from
@@ -26,14 +30,16 @@ type Depths = [f64; 2];
 /// at a corner — of their wedges in `wedges`, at their ranks, by the set-back
 /// of a value of one `set_back` says — reach one point of a straight edge of
 /// the body bounding a face of each, within where each set-back runs on that
-/// face, as [`runs`] holds it and [`span`] reads it on that edge. Where that
+/// face, as [`runs`] holds it and [`span`] reads it on that edge — or of an
+/// arc of a circle bounding a face of each, as [`reached_on_arc`] reads it
+/// there. Where that
 /// edge is itself one of the list, neither of the two, its own cut takes the
 /// point away once every edge is laid, whichever is laid first (#822): the
 /// two meet only once its own set-back closes between theirs, which bounds
 /// them instead, as [`closing`] reads it.
-/// Where a straight edge joins two parallel edges facing each other across a
-/// face, it is [`super::pairs::bound`]'s; across a face whose sides between
-/// them are curved, only that one sees them.
+/// Two parallel edges facing each other across a face meet across it no
+/// later than on any edge joining them, as [`super::pairs::bound`] reads
+/// them. An arc of a conic, or any other curve, is not read.
 pub(super) fn bound(
     body: &brep::Body,
     edges: &[EdgeId],
@@ -43,28 +49,34 @@ pub(super) fn bound(
 ) -> f64 {
     let eps = body.scale().eps();
     let mut most = f64::INFINITY;
-    for (ends, [one, other], between) in across(body, edges, wedges) {
-        let depths = |&(rank, side): &Ranked| {
+    for (along, [one, other], between) in across(body, edges, wedges) {
+        let depth = |&(rank, side): &Ranked| {
             let wedge = &wedges[rank];
             let per = set_back(wedge);
-            (
-                ends.map(|at| wedge.into[side].dot(at - wedge.point) / per),
-                per,
-            )
+            let into = wedge.into[side];
+            (into / per, into.dot(wedge.point) / per, per)
         };
-        let value = match between {
-            Some(rank) => closing(wedges, [one, other], rank, &set_back),
-            None => {
-                let later = one.0.max(other.0);
-                let held: Vec<Within> = [one, other]
-                    .into_iter()
-                    .flat_map(|ranked| {
-                        runs(body, (edges, wedges), beside, ranked, later, &set_back)
-                    })
-                    .collect();
-                let within = span(&held, ends, eps);
+        let held = || -> Vec<Within> {
+            let later = one.0.max(other.0);
+            [one, other]
+                .into_iter()
+                .flat_map(|ranked| runs(body, (edges, wedges), beside, ranked, later, &set_back))
+                .collect()
+        };
+        let value = match (along, between) {
+            (Along::Straight(_), Some(rank)) => closing(wedges, [one, other], rank, &set_back),
+            (Along::Straight(ends), None) => {
+                let depths = |ranked: &Ranked| {
+                    let (normal, offset, per) = depth(ranked);
+                    (ends.map(|at| normal.dot(at) - offset), per)
+                };
+                let within = span(&held(), ends, eps);
                 within.and_then(|within| reached([depths(&one), depths(&other)], within, eps))
             }
+            (Along::Arc(circle, turn), None) => {
+                reached_on_arc(&circle, turn, [depth(&one), depth(&other)], &held(), eps)
+            }
+            (Along::Arc(..), Some(_)) => None,
         };
         if let Some(value) = value {
             most = most.min(value);
@@ -73,23 +85,39 @@ pub(super) fn bound(
     most
 }
 
+/// An edge of the body two set-backs may meet on: straight, between its two
+/// ends, or an arc of a circle, over the angles it runs from the lower — a
+/// whole turn from its start for a whole circle.
+#[derive(Clone, Copy)]
+enum Along {
+    Straight([DVec3; 2]),
+    Arc(Circle, [f64; 2]),
+}
+
 /// Every two sides of two of `edges` that do not meet at a corner, their
-/// wedges in `wedges`, whose faces a straight edge of the body bounds: that
-/// edge's two ends, the two sides, and the edge's rank where it is one of the
-/// list but neither of the two.
+/// wedges in `wedges`, whose faces a straight edge or an arc of a circle of
+/// the body bounds: that edge, the two sides, and the edge's rank where it is
+/// one of the list but neither of the two.
 fn across(
     body: &brep::Body,
     edges: &[EdgeId],
     wedges: &[Wedge],
-) -> Vec<([DVec3; 2], [Ranked; 2], Option<usize>)> {
+) -> Vec<(Along, [Ranked; 2], Option<usize>)> {
     let mut across = Vec::new();
     for (edge, sides) in bounding(body, wedges) {
         let listed = edges.iter().position(|&named| named == edge);
         let stretch = body.edge(edge);
-        let (Curve::Line(_), Some(ends)) = (body.curve(stretch.curve), stretch.ends) else {
-            continue;
+        let along = match (body.curve(stretch.curve), stretch.ends) {
+            (Curve::Line(_), Some(ends)) => Along::Straight(ends.map(|end| body.vertex(end).point)),
+            (Curve::Circle(circle), Some(_)) => Along::Arc(
+                *circle,
+                [stretch.from.min(stretch.to), stretch.from.max(stretch.to)],
+            ),
+            (Curve::Circle(circle), None) => {
+                Along::Arc(*circle, [stretch.from, stretch.from + TAU])
+            }
+            _ => continue,
         };
-        let ends = ends.map(|end| body.vertex(end).point);
         for (index, &one) in sides.iter().enumerate() {
             for &other in &sides[index + 1..] {
                 let (first, second) = (one.0, other.0);
@@ -97,7 +125,7 @@ fn across(
                     continue;
                 }
                 let between = listed.filter(|&rank| rank != first && rank != second);
-                across.push((ends, [one, other], between));
+                across.push((along, [one, other], between));
             }
         }
     }
@@ -157,6 +185,72 @@ fn reached(lines: [(Depths, f64); 2], within: [f64; 2], eps: f64) -> Option<f64>
         .filter_map(|share| {
             let [one, other] = lines.map(|(depths, per)| {
                 let depth = depths[0] + (depths[1] - depths[0]) * share;
+                (depth * per >= -eps).then_some(depth.max(0.0))
+            });
+            Some(one?.max(other?))
+        })
+        .reduce(f64::min)
+}
+
+/// A set-back's depth along its face, as `normal · p − offset` at a point
+/// `p`: the value at which it reaches there, behind its edge where negative;
+/// and its set-back of one.
+type Depth = (DVec3, f64, f64);
+
+/// The least value at which two set-backs, each of the [`Depth`] it has,
+/// reach one point of the arc of `circle` over the angles `turn`, among the
+/// points every half-space of `held` holds, within `eps`: the least, along
+/// the arc, of the larger of their two depths. On a circle each depth, and
+/// each half-space's form, runs as `a + b·cos θ + c·sin θ`, so that least
+/// stands at an end of the arc, where a half-space's form crosses nought,
+/// where the two depths are equal, or where one is at its lowest. A point
+/// behind either's edge, by more than `eps`, is reached by none.
+fn reached_on_arc(
+    circle: &Circle,
+    [low, high]: [f64; 2],
+    lines: [Depth; 2],
+    held: &[Within],
+    eps: f64,
+) -> Option<f64> {
+    let form = |normal: DVec3, offset: f64| {
+        let radius = circle.radius;
+        [
+            normal.dot(circle.center) - offset,
+            radius * normal.dot(circle.u),
+            radius * normal.dot(circle.v),
+        ]
+    };
+    let roots = |[a, b, c]: [f64; 3]| {
+        let size = b.hypot(c);
+        let ratio = -a / size;
+        let spread = ratio.acos();
+        let at = c.atan2(b);
+        (ratio.abs() <= 1.0).then_some([at - spread, at + spread])
+    };
+    let [one, other] = lines.map(|(normal, offset, _)| form(normal, offset));
+    let mut angles = vec![low, high];
+    angles.extend(
+        roots([0, 1, 2].map(|at| one[at] - other[at]))
+            .into_iter()
+            .flatten(),
+    );
+    angles.extend([one, other].map(|[_, b, c]| c.atan2(b) + PI));
+    for &(normal, offset) in held {
+        angles.extend(roots(form(normal, offset)).into_iter().flatten());
+    }
+    (angles.into_iter())
+        .map(|angle| angle + ((low - angle) / TAU).ceil() * TAU)
+        .filter(|&angle| angle <= high)
+        .filter_map(|angle| {
+            let point = circle.point(angle);
+            if held
+                .iter()
+                .any(|&(normal, offset)| normal.dot(point) - offset > eps)
+            {
+                return None;
+            }
+            let [one, other] = lines.map(|(normal, offset, per)| {
+                let depth = normal.dot(point) - offset;
                 (depth * per >= -eps).then_some(depth.max(0.0))
             });
             Some(one?.max(other?))

@@ -33,7 +33,7 @@ impl Wedge {
         let [on_first, on_second] = self.into.map(|into| into * distance);
         let across = (on_first - on_second).normalize();
         let height = -facing.dot(on_first);
-        let margin = self.margin(across, facing, distance, scale);
+        let margin = self.margin(across, facing, scale);
         let flush = 2.0 * Scale::HAIR * scale.eps();
         let side = |normal: DVec3| {
             let (a, b) = (normal.dot(across), normal.dot(facing));

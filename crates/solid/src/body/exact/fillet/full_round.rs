@@ -43,7 +43,7 @@ impl Wedge {
         let margin = [self, later]
             .map(|wedge| {
                 let (across, facing) = wedge.square();
-                wedge.margin(across, facing, radius / wedge.half_tangent(), scale)
+                wedge.margin(across, facing, scale)
             })
             .into_iter()
             .fold(0.0, f64::max);

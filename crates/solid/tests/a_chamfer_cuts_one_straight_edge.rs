@@ -998,11 +998,17 @@ fn a_chamfer_on_the_round_rim_of_a_disc_is_declined_as_unsupported() {
 }
 
 /// The block a chamfer of 3 is asked on its top front edge, 30 long, 10 deep
-/// and 20 high. Today the cut is a prism along the edge over the wedge the
-/// chamfer takes, each of the edge's two faces pushed out by an eighth of
-/// the distance: z − y ≥ 17, z ≤ 20.375 and y ≥ −0.375, from 0.375 before the
-/// part's box along the edge to 0.375 past it. The shapes below are drawn
-/// against it, each to be caught by one guard alone.
+/// and 20 high. The cut is a prism along the edge over the wedge the chamfer
+/// takes, carried past the part's box along the edge. Until #873 each of the
+/// edge's two faces was pushed out by an eighth of the distance, z ≤ 20.375
+/// and y ≥ −0.375, so that a lump standing a few tenths clear of the edge,
+/// in front of it or above it, fell within the cut and was declined, though
+/// the chamfer's flat never reached it — the case #873 found beside a
+/// standing block's upright. Since, the faces are pushed out by the kernel's
+/// least margin alone, a few thousandths, and such a lump is left whole. The
+/// shapes below are drawn against it: the tab and the rib beside the edge's
+/// end, which the cut carried along the edge still reaches, each caught by
+/// one guard alone, and the lumps beside its length, left whole.
 fn block_to_chamfer() -> Body {
     block([30.0, 10.0, 20.0])
 }
@@ -1032,8 +1038,62 @@ fn a_chamfer_whose_cut_would_take_a_tab_beside_its_edge_away_whole_is_declined_a
     );
 }
 
+/// Holds that a chamfer of 3 on the top front edge of `part` — the
+/// [`block_to_chamfer`] with a lump standing clear of it, numbered past the
+/// block's faces — takes the distance whole and leaves the lump whole: a
+/// sound body holding the block chamfered and the lump's `lump` besides;
+/// every face of the block and of the lump kept, and the chamfer made; each
+/// of the lump's faces where it was; and the chamfer's flat at its corners.
+fn left_whole_beside_the_top_front_edge(part: &Body, lump: f64, what: &str) {
+    let block = block_to_chamfer();
+    let edge = edge_between(part, TOP, FRONT);
+
+    let chamfered = part
+        .chamfer(&edge, 3.0)
+        .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+    taken_whole(&chamfered, 3.0, what);
+    let body = &chamfered.body;
+    sound(body, 6000.0 - 30.0 * 3.0 * 3.0 / 2.0 + lump, what);
+    let mut kept_and_made = numbers(part);
+    kept_and_made.insert(part.faces_end());
+    assert_eq!(
+        numbers(body),
+        kept_and_made,
+        "{what}: every face of the block and of the lump, and the chamfer"
+    );
+    for face in (block.faces_end()..part.faces_end()).filter(|&face| part.has_face(face)) {
+        let [was, is] = [part, body].map(|one| {
+            one.plane_of(face)
+                .unwrap_or_else(|| panic!("{what}: the lump's face {face} is flat"))
+        });
+        let among = |corners: &[DVec3], point: &DVec3| {
+            corners.iter().any(|corner| corner.distance(*point) < PLACE)
+        };
+        assert!(
+            was.normal.distance(is.normal) < PLACE
+                && was.corners.iter().all(|point| among(&is.corners, point))
+                && is.corners.iter().all(|point| among(&was.corners, point)),
+            "{what}: the lump's face {face} has the corners {:?}, where it had {:?}",
+            is.corners,
+            was.corners
+        );
+    }
+    corners_are(
+        body,
+        part.faces_end(),
+        &[
+            DVec3::new(0.0, 3.0, 20.0),
+            DVec3::new(30.0, 3.0, 20.0),
+            DVec3::new(30.0, 0.0, 17.0),
+            DVec3::new(0.0, 0.0, 17.0),
+        ],
+        what,
+    );
+}
+
 #[test]
-fn a_chamfer_whose_cut_would_take_away_a_lump_clear_of_its_edge_is_declined_as_unsupported() {
+fn a_chamfer_leaves_a_lump_a_few_tenths_clear_of_its_edge_in_front_and_above_whole() {
     let with_a_lump = joined_to(
         &block_to_chamfer(),
         Contour::rectangle(DVec2::new(10.0, -0.3), DVec2::new(12.0, -0.1)),
@@ -1041,9 +1101,11 @@ fn a_chamfer_whose_cut_would_take_away_a_lump_clear_of_its_edge_is_declined_as_u
         0.2,
     );
 
-    declined_on_the_top_front_edge(
+    left_whole_beside_the_top_front_edge(
         &with_a_lump,
-        "a lump standing clear of the edge, in front of it and above it, wholly within the cut",
+        2.0 * 0.2 * 0.2,
+        "a lump standing 0.1 in front of the edge and 0.1 above it, beyond the chamfer's \
+         plane, which the flat never reaches",
     );
 }
 
@@ -1084,7 +1146,7 @@ fn a_chamfer_whose_cut_would_bite_into_a_rib_beside_its_edge_is_declined_as_unsu
 }
 
 #[test]
-fn a_chamfer_whose_cut_would_run_into_a_lump_in_front_of_its_edge_is_declined_as_unsupported() {
+fn a_chamfer_leaves_a_lump_in_front_of_its_edge_across_the_height_of_its_top_whole() {
     let with_a_lump = joined_to(
         &block_to_chamfer(),
         Contour::rectangle(DVec2::new(10.0, -1.0), DVec2::new(12.0, -0.2)),
@@ -1092,10 +1154,11 @@ fn a_chamfer_whose_cut_would_run_into_a_lump_in_front_of_its_edge_is_declined_as
         2.0,
     );
 
-    declined_on_the_top_front_edge(
+    left_whole_beside_the_top_front_edge(
         &with_a_lump,
-        "a lump in front of the edge crossing the cut's front and its top, clear of the \
-         chamfer's plane, every face of it kept in part",
+        2.0 * 0.8 * 2.0,
+        "a lump 0.2 in front of the edge, standing from 1 under the top to 1 above it, \
+         clear of the chamfer's flat",
     );
 }
 
@@ -1646,27 +1709,61 @@ fn slot_volume(off: f64) -> f64 {
     ((56.0 + 2.0 * off) / 2.0 * 4.0 + PI * radius_squared / 2.0) * 20.0
 }
 
-/// The matter a chamfer of 1 on the slot's front takes, trimmed by the
-/// slot's own walls: over every place of the slot's plan less than 1 back
-/// from the front's line, a height of 1 − y. Up to 1 back, the slot runs from
-/// the Y axis to its round, `x = c + √(r² − (y − 2)²)`; moved outwards, the
-/// round also dips below the front's line, `2√(r² − (y − 2)²)` across. With
-/// `t = y − 2`, `∫(1 − y)√(r² − t²)` is `G(t) = (r² − t²)^1.5 / 3 − F(t)`,
-/// `F(t) = t/2·√(r² − t²) + r²/2·asin(t/r)`.
+/// The matter a chamfer of 1 on the slot's front takes, as
+/// [`slot_cut_off_at`] reckons it.
 fn slot_cut_off(off: f64) -> f64 {
+    slot_cut_off_at(off, 1.0)
+}
+
+/// The matter a chamfer of `d` on the slot's front takes, trimmed by the
+/// slot's own walls: over every place of the slot's plan less than `d` back
+/// from the front's line, a height of `d − y`. Up to `d` back, the slot runs
+/// from the Y axis to its round, `x = c + √(r² − (y − 2)²)`; moved outwards,
+/// the round also dips below the front's line, `2√(r² − (y − 2)²)` across.
+/// With `t = y − 2`, `∫(d − y)√(r² − t²)` is `G(t) = (d − 2)·F(t) + (r² −
+/// t²)^1.5 / 3`, `F(t) = t/2·√(r² − t²) + r²/2·asin(t/r)`.
+fn slot_cut_off_at(off: f64, d: f64) -> f64 {
     let (centre, radius) = (28.0 + off, (4.0 + off * off).sqrt());
     let under = |t: f64| (radius * radius - t * t).max(0.0).sqrt();
     let g = |t: f64| {
         let f = t / 2.0 * under(t) + radius * radius / 2.0 * (t / radius).clamp(-1.0, 1.0).asin();
-        under(t).powi(3) / 3.0 - f
+        (d - 2.0) * f + under(t).powi(3) / 3.0
     };
-    let behind = centre / 2.0 + g(-1.0) - g(-2.0);
+    let behind = centre * d * d / 2.0 + g(d - 2.0) - g(-2.0);
     let dipping = if off > 0.0 {
         2.0 * (g(-2.0) - g(-radius))
     } else {
         0.0
     };
     behind + dipping
+}
+
+/// Holds what a chamfer of `d` on the slot's front, its round end `off` off
+/// tangent, leaves: the distance taken whole; a sound body holding the slot
+/// less [`slot_cut_off_at`], drawn within the tolerance over the round's
+/// wall; one flat face more, every corner of it on the chamfer's plane and on
+/// the top, the front or the round that trim it.
+fn chamfered_over_the_round(slot: &Body, chamfered: &Chamfered, (off, d): (f64, f64), what: &str) {
+    taken_whole(chamfered, d, what);
+    let body = &chamfered.body;
+    let (centre, radius) = (DVec2::new(28.0 + off, 2.0), (4.0 + off * off).sqrt());
+    sound_drawn_within(
+        body,
+        slot_volume(off) - slot_cut_off_at(off, d),
+        2e-4 * 31.0 * PI * radius * 20.0,
+        what,
+    );
+    let chamfer = one_flat_face_more(slot, body, what);
+    let plane = body.plane_of(chamfer).expect("a flat face offers a plane");
+    for corner in &plane.corners {
+        let on_the_round = (corner.truncate().distance(centre) - radius).abs() < PLACE;
+        assert!(
+            ((corner.z - corner.y) - (20.0 - d)).abs() < PLACE
+                && ((corner.z - 20.0).abs() < PLACE || corner.y.abs() < PLACE || on_the_round),
+            "{what}: the chamfer has a corner at {corner}, off its plane or off the top, the \
+             front and the round that trim it"
+        );
+    }
 }
 
 #[test]
@@ -2007,4 +2104,95 @@ fn a_chamfer_a_hair_above_the_kernel_s_tolerance_is_cut_or_named_too_short_and_d
             ),
         }
     }
+}
+
+/// Rounds leaving the slot's front outwards at several degrees, each with
+/// the chamfers laid over them and the volume each holds, which the
+/// arithmetic of [`slot_cut_off_at`] gives as well; and the chamfers too small
+/// for the round's dip below the front, which today's cut, a margin out, does
+/// not reach: about `8·r·(1 − cos θ)` and below, at a round of radius `r`
+/// leaving at `θ`.
+struct Outwards {
+    degrees: f64,
+    laid: &'static [(f64, f64)],
+    short: &'static [f64],
+}
+
+const LEAVING_OUTWARDS: [Outwards; 3] = [
+    Outwards {
+        degrees: 5.0,
+        laid: &[
+            (0.2, 2380.049694),
+            (0.5, 2377.006031),
+            (1.0, 2366.021157),
+            (2.0, 2321.574673),
+        ],
+        short: &[],
+    },
+    Outwards {
+        degrees: 8.5,
+        laid: &[
+            (0.2, 2391.803402),
+            (0.5, 2388.740317),
+            (1.0, 2377.694014),
+            (2.0, 2333.019429),
+        ],
+        short: &[],
+    },
+    Outwards {
+        degrees: 15.0,
+        laid: &[(1.0, 2402.657417), (2.0, 2357.475779)],
+        short: &[0.2, 0.5],
+    },
+];
+
+#[test]
+fn a_chamfer_on_a_slot_s_front_runs_on_over_a_round_leaving_it_outwards_at_several_degrees_trimmed_by_the_round_s_wall()
+ {
+    let mut wrong = Vec::new();
+    for Outwards {
+        degrees,
+        laid,
+        short,
+    } in LEAVING_OUTWARDS
+    {
+        let off = 2.0 * degrees.to_radians().tan();
+        let slot = slot_off_tangent_by(off);
+        let edge = edge_between(&slot, TOP, FRONT);
+        for &(d, held) in laid {
+            let what = format!(
+                "a chamfer of {d} on the slot's front, its round leaving the front outwards at \
+                 {degrees} degrees"
+            );
+            match slot.chamfer(&edge, d) {
+                Ok(chamfered) => {
+                    chamfered_over_the_round(&slot, &chamfered, (off, d), &what);
+                    assert!(
+                        (chamfered.body.volume() - held).abs() < 1e-6,
+                        "{what}: holds {}, where the step laid {held}",
+                        chamfered.body.volume()
+                    );
+                }
+                Err(declined) => wrong.push(format!("{what}: declined, {declined:?}")),
+            }
+        }
+        for &d in short {
+            let what = format!(
+                "a chamfer of {d} on the slot's front, its round leaving the front outwards at \
+                 {degrees} degrees, short of the {} a cut a margin out reaches the round's dip at",
+                8.0 * 2.0 * (1.0 - degrees.to_radians().cos())
+            );
+            match slot.chamfer(&edge, d) {
+                Ok(chamfered) => chamfered_over_the_round(&slot, &chamfered, (off, d), &what),
+                Err(Declined::Unsupported) => {}
+                Err(declined) => wrong.push(format!("{what}: declined, {declined:?}")),
+            }
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "a chamfer on a slot's front runs on over a round leaving it outwards at several \
+         degrees, laid wherever its cut reaches the round's dip:\n{}",
+        wrong.join("\n")
+    );
 }

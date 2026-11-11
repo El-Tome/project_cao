@@ -6,8 +6,9 @@ use glam::{DVec2, DVec3};
 use super::{kept_outside, pierced, sag_at, sampled_angles};
 use crate::brep::curve::{Meet, Wall as Carried};
 use crate::brep::surface::{Cylinder, Surface};
-use crate::brep::tessellation::contact::{Wall, Zones};
+use crate::brep::tessellation::contact::{self, Wall, Zones};
 use crate::brep::tessellation::sampling::steps::{divisions_in, span};
+use crate::brep::tessellation::sampling::taken;
 use crate::brep::tessellation::tests::fixtures;
 use crate::brep::topology::{Body, Coedge, EdgeId, SurfaceId};
 
@@ -29,6 +30,9 @@ struct Layout {
     faced: Option<[f64; 2]>,
     /// Whether the stock holds a face, from its foot to its top.
     stock_faced: bool,
+    /// The angles round the wall the top ring of its face is parted at by
+    /// vertices, the edge's first end standing at its own.
+    parted: Vec<f64>,
 }
 
 /// What a [`Layout`] builds.
@@ -51,6 +55,7 @@ impl Layout {
             center: None,
             faced: None,
             stock_faced: false,
+            parted: Vec::new(),
         }
     }
 
@@ -78,8 +83,47 @@ impl Layout {
                 vec![vec![use_of(low, true)], vec![use_of(high, false)]],
             );
         };
-        if let Some(heights) = self.faced {
-            face(&mut build, wall, heights);
+        match self.faced {
+            Some([low, high]) if !self.parted.is_empty() => {
+                let round = Cylinder::about(center, DVec3::Z, self.radius);
+                let corners: Vec<_> = self
+                    .parted
+                    .iter()
+                    .map(|angle| {
+                        let point = round.point(DVec2::new(*angle, high));
+                        if point.distance(top) < 1e-9 {
+                            ends[0]
+                        } else {
+                            build.vertex(point)
+                        }
+                    })
+                    .collect();
+                let arcs: Vec<EdgeId> = (0..corners.len())
+                    .map(|at| build.arc(wall, high, corners[at], corners[(at + 1) % corners.len()]))
+                    .collect();
+                let low = build.circle(wall, low, None);
+                let backwards = arcs
+                    .iter()
+                    .rev()
+                    .map(|edge| Coedge {
+                        edge: *edge,
+                        forward: false,
+                    })
+                    .collect();
+                build.face(
+                    wall,
+                    false,
+                    vec![
+                        vec![Coedge {
+                            edge: low,
+                            forward: true,
+                        }],
+                        backwards,
+                    ],
+                );
+            }
+            Some(heights) => face(&mut build, wall, heights),
+            None => {}
         }
         if self.stock_faced {
             face(&mut build, stock, [0.0, fixtures::HEIGHT]);
@@ -804,4 +848,111 @@ fn a_chord_dipping_into_a_wall_only_where_the_curve_itself_runs_inside_it_is_lef
     );
 
     assert_eq!(kept, Vec::new());
+}
+
+/// Whether the segment from `start` to `end` passes through the triangle
+/// `corners`, clear of its edges and of its own ends by more than `room`.
+fn passes_through(start: DVec3, end: DVec3, corners: &[DVec3; 3], room: f64) -> bool {
+    let [a, b, c] = *corners;
+    let (along, ab, ac) = (end - start, b - a, c - a);
+    let normal = ab.cross(ac);
+    let across = normal.dot(along);
+    if across.abs() <= f64::EPSILON * normal.length() * along.length() {
+        return false;
+    }
+    let share = normal.dot(a - start) / across;
+    let point = start + along * share;
+    let doubled = normal.length_squared();
+    let u = (point - a).cross(ac).dot(normal) / doubled;
+    let v = ab.cross(point - a).dot(normal) / doubled;
+    let clear = room / along.length();
+    share > clear && share < 1.0 - clear && u > room && v > room && u + v < 1.0 - room
+}
+
+#[test]
+fn a_wall_whose_face_is_parted_closer_than_its_grid_near_the_vertex_takes_a_ray_at_each_vertex_and_no_chord_of_the_meet_passes_through_its_triangles()
+ {
+    let to = FRAC_PI_2 + 0.3;
+    let closer = 0.01;
+    let parted: Vec<f64> = (-3..=20)
+        .map(|step| FRAC_PI_2 + closer * step as f64)
+        .collect();
+    let laid = Layout {
+        to,
+        faced: Some([0.0, fixtures::HEIGHT]),
+        parted: parted.clone(),
+        ..Layout::quarter(10.0)
+    }
+    .laid();
+    let eps = laid.body.scale().eps();
+    let (surface, wall) = laid.wall;
+    let steps = divisions_in(wall.radius, TOLERANCE, span(&laid.body));
+    assert!(
+        closer < TAU / steps as f64 / 4.0,
+        "the face's top ring is parted no closer than a quarter of the wall's grid"
+    );
+    let grid = sampled_angles(steps, Vec::new());
+    let ends = run_of(&laid.body, laid.edge, &[]);
+    assert!(
+        deepest_inside(&wall, ends[0], ends[1]) > 1e3 * eps,
+        "the chord stays outside the wall"
+    );
+    assert!(
+        deeper_than_the_sag(&laid.meet, &wall, &grid, eps, FRAC_PI_2, to) <= 0.0,
+        "the chord dips deeper than the wall's grid sags"
+    );
+
+    let fineness = (TOLERANCE, span(&laid.body));
+    let all = contact::walls(&laid.body);
+    let zones = Zones::of(&laid.body, &all);
+    let meets = vec![Vec::new(); laid.body.edge_ids().count()];
+    let contacts = contact::contacts(
+        &laid.body,
+        &all,
+        &zones,
+        &meets,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        fineness,
+    );
+    let rays = taken(&Carried::Cylinder(wall), &wall, &all, &contacts);
+    for angle in &parted {
+        assert!(
+            rays.iter()
+                .any(|ray| ((ray - angle + PI).rem_euclid(TAU) - PI).abs() < 1e-9),
+            "the wall takes no ray at its vertex at {angle}: {rays:?}"
+        );
+    }
+
+    let kept = kept_outside(
+        &laid.body,
+        laid.edge,
+        &laid.meet,
+        &[laid.wall],
+        fineness,
+        Vec::new(),
+        (&all, &zones, &contacts),
+    );
+
+    let cut = laid.body.triangles_by_face(TOLERANCE);
+    let triangles: Vec<&[DVec3; 3]> = cut
+        .triangles
+        .iter()
+        .zip(&cut.faces)
+        .filter(|(_, face)| laid.body.face(**face).surface == surface)
+        .map(|(corners, _)| corners)
+        .collect();
+    assert!(!triangles.is_empty(), "the wall's face is cut into nothing");
+    let run = run_of(&laid.body, laid.edge, &kept);
+    for pair in run.windows(2) {
+        let through = triangles
+            .iter()
+            .filter(|corners| passes_through(pair[0], pair[1], corners, 1e-9))
+            .count();
+        assert_eq!(
+            through, 0,
+            "the chord from {} to {} passes through {through} of the wall's triangles",
+            pair[0], pair[1]
+        );
+    }
 }

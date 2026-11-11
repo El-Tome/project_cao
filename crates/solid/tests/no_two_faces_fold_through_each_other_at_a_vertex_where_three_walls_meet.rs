@@ -90,6 +90,38 @@
 //!   or named out of reach — no test: named out of reach; the pass sees only
 //!   the body's contact walls, `contact::Wall`, which are cylinders, and a
 //!   cone third wall would need a list of cone walls that does not exist
+//!
+//! Closes #850.
+//! - A unit test builds a third wall whose face's boundary samples near the
+//!   vertex are closer than its grid, and a chord dipping between the two
+//!   sags. It is red before, if the crossing is real; if no such case
+//!   crosses, the test pins that it holds and the sag stays read from the
+//!   grid — no test: in this file; held beside the pass, in
+//!   `crates/solid/src/brep/tessellation/sampling/meet/outside/tests.rs`, by
+//!   `a_wall_whose_face_is_parted_closer_than_its_grid_near_the_vertex_takes_a_ray_at_each_vertex_and_no_chord_of_the_meet_passes_through_its_triangles`
+//! - The two shrunk cases are each pinned as a test that holds, or named with
+//!   the family they belong to and the issue that carries it —
+//!   `seed_353000000016959_shrunk_a_shaft_bored_6e_8_inside_its_wall_and_joined_to_a_cone_leaning_45_degrees_keeps_every_rule_through_the_application_s_body`,
+//!   `seed_352000000000339_shrunk_an_elliptic_bar_joined_to_a_round_one_leaning_80_degrees_then_cut_by_a_round_one_at_30_degrees_keeps_every_rule`
+//! - No draw regresses against `main`, seed by seed, in the walls sets 352,
+//!   353, 354 and the turned set; the measurement is recorded in
+//!   `docs/exact-kernel-failures.md` — no test: a campaign measurement, the
+//!   walls sets 352000000000000, 353000000000000 and 354000000000000 and the
+//!   turned set run on `main` and on the branch and compared seed by seed,
+//!   recorded in a document
+//!
+//! The sag stays read from the wall's grid and its rays: the rays already
+//! carry every vertex lying on the wall, so a face sampled closer than the
+//! grid near the vertex is sampled at angles the sag reads.
+//!
+//! Neither shrunk case is this pass's: with the pass taken out, each crosses
+//! on `main` with the same two triangles, bit for bit. 353000000016959's are
+//! the shaft's wall and the bore's, 6e-8 apart and exactly parallel, where the
+//! cone meets them: two walls a hair apart beside a third leaf, the family
+//! #755 carries. 352000000000339's are two of the elliptic bar's, at a point
+//! where the bar, the round bar and the bore are each tangent to the plane
+//! z = 45: three walls tangent to one plane at a node, the family #853
+//! carries. Both are kept ignored under their issue.
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -244,6 +276,56 @@ fn seed_354000000009148_an_elliptic_bar_cut_by_two_bores_crossing_square_one_6e_
                 ),
                 Outline::circle([0.0, 0.0], 5.0),
                 41.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "two walls exactly parallel a hair apart beside a third leaf, #755"]
+fn seed_353000000016959_shrunk_a_shaft_bored_6e_8_inside_its_wall_and_joined_to_a_cone_leaning_45_degrees_keeps_every_rule_through_the_application_s_body()
+ {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::xy(0.0), Outline::circle([-2.0, 1.0], 4.5), 9.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([-2.0, 1.0, -17.0], [0.0, 0.0, 0.0]),
+                Outline::circle([0.0, 0.0], 4.49999994),
+                42.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::yz(-1.5402119623495218),
+                Axis::second(0.0).leaning(45.0),
+                Section::bands(-15.0, &[[41.5, 0.0, 1.0]]).sloping_to(&[[0.0, 0.5]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "three walls tangent to one plane at a node, #853"]
+fn seed_352000000000339_shrunk_an_elliptic_bar_joined_to_a_round_one_leaning_80_degrees_then_cut_by_a_round_one_at_30_degrees_keeps_every_rule()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(-120.0),
+            Outline::ellipse([-60.0, -60.0], [0.0, 105.0], 75.0),
+            270.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::tilted(
+                    [-486.09768781459957, 26.430862604574457, -60.00000000000005],
+                    [90.0, 80.21373887624462, 0.0],
+                ),
+                Outline::circle([0.0, 45.0], 60.0),
+                1017.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([269.0, 380.0, -60.0], [90.0, -30.0, 0.0]),
+                Outline::circle([-0.0, -0.0], 105.0),
+                1017.0,
             )),
         ],
     ));

@@ -79,9 +79,11 @@
 //!   to that step included; the boxes after it are marked as not applied, and
 //!   so are the arrows between them. Clicking the last box brings the part
 //!   back whole — the part drawn up to the step read to, and whole again from
-//!   the last box —
+//!   the last box, never the part drawn for a reading point set before it,
+//!   the part itself left whole —
 //!   `a_part_read_to_a_step_is_drawn_up_to_it_and_whole_again_from_the_last`
 
+use cao_part::{ExtrusionMode, Operation, PointRef};
 use cao_render::CubeFace;
 use cao_render::camera::CubeZone;
 use cao_sketch::WorkPlane;
@@ -716,4 +718,73 @@ fn going_round_the_states_of_the_matter_in_front_cuts_each_half_once() {
     );
     assert_eq!(*see_through_again.opaque, behind);
     assert_eq!(see_through_again.see_through, Some(in_front));
+}
+
+/// A square of side 10 drawn on XY and raised 10 into a block, then a second
+/// sketch on XY and a square of side 10 at x = 40 raised 5 into a slab: four
+/// key steps, the first sketch, the block, the second sketch, the slab.
+fn a_block_and_a_slab_beside_it() -> PartDocument {
+    let mut document = PartDocument::new("part", chrono::Utc::now());
+    for (sketch, corner, distance) in [(0, DVec2::ZERO, 10.0), (1, DVec2::new(40.0, 0.0), 5.0)] {
+        document.apply(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+            on: None,
+        });
+        document.apply(Operation::AddRectangle {
+            sketch,
+            corner: PointRef::New(corner),
+            opposite: PointRef::New(corner + DVec2::splat(10.0)),
+            construction: false,
+        });
+        document.apply(Operation::Extrude {
+            sketch,
+            areas: document.areas_at(sketch, &[corner + DVec2::splat(5.0)]),
+            distance: distance.into(),
+            mode: ExtrusionMode::Add,
+        });
+    }
+    document
+}
+
+/// How much matter a frame draws of `document`, every piece of it; nothing
+/// when it draws nothing.
+fn matter_drawn(viewport: &ViewportState, document: &PartDocument) -> Option<f64> {
+    seen(viewport, &SketchEditor::default(), document)
+        .map(|drawn| drawn.pieces().map(Body::volume).sum())
+}
+
+#[test]
+fn a_part_read_to_a_step_is_drawn_up_to_it_and_whole_again_from_the_last() {
+    const VOLUME: f64 = 1e-6;
+    let document = a_block_and_a_slab_beside_it();
+    let mut viewport = ViewportState::default();
+    let mut read = Vec::new();
+    let mut drawn_and_kept = |viewport: &ViewportState| {
+        read.push(matter_drawn(viewport, &document));
+        let whole = document.body().volume();
+        assert!(
+            (whole - 1500.0).abs() <= VOLUME * 1500.0,
+            "the part itself holds {whole} once read, not the block and the slab's 1500",
+        );
+    };
+
+    drawn_and_kept(&viewport);
+    for key_step in [1, 0, 3, 2] {
+        viewport.read_to(key_step);
+        drawn_and_kept(&viewport);
+    }
+
+    let expected = [Some(1500.0), Some(1000.0), None, Some(1500.0), Some(1000.0)];
+    let matches = read.len() == expected.len()
+        && read.iter().zip(expected).all(|pair| match pair {
+            (Some(drawn), Some(wanted)) => (drawn - wanted).abs() <= VOLUME * wanted,
+            (None, None) => true,
+            _ => false,
+        });
+    assert!(
+        matches,
+        "unread, then read to the block, to the first sketch, to the slab and to the second \
+         sketch, a frame draws {read:?}, not {expected:?}: the whole part, the block alone, \
+         nothing, the whole part again and the block alone",
+    );
 }

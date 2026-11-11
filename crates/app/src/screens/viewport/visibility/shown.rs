@@ -10,12 +10,13 @@ use cao_solid::Body;
 
 use super::super::ViewportState;
 
-/// A part shown, with the history and the states it was replayed from. The
-/// history is compared by value: the document keeps no revision of it, and
-/// it is all the replay reads.
+/// A part shown, with the history, the states and the reading point it was
+/// replayed from. The history is compared by value: the document keeps no
+/// revision of it, and it is all the replay reads.
 pub(super) struct Replayed {
     history: History,
     states: BTreeMap<u32, VolumeState>,
+    reading_point: Option<usize>,
     shown: Rc<Shown>,
 }
 
@@ -28,24 +29,31 @@ pub(super) struct Blocked {
 }
 
 impl ViewportState {
-    /// The part as its volumes' states show it, or nothing while every volume
-    /// of the document is opaque, when the part shown is the part itself.
+    /// The part as its volumes' states show it, read through the step the
+    /// reader is on; nothing while every volume of the document is opaque and
+    /// the part is read to its end, when the part shown is the part itself.
     pub(crate) fn part_shown(&self, document: &PartDocument) -> Option<Rc<Shown>> {
         let states = self.volume_states(document);
-        if states.is_empty() {
+        let reading_point = self.reading_point;
+        if states.is_empty() && reading_point.is_none() {
             return None;
         }
         let mut kept = self.visibility.shown.borrow_mut();
         if let Some(replayed) = kept.as_ref()
             && replayed.states == states
+            && replayed.reading_point == reading_point
             && replayed.history == document.history
         {
             return Some(Rc::clone(&replayed.shown));
         }
-        let shown = Rc::new(document.shown(&states));
+        let shown = Rc::new(match reading_point {
+            Some(key_step) => document.shown_through(&states, key_step),
+            None => document.shown(&states),
+        });
         *kept = Some(Replayed {
             history: document.history.clone(),
             states,
+            reading_point,
             shown: Rc::clone(&shown),
         });
         Some(shown)

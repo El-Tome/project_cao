@@ -17,6 +17,9 @@ pub enum TreeAction {
     EditSketch(usize),
     /// Stand this sketch's row selected, the sketch left closed.
     MarkSketch(usize),
+    /// Stand the row of the volume made at this step of the history selected,
+    /// and light its raw block.
+    MarkVolume(usize),
     /// Show this sketch on the canvas, or stop showing it.
     ToggleEye(usize),
     /// Take this into the open sketch's selection, alone or added to it.

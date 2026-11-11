@@ -109,6 +109,7 @@ pub(crate) fn carry_out(
             }
         }
         TreeAction::MarkSketch(sketch) => viewport.mark_sketch(sketch),
+        TreeAction::MarkVolume(step) => viewport.mark_volume(step),
         TreeAction::ToggleEye(sketch) => viewport.toggle_eye(doc, sketch),
         TreeAction::Select { what, adding } => {
             screens::part_tree::state::take(editor, what, adding);

@@ -49,12 +49,17 @@
 //!   switched on as a click on its row does, and a second « Montrer » leaves it
 //!   on — `show_selects_the_sketch_or_the_section_and_leaves_the_list_open`;
 //!   for a volume, under the bullet Tom decided, below
-//! - « … and lights it in the view », for a sketch and a kept section — no
-//!   test: put off, nothing to hold it with yet. Nothing lights a whole sketch
-//!   today, the tree's light being of one row under it, and a section whose
-//!   face is gone cuts nothing, so switching it on changes nothing in the view.
-//!   Lighting a whole element is what « Montrer » on a volume adds; whether a
-//!   sketch takes the same light waits on that
+//! - « … and lights it in the view », for a sketch — no test: a light in the
+//!   view is seen only in a frame, which this driver, with no GPU, never
+//!   builds. The sketch « Montrer » marks is drawn whole in the light a trait
+//!   lit from the tree is drawn in, held by
+//!   `a_sketch_marked_is_drawn_whole_in_the_light_of_a_trait_lit_from_the_tree`,
+//!   in `crates/app/src/screens/viewport/render/tests.rs`: the whole-element
+//!   light a volume takes, below, serves a sketch too, as decided when the
+//!   volume's was taken up
+//! - « … and lights it in the view », for a kept section — no test: a section
+//!   whose face is gone cuts nothing, and switching it on changes nothing in
+//!   the view; there is nothing of it to light
 //! - and « Modifier » (reopens the step) — for a sketch, what a double-click
 //!   on its row does; for a kept section, which is no step, the section
 //!   reopened in its tool, as a double-click on its row does too, decided when
@@ -91,8 +96,23 @@
 //!   extrusion could be reopened before —
 //!   `modify_on_an_extrusion_s_alert_reopens_it_with_its_values`
 //! - decided by Tom when the work opened: « Montrer » on a volume's alert
-//!   selects the volume and lights it in the view —
-//!   `show_on_a_volume_s_alert_selects_the_volume_and_lights_it`
+//!   selects the volume and lights it in the view — its row in the tree stands
+//!   selected, for a volume not built and for one built unstably, the list
+//!   left open — `show_on_a_volume_s_alert_selects_its_row_and_leaves_the_list_open`;
+//!   what the button asks, for those two and for a volume whose area is lost,
+//!   is held beside the title bar's presenter by
+//!   `show_asks_to_mark_the_volume_the_alert_is_about`; and the light, which
+//!   only a frame shows, in `crates/app/src/screens/viewport/render/tests.rs`
+//!   by `a_volume_marked_is_drawn_lit_where_its_step_raised_or_cut_it` and
+//!   `a_volume_not_built_marked_is_drawn_lit_where_its_raw_block_would_stand`
+//! - decided when the volume's light was taken up: what is lit is the volume's
+//!   raw block, the matter its step raises or removes as extruded or turned,
+//!   the block a see-through volume shows; for a volume not built, that block
+//!   where it would have stood, the kernel having built it and declined only
+//!   to join it to the part. A volume whose areas are all lost has no block,
+//!   and only its row stands selected — no test: nothing is drawn to hold;
+//!   that « Montrer » marks it all the same is held by
+//!   `show_asks_to_mark_the_volume_the_alert_is_about`
 //!
 //! What must not break:
 //! - Every problem detected today is still shown: as an alert now — no test:
@@ -133,6 +153,8 @@
 mod driver;
 
 use cao_app::theme::tokens;
+use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef, RevolutionAxis};
+use cao_sketch::{PointId, SketchAxis, WorkPlane};
 use egui::accesskit::Role;
 use egui_kittest::kittest::{NodeT, Queryable};
 use glam::{DVec2, DVec3};
@@ -458,6 +480,180 @@ fn show_selects_the_sketch_or_the_section_and_leaves_the_list_open() {
         "« Montrer » does not select what its alert is about, the list left open:\n  {}",
         wrong.join("\n  "),
     );
+}
+
+#[test]
+fn show_on_a_volume_s_alert_selects_its_row_and_leaves_the_list_open() {
+    let mut wrong = Vec::new();
+    for (test, laid, volume, alert) in [
+        (
+            "show_on_a_volume_not_built",
+            a_ball_under_a_slanted_circle_raised as fn(&mut PartDocument),
+            "Extrusion 2",
+            "Extrusion 2 · non construite",
+        ),
+        (
+            "show_on_a_volume_built_unstably",
+            a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin,
+            "Révolution 2",
+            "Révolution 2 · instable",
+        ),
+    ] {
+        let mut app = a_part_opened_from(test, laid);
+        assert!(
+            driver::in_the_tree(&app, volume) && the_button_reading(&app, "1 alerte").is_some(),
+            "the part written for {test} does not open on « {volume} » with one alert: the title \
+             bar reads {:?}, the screen shows {:?}",
+            the_title_bar(&app),
+            driver::on_screen(&app),
+        );
+        let before = the_row_is_selected(&app, volume);
+        driver::click_the_button(&mut app, "1 alerte");
+        click_the_alert_s(&mut app, alert, "Montrer");
+        let after = the_row_is_selected(&app, volume);
+        if before || !after {
+            wrong.push(format!(
+                "« Montrer » on « {alert} » did not select the row of « {volume} » in the tree: \
+                 selected before {before}, after {after}"
+            ));
+        }
+        if driver::a_sketch_is_open(&app) {
+            wrong.push(format!("« Montrer » on « {alert} » opened a sketch"));
+        }
+        if !driver::reads(&app, HEADING) {
+            wrong.push(format!("« Montrer » on « {alert} » closed the list"));
+        }
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "« Montrer » does not select the volume its alert is about, the list left open:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+/// The part `laid` makes, written over the file of a part named « Platine »
+/// the application made itself, then opened from the home screen: a way to
+/// open on a volume the kernel declines, which no gesture makes cheaply.
+fn a_part_opened_from(test: &str, laid: fn(&mut PartDocument)) -> driver::App {
+    let mut app = driver::open(test);
+    driver::create_a_part(&mut app, "Platine");
+    driver::click(&mut app, "Accueil");
+    let mut document = PartDocument::new("Platine", chrono::Utc::now());
+    laid(&mut document);
+    let file = driver::the_part_s_file(test, "Platine");
+    document
+        .save(
+            &cao_app::adapters::files::DiskFiles,
+            &file,
+            chrono::Utc::now(),
+        )
+        .unwrap_or_else(|err| panic!("the part is not written at {file:?}: {err:?}"));
+    app.query_all_by_label("Platine")
+        .last()
+        .expect("the home screen lists « Platine »")
+        .click();
+    app.run();
+    driver::hold_the_canvas(&mut app);
+    app
+}
+
+/// A ball of radius 4 about (5, 10, 0), turned whole from a half disc, then a
+/// circle of radius 2 on a plane tilted 30° about X, through (5, 10, 6),
+/// raised 10 down across the ball's sphere off its centre: the kernel
+/// declines it, and the circle's step is « Extrusion 2 · non construite ».
+fn a_ball_under_a_slanted_circle_raised(document: &mut PartDocument) {
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: DVec3::new(5.0, 10.0, 0.0),
+            u: DVec3::X,
+            v: DVec3::Z,
+        },
+        on: None,
+    });
+    let first = document.sketches()[0].points().len();
+    document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::ZERO),
+        start: PointRef::New(DVec2::new(0.0, -4.0)),
+        end: PointRef::New(DVec2::new(0.0, 4.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(PointId(first + 2)),
+        end: PointRef::Existing(PointId(first + 1)),
+        construction: false,
+    });
+    document.apply(Operation::Revolve {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(1.0, 0.0)]),
+        axis: RevolutionAxis::Sketch(SketchAxis::V),
+        angle: 360.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    let (sin, cos) = (std::f64::consts::PI / 6.0).sin_cos();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: DVec3::new(5.0, 10.0, 6.0),
+            u: DVec3::X,
+            v: DVec3::new(0.0, cos, sin),
+        },
+        on: None,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 1,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 2.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 1,
+        areas: document.areas_at(1, &[DVec2::ZERO]),
+        distance: (-10.0).into(),
+        mode: ExtrusionMode::Add,
+    });
+}
+
+/// A shaft Ø20 raised 30 on XY, and a slice of it turned a hundredth of a
+/// degree about X cut out: the kernel builds the slice though it reads it
+/// unstably, and its step is « Révolution 2 · instable ».
+fn a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin(document: &mut PartDocument) {
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 10.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::ZERO]),
+        distance: 30.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XZ,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 1,
+        corner: PointRef::New(DVec2::new(-20.0, 0.0)),
+        opposite: PointRef::New(DVec2::new(20.0, 40.0)),
+        construction: false,
+    });
+    document.apply(Operation::Revolve {
+        sketch: 1,
+        areas: document.areas_at(1, &[DVec2::new(0.0, 20.0)]),
+        axis: RevolutionAxis::Sketch(SketchAxis::U),
+        angle: 0.01.into(),
+        mode: ExtrusionMode::Cut,
+    });
 }
 
 /// Whether the row of the tree that reads exactly this stands selected: the

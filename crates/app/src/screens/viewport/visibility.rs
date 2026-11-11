@@ -12,7 +12,7 @@ use cao_part::history::StepKind;
 use cao_part::{Operation, PartDocument, VolumeState};
 use cao_sketch::Sketch;
 
-use shown::Replayed;
+use shown::{Blocked, Replayed};
 
 use super::ViewportState;
 use crate::screens::SketchContext;
@@ -27,14 +27,24 @@ pub(super) struct Visibility {
     /// The row the hand is on in the tree, kept apart from `lit` so that
     /// leaving it puts out no light a click left.
     hovered: Option<Points>,
-    /// The sketch whose row in the tree stands selected though it is closed.
-    marked: Option<usize>,
+    /// What « Montrer » marked: its row in the tree stands selected, and it
+    /// is drawn in the tree's light.
+    marked: Option<Marked>,
     /// The volumes set by hand, by the number of the operation that made
     /// them, as the eyes are.
     volumes: BTreeMap<u32, VolumeState>,
     /// The part last shown with the volumes' states, and what it was shown
     /// from.
     shown: RefCell<Option<Replayed>>,
+    /// The raw block of the volume marked, and what it was replayed from.
+    block: RefCell<Option<Blocked>>,
+}
+
+/// One sketch, or the volume made at a step of the history.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Marked {
+    Sketch(usize),
+    Volume(usize),
 }
 
 impl Default for Visibility {
@@ -46,6 +56,7 @@ impl Default for Visibility {
             marked: None,
             volumes: BTreeMap::new(),
             shown: RefCell::new(None),
+            block: RefCell::new(None),
         }
     }
 }
@@ -56,6 +67,8 @@ pub(crate) struct Seen {
     pub(crate) hidden: bool,
     /// What a click lit, and what the hand is on.
     pub(crate) lit: [Option<Points>; 2],
+    /// Marked whole, every piece of it lit.
+    pub(crate) marked: bool,
 }
 
 impl Seen {
@@ -79,7 +92,7 @@ impl ViewportState {
     }
 
     /// Lights a row of the tree on the canvas, or puts it out when it is the
-    /// one already lit; a sketch marked is no longer.
+    /// one already lit; what was marked is no longer.
     pub(crate) fn light(&mut self, row: Points) {
         self.visibility.lit = (self.visibility.lit != Some(row)).then_some(row);
         self.visibility.marked = None;
@@ -91,14 +104,30 @@ impl ViewportState {
         self.visibility.marked = None;
     }
 
-    /// Stands a closed sketch's row selected in the tree, until a light is put
-    /// out or a row is lit.
+    /// Stands a closed sketch's row selected in the tree and lights the whole
+    /// of it, until a light is put out, a row is lit or another is marked.
     pub(crate) fn mark_sketch(&mut self, sketch: usize) {
-        self.visibility.marked = Some(sketch);
+        self.visibility.marked = Some(Marked::Sketch(sketch));
+    }
+
+    /// The same for the volume made at that step of the history, its raw block
+    /// lit.
+    pub(crate) fn mark_volume(&mut self, step: usize) {
+        self.visibility.marked = Some(Marked::Volume(step));
     }
 
     pub(crate) fn marked_sketch(&self) -> Option<usize> {
-        self.visibility.marked
+        match self.visibility.marked {
+            Some(Marked::Sketch(sketch)) => Some(sketch),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn marked_volume(&self) -> Option<usize> {
+        match self.visibility.marked {
+            Some(Marked::Volume(step)) => Some(step),
+            _ => None,
+        }
     }
 
     pub(crate) fn hovered_in_the_tree(&self) -> Option<Points> {
@@ -190,7 +219,13 @@ impl ViewportState {
             row.sketch() == sketch && (!active || matches!(row, Points::Area { .. }))
         };
         let lit = [self.lit(), self.visibility.hovered].map(|row| row.filter(here));
-        (!hidden || lit.iter().any(Option::is_some)).then_some(Seen { hidden, lit })
+        let marked = !active && self.marked_sketch() == Some(sketch);
+        let shown = !hidden || marked || lit.iter().any(Option::is_some);
+        shown.then_some(Seen {
+            hidden,
+            lit,
+            marked,
+        })
     }
 }
 

@@ -62,6 +62,7 @@ pub(super) fn volume(
         state: String::new(),
         visibility_button: String::new(),
         dimmed: false,
+        selected: false,
     })
 }
 

@@ -55,16 +55,17 @@ impl Alert {
     }
 
     /// What one of its buttons asks of the tree. « Modifier » asks what a
-    /// double-click on the row does; « Montrer » stands a sketch's row
-    /// selected, the sketch left closed, and switches a section on, never off.
-    /// A volume's buttons ask nothing yet.
+    /// double-click on the row does; « Montrer » marks a sketch or a volume,
+    /// the sketch left closed, and switches a section on, never off. A
+    /// volume's « Modifier » asks nothing yet.
     pub fn asks(&self, button: AlertButton) -> TreeAction {
         match (button, self.about) {
             (AlertButton::Show, About::Sketch(sketch)) => TreeAction::MarkSketch(sketch),
             (AlertButton::Show, About::Section(id)) => TreeAction::SwitchSectionOn(id),
+            (AlertButton::Show, About::Volume { step }) => TreeAction::MarkVolume(step),
             (AlertButton::Modify, About::Sketch(sketch)) => TreeAction::EditSketch(sketch),
             (AlertButton::Modify, About::Section(id)) => TreeAction::EditSection(id),
-            (_, About::Volume { .. }) => TreeAction::None,
+            (AlertButton::Modify, About::Volume { .. }) => TreeAction::None,
         }
     }
 }

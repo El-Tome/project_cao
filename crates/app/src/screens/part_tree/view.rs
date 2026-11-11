@@ -179,6 +179,7 @@ fn made_of_matter(ui: &mut egui::Ui, body: &Body, asked: &mut Asked<'_>, lang: &
     };
     let heading = TreeRow {
         name: &body.name,
+        selected: body.selected,
         dimmed: body.dimmed,
         value: Some(&body.state),
         badge: badge.as_deref().zip(body.badge.map(Problem::level)),

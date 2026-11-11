@@ -87,6 +87,8 @@ pub struct Body {
     pub state: String,
     pub visibility_button: String,
     pub dimmed: bool,
+    /// Standing selected: marked by « Montrer ».
+    pub selected: bool,
 }
 
 /// One sketch, and what is drawn on it, by kind.

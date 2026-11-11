@@ -62,6 +62,12 @@
 //!   `modify_asks_what_a_double_click_on_the_sketch_or_the_section_s_row_asks`;
 //!   that the sketch or the section is then open is held in
 //!   `crates/app/tests/the_alerts.rs`
+//! - decided by Tom when the work opened: « Montrer » on a volume's alert
+//!   selects the volume and lights it in the view — what the button asks, to
+//!   mark that volume, for one not built, one built unstably and one whose
+//!   area is lost — `show_asks_to_mark_the_volume_the_alert_is_about`; its
+//!   row selected is held in `crates/app/tests/the_alerts.rs`, and its light in
+//!   `crates/app/src/screens/viewport/render/tests.rs`
 //! - Every problem detected today is still shown: as an alert now —
 //!   `each_problem_of_the_part_is_an_alert_at_its_level`, one part for each
 //!   problem the tree wears a badge for today; and what the pill said of a
@@ -459,6 +465,38 @@ fn modify_asks_what_a_double_click_on_the_sketch_or_the_section_s_row_asks() {
         ],
         "« Modifier » on the alert of a sketch or of a kept section does not ask to reopen \
          it, as a double-click on its row in the tree does",
+    );
+}
+
+#[test]
+fn show_asks_to_mark_the_volume_the_alert_is_about() {
+    let asked = |laid: &[fn(&mut PartDocument)]| -> Vec<(About, TreeAction)> {
+        read_off_the_bar(laid, |bar| {
+            bar.alerts
+                .iter()
+                .map(|alert| (alert.about, alert.asks(AlertButton::Show)))
+                .collect()
+        })
+    };
+
+    let read = [
+        asked(&[a_ball_under_a_slanted_circle_raised]),
+        asked(&[a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin]),
+        asked(&[a_block_whose_area_is_gone]),
+    ];
+
+    let wrong: Vec<&(About, TreeAction)> = read
+        .iter()
+        .flatten()
+        .filter(|(about, action)| match about {
+            About::Volume { step } => *action != TreeAction::MarkVolume(*step),
+            _ => true,
+        })
+        .collect();
+    assert!(
+        read.iter().all(|alerts| alerts.len() == 1) && wrong.is_empty(),
+        "« Montrer » on the alert of a volume not built, built unstably, or whose area is \
+         lost, does not ask to mark that volume: {read:?}",
     );
 }
 

@@ -632,8 +632,7 @@
 //!   corner at (30, 0) cut to (25, 0) and (30, 5); the right end cut to the
 //!   slope from y = 5 back, the left end as #791 cuts it. The right end
 //!   loses the quadrilateral (0, 0), (5, 0), (5, 10), (0, 5) of its section,
-//!   where the decision reads a triangle: the triangle is what the floor
-//!   loses. The body exact, closed, uncrossed, holding 9000 − 250/3,
+//!   and the floor the triangle. The body exact, closed, uncrossed, holding 9000 − 250/3,
 //!   8916.666667 — the slope keeping the stair's 9000, the nose's triangle
 //!   and the foot's alike, and the upright's flat taking off, over the
 //!   floor's triangle (25, 0), (30, 0), (30, 5), the height under the slope,

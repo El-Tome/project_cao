@@ -67,12 +67,18 @@
 //!   (`no_two_commands_answer_to_the_same_chord_on_a_fresh_installation`) —
 //!   `the_apply_chord_applies_the_chamfer_once_an_edge_is_chosen_in_the_edge_panel`,
 //!   `the_apply_chord_still_applies_an_extrusion_while_its_panel_is_open`
+//! - found in review: the panel opened last wins. « Modifier » on an
+//!   extrusion's alert, or a sketch reopened from the tree, closes the edge
+//!   panel, so that the ribbon shows the panel at work and the apply chord
+//!   chamfers nothing behind it —
+//!   `modifier_on_an_extrusion_s_alert_closes_the_edge_panel_and_the_chord_chamfers_nothing`,
+//!   `a_sketch_reopened_from_the_tree_closes_the_edge_panel_and_the_chord_chamfers_nothing`
 
 mod driver;
 
 use cao_app::app::EDGE_REACH;
 use cao_part::history::{BlendShape, ExtrusionMode, Operation, PointRef};
-use cao_sketch::WorkPlane;
+use cao_sketch::{Element, SegmentId, WorkPlane};
 use cao_solid::DrawnEdge;
 use egui_kittest::kittest::{NodeT, Queryable};
 use glam::{DVec2, DVec3};
@@ -895,4 +901,116 @@ fn a_chamfer_whose_edge_is_lost_is_an_alert_saying_so_in_the_user_s_words() {
              answers to and nothing in this slice reopens",
         );
     }
+}
+
+fn chamfers_in_the_history(app: &driver::App) -> usize {
+    driver::steps(app)
+        .iter()
+        .filter(|line| line.ends_with("Arête chanfreinée"))
+        .count()
+}
+
+/// The block 30 by 10 by 20 of `a_block_whose_chamfer_lost_its_edge`, and
+/// beside it a block raised from a second sketch whose rectangle has since
+/// lost a side: that extrusion's area is lost, and its alert offers
+/// « Modifier ».
+fn a_block_beside_an_extrusion_whose_area_is_lost() -> cao_part::PartDocument {
+    let mut part =
+        cao_part::PartDocument::new("Bloc", "2026-11-12T09:00:00Z".parse().expect("a date"));
+    for (sketch, corner, opposite, height) in [
+        (0, DVec2::ZERO, DVec2::new(30.0, 10.0), 20.0),
+        (1, DVec2::new(40.0, 0.0), DVec2::new(50.0, 10.0), 5.0),
+    ] {
+        part.apply(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+            on: None,
+        });
+        part.apply(Operation::AddRectangle {
+            sketch,
+            corner: PointRef::New(corner),
+            opposite: PointRef::New(opposite),
+            construction: false,
+        });
+        let areas = part.areas_at(sketch, &[(corner + opposite) / 2.0]);
+        part.apply(Operation::Extrude {
+            sketch,
+            areas,
+            distance: height.into(),
+            mode: ExtrusionMode::Add,
+        });
+    }
+    part.apply(Operation::EraseMany {
+        sketch: 1,
+        elements: vec![Element::Segment(SegmentId(0))],
+        dimensions: Vec::new(),
+        constraints: Vec::new(),
+    });
+    part
+}
+
+#[test]
+fn modifier_on_an_extrusion_s_alert_closes_the_edge_panel_and_the_chord_chamfers_nothing() {
+    let test = "modifier_on_an_extrusion_closes_the_edge_panel";
+    let mut app = driver::a_block(test);
+    driver::the_part_put_away(&mut app, test, "Bloc");
+    a_block_beside_an_extrusion_whose_area_is_lost()
+        .save(
+            &cao_app::adapters::files::DiskFiles,
+            &driver::the_part_s_file(test, "Bloc"),
+            "2026-11-12T10:00:00Z".parse().expect("a date"),
+        )
+        .expect("the part is written");
+    app.query_all_by_label("Bloc")
+        .last()
+        .expect("the start menu lists the part")
+        .click();
+    app.run();
+    driver::open_the_history(&mut app);
+    driver::click_exactly(&mut app, "Extrusion");
+    driver::click_exactly(&mut app, "Chanfrein");
+    driver::click_at_world_point(&mut app, DVec3::new(15.0, 0.0, 20.0));
+    assert!(
+        chosen(&app).is_some(),
+        "the fixture chooses the block's top front edge, showing {:?}",
+        driver::on_screen(&app),
+    );
+
+    driver::click_the_button(&mut app, "1 alerte");
+    driver::click_the_button(&mut app, "Modifier");
+
+    assert!(
+        driver::says(&app, "Hauteur :") && !driver::reads(&app, THE_CHAMFER_S_VALUE),
+        "« Modifier » on the extrusion's alert left the edge panel in the ribbon: {:?}",
+        driver::on_screen(&app),
+    );
+    driver::press_with_command(&mut app, egui::Key::Enter);
+    assert_eq!(
+        chamfers_in_the_history(&app),
+        0,
+        "the apply chord, the extrusion reopened, chamfered: {:?}",
+        driver::steps(&app),
+    );
+}
+
+#[test]
+fn a_sketch_reopened_from_the_tree_closes_the_edge_panel_and_the_chord_chamfers_nothing() {
+    let (mut app, block) = chamfering("a_sketch_reopened_closes_the_edge_panel");
+    driver::open_the_history(&mut app);
+    driver::click_at_world_point(&mut app, middle(block.near_top()));
+    assert!(chosen(&app).is_some(), "the fixture chooses the near top");
+
+    driver::double_click(&mut app, "Esquisse 1");
+    assert!(driver::a_sketch_is_open(&app), "the sketch did not reopen");
+    assert!(
+        !driver::reads(&app, THE_CHAMFER_S_VALUE),
+        "the sketch reopened over an edge panel still open: {:?}",
+        driver::on_screen(&app),
+    );
+    driver::press_with_command(&mut app, egui::Key::Enter);
+    assert_eq!(
+        chamfers_in_the_history(&app),
+        0,
+        "the apply chord, in the sketch reopened, chamfered: {:?}",
+        driver::steps(&app),
+    );
 }

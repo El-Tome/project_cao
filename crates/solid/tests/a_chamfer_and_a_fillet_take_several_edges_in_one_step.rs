@@ -445,6 +445,16 @@
 //!   `main` as laying this slope; a probe on `main` declines every case of
 //!   the turned riser, the control at 20 too, where the straight riser at 15
 //!   and at 20 is one slope
+//! - Decided on the way, after the mutants (2026-11-12): the riser turned by
+//!   1e-7 and as high as half the tread's depth, the taller block 15 high,
+//!   is declined `Unsupported` in both orders until #928. The slope would
+//!   take the riser whole, and its top line parts from the riser's top edge
+//!   by up to 3e-6 along the stair, more than the hair the billionth turn
+//!   parts it by —
+//!   `a_chamfer_on_a_tread_s_nose_and_foot_whose_riser_is_turned_by_a_ten_millionth_and_as_high_as_half_its_depth_is_declined_as_unsupported_whichever_is_named_first`.
+//!   Read as: the same turn with the taller block 20 high laid in both
+//!   orders at 5, one slope; at 15 high, the nose and the foot declined
+//!   `Unsupported` in both orders, asked 5 and asked 8
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -4627,6 +4637,37 @@ fn a_chamfer_on_a_tread_s_nose_and_foot_whose_riser_is_turned_by_a_billionth_lay
                     body.volume()
                 );
             }
+        }
+    }
+}
+
+#[test]
+fn a_chamfer_on_a_tread_s_nose_and_foot_whose_riser_is_turned_by_a_ten_millionth_and_as_high_as_half_its_depth_is_declined_as_unsupported_whichever_is_named_first()
+ {
+    let half = TREAD / 2.0;
+    let tall = stair_with_its_riser_turned_by(RISER_TURN);
+    for (order, names) in nose_and_foot_either_way(&tall) {
+        assert!(
+            tall.chamfer_edges(&names, half).is_ok(),
+            "the riser turned by {RISER_TURN}, {} high, {order}, asked {half}: one slope, so \
+             that what declines the shorter riser is the slope taking it whole",
+            HEIGHT - TREAD_HEIGHT
+        );
+    }
+    let stair = stair_with_its_riser_turned_by_up_to(RISER_TURN, TREAD_HEIGHT + half);
+
+    for (order, names) in nose_and_foot_either_way(&stair) {
+        for asked in [half, MORE_THAN_HALF] {
+            let declined = stair.chamfer_edges(&names, asked).err();
+
+            assert_eq!(
+                declined,
+                Some(Declined::Unsupported),
+                "the riser turned by {RISER_TURN}, {half} high, {order}, asked {asked}: the \
+                 slope would take the riser whole, its top line parting from the riser's top \
+                 edge by up to {} along the stair, declined until #928",
+                LENGTH * RISER_TURN
+            );
         }
     }
 }

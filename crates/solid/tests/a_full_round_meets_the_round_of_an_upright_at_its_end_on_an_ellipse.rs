@@ -98,6 +98,53 @@
 //!   slice builds, and keeps the tongue's for the second slice; in the third,
 //!   the decline of the pair, the end edge and the front-right upright stays
 //!   until the second slice
+//! - Decided on the way, after the review (2026-11-12): what the branch lets
+//!   in beside the issue's end, each list declined on `main`, is held to the
+//!   shape the distance to the named walls gives — built exact in every
+//!   order, one body, the value taken whole, closed, uncrossed, its triangles
+//!   enclosing the volume arithmetic gives within the drawing's tolerance,
+//!   that volume given by the booleans too. The upright at the block's other
+//!   end, at its front corner, with the pair; and one upright at each end,
+//!   the front one at x = 30 and the back one at x = 0 —
+//!   `a_fillet_on_a_full_round_and_an_upright_at_its_far_end_or_one_at_each_end_mitres_each_upright_s_round_against_the_full_round_whatever_the_order`
+//! - Decided on the way, after the review (2026-11-12): the pair, the edge
+//!   across the end at x = 30 and the front upright at x = 0 — #803's mitre
+//!   and this issue's in one step —
+//!   `a_fillet_on_a_full_round_the_edge_across_one_end_and_an_upright_at_the_other_mitres_both_against_the_full_round_whatever_the_order`
+//! - Decided on the way, after the review (2026-11-12): a standing full round
+//!   alone with one lying edge — both uprights at x = 30 and the top's front
+//!   edge alone, and likewise the floor's front edge alone — that edge's round
+//!   mitred against the standing full round as an upright's is against a
+//!   lying one —
+//!   `a_fillet_on_both_uprights_at_an_end_and_one_long_edge_of_the_top_or_the_floor_mitres_that_edge_s_round_against_their_standing_full_round_whatever_the_order`
+//! - Decided on the way, after the review (2026-11-12): full rounds along the
+//!   top and along the floor, the top's front and back edges and the floor's,
+//!   with the front upright at x = 30, which meets both: its round mitred
+//!   against each, on z − 7 = x − 27 and on z − 3 = 27 − x —
+//!   `a_fillet_on_full_rounds_along_the_top_and_the_floor_and_the_upright_at_their_end_mitres_the_upright_s_round_against_both_whatever_the_order`
+//! - Decided on the way, after the review (2026-11-12): #843's pointed plate,
+//!   top (0, 0), (30, 0), (33, 3), (30, 6), (0, 6), 10 high, with the pair and
+//!   the upright at the corner (30, 0), the point's edges not named: the
+//!   upright's round, a corner of 135°'s, about the vertical through
+//!   (33 − 3√2, 3), mitred against the full round on z − 7 = x − 33 + 3√2,
+//!   the mitre ending on the point's front wall at
+//!   (33 − 3√2/2, 3 − 3√2/2, 7 + 3√2/2), short of the crown —
+//!   `a_fillet_on_a_full_round_and_the_upright_at_a_corner_of_its_pointed_end_mitres_the_upright_s_round_against_it_up_to_the_point_s_wall_whatever_the_order`
+//! - Decided on the way, after the review (2026-11-12): an end slanted seen
+//!   from above, top (0, 0), (30, 0), (32, 6), (0, 6), with the pair and the
+//!   upright at (30, 0): its round, a corner of 108.4°'s, about the vertical
+//!   through (31 − √10, 3), mitred against the full round, the mitre ending on
+//!   the end wall at (31 − √10 + 9/√10, 3 − 3/√10, 7 + 9/√10), away from the
+//!   crown's (31, 3, 10) —
+//!   `a_fillet_on_a_full_round_and_the_upright_at_a_corner_of_its_slanted_end_mitres_the_upright_s_round_against_it_up_to_the_end_wall_whatever_the_order`
+//! - Decided on the way, after the review (2026-11-12): the hair — the pair,
+//!   the front upright at x = 30 and the floor's front edge, on a block a hair
+//!   wider than 6, 6 + 10⁻¹², at 3: the pair's set-backs stop a hair short of
+//!   meeting and are laid as one full round at its own radius, the upright's
+//!   round laid with the pair's value, and its lower end meets the floor's
+//!   front edge's round laid at the value taken — the body the block 6 wide
+//!   would lay, to the hair —
+//!   `a_fillet_on_a_full_round_a_hair_short_the_upright_at_its_end_and_the_floor_s_front_edge_takes_the_value_whole_whatever_the_order`
 //!
 //! The volume is arithmetic. The block holds `LWH`, 1800. The full round
 //! alone takes, all along the block, the two corners of the top's section
@@ -146,9 +193,56 @@
 //! `1801.5 + 261π/8`, 1903.99, and 1848.75. Each is the volume `main` measures,
 //! to the digits measured on #843's branch, which builds these lists as `main`
 //! does.
+//!
+//! What the review let in is held to that arithmetic too, taken at all eight
+//! corners of the block: a corner where two named edges meet gives back
+//! `r³(5/3 − π/2)`, one where three do `r³(2 − 7π/12)`. The upright at the far
+//! end with the pair, `1215 + 144π`, as at x = 30; one upright at each end,
+//! `1800 − 80r²(1 − π/4) + 2r³(5/3 − π/2)`, `1170 + 153π`, 1650.66; the pair,
+//! the end edge and the far front upright, three corners mitred,
+//! `1800 − 76r²(1 − π/4) + 3r³(5/3 − π/2)`, `1251 + 261π/2`, 1660.98; both
+//! uprights at x = 30 with the top's or the floor's front edge,
+//! `1800 − 50r²(1 − π/4) + r³(5/3 − π/2)`, `1395 + 99π`, 1706.02; the full
+//! rounds along the top and the floor with the front upright,
+//! `1800 − 130r²(1 − π/4) + 2r³(5/3 − π/2)`, `720 + 531π/2`, 1554.09, the two
+//! full rounds sharing nothing, 4 apart; the hair,
+//! `LWH − 100r²(1 − π/4) + 2r³(5/3 − π/2)`, `990 + 198π` on the block 6 wide,
+//! 1612.04, the hair's own share, `3·10⁻¹⁰` of the block, far under the
+//! exact kernel's tolerance on the volume.
+//!
+//! An upright at a corner that is not square, on a plate whose full round
+//! runs along its front at y = 0, the corner's other wall turning by `β` from
+//! the front: its round, tangent to both walls, stands `t = r·tan(β/2)` back
+//! from the corner along each, and alone takes up the plate's whole height the
+//! floor's corner outside it, `rt − r²β/2`. The full round alone takes the
+//! matter over its half cylinder all over the plate, `(r − s(y))` over each
+//! point, `s(y) = √(r² − (r − y)²)`. What both take, counted twice, is that
+//! over the corner the upright's round takes: at `u = r − y`, from the arc,
+//! `x_c + √(r² − u²)`, its axis at `x_c = x₀ − t` for the corner at `x₀`, to
+//! the wall, `x₀ + y·cot β`, a width
+//! `w = t + (r − u)cot β − √(r² − u²)`, from `u = r` down to `u = r·cos β`,
+//! where the round leaves the wall. With `u = r·sin φ`, the integral
+//! `∫ w·(r − √(r² − u²)) du` is `r²∫ (K − r·cot β·sin φ − r·cos φ)(cos φ −
+//! cos² φ) dφ` from `π/2 − β` to `π/2`, `K = t + r·cot β`, each term an
+//! elementary one. At a square corner it is `r³(5/3 − π/2)` again. On #843's
+//! pointed plate, `β = π/4`: the plate holds `189H`, the full round takes
+//! `30r²(2 − π/2)` along its length and `45 − 27π/2` over the point, the
+//! upright `H(9(√2 − 1) − 9π/8)`, and they share
+//! `99√2/4 − 9 − 27π(1 + √2)/8`, 0.4042; the body holds
+//! `1386 + 1251π/8 − 261√2/4 − 27√2π/8`, 1769.99. On the slanted end,
+//! `β = atan 3`: the plate holds `186H`, the full round takes
+//! `31r²(2 − π/2)`, the upright `H(3(√10 − 1) − 9β/2)`, and they share
+//! `9 + 171√10/20 − 9(√10 + 3)β/2`, 1.4011; the body holds
+//! `1341 + 279π/2 − 429√10/20 + 9(7 − √10)β/2`, 1732.99. Both were checked
+//! against the volume integrated over the plate point by point, to 3·10⁻⁹.
+//! The mitre is still where the two cylinders cross, on the plane through
+//! their crossing axes, `z − 7 = x − x_c`; it ends where the upright's round
+//! leaves the corner's other wall, at `z = 7 + r·sin β`. The booleans give
+//! each volume as well, every round's prism cut whole from the plate, the
+//! upright's raised up its height.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::f64::consts::PI;
+use std::f64::consts::{PI, SQRT_2};
 
 use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
@@ -206,14 +300,37 @@ const TOP_END: [usize; 2] = [TOP, END];
 const FRONT_UPRIGHT: [usize; 2] = [FRONT, END];
 const BACK_UPRIGHT: [usize; 2] = [BACK, END];
 
+/// The edges the review's lists name besides: the floor's front and back
+/// edges, the pair of a full round along the floor; and the uprights where
+/// the front and the back meet the left end, at x = 0.
+const FLOOR_FRONT: [usize; 2] = [FLOOR, FRONT];
+const FLOOR_BACK: [usize; 2] = [FLOOR, BACK];
+const FRONT_LEFT_UPRIGHT: [usize; 2] = [FRONT, LEFT];
+const BACK_LEFT_UPRIGHT: [usize; 2] = [BACK, LEFT];
+
 /// The full round's pair, and what each edge is called.
 const PAIR: [([usize; 2], &str); 2] = [
     (TOP_FRONT, "the top's front edge"),
     (TOP_BACK, "the top's back edge"),
 ];
 
+/// What the block [`WIDTH`] wide is called.
+const ON_THE_BLOCK: &str = "the block 6 wide";
+
 /// The edge across the end, and what it is called.
 const END_EDGE: ([usize; 2], &str) = (TOP_END, "the top's edge across the end");
+
+/// The edges of the review's lists besides, and what each is called.
+const FLOOR_FRONT_EDGE: ([usize; 2], &str) = (FLOOR_FRONT, "the floor's front edge");
+const FLOOR_BACK_EDGE: ([usize; 2], &str) = (FLOOR_BACK, "the floor's back edge");
+const FRONT_LEFT_EDGE: ([usize; 2], &str) = (
+    FRONT_LEFT_UPRIGHT,
+    "the upright at the left end's front corner",
+);
+const BACK_LEFT_EDGE: ([usize; 2], &str) = (
+    BACK_LEFT_UPRIGHT,
+    "the upright at the left end's back corner",
+);
 
 /// The ground's plane, which a part is drawn on.
 fn ground() -> Frame {
@@ -241,6 +358,21 @@ fn block(width: f64) -> Body {
     let tool = part
         .tool_raised(
             &profile(Contour::rectangle(DVec2::ZERO, DVec2::new(LENGTH, width))),
+            ground(),
+            DVec3::Z * HEIGHT,
+        )
+        .expect("the tool raises");
+    part.union(&tool).expect("the part is built")
+}
+
+/// A plate [`HEIGHT`] high raised from `outline`, anticlockwise seen from
+/// above, as `cao_part` builds a step: its floor nought, its top one, then a
+/// wall for each run of the outline, from two.
+fn plate(outline: Vec<DVec2>) -> Body {
+    let part = Body::default();
+    let tool = part
+        .tool_raised(
+            &profile(Contour::straight(outline)),
             ground(),
             DVec3::Z * HEIGHT,
         )
@@ -629,6 +761,140 @@ fn raised_up_the_block(part: &Body, outline: Contour) -> Body {
     .expect("the tool raises")
 }
 
+/// What a round of [`RADIUS`] at a convex corner of a section takes away,
+/// drawn in the section's plane, anticlockwise: all that stands outside both
+/// sides beyond the arc tangent to them, out past them. The section's outline
+/// runs anticlockwise too, arriving at `corner` along `arriving` and leaving
+/// it along `leaving`, both of unit length; the round stands back from the
+/// corner along each by `r·tan(β/2)`, `β` the turn between them, written
+/// `r(1 − cos β)/sin β` so that a square corner's comes out exact.
+fn outside_the_round_at(corner: DVec2, arriving: DVec2, leaving: DVec2) -> Contour {
+    let r = RADIUS;
+    let far = r + 2.0;
+    let (sin, cos) = (arriving.perp_dot(leaving), arriving.dot(leaving));
+    let set_back = r * (1.0 - cos) / sin;
+    let [out_of_arriving, out_of_leaving] =
+        [arriving, leaving].map(|way| DVec2::new(way.y, -way.x));
+    let on_arriving = corner - arriving * set_back;
+    let on_leaving = corner + leaving * set_back;
+    let corners = vec![
+        on_arriving,
+        on_arriving + out_of_arriving * far,
+        corner + (out_of_arriving + out_of_leaving) * far,
+        on_leaving + out_of_leaving * far,
+        on_leaving,
+    ];
+    let mut runs = vec![Run::Straight; corners.len()];
+    runs[4] = Run::Round {
+        center: on_arriving - out_of_arriving * r,
+        turn: -sin.atan2(cos),
+    };
+    Contour { corners, runs }
+}
+
+/// The prism the round of the upright at `corner` of the outline seen from
+/// above takes away, the outline arriving there along `arriving` and leaving
+/// along `leaving`, raised whole up past the floor and the top.
+fn upright_tool_at(part: &Body, corner: DVec2, arriving: DVec2, leaving: DVec2) -> Body {
+    raised_up_the_block(part, outside_the_round_at(corner, arriving, leaving))
+}
+
+/// A tool drawn in the block's section square to X, `u` along Y and `v` up,
+/// and raised whole along X past both ends of the stretch `along` covers.
+fn raised_along_the_block(part: &Body, outline: Contour, [from, to]: [f64; 2]) -> Body {
+    part.tool_raised(
+        &profile(outline),
+        Frame {
+            origin: DVec3::new(from - 2.0, 0.0, 0.0),
+            u: DVec3::Y,
+            v: DVec3::Z,
+        },
+        DVec3::X * (to - from + 4.0),
+    )
+    .expect("the tool raises")
+}
+
+/// The prism the round of the top's front edge alone takes away, raised
+/// whole along the block: the section's outline, seen with Y to the right and
+/// Z up, arrives at the top's front corner along the top, from the back, and
+/// leaves it down the front.
+fn top_front_tool(part: &Body) -> Body {
+    raised_along_the_block(
+        part,
+        outside_the_round_at(DVec2::new(0.0, HEIGHT), -DVec2::X, -DVec2::Y),
+        [0.0, LENGTH],
+    )
+}
+
+/// The prism the round of the floor's front edge alone takes away, raised
+/// whole along the block: the section's outline arrives at the floor's front
+/// corner down the front and leaves it along the floor.
+fn floor_front_tool(part: &Body) -> Body {
+    raised_along_the_block(
+        part,
+        outside_the_round_at(DVec2::ZERO, -DVec2::Y, DVec2::X),
+        [0.0, LENGTH],
+    )
+}
+
+/// The prism the round of the top's edge across the end at x = [`LENGTH`]
+/// takes away, raised whole along Y past the front and the back: drawn in the
+/// section square to Y, `u` along X and `v` down, whose outline arrives at the
+/// end's top corner along the top and leaves it up the end.
+fn end_edge_tool(part: &Body) -> Body {
+    part.tool_raised(
+        &profile(outside_the_round_at(
+            DVec2::new(LENGTH, -HEIGHT),
+            DVec2::X,
+            DVec2::Y,
+        )),
+        Frame {
+            origin: DVec3::new(0.0, -RADIUS - 2.0, 0.0),
+            u: DVec3::X,
+            v: -DVec3::Z,
+        },
+        DVec3::Y * (WIDTH + 2.0 * RADIUS + 4.0),
+    )
+    .expect("the tool raises")
+}
+
+/// The prism the full round along the floor takes away, raised whole along X
+/// past both ends of the block: all that stands under the front and the back
+/// outside the half cylinder about the line [`RADIUS`] over the middle of the
+/// floor.
+fn floor_full_round_tool(part: &Body) -> Body {
+    let far = 2.0 * RADIUS + 2.0;
+    let corners = vec![
+        DVec2::new(-far, RADIUS),
+        DVec2::new(-far, -far),
+        DVec2::new(WIDTH + far, -far),
+        DVec2::new(WIDTH + far, RADIUS),
+        DVec2::new(WIDTH, RADIUS),
+        DVec2::new(0.0, RADIUS),
+    ];
+    let mut runs = vec![Run::Straight; corners.len()];
+    runs[4] = Run::Round {
+        center: DVec2::new(RADIUS, RADIUS),
+        turn: -PI,
+    };
+    raised_along_the_block(part, Contour { corners, runs }, [0.0, LENGTH])
+}
+
+/// A prism a round takes away, raised on the body it is to be cut from.
+type Tool = dyn Fn(&Body) -> Body;
+
+/// What is left of `part` once each of `tools`, raised on what is left so
+/// far, is cut from it by the booleans, in turn.
+fn left_by_booleans(part: &Body, tools: &[&Tool]) -> f64 {
+    tools
+        .iter()
+        .fold(part.clone(), |left, tool| {
+            left.difference(&tool(&left))
+                .expect("a round's prism cuts the part")
+        })
+        .volume()
+}
+
 /// Holds that every ray aimed square at the round's axis from outside, over
 /// a grid along it and round it, meets the face numbered `face` first,
 /// facing away from the axis along the ray, wherever `shows` says the round
@@ -738,19 +1004,71 @@ impl Cut {
 
 /// What the block `width` wide keeps once the edges `listed` are cut at
 /// [`RADIUS`], as the module's documentation derives it: each edge's cut
-/// taken whole all along it, and given back at each of the end's two top
-/// corners what the cuts of the named edges there take more than once.
+/// taken whole all along it, and given back at each of the block's eight
+/// corners what the cuts of the named edges there take more than once. Each
+/// edge is written as the constants above write it: the top or the floor
+/// first, then the front or the back, then the end or the left end.
 fn kept(cut: Cut, width: f64, listed: &[[usize; 2]]) -> f64 {
-    let length = |edge: &[usize; 2]| match *edge {
-        TOP_FRONT | TOP_BACK => LENGTH,
-        TOP_END => width,
-        _ => HEIGHT,
+    let ends = [END, LEFT];
+    let sides = [FRONT, BACK];
+    let levels = [TOP, FLOOR];
+    let length = |edge: &[usize; 2]| {
+        let [one, other] = *edge;
+        match (levels.contains(&one), ends.contains(&other)) {
+            (true, true) => width,
+            (false, true) => HEIGHT,
+            _ => LENGTH,
+        }
     };
-    let named_at =
-        |corner: [[usize; 2]; 3]| corner.iter().filter(|edge| listed.contains(edge)).count();
-    LENGTH * width * HEIGHT - cut.section() * listed.iter().map(length).sum::<f64>()
-        + cut.given_back(named_at([TOP_FRONT, TOP_END, FRONT_UPRIGHT]))
-        + cut.given_back(named_at([TOP_BACK, TOP_END, BACK_UPRIGHT]))
+    let mut given_back = 0.0;
+    for end in ends {
+        for side in sides {
+            for level in levels {
+                let corner = [[level, side], [level, end], [side, end]];
+                let named = corner.iter().filter(|edge| listed.contains(edge)).count();
+                given_back += cut.given_back(named);
+            }
+        }
+    }
+    LENGTH * width * HEIGHT - cut.section() * listed.iter().map(length).sum::<f64>() + given_back
+}
+
+/// What the full round and the round of an upright at a convex corner of
+/// the front both take, counted twice, the corner's other wall turning by
+/// `turn` from the front, as the module's documentation derives it: the
+/// integral over the corner the upright's round takes, of the height the full
+/// round takes there, in `φ` from `π/2 − turn` to `π/2`.
+fn shared_at_a_corner_turning_by(turn: f64) -> f64 {
+    let r = RADIUS;
+    let (sin, cos) = turn.sin_cos();
+    let set_back = r * (1.0 - cos) / sin;
+    let lean = cos / sin;
+    let k = set_back + r * lean;
+    let at = |phi: f64| {
+        let (sin, cos) = phi.sin_cos();
+        let of_cos = sin;
+        let of_cos_squared = phi / 2.0 + sin * cos / 2.0;
+        let of_sin_cos = sin * sin / 2.0;
+        let of_sin_cos_squared = -cos.powi(3) / 3.0;
+        let of_cos_cubed = sin - sin.powi(3) / 3.0;
+        k * (of_cos - of_cos_squared)
+            - r * lean * (of_sin_cos - of_sin_cos_squared)
+            - r * (of_cos_squared - of_cos_cubed)
+    };
+    r * r * (at(PI / 2.0) - at(PI / 2.0 - turn))
+}
+
+/// What a plate of `area` seen from above and [`HEIGHT`] high keeps once its
+/// full round, which alone takes `full_round_takes`, and the round of the
+/// upright at a convex corner of its front, the corner's other wall turning
+/// by `turn` from the front, are laid at [`RADIUS`], as the module's
+/// documentation derives it: the plate, less what each takes alone, given
+/// back what both take.
+fn full_round_and_a_leaning_upright(area: f64, full_round_takes: f64, turn: f64) -> f64 {
+    let r = RADIUS;
+    let set_back = r * (1.0 - turn.cos()) / turn.sin();
+    let upright_takes = HEIGHT * (r * set_back - r * r * turn / 2.0);
+    area * HEIGHT - full_round_takes - upright_takes + shared_at_a_corner_turning_by(turn)
 }
 
 /// Holds that the arithmetic of [`kept`] gives the volume the module's
@@ -767,6 +1085,14 @@ fn the_arithmetic_gives(listed: &[[usize; 2]], volume: f64, written: &str) {
 /// of the block: all that stands over the front and the back outside the half
 /// cylinder about the line [`RADIUS`] under the middle of the top.
 fn full_round_tool(part: &Body) -> Body {
+    full_round_tool_along(part, [0.0, LENGTH])
+}
+
+/// The prism the full round takes away, raised whole along X past both ends
+/// of the stretch `along` covers: all that stands over the front and the back
+/// outside the half cylinder about the line [`RADIUS`] under the middle of the
+/// top.
+fn full_round_tool_along(part: &Body, along: [f64; 2]) -> Body {
     let far = 2.0 * RADIUS + 2.0;
     let foot = HEIGHT - RADIUS;
     let corners = vec![
@@ -782,16 +1108,7 @@ fn full_round_tool(part: &Body) -> Body {
         center: DVec2::new(RADIUS, foot),
         turn: -PI,
     };
-    part.tool_raised(
-        &profile(Contour { corners, runs }),
-        Frame {
-            origin: DVec3::new(-2.0, 0.0, 0.0),
-            u: DVec3::Y,
-            v: DVec3::Z,
-        },
-        DVec3::X * (LENGTH + 4.0),
-    )
-    .expect("the tool raises")
+    raised_along_the_block(part, Contour { corners, runs }, along)
 }
 
 /// The prism the standing full round takes away, raised whole up past the
@@ -947,13 +1264,14 @@ fn ranks_of(start: usize, order: &[usize], edges: &[usize]) -> Vec<usize> {
     ranks
 }
 
-/// Holds that the fillet at [`RADIUS`] on `listed`'s edges of `part`, in
-/// every order the list can name them, is laid, each order's body held by
-/// `holds` — given the order, the step's answer and what it is called — and
-/// each the body the listed order lays, its faces meeting alike, each laid
-/// face read by the edge it was laid on.
+/// Holds that the fillet at [`RADIUS`] on `listed`'s edges of `part`, called
+/// `on`, in every order the list can name them, is laid, each order's body
+/// held by `holds` — given the order, the step's answer and what it is called
+/// — and each the body the listed order lays, its faces meeting alike, each
+/// laid face read by the edge it was laid on.
 fn filleted_in_every_order(
     part: &Body,
+    on: &str,
     listed: &[([usize; 2], &str)],
     holds: impl Fn(&[usize], &Filleted, &str),
 ) {
@@ -964,7 +1282,10 @@ fn filleted_in_every_order(
         .collect();
     let called = |order: &[usize]| {
         let called: Vec<&str> = order.iter().map(|&edge| listed[edge].1).collect();
-        format!("the fillet at {RADIUS} on {}", called.join(", then "))
+        format!(
+            "the fillet at {RADIUS} on {}, on {on}",
+            called.join(", then ")
+        )
     };
     let laid: Vec<(Vec<usize>, Result<Filleted, Declined>)> = every_order(named.len())
         .into_iter()
@@ -986,8 +1307,7 @@ fn filleted_in_every_order(
     let listed_order: Vec<usize> = (0..named.len()).collect();
     assert!(
         declined.is_empty(),
-        "{}, on the block {WIDTH} wide, is laid whichever edge the list names first; \
-         declined:\n{}",
+        "{} is laid whichever edge the list names first; declined:\n{}",
         called(&listed_order),
         declined.join("\n")
     );
@@ -1338,7 +1658,7 @@ fn mitred_against_the_full_round_whatever_the_order(upright: Upright) {
          leave {by_booleans}, where arithmetic promises {promised}",
         upright.edge().1
     );
-    filleted_in_every_order(&part, &listed, |order, filleted, what| {
+    filleted_in_every_order(&part, ON_THE_BLOCK, &listed, |order, filleted, what| {
         mitres_the_upright_s_round_against_the_full_round(&part, upright, order, filleted, what);
     });
 }
@@ -1605,7 +1925,7 @@ fn a_fillet_on_a_full_round_and_both_uprights_at_its_end_mitres_their_standing_f
         "the lying and the standing full rounds' prisms, cut from the block by the booleans, \
          leave {by_booleans}, where arithmetic promises {promised}"
     );
-    filleted_in_every_order(&part, &listed, |order, filleted, what| {
+    filleted_in_every_order(&part, ON_THE_BLOCK, &listed, |order, filleted, what| {
         mitres_the_standing_full_round_against_the_lying_one(&part, order, filleted, what);
     });
 }
@@ -1739,5 +2059,271 @@ fn the_lists_main_builds_at_the_end_of_a_block_6_or_6_5_wide_keep_their_bodies_i
          the value taken whole, exact, closed and uncrossed, holding what arithmetic and main \
          give; not so:\n{}",
         not_kept.join("\n")
+    );
+}
+
+/// Holds that the fillet at [`RADIUS`] on `listed`'s edges of `part`, called
+/// `on`, lays in every order the list can name them the body the arithmetic
+/// gives, holding `promised`: one body, the value taken whole, exact, closed
+/// and uncrossed, its triangles enclosing `promised` within the drawing's
+/// tolerance over rounds no longer than the part reaches; then that
+/// `by_booleans`, cutting the rounds' prisms from the part, leaves `promised`
+/// too.
+fn laid_as_the_arithmetic_gives_in_every_order(
+    part: &Body,
+    on: &str,
+    listed: &[([usize; 2], &str)],
+    promised: f64,
+    by_booleans: impl FnOnce() -> f64,
+) {
+    let reach = reach_of(part);
+    let rounds = PI / 2.0 * RADIUS * reach * listed.len() as f64;
+    filleted_in_every_order(part, on, listed, |_, filleted, what| {
+        taken_as_asked(filleted.asked, filleted.taken, RADIUS, what);
+        sound_drawn_within(&filleted.body, promised, DRAWN * reach * rounds, what);
+    });
+    let left = by_booleans();
+    assert!(
+        (left - promised).abs() <= EXACT * promised,
+        "the prisms of the rounds on {on}, cut from it by the booleans, leave {left}, where \
+         arithmetic promises {promised}"
+    );
+}
+
+/// The prism the round of the upright at the block's front corner at
+/// x = [`LENGTH`] takes away.
+fn front_right_tool(part: &Body) -> Body {
+    Upright::Front.tool(part)
+}
+
+/// The prism the round of the upright at the left end's front corner takes
+/// away: the outline arrives at the origin down the left end and leaves it
+/// along the front.
+fn front_left_tool(part: &Body) -> Body {
+    upright_tool_at(part, DVec2::ZERO, -DVec2::Y, DVec2::X)
+}
+
+/// The prism the round of the upright at the left end's back corner takes
+/// away: the outline arrives there along the back and leaves it down the left
+/// end.
+fn back_left_tool(part: &Body) -> Body {
+    upright_tool_at(part, DVec2::new(0.0, WIDTH), -DVec2::X, -DVec2::Y)
+}
+
+#[test]
+fn a_fillet_on_a_full_round_and_an_upright_at_its_far_end_or_one_at_each_end_mitres_each_upright_s_round_against_the_full_round_whatever_the_order()
+ {
+    let part = block(WIDTH);
+
+    let at_the_far_end = [PAIR[0], PAIR[1], FRONT_LEFT_EDGE];
+    let edges = at_the_far_end.map(|(edge, _)| edge);
+    the_arithmetic_gives(&edges, 1215.0 + 144.0 * PI, "1215 + 144π");
+    let tools: [&Tool; 2] = [&full_round_tool, &front_left_tool];
+    laid_as_the_arithmetic_gives_in_every_order(
+        &part,
+        ON_THE_BLOCK,
+        &at_the_far_end,
+        kept(Cut::Fillet, WIDTH, &edges),
+        || left_by_booleans(&part, &tools),
+    );
+
+    let one_at_each_end = [PAIR[0], PAIR[1], Upright::Front.edge(), BACK_LEFT_EDGE];
+    let edges = one_at_each_end.map(|(edge, _)| edge);
+    the_arithmetic_gives(&edges, 1170.0 + 153.0 * PI, "1170 + 153π");
+    let tools: [&Tool; 3] = [&full_round_tool, &front_right_tool, &back_left_tool];
+    laid_as_the_arithmetic_gives_in_every_order(
+        &part,
+        ON_THE_BLOCK,
+        &one_at_each_end,
+        kept(Cut::Fillet, WIDTH, &edges),
+        || left_by_booleans(&part, &tools),
+    );
+}
+
+#[test]
+fn a_fillet_on_a_full_round_the_edge_across_one_end_and_an_upright_at_the_other_mitres_both_against_the_full_round_whatever_the_order()
+ {
+    let part = block(WIDTH);
+    let listed = [PAIR[0], PAIR[1], END_EDGE, FRONT_LEFT_EDGE];
+    let edges = listed.map(|(edge, _)| edge);
+    the_arithmetic_gives(&edges, 1251.0 + 261.0 * PI / 2.0, "1251 + 261π/2");
+    let tools: [&Tool; 3] = [&full_round_tool, &end_edge_tool, &front_left_tool];
+    laid_as_the_arithmetic_gives_in_every_order(
+        &part,
+        ON_THE_BLOCK,
+        &listed,
+        kept(Cut::Fillet, WIDTH, &edges),
+        || left_by_booleans(&part, &tools),
+    );
+}
+
+#[test]
+fn a_fillet_on_both_uprights_at_an_end_and_one_long_edge_of_the_top_or_the_floor_mitres_that_edge_s_round_against_their_standing_full_round_whatever_the_order()
+ {
+    let part = block(WIDTH);
+    let standing = [Upright::Front.edge(), Upright::Back.edge()];
+    let lying: [(([usize; 2], &str), &Tool); 2] = [
+        (PAIR[0], &top_front_tool),
+        (FLOOR_FRONT_EDGE, &floor_front_tool),
+    ];
+    for (edge, tool) in lying {
+        let listed = [standing[0], standing[1], edge];
+        let edges = listed.map(|(edge, _)| edge);
+        the_arithmetic_gives(&edges, 1395.0 + 99.0 * PI, "1395 + 99π");
+        let tools: [&Tool; 2] = [&standing_full_round_tool, tool];
+        laid_as_the_arithmetic_gives_in_every_order(
+            &part,
+            ON_THE_BLOCK,
+            &listed,
+            kept(Cut::Fillet, WIDTH, &edges),
+            || left_by_booleans(&part, &tools),
+        );
+    }
+}
+
+#[test]
+fn a_fillet_on_full_rounds_along_the_top_and_the_floor_and_the_upright_at_their_end_mitres_the_upright_s_round_against_both_whatever_the_order()
+ {
+    let part = block(WIDTH);
+    let listed = [
+        PAIR[0],
+        PAIR[1],
+        FLOOR_FRONT_EDGE,
+        FLOOR_BACK_EDGE,
+        Upright::Front.edge(),
+    ];
+    let edges = listed.map(|(edge, _)| edge);
+    the_arithmetic_gives(&edges, 720.0 + 531.0 * PI / 2.0, "720 + 531π/2");
+    let tools: [&Tool; 3] = [&full_round_tool, &floor_full_round_tool, &front_right_tool];
+    laid_as_the_arithmetic_gives_in_every_order(
+        &part,
+        ON_THE_BLOCK,
+        &listed,
+        kept(Cut::Fillet, WIDTH, &edges),
+        || left_by_booleans(&part, &tools),
+    );
+}
+
+/// Holds that the arithmetic of [`full_round_and_a_leaning_upright`] gives
+/// the volume the module's documentation writes out for a plate.
+fn the_leaning_arithmetic_gives(promised: f64, volume: f64, written: &str) {
+    assert!(
+        (promised - volume).abs() <= EXACT * volume,
+        "the arithmetic gives {promised}, where the documentation writes {written}"
+    );
+}
+
+#[test]
+fn a_fillet_on_a_full_round_and_the_upright_at_a_corner_of_its_pointed_end_mitres_the_upright_s_round_against_it_up_to_the_point_s_wall_whatever_the_order()
+ {
+    let r = RADIUS;
+    let tip = 33.0;
+    let part = plate(vec![
+        DVec2::ZERO,
+        DVec2::new(LENGTH, 0.0),
+        DVec2::new(tip, r),
+        DVec2::new(LENGTH, WIDTH),
+        DVec2::new(0.0, WIDTH),
+    ]);
+    let [point_front, back] = [3, 5];
+    let listed = [
+        ([TOP, FRONT], "the top's front edge"),
+        ([TOP, back], "the top's back edge"),
+        (
+            [FRONT, point_front],
+            "the upright where the front meets the point",
+        ),
+    ];
+    let promised = full_round_and_a_leaning_upright(
+        189.0,
+        30.0 * r * r * (2.0 - PI / 2.0) + 45.0 - 27.0 * PI / 2.0,
+        PI / 4.0,
+    );
+    the_leaning_arithmetic_gives(
+        promised,
+        1386.0 + 1251.0 * PI / 8.0 - 261.0 * SQRT_2 / 4.0 - 27.0 * SQRT_2 * PI / 8.0,
+        "1386 + 1251π/8 − 261√2/4 − 27√2π/8",
+    );
+    let full_round = move |left: &Body| full_round_tool_along(left, [0.0, tip]);
+    let upright = move |left: &Body| {
+        upright_tool_at(
+            left,
+            DVec2::new(LENGTH, 0.0),
+            DVec2::X,
+            DVec2::new(1.0, 1.0).normalize(),
+        )
+    };
+    let tools: [&Tool; 2] = [&full_round, &upright];
+    laid_as_the_arithmetic_gives_in_every_order(
+        &part,
+        "#843's plate pointed at (33, 3)",
+        &listed,
+        promised,
+        || left_by_booleans(&part, &tools),
+    );
+}
+
+#[test]
+fn a_fillet_on_a_full_round_and_the_upright_at_a_corner_of_its_slanted_end_mitres_the_upright_s_round_against_it_up_to_the_end_wall_whatever_the_order()
+ {
+    let r = RADIUS;
+    let back_end = 32.0;
+    let part = plate(vec![
+        DVec2::ZERO,
+        DVec2::new(LENGTH, 0.0),
+        DVec2::new(back_end, WIDTH),
+        DVec2::new(0.0, WIDTH),
+    ]);
+    let back = 4;
+    let listed = [
+        ([TOP, FRONT], "the top's front edge"),
+        ([TOP, back], "the top's back edge"),
+        (
+            [FRONT, END],
+            "the upright where the front meets the slanted end",
+        ),
+    ];
+    let turn = 3.0_f64.atan();
+    let promised = full_round_and_a_leaning_upright(186.0, 31.0 * r * r * (2.0 - PI / 2.0), turn);
+    let root_ten = 10.0_f64.sqrt();
+    the_leaning_arithmetic_gives(
+        promised,
+        1341.0 + 279.0 * PI / 2.0 - 429.0 * root_ten / 20.0 + 9.0 * (7.0 - root_ten) / 2.0 * turn,
+        "1341 + 279π/2 − 429√10/20 + 9(7 − √10)·atan 3/2",
+    );
+    let full_round = move |left: &Body| full_round_tool_along(left, [0.0, back_end]);
+    let upright = move |left: &Body| {
+        upright_tool_at(
+            left,
+            DVec2::new(LENGTH, 0.0),
+            DVec2::X,
+            DVec2::new(back_end - LENGTH, WIDTH).normalize(),
+        )
+    };
+    let tools: [&Tool; 2] = [&full_round, &upright];
+    laid_as_the_arithmetic_gives_in_every_order(
+        &part,
+        "the plate whose end runs from (30, 0) to (32, 6)",
+        &listed,
+        promised,
+        || left_by_booleans(&part, &tools),
+    );
+}
+
+#[test]
+fn a_fillet_on_a_full_round_a_hair_short_the_upright_at_its_end_and_the_floor_s_front_edge_takes_the_value_whole_whatever_the_order()
+ {
+    let hair_wide = WIDTH + 1e-12;
+    let part = block(hair_wide);
+    let listed = [PAIR[0], PAIR[1], Upright::Front.edge(), FLOOR_FRONT_EDGE];
+    let edges = listed.map(|(edge, _)| edge);
+    the_arithmetic_gives(&edges, 990.0 + 198.0 * PI, "990 + 198π");
+    let tools: [&Tool; 3] = [&full_round_tool, &front_right_tool, &floor_front_tool];
+    laid_as_the_arithmetic_gives_in_every_order(
+        &part,
+        "the block 6 + 10⁻¹² wide",
+        &listed,
+        kept(Cut::Fillet, hair_wide, &edges),
+        || left_by_booleans(&block(WIDTH), &tools),
     );
 }

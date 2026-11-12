@@ -3,8 +3,8 @@
 //! not cross on it, the pairs whose set-backs meet across it, which are laid
 //! as one, and the edges of the list such a pair is mitred against at a
 //! corner (#803): each edge at its end, bounding the face that is gone, one
-//! across it or the two of a pointed or a V-notched end (#843), and the
-//! upright at its end, meeting one of the pair (#837).
+//! across it or the two of a pointed or a V-notched end (#843), and any
+//! upright meeting one of the pair, at either end (#837).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -154,15 +154,15 @@ pub(in crate::body::exact) fn together(rank: usize, pairs: &[Pair]) -> Vec<usize
 /// holds the corners three of them meet at — each edge of a pointed or a
 /// notched end (#843) — and each edge whose faces meet outwards, not bounding
 /// that face, that meets one of the pair at a corner where no third edge of
-/// the list ends, convex, `beside` holding the corners that are not — the
-/// upright at their end (#837) — whose cut is laid in turn against the one
-/// prism they are taken off with and against its neighbours, by its rank,
-/// with the pair's value, the radius that prism is raised at, so that its cut
-/// meets theirs where they meet across the face even where the value taken
-/// stands a hair short of it. Declined `Unsupported` where an edge of a pair
+/// the list ends, convex, `beside` holding the corners that are not — an
+/// upright at either end, one of a standing full round among them (#837) —
+/// whose cut is laid in turn against the one prism they are taken off with
+/// and against its neighbours, by its rank, with the pair's value, the radius
+/// that prism is raised at, so that its cut meets theirs where they meet
+/// across the face even where the value taken stands a hair short of it. Declined `Unsupported` where an edge of a pair
 /// meets another of `edges` at a corner any other way: a full round meeting
 /// an edge bounding its face at one of its edges alone, or an upright where
-/// the edge at its end ends too (#837), a pointed or notched end with the
+/// a third edge of the list ends too (#837), a pointed or notched end with the
 /// upright at its tip (#837), a round bottom meeting any edge (#838), a slope
 /// meeting any.
 pub(super) fn at_their_ends(

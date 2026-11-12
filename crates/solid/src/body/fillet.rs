@@ -58,12 +58,16 @@ impl Body {
     /// corner, and so are the two edges of a pointed end, or of a notch beside
     /// its concave upright, each bounding that face and meeting one of the full
     /// round's edges and the other, mitred against both their neighbours, the
-    /// three mitres meeting at the crown, and so is the upright at its end,
-    /// meeting one of its edges at a convex corner, mitred against it on one
-    /// ellipse from where the full round leaves the upright's face up to the
-    /// crown; an edge of a full round meeting any other edge of the list at a
-    /// corner, those two where the upright at the tip is named too, the
-    /// upright where the edge at its end is (#837), or one of a round bottom
+    /// three mitres meeting at the crown; and any upright meeting one of the
+    /// full round's edges at a convex corner where no third edge of the list
+    /// ends — at either end of the part, under a full round along the top or
+    /// over one along the floor, the two uprights at one end a standing full
+    /// round themselves — is rounded at that radius and mitred against it on
+    /// one ellipse, from where the full round leaves the face the two share to
+    /// where the upright's round leaves its other face, the crown at a square
+    /// end. An edge of a full round meeting any other edge of the list at a
+    /// corner, those two where the upright at the tip is named too, an upright
+    /// where a third edge of the list ends (#837), or one of a round bottom
     /// meeting any, is declined `Unsupported`. Rounds
     /// that would meet only on a curved edge are not measured, and declined
     /// `Unsupported` where they meet. The first edge declined declines the

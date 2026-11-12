@@ -29,10 +29,13 @@ impl Exact {
     /// at its end, bounding the face that is gone and meeting both its edges
     /// at a corner, is rounded at that same radius and mitred against it as
     /// against any round meeting it at a convex corner, the two rounds meeting
-    /// on two ellipses up to the crown, where they touch; the upright at its
-    /// end, meeting one of its edges at a convex corner, is rounded at that
-    /// radius too and mitred against it on one ellipse, from where the full
-    /// round leaves the upright's face up to the crown. Where
+    /// on two ellipses up to the crown, where they touch; any upright meeting
+    /// one of its edges at a convex corner where no third edge of the list
+    /// ends — at either end, along the top or the floor, the two at one end a
+    /// standing full round — is rounded at that radius too and mitred against
+    /// it on one ellipse, from where the full round leaves the face the two
+    /// share to where the upright's round leaves its other face, the crown at
+    /// a square end. Where
     /// matter lies past an end of an edge rounded off, behind the one flat face
     /// it runs into there — the inner corner of an L, a pocket's rim, the foot
     /// of a block standing on another — its round stops flush on that face,
@@ -105,10 +108,10 @@ impl Exact {
     /// an edge meets inwards, an edge whose set-backs meet those of two others
     /// — rounds closing on themselves, #790 — an edge of a full round meeting
     /// another edge of the list at a corner but the edge at its end, the two
-    /// of a pointed or a V-notched end or the upright at its end, those two
-    /// meeting where the upright at the tip is named too and the upright where
-    /// the edge at its end is, one of a round bottom meeting any, and a cut
-    /// that left anything but its round —
+    /// of a pointed or a V-notched end or an upright, those two meeting where
+    /// the upright at the tip is named too and an upright where a third edge
+    /// of the list ends, one of a round bottom meeting any, and a cut that
+    /// left anything but its round —
     /// a face of the prism, the round in two
     /// pieces or with a corner on neither of the edge's faces, a face the body
     /// held, but the edge's two, taken away whole — as where a round leaving

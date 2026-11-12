@@ -146,8 +146,8 @@ impl Exact {
     /// meeting two others but in a closed chain, cut down to one cylinder as
     /// [`Exact::closed_round`] cuts it, or one of two laid together that meets another
     /// edge of the list at a corner any other way — a pointed end's two edges
-    /// among them where a third ends at the tip, an upright where the edge at
-    /// their end ends too — a cut or a fill that left
+    /// among them where a third ends at the tip, an upright where a third edge
+    /// of the list ends too — a cut or a fill that left
     /// something else than its one face, as
     /// [`Exact::cut_along`] reads it, a face of an overlap no edge covered, and
     /// a corner gone round its odd edge as [`Exact::round_the_odd`] declines

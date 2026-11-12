@@ -271,6 +271,22 @@
 //!   included — no test: held by their own tests in this file, left as they
 //!   are; the overhanging middle wall's comparison of the bodies across
 //!   orders moved into `the_same_body_in_every_order`, asserting what it did
+//!
+//! Two mutants of the filter choosing whose walls an edge's cut may reach,
+//! `pair.contains(&rank) && between > rank` in `step.rs`, live, and are
+//! taken for equivalent. `>=` for `>`: the middle edge of a crossing is
+//! never one of its pair, so an edge of the pair is never the middle. `||`
+//! for `&&` hands an edge the middle's two faces when it is not of the pair
+//! or the middle is laid before it; one face is the face all three share,
+//! already the edge's own, and the middle's wall is reached only at the
+//! corner the two share, where its cut's corners lie on its own faces, each
+//! edge's limit alone keeping its set-back off that wall elsewhere whatever
+//! its rank. Measured on 21,240 steps — the regular hexagon and the two
+//! uneven ones, 5 and 12 tall, upright or one wall leaning in 30 to 60
+//! degrees; three edges in a row, four, and the ring of six; every order of
+//! three and four, five of six; asked 2 to 8, chamfer and fillet — the
+//! mutant gave every value, matter and decline the code gives, and no
+//! unsound body.
 
 use std::collections::BTreeSet;
 use std::f64::consts::{FRAC_1_SQRT_2, PI, TAU};

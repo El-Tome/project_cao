@@ -160,22 +160,28 @@ pub(in crate::body::exact) fn together(rank: usize, pairs: &[Pair]) -> Vec<usize
 /// pair at a corner where no third edge of the list ends but the edge at
 /// their end, the three closed there, convex, `beside` holding the corners
 /// that are not — an upright at either end, one of a standing full round
-/// among them (#837) — and, of a pair whose faces meet inwards, a round
-/// bottom, each edge bounding the face they meet across that meets both of
-/// the pair at a corner, its faces meeting inwards too — the floor's edge on
-/// a pocket's end wall, or the edge at the foot of a standing round bottom of
-/// two uprights at that end, its fill joined to theirs in a valley (#838) —
-/// whose cut or fill is laid in turn against the one prism they are taken off
-/// or filled in with and against its neighbours, by its rank, with the pair's
-/// value, the radius that prism is raised at, so that it meets theirs where
-/// they meet across the face even where the value taken stands a hair short
-/// of it. Declined `Unsupported` where an edge of a pair meets another of
-/// `edges` at a corner any other way: a full round meeting an edge bounding
-/// its face at one of its edges alone, or an upright where a third edge of
-/// the list ends but the edge at their end (#837), a notched end with the
-/// upright at its bottom, a corner of mixed sense gone round that upright
-/// first (#914), a round bottom meeting any other edge — the uprights at its
-/// end (#919), the edges of a pointed or a notched end — a slope meeting any.
+/// among them (#837) — and, of a pair not laid outwards, a round bottom or a
+/// slope, each edge bounding the face they meet across that meets both of the
+/// pair at a corner, whatever its own sense — whose cut or fill is laid in
+/// turn against the one prism they are taken off or filled in with and
+/// against its neighbours, by its rank, with the pair's value, the radius
+/// that prism is raised at, so that it meets theirs where they meet across
+/// the face even where the value taken stands a hair short of it. Of a pair
+/// not laid outwards, only an end edge meeting inwards is built: the floor's
+/// edge on a pocket's end wall, or the edge at the foot of a standing round
+/// bottom of two uprights at that end, its fill joined to theirs in a valley
+/// (#838). A list mixing senses there — a slope with the tread's end edge, a
+/// round bottom with a convex end edge such as an open slot's end, a
+/// standing round bottom with the rim above it — is let in here and refused
+/// by the laying, as [`Exact::cut_along`] and [`Exact::sloped`] refuse it: a
+/// cut and a fill meeting there do not commute. Declined `Unsupported` where
+/// an edge of a pair meets another of `edges` at a corner any other way: a
+/// full round meeting an edge bounding its face at one of its edges alone,
+/// or an upright where a third edge of the list ends but the edge at their
+/// end (#837), a notched end with the upright at its bottom, a corner of
+/// mixed sense gone round that upright first (#914), a round bottom or a
+/// slope meeting any other edge — the uprights at a round bottom's end
+/// (#919), the edges of a pointed or a notched one (#921).
 pub(super) fn at_their_ends(
     body: &brep::Body,
     edges: &[EdgeId],

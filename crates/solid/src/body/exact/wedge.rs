@@ -111,8 +111,8 @@ impl Exact {
     /// where no third edge of the list ends but the edge at their end, meets
     /// their one prism the same way, at their value, as
     /// [`pairs::at_their_ends`] reads it, the two read on the body as given,
-    /// and so does an edge bounding the face two fills laid together meet
-    /// across and meeting both, its fill joined to theirs in a valley.
+    /// and so does a concave edge bounding the face two fills laid together
+    /// meet across and meeting both, its fill joined to theirs in a valley.
     /// Two edges of one sense meeting at a
     /// corner beside an edge of the other sense left out of the list, as
     /// [`corners::admit`] admits it — two cuts beside a concave edge, two fills

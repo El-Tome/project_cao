@@ -73,8 +73,9 @@ impl Body {
     /// as two radii, its end edge and both uprights named, is one quarter of a
     /// ball, the end edge's round closing to nothing between the two corners
     /// and the ball answering to its number and both corners'. The edge at a
-    /// round bottom's end, bounding the face that is gone and meeting both its
-    /// edges, is filled in at the round bottom's own radius, the two meeting
+    /// round bottom's end whose faces meet inwards too, bounding the face that
+    /// is gone and meeting both its edges, is filled in at the round bottom's
+    /// own radius, the two meeting
     /// in a valley on two ellipses down to where both touch that face's
     /// plane, as two fills at a pocket's bottom corner do (#838): the floor's
     /// edge on a pocket's end wall, with the round bottom along its floor,
@@ -85,8 +86,9 @@ impl Body {
     /// where a third edge of the list ends but the edge at its end (#837), or
     /// one of a round bottom meeting any but the edge at its end — the
     /// uprights at a pocket's end with the round bottom along its floor
-    /// (#919), the edges of a pointed or a notched end — is declined
-    /// `Unsupported`. Rounds
+    /// (#919), the edges of a pointed or a notched end (#921) — or that edge
+    /// where its faces meet outwards — an open slot's end, the rim above a
+    /// standing round bottom — is declined `Unsupported`. Rounds
     /// that would meet only on a curved edge are not measured, and declined
     /// `Unsupported` where they meet. The first edge declined declines the
     /// step.

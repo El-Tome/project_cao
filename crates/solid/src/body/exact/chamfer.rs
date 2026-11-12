@@ -46,8 +46,11 @@ impl Exact {
     /// in a valley, the third edge ending one distance short, no face laid
     /// there. Three edges meeting at a convex corner are closed there by a
     /// triangle, its corners where each two flats' edges cross on the face they
-    /// share, numbered after the flats, and three at a concave corner, a
-    /// pocket's bottom, by that triangle joined, filling the hollow the three
+    /// share, numbered after the flats — two such triangles at the ends of an
+    /// edge whose flat has no width between them, the tip of a tongue as wide
+    /// as two distances, meeting on a ridge in its place, that flat gone and
+    /// its number answering to no face (#837) — and three at a concave corner,
+    /// a pocket's bottom, by that triangle joined, filling the hollow the three
     /// fills leave, as [`joined_across`] lays it. The three at a standing
     /// block's foot corner, two feet and the upright above them, go round the
     /// upright: its flat laid first, stopping flush on the lower block's top,

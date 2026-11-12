@@ -16,6 +16,7 @@ mod overlap;
 mod pairs;
 mod reach;
 mod reading;
+mod ring;
 mod section;
 mod set_backs;
 mod slope;
@@ -34,10 +35,10 @@ use crate::brep::{self, Declined, EdgeId, EdgeName, FaceId, Scale, VertexId};
 use crate::profile::{Contour, Frame};
 
 pub(super) use closing::Closing;
-use flush::{Flush, Held, Stop};
+use flush::{Flush, Stop};
 pub(super) use odd::Around;
 use overlap::OVERLAPS;
-pub(super) use pairs::Together;
+pub(super) use pairs::{Together, together};
 pub(super) use section::Side;
 pub(super) use sphere::{hollowed_across, rounded_across};
 use step::Kind;
@@ -104,9 +105,13 @@ impl Exact {
     /// as given, its prism cut from what the earlier cuts left, as
     /// [`Exact::laid_as`] lays it, so that the matter of every edge's prism
     /// goes whatever the order — and an edge bounding the face two cuts laid
-    /// together meet across, meeting both at a corner, meets their one prism
-    /// the same way, at their value, as [`pairs::at_their_ends`] reads it, the
-    /// two read on the body as given. Two edges of one sense meeting at a
+    /// together meet across, meeting both at a corner, or one and an edge of a
+    /// pointed end with it that meets the other, and an upright meeting one of
+    /// them at a convex corner where no third edge of the list ends but the
+    /// edge at their end, meets their one prism the same way, at their value,
+    /// as [`pairs::at_their_ends`] reads it, the two read on the body as
+    /// given.
+    /// Two edges of one sense meeting at a
     /// corner beside an edge of the other sense left out of the list, as
     /// [`corners::admit`] admits it — two cuts beside a concave edge, two fills
     /// beside a convex one — each stop flush there, and the later takes with it
@@ -118,7 +123,8 @@ impl Exact {
     /// and meet in a valley, the third edge left sharp one value short. A
     /// corner three of the edges meet at, all convex or all concave, is closed
     /// once all are laid, as `meeting` closes it by the way they meet, read
-    /// where each two's set-backs cross on the face they share, as
+    /// where each two's set-backs cross on the face they share at the value
+    /// they are laid at — a pair's, where one of them is laid as one — as
     /// [`Exact::closed`] closes it, its face numbered past the edges'. A corner
     /// three of them meet at, two of one sense and the odd one of the other —
     /// two feet and the upright above them, two top edges and the upright
@@ -139,8 +145,11 @@ impl Exact {
     /// the list, nor two concave beside a third concave, nor three of mixed
     /// sense, more than three edges meeting at a corner, or three where
     /// another edge ends too, where `meeting` lays two together an edge
-    /// meeting two others, or one of two laid together that meets another
-    /// edge of the list at a corner any other way, a cut or a fill that left
+    /// meeting two others but in a closed chain, cut down to one cylinder as
+    /// [`Exact::closed_round`] cuts it, or one of two laid together that meets another
+    /// edge of the list at a corner any other way — a pointed end's two edges
+    /// among them where a third ends at the tip, an upright where a third edge
+    /// of the list ends but the edge at their end — a cut or a fill that left
     /// something else than its one face, as
     /// [`Exact::cut_along`] reads it, a face of an overlap no edge covered, and
     /// a corner gone round its odd edge as [`Exact::round_the_odd`] declines
@@ -194,46 +203,27 @@ impl Exact {
         Ok((edge, read(&self.brep, edge)?))
     }
 
-    /// The body with the edge a name finds cut off, or filled in, by the
-    /// prism `tool` raises over its wedge for `taken`, its wall numbered
-    /// where the steps' numbers ended, declined as [`Exact::cut_off`] says.
-    /// The wedge is read again on the body the edges before it were laid on,
-    /// as [`Wedge::read`] reads it: whether the edge is on a tangent chain was
-    /// read on the body as given. `mitred` numbers the faces laid before it at
-    /// a corner it shares, which its own face meets in a mitre, and `open`
-    /// holds where it stops at a corner an edge laid after it completes, as
-    /// [`flush::open`] reads them; an end standing at one of `held` is held
-    /// on its plane, as [`Exact::laid_flush`] holds it.
-    fn laid(
-        &self,
-        name: &EdgeName,
-        taken: f64,
-        tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
-        (mitred, open): (&[u32], &[Stop]),
-        held: &[Held],
-    ) -> Result<Exact, Declined> {
-        let (edge, wedge) = self.wedge(name, Wedge::read)?;
-        let flush = Flush::at(&self.brep, edge).holding(held);
-        self.laid_as(&flush, &wedge, taken, tool, mitred, open)
-    }
-
-    /// The body with the edge of `wedge` cut off, or filled in, as
-    /// [`Exact::laid`] lays it, its ends read where `flush` says `wedge` was
-    /// read: on this body, or on the body as given where an earlier edge of
-    /// the step was laid at a corner it shares, its prism then cut from, or
-    /// joined to, what the earlier edges left — the matter of every edge's
-    /// prism goes or comes whatever the order.
+    /// The body with the edge of `wedge` cut off, or filled in, by the prism
+    /// `tool` raises over it for `taken`, its wall numbered where the steps'
+    /// numbers ended, declined as [`Exact::cut_off`] says: its ends read where
+    /// `flush` says, on the body as given, its prism then cut from, or joined
+    /// to, what the earlier edges left — the matter of every edge's prism goes
+    /// or comes whatever the order, and an edge whose ends an earlier one moved
+    /// is laid all the same (#899). It meets the others as [`Met`] says.
     fn laid_as(
         &self,
         flush: &Flush,
         wedge: &Wedge,
         taken: f64,
         tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
-        mitred: &[u32],
-        open: &[Stop],
+        met: Met,
     ) -> Result<Exact, Declined> {
         let cut = self.cut_or_filled(flush, wedge, taken, tool)?;
-        if cut.cut_along(&[wedge], self, 1, mitred, open) {
+        let along: Vec<&Wedge> = [wedge]
+            .into_iter()
+            .chain(met.completed.iter().copied())
+            .collect();
+        if cut.cut_along(&along, self, 1, met.mitred, met.open, &[]) {
             Ok(cut)
         } else {
             Err(Declined::Unsupported)
@@ -273,10 +263,11 @@ impl Exact {
     /// face numbered in `mitred`, where a mitre with it ends — at a corner
     /// that is not square, on a face of the other edge, short of the third —
     /// or on the plane of one of `open`, where an edge laid after it completes
-    /// it, and every face `before` held but the edges' still there: no face,
-    /// nor piece of a face, of the prism but that one — but an overlap's,
-    /// numbered from [`OVERLAPS`], which an edge laid after it may cover, and
-    /// [`Exact::overlaps_covered`] holds once every edge is laid.
+    /// it, and every face `before` held but the edges' and those numbered in
+    /// `taken` still there: no face, nor piece of a face, of the prism but
+    /// that one — but an overlap's, numbered from [`OVERLAPS`], which an edge
+    /// laid after it may cover, and [`Exact::overlaps_covered`] holds once
+    /// every edge is laid.
     fn cut_along(
         &self,
         wedges: &[&Wedge],
@@ -284,6 +275,7 @@ impl Exact {
         laid: u32,
         mitred: &[u32],
         open: &[Stop],
+        taken: &[u32],
     ) -> bool {
         let made = before.next;
         let eps = self.brep.scale().eps();
@@ -315,6 +307,7 @@ impl Exact {
         });
         let consumable: BTreeSet<u32> = (wedges.iter())
             .flat_map(|wedge| wedge.numbers.iter().flatten().copied())
+            .chain(taken.iter().copied())
             .collect();
         let kept = before
             .brep
@@ -340,6 +333,20 @@ const SHORTEST: f64 = 4.0;
 /// tolerances.
 pub(super) fn too_short(length: f64, scale: Scale) -> bool {
     length.is_nan() || length < SHORTEST * Scale::HAIR * scale.eps()
+}
+
+/// What an edge a step lays meets.
+#[derive(Clone, Copy)]
+struct Met<'a> {
+    /// The numbers of the faces laid before it at a corner it shares, which
+    /// its own face meets in a mitre.
+    mitred: &'a [u32],
+    /// Where it stops at a corner an edge laid after it completes, as
+    /// [`flush::open`] reads them.
+    open: &'a [Stop],
+    /// The wedges of the listed edges laid after it whose walls its cut may
+    /// reach, or take whole, since their own cuts take that away.
+    completed: &'a [&'a Wedge],
 }
 
 /// The number a raise gives the wall of its profile's first run.

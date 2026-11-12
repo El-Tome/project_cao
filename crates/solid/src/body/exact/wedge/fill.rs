@@ -15,7 +15,7 @@ use super::flush::{Held, holding};
 use super::overlap::Overlap;
 use super::{Prism, Wedge};
 use crate::body::exact::Exact;
-use crate::brep::{self, Declined, EdgeId, FaceId, Surface};
+use crate::brep::{self, Declined, EdgeId, FaceId, Plane, Surface};
 
 impl Exact {
     /// The body with the corner along each of `edges`, read on `on`, filled in
@@ -64,10 +64,12 @@ impl Exact {
             let face = end_face(on, end, wedge.faces).ok_or(Declined::Unsupported)?;
             let point = on.vertex(end).point;
             let beyond_the_end = match holding(held, point, eps) {
-                Some((end, number)) => end.beyond(prism, number)?,
+                Some((end, number)) => vec![end.beyond(prism, number)?],
                 None => past_the_end(on, face, point, past, prism)?,
             };
-            trimmed = trimmed.cut_by(&beyond_the_end)?;
+            for solid in &beyond_the_end {
+                trimmed = trimmed.cut_by(solid)?;
+            }
             end_faces.push(face);
         }
         let mut corners = Vec::new();
@@ -100,26 +102,41 @@ impl Exact {
 /// the matter lies — a rib's round end bulging out or drawn in by draft, or a
 /// slot's round end turning in toward the slot off its wall, which the fill
 /// then runs on into — what [`round::outside_cylinder`] raises or
-/// [`round::outside_cone`] turns. Declined `Unsupported` on a plane along the
-/// edge, a cylinder or a cone the edge runs into, or another surface;
-/// otherwise as those declines.
+/// [`round::outside_cone`] turns; on a cylinder the edge runs into, its
+/// matter inside — a pillar (#908) — the box [`beyond`] raises past the
+/// plane through the axis square to the edge's run off the axis, where
+/// each long edge that meets the cylinder stands midway through it, the
+/// fill's end then buried in the pillar and short of its far side —
+/// [`round::outside_cylinder`] would start its cut where the first edge
+/// leaves the pillar, on that far side, and leave a corner on its foot
+/// where the fill crosses it there. Declined `Unsupported`
+/// on a plane along the edge, a cylinder the edge runs into with its matter
+/// outside, a cone the edge runs into, or another surface; otherwise as
+/// those declines.
 fn past_the_end(
     body: &brep::Body,
     id: FaceId,
     point: DVec3,
     past: DVec3,
     prism: &Prism,
-) -> Result<Exact, Declined> {
+) -> Result<Vec<Exact>, Declined> {
     let face = body.face(id);
     let surface = body.surface(face.surface);
     let normal = surface.normal(surface.parameters(point));
     let outward = if face.flipped { -normal } else { normal };
     match surface {
-        Surface::Plane(plane) if outward.dot(past) != 0.0 => {
-            beyond(prism, plane, outward * outward.dot(past).signum())
-        }
+        Surface::Plane(plane) if outward.dot(past) != 0.0 => Ok(vec![beyond(
+            prism,
+            plane,
+            outward * outward.dot(past).signum(),
+        )?]),
         Surface::Cylinder(cylinder) if normal.dot(past) > 0.0 => {
-            round::outside_cylinder(prism, cylinder, past)
+            Ok(vec![round::outside_cylinder(prism, cylinder, past)?])
+        }
+        Surface::Cylinder(cylinder) if !face.flipped && normal.dot(past) < 0.0 => {
+            let towards = past - cylinder.axis * cylinder.axis.dot(past);
+            let (plane, _) = Plane::through(cylinder.origin, towards);
+            Ok(vec![beyond(prism, &plane, towards.normalize())?])
         }
         Surface::Cone(cone) => round::outside_cone(prism, cone, point, past, body.scale().reach()),
         _ => Err(Declined::Unsupported),

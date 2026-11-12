@@ -45,7 +45,10 @@ impl Body {
     /// there, the corner's third edge left sharp, and three are closed there by
     /// a triangle, cut off at a convex corner and filled in at a concave one —
     /// a pocket's bottom —, numbered after every flat, by the lowest ranks of
-    /// their edges in the list, then the next. Two cut off where they meet
+    /// their edges in the list, then the next; two triangles at the ends of an
+    /// edge whose flat has no width between them — the tip of a tongue as wide
+    /// as two distances, its end edge and both uprights named — meet on a ridge
+    /// in its place, that flat gone. Two cut off where they meet
     /// beside a concave edge left sharp — the L's top edges at its inner
     /// corner, a pocket's rim — each stop flush on the face the other runs
     /// along and are mitred past it, down to the concave edge, no face laid

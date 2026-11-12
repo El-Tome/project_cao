@@ -9,7 +9,8 @@ use glam::DVec3;
 
 use super::Exact;
 use super::wedge::{
-    Around, Closing, Meeting, Prism, Together, Wedge, hollowed_across, rounded_across, too_short,
+    Around, Closing, Meeting, Prism, Together, Wedge, hollowed_across, rounded_across, together,
+    too_short,
 };
 use crate::brep::{Declined, EdgeName, Scale, Surface};
 
@@ -28,7 +29,17 @@ impl Exact {
     /// at its end, bounding the face that is gone and meeting both its edges
     /// at a corner, is rounded at that same radius and mitred against it as
     /// against any round meeting it at a convex corner, the two rounds meeting
-    /// on two ellipses up to the crown, where they touch. Where
+    /// on two ellipses up to the crown, where they touch; any upright meeting
+    /// one of its edges at a convex corner where no third edge of the list
+    /// ends — at either end, along the top or the floor, the two at one end a
+    /// standing full round — is rounded at that radius too and mitred against
+    /// it on one ellipse, from where the full round leaves the face the two
+    /// share to where the upright's round leaves its other face, the crown at
+    /// a square end; with the edge at its end, the three closed at their
+    /// corner by a piece of sphere, as below — and at the tip of a tongue as
+    /// wide as two radii, the end edge's round closing to nothing between the
+    /// two corners, by one quarter of a ball answering to its number and both
+    /// corners'. Where
     /// matter lies past an end of an edge rounded off, behind the one flat face
     /// it runs into there — the inner corner of an L, a pocket's rim, the foot
     /// of a block standing on another — its round stops flush on that face,
@@ -85,7 +96,11 @@ impl Exact {
     /// Rounds that would meet only on a curved edge are not measured, and
     /// declined where they meet. The rounds are numbered, in the
     /// order the names come, where the steps' numbers ended; a full round
-    /// answers to both its edges' numbers. Declined `Distance`: a radius that
+    /// answers to both its edges' numbers. Where every edge meets two others
+    /// so, in one closed chain of cuts about one axis — the four long edges of
+    /// a square bar at half its side — the rounds close on themselves into
+    /// one cylinder with no seam, answering to every edge's number, as
+    /// [`Exact::closed_round`] cuts it (#790). Declined `Distance`: a radius that
     /// is no length, one whose round would stand off the faces it replaces by
     /// less than the kernel can set a cut back by — a larger radius stands
     /// further off, and on an edge bent nearly flat is what rounds it — and a
@@ -96,8 +111,11 @@ impl Exact {
     /// given, one edge named twice, two edges meeting at any other corner where
     /// an edge meets inwards, an edge whose set-backs meet those of two others
     /// — rounds closing on themselves, #790 — an edge of a full round meeting
-    /// another edge of the list at a corner but the edge at its end, one of a
-    /// round bottom meeting any, and a cut that left anything but its round —
+    /// another edge of the list at a corner but the edge at its end, the two
+    /// of a pointed or a V-notched end or an upright, those two meeting where
+    /// the upright at the tip is named too and an upright where a third edge
+    /// of the list ends but the edge at its end, one of a round bottom meeting
+    /// any, and a cut that left anything but its round —
     /// a face of the prism, the round in two
     /// pieces or with a corner on neither of the edge's faces, a face the body
     /// held, but the edge's two, taken away whole — as where a round leaving
@@ -121,15 +139,18 @@ impl Exact {
             },
         )?;
         let made = |rank: usize| self.next + rank as u32;
-        let alone = names.iter().enumerate().all(|(rank, name)| {
-            let pair = pairs
-                .iter()
-                .find(|&&(earlier, later, _)| rank == earlier || rank == later);
-            match pair {
-                Some(&(earlier, later, _)) => cut.rounded_as(name, &[made(earlier), made(later)]),
-                None => cut.rounded_alone(name, made(rank)),
-            }
-        });
+        let alone = names
+            .iter()
+            .enumerate()
+            .all(|(rank, name)| match together(rank, &pairs)[..] {
+                [_] => {
+                    cut.rounded_alone(name, made(rank))
+                        || cut.closed_between(name, made(rank), made(names.len()))
+                }
+                ref ranks => {
+                    cut.rounded_as(name, &ranks.iter().map(|&at| made(at)).collect::<Vec<_>>())
+                }
+            });
         if alone {
             Ok((cut, taken))
         } else {
@@ -144,6 +165,21 @@ impl Exact {
     /// floor [`Wedge::rounded`] declines would.
     fn rounded_alone(&self, name: &EdgeName, made: u32) -> bool {
         self.rounded_as(name, &[made])
+    }
+
+    /// Whether the round closed to nothing between two corners whose centres
+    /// are one (#837): the faces answering to `made` answer to nothing but it
+    /// and numbers from `closing` on, where the pieces closing the step's
+    /// corners are numbered, and [`Exact::rounded_as`] holds of all those
+    /// numbers.
+    fn closed_between(&self, name: &EdgeName, made: u32, closing: u32) -> bool {
+        let numbers: Vec<u32> = (self.named(made as usize))
+            .flat_map(|face| self.brep.numbers(face).to_vec())
+            .collect();
+        numbers
+            .iter()
+            .all(|&number| number == made || number >= closing)
+            && self.rounded_as(name, &numbers)
     }
 
     /// Whether the round stands as a face of its own answering to `numbers`,

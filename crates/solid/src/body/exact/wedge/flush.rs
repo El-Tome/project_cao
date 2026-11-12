@@ -72,38 +72,6 @@ pub(super) fn open(
         .collect()
 }
 
-/// The stops of the edge of rank `rank` in `edges`, each edge of the step
-/// with its wedge on `given`, the body as given, on the faces of each listed
-/// edge laid after it that its set-back and an earlier one's cross on, as
-/// `crossing` holds them (#822): the crossing ends on that edge's wall,
-/// which its own cut takes away once it is laid.
-pub(super) fn completing(
-    given: &brep::Body,
-    rank: usize,
-    edges: &[(EdgeId, &Wedge)],
-    crossing: &[(usize, [usize; 2])],
-) -> Vec<Stop> {
-    let mut stops = Vec::new();
-    for &(between, [_, later]) in crossing {
-        if later != rank || between < rank {
-            continue;
-        }
-        let (edge, wedge) = edges[between];
-        let Some([end, _]) = given.edge(edge).ends else {
-            continue;
-        };
-        for away in wedge.outward {
-            stops.push(Stop {
-                plane: Plane::through(wedge.point, away).0,
-                away,
-                end,
-                corner: wedge.point,
-            });
-        }
-    }
-    stops
-}
-
 /// Where the ends of an edge a step lays are read: `on`, the body it is laid
 /// on, or the body as given, for an edge meeting one laid before it at a
 /// corner; the edge there; and what its prism takes with it past each corner
@@ -242,9 +210,13 @@ impl Exact {
     /// it at, that end left a face of its own dug into the matter, flush at
     /// each of its other [`stops`], joined to each overlap, and cut, the ends
     /// trimmed flush and the overlaps merged into the faces they meet, as
-    /// [`Exact::merged_at`] merges them at the corners the edge ended at and
-    /// the points the overlaps clear, and carried past any other end. Declined
-    /// as the trims, the joins and the booleans decline.
+    /// [`Exact::merged_at`] merges them at the corners the edge ended at, the
+    /// points the overlaps clear and, where it takes one, the corners this
+    /// body holds on the planes of the edge's faces — a face an overlap
+    /// completes, stopped on one of them, may end there on a mitre with an
+    /// edge laid before it rather than where its set-back lines cross it —
+    /// and carried past any other end. Declined as the trims, the joins and
+    /// the booleans decline.
     pub(super) fn laid_flush(
         &self,
         flush: &Flush,
@@ -278,6 +250,13 @@ impl Exact {
         if stops.is_empty() {
             return Ok(cut);
         }
+        let on_its_faces = |point: &DVec3| {
+            (wedge.outward.iter()).any(|side| side.dot(*point - wedge.point).abs() <= eps)
+        };
+        let seams = (self.brep.vertex_ids())
+            .filter(|_| !flush.overlaps.is_empty())
+            .map(|vertex| self.brep.vertex(vertex).point)
+            .filter(on_its_faces);
         let corners: Vec<DVec3> = (stops.iter().map(|stop| stop.corner))
             .chain(
                 flush
@@ -285,6 +264,7 @@ impl Exact {
                     .iter()
                     .flat_map(|overlap| overlap.cleared.iter().copied()),
             )
+            .chain(seams)
             .collect();
         cut.merged_at(&corners)
     }

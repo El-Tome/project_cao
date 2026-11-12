@@ -106,6 +106,20 @@
 //!   its sketch lays when the sketch is drawn across the slot
 //! - #788's tests still pass — no test: they are the tests above in this
 //!   file, left as they were, and running them is the answer
+//!
+//! The mutants of #807's trim no criterion's test reaches, one line each.
+//! `leaving`'s growth of the radius along an edge: killed by the rib up a
+//! steep ramp. `past_the_end`'s cylinder guard turned `true`: killed by the
+//! pillar decline #908 lifts. `outside_cone`'s `height` from `at + origin`:
+//! equivalent, `Cone::through` keeps `origin · axis` nought.
+//! `past_the_end`'s plane guard turned `true`: equivalent, #835's argument.
+//! `leaving`'s `at > 0`, `at < 1` and radius `> 0` admitting equality:
+//! unkilled, only an exit exactly at a prism end or the apex, and the prism
+//! runs the body's box and a margin past it. Its `&&` turned `||`, and
+//! `growth * at` turned `+` or `/`: unkilled, not reached, it takes an exit
+//! past the prism's ends or beyond the apex. `past_the_end`'s cylinder `>`
+//! turned `>=`: unkilled, only at exact tangency, #698's chain, still
+//! declined further on.
 
 mod step_reader;
 
@@ -4736,4 +4750,342 @@ fn a_fillet_at_the_foot_of_a_slot_s_drafted_wall_meeting_its_drafted_round_end_a
          at a few degrees"
     );
     the_slot_is_drafted_walls_and_end(&part);
+}
+
+/// How fast the [`rib_up_a_steep_ramp`]'s ramp rises along Y, and how far its
+/// round end draws in for every unit up: some 27 and 17 degrees, steep
+/// enough that each long edge of a fill at the foot of the rib's right side
+/// rises along the cone's axis by a share of its run the cone's radius
+/// follows, and where it leaves the cone is read from both.
+const STEEP_RISE: f64 = 0.5;
+const STEEP_DRAFT: f64 = 0.3;
+
+/// Where the steps that built the [`rib_up_a_steep_ramp`] stopped numbering
+/// faces: past the [`on_the_ramp`] part's, by the two sides of the piece of
+/// a ring its front is cut by.
+const STEEP_STEPS_END: usize = CONE_STEPS_END + 2;
+
+/// The height of the [`rib_up_a_steep_ramp`]'s ramp at `y`.
+fn steep_ramp_at(y: f64) -> f64 {
+    2.0 + STEEP_RISE * y
+}
+
+/// Where the top of the [`rib_up_a_steep_ramp`] stands: 8 over the ramp at
+/// its back.
+fn steep_rib_top() -> f64 {
+    steep_ramp_at(RAMP_RIB_BACK) + 8.0
+}
+
+/// The radius of the [`rib_up_a_steep_ramp`]'s round end at height `z`:
+/// criterion 1's round where the ramp meets it at the rib's front corners,
+/// drawn in by [`STEEP_DRAFT`] for every unit up.
+fn steep_round_radius(z: f64) -> f64 {
+    RADIUS - STEEP_DRAFT * (z - steep_ramp_at(RIB_ENDS[0]))
+}
+
+/// How far a point stands off the [`rib_up_a_steep_ramp`]'s cone, out from
+/// its axis.
+fn off_the_steep_round(point: DVec3) -> f64 {
+    off_the_axis(point) - steep_round_radius(point.z)
+}
+
+/// A plate 40 long whose top rises along Y as a ramp of [`STEEP_RISE`],
+/// raised along X from its section and numbered as the [`on_the_ramp`]
+/// plate is, and on it a rib 4 wide from x = 18 to 22, from below the ramp
+/// up to [`steep_rib_top`], its back upright at y = 19, its front cut by a
+/// piece of a ring turned about the upright line through [`AXIS`], whose
+/// inner wall is the cone of [`steep_round_radius`] — turned no further
+/// round than the rib's front needs, so that the steep draft leaves its
+/// back alone. Its faces number as the [`on_the_ramp`] part's do.
+fn rib_up_a_steep_ramp() -> Body {
+    let plate = raised_on(
+        Frame {
+            origin: DVec3::ZERO,
+            u: DVec3::Y,
+            v: DVec3::Z,
+        },
+        Contour::straight(vec![
+            DVec2::new(0.0, 0.0),
+            DVec2::new(30.0, 0.0),
+            DVec2::new(30.0, steep_ramp_at(30.0)),
+            DVec2::new(0.0, steep_ramp_at(0.0)),
+        ]),
+        40.0,
+    );
+    let below_the_ramp = Frame {
+        origin: DVec3::Z,
+        ..ground()
+    };
+    let rib = plate
+        .tool_raised(
+            &profile(Contour::rectangle(
+                DVec2::new(18.0, 4.0),
+                DVec2::new(RIB_SIDE, RAMP_RIB_BACK),
+            )),
+            below_the_ramp,
+            DVec3::Z * (steep_rib_top() - 1.0),
+        )
+        .expect("the rib raises");
+    let (low, high) = (0.5, steep_rib_top() + 1.0);
+    let outer = DVec2::new(2.0, AXIS.y - 4.0)
+        .length()
+        .max(steep_round_radius(low))
+        + 0.5;
+    let half = 1.4 * (2.0 / steep_round_radius(high)).asin();
+    let ring = turned_about(
+        &rib,
+        AXIS,
+        DVec2::new(-half.sin(), -half.cos()),
+        2.0 * half,
+        Contour::straight(vec![
+            DVec2::new(steep_round_radius(high), high),
+            DVec2::new(steep_round_radius(low), low),
+            DVec2::new(outer, low),
+            DVec2::new(outer, high),
+        ]),
+    );
+    let rounded = rib.difference(&ring).expect("the round end is cut");
+    plate.union(&rounded).expect("the rib is joined")
+}
+
+/// The way along the foot of the [`rib_up_a_steep_ramp`]'s right side, up
+/// the ramp, and the way square to the ramp, out of it.
+fn up_the_steep_ramp() -> DVec3 {
+    DVec3::new(0.0, 1.0, STEEP_RISE).normalize()
+}
+
+fn off_the_steep_ramp() -> DVec3 {
+    DVec3::new(0.0, -STEEP_RISE, 1.0).normalize()
+}
+
+/// The point of a fill's section `out` along the ramp from the rib's right
+/// side and `up` off the ramp, on the line through the foot's point at
+/// y = 0.
+fn on_the_steep_ramp_section(out: f64, up: f64) -> DVec3 {
+    DVec3::new(RIB_SIDE + out, 0.0, steep_ramp_at(0.0)) + off_the_steep_ramp() * up
+}
+
+/// Where the line through `from` running up the ramp meets the
+/// [`rib_up_a_steep_ramp`]'s cone in front: how far along that line, the
+/// nearer root of the quadratic its distance from the axis squared less the
+/// cone's radius squared makes along it.
+fn into_the_steep_round(from: DVec3) -> f64 {
+    let way = up_the_steep_ramp();
+    let off = (from - AXIS.extend(0.0)).truncate();
+    let across = way.truncate();
+    let (radius, shrink) = (steep_round_radius(from.z), STEEP_DRAFT * way.z);
+    let square = across.length_squared() - shrink * shrink;
+    let half = off.dot(across) + radius * shrink;
+    let rest = off.length_squared() - radius * radius;
+    (-half - (half * half - square * rest).sqrt()) / square
+}
+
+/// How long a fill at the foot of the [`rib_up_a_steep_ramp`]'s right side
+/// runs, `out` from that side and `up` off the ramp, measured up the ramp:
+/// from the cone to the rib's upright back.
+fn along_the_steep_ramp_rib(out: f64, up: f64) -> f64 {
+    let from = on_the_steep_ramp_section(out, up);
+    (RAMP_RIB_BACK - from.y) / up_the_steep_ramp().y - into_the_steep_round(from)
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_at_the_foot_of_a_rib_up_a_steep_ramp_are_trimmed_flush_on_its_steeply_drafted_round_end()
+ {
+    let value = 3.0;
+    let part = rib_up_a_steep_ramp();
+    let before = "the rib up a steep ramp, before the step";
+    assert_eq!(
+        part.faces_end(),
+        STEEP_STEPS_END,
+        "{before}: its steps numbered their faces up to {STEEP_STEPS_END}"
+    );
+    assert!(
+        part.has_face(CONE_FRONT)
+            && !part.is_flat(CONE_FRONT)
+            && part
+                .triangles_of(CONE_FRONT)
+                .flatten()
+                .all(|corner| off_the_steep_round(corner).abs() < PLACE),
+        "{before}: its front, face {CONE_FRONT}, is the steeply drafted cone"
+    );
+    let foot = edge_between(&part, RAMP, RIB_RIGHT);
+
+    for fill in [Fill::Chamfer, Fill::Fillet] {
+        let what =
+            format!("the {fill:?} at the foot of a rib up a steep ramp, its end steeply drafted");
+        let laid = match fill {
+            Fill::Chamfer => part
+                .chamfer(&foot, value)
+                .map(|chamfered| (chamfered.body, chamfered.asked, chamfered.taken)),
+            Fill::Fillet => part
+                .fillet(&foot, value)
+                .map(|filleted| (filleted.body, filleted.asked, filleted.taken)),
+        };
+        let (body, asked, taken) =
+            laid.unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        taken_whole(asked, taken, value, &what);
+        let height = |out: f64| match fill {
+            Fill::Chamfer => chamfer_height(value, out),
+            Fill::Fillet => fillet_height(value, out),
+        };
+        let laid_area = match fill {
+            Fill::Chamfer => 0.0,
+            Fill::Fillet => PI / 2.0 * value * along_the_steep_ramp_rib(0.0, value),
+        };
+        let cone_area = 4.3
+            * (steep_rib_top() - steep_ramp_at(RIB_ENDS[0]))
+            * (1.0 + STEEP_DRAFT * STEEP_DRAFT).sqrt();
+        sound_drawn_within(
+            &body,
+            part.volume() + fill_matter(value, height, along_the_steep_ramp_rib),
+            drawn_within(&part, cone_area + value * value + laid_area),
+            &what,
+        );
+        let made = match fill {
+            Fill::Chamfer => one_flat_face_more(&part, &body, &what),
+            Fill::Fillet => one_round_more(&part, &body, &what),
+        };
+        numbered_after_the_steps_last(&part, &body, made, &what);
+        let mut sides = [RAMP, RIB_RIGHT, RIB_BACK, CONE_FRONT].map(|side| vec![side as u32]);
+        sides.sort();
+        assert_eq!(
+            sides_met(&body, made),
+            sides,
+            "{what}: the fill meets the ramp and the rib's right side along its sides, and the \
+             cone and the rib's back at its ends, by one edge each"
+        );
+        for corner in body.triangles_of(CONE_FRONT).flatten() {
+            assert!(
+                off_the_steep_round(corner).abs() < PLACE,
+                "{what}: the cone is drawn through {corner}, {} off it",
+                off_the_steep_round(corner)
+            );
+        }
+        for share_out in [0.2, 0.5] {
+            let out = value * share_out;
+            for share_up in [0.25, 0.5, 0.75] {
+                let place = on_the_steep_ramp_section(out, height(out) * share_up);
+                let on_the_round = place + up_the_steep_ramp() * into_the_steep_round(place);
+                let from = DVec3::new(on_the_round.x, -1.0, on_the_round.z);
+                let hit = body.ray_hit(from, DVec3::Y).unwrap_or_else(|| {
+                    panic!("{what}: a ray from {from} through the fill's section meets nothing")
+                });
+                let at = from + DVec3::Y * hit.distance;
+                assert!(
+                    hit.face == CONE_FRONT
+                        && off_the_steep_round(at).abs() <= MET
+                        && at.distance(on_the_round) <= MET / up_the_steep_ramp().y,
+                    "{what}: a ray from {from} through the fill's section meets face {} at {at}, \
+                     where the fill ends on the cone at {on_the_round}",
+                    hit.face
+                );
+            }
+        }
+        for corner in body.triangles_of(made).flatten() {
+            assert!(
+                corner.y >= AXIS.y || off_the_steep_round(corner) <= PLACE,
+                "{what}: the fill is drawn through {corner}, {} outside the cone: past it",
+                off_the_steep_round(corner)
+            );
+        }
+    }
+}
+
+/// The number the front of the [`wall_into_a_pillar`]'s wall answers to:
+/// the first run of its outline, past the plate's six and the wall's floor
+/// and top.
+const WALL_FRONT: usize = 8;
+
+/// The plate of [`plate`], 4 thick, with a wall on its top from x = 5 to its
+/// end at 25, from y = 12 to 14, 8 high, and a round pillar of 3 about the
+/// upright line through the wall's end, (25, 13), 10 high: the foot of the
+/// wall's front runs into the pillar, whose matter lies inside its
+/// cylinder.
+fn wall_into_a_pillar() -> Body {
+    let plate = plate(PLATE);
+    let on_the_top = Frame {
+        origin: DVec3::Z * PLATE,
+        ..ground()
+    };
+    let wall = plate
+        .tool_raised(
+            &profile(Contour::rectangle(
+                DVec2::new(5.0, 12.0),
+                DVec2::new(25.0, 14.0),
+            )),
+            on_the_top,
+            DVec3::Z * 8.0,
+        )
+        .expect("the wall raises");
+    let walled = plate.union(&wall).expect("the wall is joined");
+    let centre = DVec2::new(25.0, 13.0);
+    let disc = Contour {
+        corners: vec![centre + DVec2::X * 3.0, centre - DVec2::X * 3.0],
+        runs: vec![
+            Run::Round {
+                center: centre,
+                turn: PI,
+            },
+            Run::Round {
+                center: centre,
+                turn: PI,
+            },
+        ],
+    };
+    let pillar = walled
+        .tool_raised(&profile(disc), on_the_top, DVec3::Z * 10.0)
+        .expect("the pillar raises");
+    walled.union(&pillar).expect("the pillar is joined")
+}
+
+/// The matter the [`wall_into_a_pillar`] holds: the plate's 40 × 30 × 4, the
+/// pillar's disc raised 10, and the wall's 20 × 2 raised 8 less what of it
+/// the pillar holds, the segment of the disc between y = 12 and 14.
+fn wall_into_a_pillar_volume() -> f64 {
+    let in_the_pillar = 8.0f64.sqrt() + 9.0 * (1.0f64 / 3.0).asin();
+    4800.0 + PI * 9.0 * 10.0 + (40.0 - in_the_pillar) * 8.0
+}
+
+/// A round the edge runs into is declined, as #788 rules: here a pillar
+/// holding its matter inside its cylinder, which the cylinder's trim would
+/// fill flush. #908 lifts it, and turns this test round.
+#[test]
+fn a_chamfer_and_a_fillet_at_the_foot_of_a_wall_running_into_a_round_pillar_are_declined_as_unsupported()
+ {
+    let part = wall_into_a_pillar();
+    let what = "the wall running into a round pillar";
+    sound_drawn_within(
+        &part,
+        wall_into_a_pillar_volume(),
+        drawn_within(&part, 2.0 * PI * 3.0 * 10.0),
+        &format!("{what}, before any step"),
+    );
+    let foot = edge_between(&part, TOP, WALL_FRONT);
+    assert!(
+        foot.ends.iter().flatten().flatten().any(|&face| {
+            let face = face as usize;
+            part.has_face(face) && !part.is_flat(face)
+        }),
+        "{what}: the foot of the wall's front ends on the pillar's round: {foot:?}"
+    );
+
+    let declined = [
+        ("the chamfer", part.chamfer(&foot, 1.0).err()),
+        ("the fillet", part.fillet(&foot, 1.0).err()),
+    ];
+
+    for (step, declined) in declined {
+        assert_eq!(
+            declined,
+            Some(Declined::Unsupported),
+            "{step} of 1 at the foot of a wall running into a round pillar"
+        );
+    }
+    sound_drawn_within(
+        &part,
+        wall_into_a_pillar_volume(),
+        drawn_within(&part, 2.0 * PI * 3.0 * 10.0),
+        &format!("{what}, after the steps declined"),
+    );
 }

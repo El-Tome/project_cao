@@ -33,10 +33,6 @@ pub fn centre_at(lang: &Catalogue, (x, y): (f64, f64)) -> String {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Target {
     Axis,
-    /// The circular pattern's, until its panel's numbered steps stopped
-    /// asking for it this way.
-    #[cfg_attr(not(test), expect(dead_code))]
-    Centre,
     Direction,
 }
 
@@ -79,8 +75,6 @@ pub fn target(lang: &Catalogue, target: Target, chosen: bool) -> String {
     lang.t(match (target, chosen) {
         (Target::Axis, true) => "copy_panel.axis_chosen",
         (Target::Axis, false) => "copy_panel.axis_to_click",
-        (Target::Centre, true) => "copy_panel.centre_chosen",
-        (Target::Centre, false) => "copy_panel.centre_to_click",
         (Target::Direction, true) => "copy_panel.direction_chosen",
         (Target::Direction, false) => "copy_panel.direction_to_click",
     })

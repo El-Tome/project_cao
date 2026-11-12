@@ -110,6 +110,29 @@ fn crossed(
 /// raise, as the raise says.
 pub(super) fn beyond(prism: &Prism, plane: &Plane, outward: DVec3) -> Result<Exact, Declined> {
     let (held, clear) = crossed(prism, plane.origin, outward)?;
+    standing(plane, outward, &held, clear)
+}
+
+/// The box standing on `plane` that holds what of the prism stands past it
+/// along `outward`, wherever the plane runs — along the prism too, a face its
+/// edge runs beside: raised off the plane over every corner of the prism, at
+/// either end, with the clearance [`crossed`] gives. A box the kernel cannot
+/// raise is declined as the raise says.
+pub(super) fn behind(
+    (outline, frame, travel): &Prism,
+    plane: &Plane,
+    outward: DVec3,
+) -> Result<Exact, Declined> {
+    let starts = (outline.corners.iter()).map(|&corner| frame.at(corner));
+    let held: Vec<DVec3> = starts.flat_map(|start| [start, start + *travel]).collect();
+    let reach = (outline.corners.iter()).fold(0.0, |reach: f64, corner| reach.max(corner.length()));
+    standing(plane, outward, &held, reach * CLEAR)
+}
+
+/// The box standing on `plane`, raised along `outward` past the furthest of
+/// `held` that way, over the rectangle holding them all on the plane, each
+/// side `clear` past them.
+fn standing(plane: &Plane, outward: DVec3, held: &[DVec3], clear: f64) -> Result<Exact, Declined> {
     let depth = (held.iter())
         .map(|&at| outward.dot(at - plane.origin))
         .fold(0.0, f64::max);

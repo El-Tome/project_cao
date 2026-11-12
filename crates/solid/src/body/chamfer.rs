@@ -36,15 +36,19 @@ impl Body {
     /// they share. Each flat face is numbered on its own,
     /// in the order the names come, from where the steps' numbers ended — but
     /// an edge cut off and one filled in whose set-backs meet across the face
-    /// they share, and whose flats lie in one plane there — a tread's nose and
-    /// foot at half its depth — which are one slope, the face gone, answering
-    /// to both their numbers. Such a slope is laid at the distance whose
-    /// set-backs meet across that face, which may stand a hair above the
-    /// distance taken: its own distance is read off its face, never from
-    /// [`Chamfered::taken`]. Two edges meeting at a convex corner are mitred
-    /// there, the corner's third edge left sharp, and three are closed there by
-    /// a triangle, cut off at a convex corner and filled in at a concave one —
-    /// a pocket's bottom —, numbered after every flat, by the lowest ranks of
+    /// they share, and whose flats lie in one plane there, or at an angle the
+    /// kernel tells from none — a tread's nose and foot at half its depth —
+    /// which are one slope, the face gone, answering to both their numbers.
+    /// Where their flats lie at an angle — the tread's front leaning — they
+    /// meet in a crease, the face gone, each answering to its own number,
+    /// whichever is named first. Such a slope or crease is laid at the
+    /// distance whose set-backs meet across that face, which may stand a hair
+    /// above the distance taken: its own distance is read off its faces,
+    /// never from [`Chamfered::taken`]. Two edges meeting at a convex corner
+    /// are mitred there, the corner's third edge left sharp, and three are
+    /// closed there by a triangle, cut off at a convex corner and filled in at
+    /// a concave one — a pocket's bottom —, numbered after every flat, by the
+    /// lowest ranks of
     /// their edges in the list, then the next; two triangles at the ends of an
     /// edge whose flat has no width between them — the tip of a tongue as wide
     /// as two distances, its end edge and both uprights named — meet on a ridge
@@ -56,11 +60,12 @@ impl Body {
     /// block standing on another — are mitred outside it the same way, and two
     /// filled in beside a concave edge left sharp, at a pocket's bottom corner,
     /// meet in a valley; at any other corner where an edge meets inwards they
-    /// are declined `Unsupported`, as is an edge of a slope meeting another
-    /// edge of the list at a corner, and an edge whose flat would be one slope
-    /// with two others'. Flats that would meet only on a curved edge are not
-    /// measured, and declined `Unsupported` where they meet. The first edge
-    /// declined declines the step.
+    /// are declined `Unsupported`, as is an edge of a slope or a crease
+    /// meeting another edge of the list at a corner, and an edge whose flat
+    /// would be one slope, or meet in a crease, with two others'. Flats that
+    /// would meet only on a curved edge are not measured, and declined
+    /// `Unsupported` where they meet. The first edge declined declines the
+    /// step.
     pub fn chamfer_edges(&self, edges: &[EdgeName], distance: f64) -> Result<Chamfered, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Lost(Lost::Gone));

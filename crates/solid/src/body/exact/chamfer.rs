@@ -23,16 +23,20 @@ impl Exact {
     /// round leaves it at a few degrees either way. Two set-backs on such a
     /// face stop short of crossing; where they meet, the two flats meet in a
     /// ridge on a top, in a valley in a slot, and a cut's and a fill's that lie
-    /// in one plane there — a tread's nose and foot set back by half its depth
-    /// — are one slope, answering to both edges' numbers, the face they shared
-    /// gone, as [`Exact::sloped`] lays it. Where matter lies past an end of an
-    /// edge cut off, behind the one flat face it runs into there — the inner
-    /// corner of an L, a pocket's rim, the foot of a block standing on another
-    /// — its flat stops flush on that face, which grows by the flat's end and
-    /// keeps its number, as [`Exact::laid_flush`] stops it. Two edges meeting
-    /// at a convex corner are mitred there, from where their flats cross on the
-    /// face they share down to the corner's third edge, left sharp. Two cut off
-    /// where they meet beside a concave edge left sharp — the L's two top edges
+    /// in one plane there, or at an angle the kernel tells from none — a
+    /// tread's nose and foot set back by half its depth, even with its riser
+    /// turned or leaning by a hair — are one slope, answering to both edges'
+    /// numbers, and at an angle — the tread's front leaning — two flats
+    /// meeting in a crease, each answering to its own edge's number, the face
+    /// they shared gone either way, whichever edge is named first, as
+    /// [`Exact::sloped`] lays them. Where matter lies past an end of an edge
+    /// cut off, behind the one flat face it runs into there — the inner corner
+    /// of an L, a pocket's rim, the foot of a block standing on another — its
+    /// flat stops flush on that face, which grows by the flat's end and keeps
+    /// its number, as [`Exact::laid_flush`] stops it. Two edges meeting at a
+    /// convex corner are mitred there, from where their flats cross on the
+    /// face they share down to the corner's third edge, left sharp. Two cut
+    /// off where they meet beside a concave edge left sharp — the L's two top edges
     /// at its inner corner, two edges of a pocket's rim — each stop flush there
     /// and run on past the corner into a mitre, from where their flats cross on
     /// the face they share down to the concave edge, which ends one distance
@@ -83,9 +87,10 @@ impl Exact {
     /// one running on tangentially into the next edge of a face, one edge named
     /// twice, two edges meeting at any other corner where an edge meets inwards
     /// — a cut and a fill —, more than three edges meeting at a corner, an edge
-    /// whose flat would be one slope with two others', or one of a slope
-    /// meeting another edge of the list at a corner, a face so nearly flush
-    /// with the chamfer's plane that the prism cannot stand off it, and a cut
+    /// whose flat would be one slope, or meet in a crease, with two others',
+    /// or one of a slope or a crease meeting another edge of the list at a
+    /// corner, a face so nearly flush with the chamfer's plane that the prism
+    /// cannot stand off it, and a cut
     /// that, carried along the edge's line, takes matter beyond the faces it
     /// meets there — past an end where the face the edge runs into is curved,
     /// or is not one face — seen as a face of the prism but its chamfer left on

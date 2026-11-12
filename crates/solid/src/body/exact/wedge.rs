@@ -96,8 +96,9 @@ impl Exact {
     /// given. Set-backs that would meet only on a curved edge are not measured:
     /// the laying declines them where they meet. The pairs whose set-backs meet
     /// across their face that `meeting` lays together, the earlier first, are each laid as one, the face they shared
-    /// gone — by the prism it raises, or as one slope at the value their
-    /// set-backs meet at, as [`Exact::sloped`] lays it; every other edge is
+    /// gone — by the prism it raises, or as one slope or two flats meeting in
+    /// a crease at the value their set-backs meet at, whichever is named
+    /// first, as [`Exact::sloped`] lays them; every other edge is
     /// laid alone. Two edges meeting at a convex corner are laid in turn as any
     /// two are, each prism carried past the corner along its edge's line, so
     /// that the later trims the earlier's face there: two flats or two rounds
@@ -245,17 +246,7 @@ impl Exact {
     ) -> Result<Exact, Declined> {
         let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
         let prism = tool(wedge, taken, self.brep.scale(), bounds)?;
-        let (outline, frame, travel) = &prism;
-        let raised = Exact::raised(outline, &[], *frame, *travel)?;
-        let tool = Exact {
-            brep: raised.brep.renumbered_by(|number| match number {
-                0 => MADE,
-                MADE => 0,
-                other => other,
-            }),
-            ..raised
-        };
-        self.laid_flush(flush, wedge, &prism, tool)
+        self.laid_flush(flush, wedge, &prism, raised_over(&prism)?)
     }
 
     /// Whether the prism left its face alone on the body, numbered where the
@@ -319,6 +310,21 @@ impl Exact {
             .all(|number| self.has_face(number as usize));
         !stray && !parted && self.has_face(made as usize) && on_a_side && kept
     }
+}
+
+/// The solid a cut or a fill is laid with: the prism raised, its first wall
+/// numbered nought, so that it answers to where the steps' numbers ended
+/// once combined with the body.
+fn raised_over((outline, frame, travel): &Prism) -> Result<Exact, Declined> {
+    let raised = Exact::raised(outline, &[], *frame, *travel)?;
+    Ok(Exact {
+        brep: raised.brep.renumbered_by(|number| match number {
+            0 => MADE,
+            MADE => 0,
+            other => other,
+        }),
+        ..raised
+    })
 }
 
 /// The shortest distance a chamfer is set back, in `Scale::HAIR`

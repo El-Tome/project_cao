@@ -201,15 +201,10 @@ impl Exact {
                         completed: &completed,
                     };
                     let value = ends.get(&rank).copied().unwrap_or(taken);
-                    if mitred.is_empty() {
-                        cut.laid(&names[rank], value, &tool, met, &held)?
-                    } else {
-                        let flush = Flush::beside(
-                            &self.brep, rank, &given, &beside, value, &set_back, &tool,
-                        )?
-                        .holding(&held);
-                        cut.laid_as(&flush, &wedges[rank], value, &tool, met)?
-                    }
+                    let flush =
+                        Flush::beside(&self.brep, rank, &given, &beside, value, &set_back, &tool)?
+                            .holding(&held);
+                    cut.laid_as(&flush, &wedges[rank], value, &tool, met)?
                 }
             };
         }

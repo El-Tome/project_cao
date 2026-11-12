@@ -287,6 +287,20 @@
 //! three and four, five of six; asked 2 to 8, chamfer and fillet — the
 //! mutant gave every value, matter and decline the code gives, and no
 //! unsound body.
+//!
+//! Closes #899.
+//!
+//! - The chamfer on the six top edges of the regular hexagon, asked past
+//!   `hexagon_half`, takes one value or declines in every order, as #877 asks
+//!   of three edges in a row —
+//!   `a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_asked_past_its_half_takes_one_value_or_declines_in_every_order`.
+//!   Read as decided when the issue was taken: one outcome in every order —
+//!   built at the same value, with the same sound body, if every order can
+//!   build it soundly, else the same decline in every order; never a wrong
+//!   body, and which of the two is not held. The prism 12 tall, upright and
+//!   with its front wall leaning in 40 degrees, asked 9, in all 720 orders;
+//!   asked just past the half, 8.67, it splits the orders the same way, and
+//!   is not tried apart
 
 use std::collections::BTreeSet;
 use std::f64::consts::{FRAC_1_SQRT_2, PI, TAU};
@@ -2958,7 +2972,7 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_whose
         } else {
             1.0
         };
-        let mut laid_in_every_order: Vec<(String, Body, [usize; 3])> = Vec::new();
+        let mut laid_in_every_order: Vec<(String, Body, Vec<usize>)> = Vec::new();
         for order in ORDERS_OF_THREE {
             let names: Vec<EdgeName> = order.iter().map(|&rank| edges[rank].clone()).collect();
             let laid: Vec<usize> = (0..order.len())
@@ -3004,18 +3018,18 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_whose
                 &format!("{what}: the top, set back from the three edges"),
             );
             closed_and_uncrossed(&body, &what);
-            laid_in_every_order.push((what, body, [0, 1, 2].map(number_of)));
+            laid_in_every_order.push((what, body, (0..3).map(number_of).collect()));
         }
         the_same_body_in_every_order(&laid_in_every_order);
     }
 }
 
-/// Holds that the bodies a step on three edges in a row laid in several
-/// orders are one body: the same matter, within [`EXACT`] of it, and on each
-/// edge of the row a face flat in all of them or in none, a flat with the
-/// same corners, within [`PLACE`]. Each body comes with what it is and the
-/// numbers of the faces laid on the row's edges, by their rank in the row.
-fn the_same_body_in_every_order(laid_in_every_order: &[(String, Body, [usize; 3])]) {
+/// Holds that the bodies a step on edges in a row laid in several orders are
+/// one body: the same matter, within [`EXACT`] of it, and on each edge of the
+/// row a face flat in all of them or in none, a flat with the same corners,
+/// within [`PLACE`]. Each body comes with what it is and the numbers of the
+/// faces laid on the row's edges, by their rank in the row.
+fn the_same_body_in_every_order(laid_in_every_order: &[(String, Body, Vec<usize>)]) {
     let (first_what, first, first_numbers) = &laid_in_every_order[0];
     for (what, body, numbers) in &laid_in_every_order[1..] {
         let which = format!("{first_what}, and {what}");
@@ -3025,7 +3039,7 @@ fn the_same_body_in_every_order(laid_in_every_order: &[(String, Body, [usize; 3]
             first.volume(),
             body.volume()
         );
-        for rank in 0..3 {
+        for rank in 0..numbers.len() {
             let [mine, theirs] = [numbers[rank], first_numbers[rank]];
             assert_eq!(
                 body.is_flat(mine),
@@ -3084,16 +3098,30 @@ fn uneven_hexagon(third: f64, back: f64) -> [DVec2; 6] {
     ]
 }
 
-/// Three top edges in a row of a prism — on its walls two, three and four —
-/// stepped in every order: what the row is, the prism's outline and height,
-/// the outer wall leaning in under its top edge and by how many degrees,
-/// where one does, by its rank in the row, and what is asked.
+/// Top edges in a row of a prism stepped in several orders: what the row
+/// is, the prism's outline and height, the numbers of the walls under the
+/// edges in the row's order, a wall leaning in under its top edge and by how
+/// many degrees, where one does, by its rank in the row, what is asked, and
+/// the orders, each the ranks in the row in the order named.
 struct Row {
     called: &'static str,
     corners: [DVec2; 6],
     height: f64,
+    walls: Vec<usize>,
     leaning: Option<(usize, f64)>,
     asked: f64,
+    orders: Vec<Vec<usize>>,
+}
+
+/// The three top edges in a row of a prism, on its walls two, three and
+/// four, and every order they can be named in, as a [`Row`] takes them.
+fn three_in_a_row() -> (Vec<usize>, Vec<Vec<usize>>) {
+    (
+        IN_A_ROW.to_vec(),
+        (ORDERS_OF_THREE.iter())
+            .map(|order| order.to_vec())
+            .collect(),
+    )
 }
 
 /// What a step gives: the value it took and the body it laid, or why it
@@ -3101,7 +3129,7 @@ struct Row {
 type Outcome = Result<(f64, Body), Declined>;
 
 /// What each order a step's edges are named in gives, by that order.
-type InEveryOrder = Vec<([usize; 3], Outcome)>;
+type InEveryOrder = Vec<(Vec<usize>, Outcome)>;
 
 /// The step of a chamfer, or a fillet if `fillet`, on one edge or several of
 /// `part`, at `asked`.
@@ -3113,15 +3141,16 @@ fn step_on(part: &Body, names: &[EdgeName], asked: f64, fillet: bool) -> Outcome
     }
 }
 
-/// What each order of [`ORDERS_OF_THREE`] gives for a chamfer, or a fillet if
-/// `fillet`, on the three top edges of `row`; the part they are laid on, and
-/// the three edges by their rank in the row.
-fn stepped_in_every_order(row: &Row, fillet: bool) -> (Body, [EdgeName; 3], InEveryOrder) {
+/// What each of `row`'s orders gives for a chamfer, or a fillet if `fillet`,
+/// on its top edges; the part they are laid on, and the edges by their rank
+/// in the row.
+fn stepped_in_every_order(row: &Row, fillet: bool) -> (Body, Vec<EdgeName>, InEveryOrder) {
     let raised = prism_of(&row.corners, row.height);
-    let mut walls = IN_A_ROW;
+    let mut walls = row.walls.clone();
     let part = match row.leaning {
         Some((outer, degrees)) => {
-            let (from, to) = (row.corners[outer], row.corners[outer + 1]);
+            let side = walls[outer] - HEXAGON_FRONT;
+            let (from, to) = (row.corners[side], row.corners[(side + 1) % 6]);
             let (_, out) = trapezoid_edge(from, to);
             let (part, wall) = leaning_in(
                 &raised,
@@ -3134,11 +3163,13 @@ fn stepped_in_every_order(row: &Row, fillet: bool) -> (Body, [EdgeName; 3], InEv
         }
         None => raised,
     };
-    let edges = walls.map(|wall| edge_between(&part, TOP, wall));
-    let outcomes = (ORDERS_OF_THREE.iter())
-        .map(|&order| {
+    let edges: Vec<EdgeName> = (walls.iter())
+        .map(|&wall| edge_between(&part, TOP, wall))
+        .collect();
+    let outcomes = (row.orders.iter())
+        .map(|order| {
             let names: Vec<EdgeName> = order.iter().map(|&rank| edges[rank].clone()).collect();
-            (order, step_on(&part, &names, row.asked, fillet))
+            (order.clone(), step_on(&part, &names, row.asked, fillet))
         })
         .collect();
     (part, edges, outcomes)
@@ -3148,19 +3179,35 @@ fn stepped_in_every_order(row: &Row, fillet: bool) -> (Body, [EdgeName; 3], InEv
 /// outcome — the same value and the same matter, within [`PLACE`] and
 /// [`EXACT`], or the same decline — listing what each order gave where they
 /// do not, or where `at_the_least_alone` and they did not all build at the
-/// least value any of the three edges takes alone; and where they agree and
+/// least value any of its edges takes alone; and where they agree and
 /// the step is built, holds each body sound and all of them one body.
 fn one_outcome_in_every_order(row: &Row, fillet: bool, at_the_least_alone: bool) -> Option<String> {
     let kind = if fillet { "fillet" } else { "chamfer" };
     let called = format!("the {kind} of {} on {}", row.asked, row.called);
     let (part, edges, outcomes) = stepped_in_every_order(row, fillet);
-    let told = |outcomes: &[([usize; 3], Outcome)]| -> String {
-        (outcomes.iter())
-            .map(|(order, laid)| match laid {
-                Ok((taken, body)) => {
-                    format!("  named {order:?}, took {taken}, holding {}", body.volume())
-                }
-                Err(declined) => format!("  named {order:?}, declined {declined:?}"),
+    let told = |outcomes: &[(Vec<usize>, Outcome)]| -> String {
+        let mut groups: Vec<(String, Vec<&Vec<usize>>)> = Vec::new();
+        for (order, laid) in outcomes {
+            let said = match laid {
+                Ok((taken, body)) => format!("took {taken:.9}, holding {:.6}", body.volume()),
+                Err(declined) => format!("declined {declined:?}"),
+            };
+            match groups.iter_mut().find(|(group, _)| *group == said) {
+                Some((_, orders)) => orders.push(order),
+                None => groups.push((said, vec![order])),
+            }
+        }
+        (groups.iter())
+            .map(|(said, orders)| {
+                let named: Vec<String> = (orders.iter().take(12))
+                    .map(|order| format!("{order:?}"))
+                    .collect();
+                let more = if orders.len() > 12 { " …" } else { "" };
+                format!(
+                    "  {said}, {} orders: {}{more}",
+                    orders.len(),
+                    named.join(" ")
+                )
             })
             .collect::<Vec<_>>()
             .join("\n")
@@ -3186,7 +3233,7 @@ fn one_outcome_in_every_order(row: &Row, fillet: bool, at_the_least_alone: bool)
                 }
             }
         }
-        let at_least = |(_, laid): &([usize; 3], Outcome)| {
+        let at_least = |(_, laid): &(Vec<usize>, Outcome)| {
             laid.as_ref()
                 .is_ok_and(|(taken, _)| (taken - least).abs() <= PLACE)
         };
@@ -3198,7 +3245,7 @@ fn one_outcome_in_every_order(row: &Row, fillet: bool, at_the_least_alone: bool)
             ));
         }
     }
-    let mut laid_in_every_order: Vec<(String, Body, [usize; 3])> = Vec::new();
+    let mut laid_in_every_order: Vec<(String, Body, Vec<usize>)> = Vec::new();
     for (order, laid) in outcomes {
         let Ok((_, body)) = laid else {
             return None;
@@ -3214,7 +3261,7 @@ fn one_outcome_in_every_order(row: &Row, fillet: bool, at_the_least_alone: bool)
         };
         let what = format!("{called}, named {order:?}");
         closed_and_uncrossed(&body, &what);
-        laid_in_every_order.push((what, body, [0, 1, 2].map(number_of)));
+        laid_in_every_order.push((what, body, (0..edges.len()).map(number_of).collect()));
     }
     the_same_body_in_every_order(&laid_in_every_order);
     None
@@ -3229,16 +3276,20 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_whose_outer_edge_alone_rea
                      of a turn, 12 tall, that side's wall leaning in 40 degrees",
             corners: uneven_hexagon(10.0, 20.0),
             height: 12.0,
+            walls: three_in_a_row().0,
             leaning: Some((2, 40.0)),
             asked: 5.0,
+            orders: three_in_a_row().1,
         },
         Row {
             called: "three top edges in a row of a hexagon whose third side turns a twelfth \
                      of a turn and runs 30 long, 12 tall, every wall upright",
             corners: uneven_hexagon(30.0, 40.0),
             height: 12.0,
+            walls: three_in_a_row().0,
             leaning: None,
             asked: 6.0,
+            orders: three_in_a_row().1,
         },
         Row {
             called: "three top edges in a row of a hexagon whose third side turns a twelfth \
@@ -3246,8 +3297,10 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_whose_outer_edge_alone_rea
                      degrees",
             corners: uneven_hexagon(30.0, 40.0),
             height: 12.0,
+            walls: three_in_a_row().0,
             leaning: Some((2, 20.0)),
             asked: 6.0,
+            orders: three_in_a_row().1,
         },
         Row {
             called: "three top edges in a row of the regular hexagon, 10 tall, its front wall \
@@ -3256,32 +3309,40 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_whose_outer_edge_alone_rea
                      one",
             corners: hexagon_corners(),
             height: 2.0 * HEXAGON_HEIGHT,
+            walls: three_in_a_row().0,
             leaning: Some((0, 50.0)),
             asked: 8.0,
+            orders: three_in_a_row().1,
         },
         Row {
             called: "three top edges in a row of a hexagon whose third side turns a twelfth \
                      of a turn, 12 tall, its first wall leaning in 40 degrees",
             corners: uneven_hexagon(10.0, 20.0),
             height: 12.0,
+            walls: three_in_a_row().0,
             leaning: Some((0, 40.0)),
             asked: 6.0,
+            orders: three_in_a_row().1,
         },
         Row {
             called: "three top edges in a row of a hexagon whose third side turns a twelfth \
                      of a turn, 20 tall, its first wall leaning in 40 degrees",
             corners: uneven_hexagon(10.0, 20.0),
             height: 20.0,
+            walls: three_in_a_row().0,
             leaning: Some((0, 40.0)),
             asked: 6.0,
+            orders: three_in_a_row().1,
         },
         Row {
             called: "three top edges in a row of a hexagon whose third side turns a twelfth \
                      of a turn, 12 tall, that side's wall leaning in 40 degrees",
             corners: uneven_hexagon(10.0, 20.0),
             height: 12.0,
+            walls: three_in_a_row().0,
             leaning: Some((2, 40.0)),
             asked: 6.0,
+            orders: three_in_a_row().1,
         },
     ];
     let wrong: Vec<String> = (rows.iter())
@@ -3304,14 +3365,71 @@ fn a_chamfer_on_three_top_edges_in_a_row_whose_first_wall_leans_in_60_degrees_ta
                  turn, 12 tall, its first wall leaning in 60 degrees",
         corners: uneven_hexagon(10.0, 20.0),
         height: 12.0,
+        walls: three_in_a_row().0,
         leaning: Some((0, 60.0)),
         asked: 6.0,
+        orders: three_in_a_row().1,
     };
     let wrong = one_outcome_in_every_order(&row, false, false);
     assert!(
         wrong.is_none(),
         "one value, or one decline, whatever the order the three edges are named in:\n{}",
         wrong.unwrap_or_default()
+    );
+}
+
+/// Every order `count` edges can be named in, each the ranks in the order
+/// named.
+fn every_order(count: usize) -> Vec<Vec<usize>> {
+    let mut orders = vec![Vec::new()];
+    for _ in 0..count {
+        orders = (orders.into_iter())
+            .flat_map(|order: Vec<usize>| {
+                (0..count)
+                    .filter(|rank| !order.contains(rank))
+                    .map(|rank| [order.clone(), vec![rank]].concat())
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+    }
+    orders
+}
+
+#[test]
+fn a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_asked_past_its_half_takes_one_value_or_declines_in_every_order()
+ {
+    let ring = |called, leaning| Row {
+        called,
+        corners: hexagon_corners(),
+        height: 12.0,
+        walls: HEXAGON_WALLS.to_vec(),
+        leaning,
+        asked: 9.0,
+        orders: every_order(HEXAGON_WALLS.len()),
+    };
+    let rows = [
+        ring(
+            "the six top edges of the regular hexagon, 12 tall, every wall upright",
+            None,
+        ),
+        ring(
+            "the six top edges of the regular hexagon, 12 tall, its front wall leaning in 40 \
+             degrees",
+            Some((0, 40.0)),
+        ),
+    ];
+    assert!(
+        hexagon_half() < 9.0,
+        "asked past the hexagon's half, {}",
+        hexagon_half()
+    );
+    let wrong: Vec<String> = (rows.iter())
+        .filter_map(|row| one_outcome_in_every_order(row, false, false))
+        .collect();
+    assert!(
+        wrong.is_empty(),
+        "one value, or one decline, whatever the order the six edges are named in:\n{}",
+        wrong.join("\n")
     );
 }
 

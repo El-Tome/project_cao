@@ -122,13 +122,13 @@ pub(super) fn meeting(
 /// Each edge of `edges` bounding the face a pair of `pairs` whose faces meet
 /// outwards meet across, of no pair itself, that meets both of the pair at a
 /// corner — the edge at their end — or one of them and another such edge
-/// that meets the other — each edge of a pointed end (#843) — whose cut is
-/// laid in turn against the one prism they are taken off with and against
-/// its neighbours, by its rank, with the pair's value, the radius that prism
-/// is raised at, so that its cut meets theirs where they meet across the
-/// face even where the value taken stands a hair short of it. Declined
-/// `Unsupported` where an edge of a pair meets another of `edges` at a
-/// corner any other way: a full round meeting an upright (#837), or one of
+/// that meets the other — each edge of a pointed or a notched end (#843) —
+/// whose cut is laid in turn against the one prism they are taken off with
+/// and against its neighbours, by its rank, with the pair's value, the radius
+/// that prism is raised at, so that its cut meets theirs where they meet
+/// across the face even where the value taken stands a hair short of it.
+/// Declined `Unsupported` where an edge of a pair meets another of `edges` at
+/// a corner any other way: a full round meeting an upright (#837), or one of
 /// its edges alone, a round bottom meeting any edge (#838), a slope meeting
 /// any.
 pub(super) fn at_their_ends(
@@ -175,16 +175,17 @@ impl Exact {
     /// over both at the value they meet at — or filled in as one, where their
     /// faces meet inwards, as [`Exact::filled`] fills: its first two walls,
     /// the later edge's then the earlier's, laid as one face where they lie on
-    /// one surface, numbered as [`Exact::paired`] numbers it. The edges laid
-    /// before move none of their planes, and the rounds at their ends may
-    /// have moved both ends of each, so that no name finds them. Declined as
-    /// [`Exact::cut_off`] says.
+    /// one surface, numbered as [`Exact::paired`] numbers it, meeting the
+    /// faces `mitred` numbers in a mitre. The edges laid before move none of
+    /// their planes, and the rounds at their ends may have moved both ends of
+    /// each, so that no name finds them. Declined as [`Exact::cut_off`] says.
     pub(super) fn laid_together(
         &self,
         on: &brep::Body,
         pair: [(EdgeId, &Wedge); 2],
         number: u32,
         raise: Raise,
+        mitred: &[u32],
     ) -> Result<Exact, Declined> {
         let [(_, first), (_, second)] = pair;
         let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
@@ -204,12 +205,13 @@ impl Exact {
         } else {
             self.cut_by(&Exact { next: 2, ..tool })?
         };
-        cut.paired(self, [first, second], number)
+        cut.paired(self, [first, second], number, mitred)
     }
 
     /// The body two edges of `before` were laid on as one, its face left
-    /// alone as [`Exact::cut_along`] reads it of both their wedges, answering
-    /// to the number where the steps' numbers of `before` ended — the later
+    /// alone as [`Exact::cut_along`] reads it of both their wedges and of the
+    /// faces laid before it that `mitred` numbers, answering to the number
+    /// where the steps' numbers of `before` ended — the later
     /// edge's — and to `number`, the earlier's, in place of the one past it.
     /// Declined `Unsupported` where that reading fails.
     pub(super) fn paired(
@@ -217,8 +219,9 @@ impl Exact {
         before: &Exact,
         wedges: [&Wedge; 2],
         number: u32,
+        mitred: &[u32],
     ) -> Result<Exact, Declined> {
-        if !self.cut_along(&wedges, before, 2, &[], &[]) {
+        if !self.cut_along(&wedges, before, 2, mitred, &[]) {
             return Err(Declined::Unsupported);
         }
         let Exact {

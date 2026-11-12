@@ -16,6 +16,7 @@ mod point_ref;
 mod raising;
 mod section;
 mod sizes;
+mod sketch_numbers;
 mod step;
 mod table;
 pub use cut_change::{CutAsked, CutChange};
@@ -52,6 +53,8 @@ pub struct History {
     variables: Vec<u32>,
     applied: usize,
     last_operation_number: u32,
+    /// The highest number a sketch was ever given, its sketch dropped or not.
+    last_sketch_number: u32,
 }
 
 /// A design with its operations taken out: the ordered index of the steps,
@@ -68,6 +71,8 @@ pub(crate) struct Index {
     pub variables: Vec<u32>,
     pub applied: usize,
     pub last_operation_number: u32,
+    #[serde(default)]
+    pub last_sketch_number: u32,
 }
 
 impl History {
@@ -160,6 +165,7 @@ impl History {
             variables: self.variables.clone(),
             applied: self.applied,
             last_operation_number: self.last_operation_number,
+            last_sketch_number: self.last_sketch_number,
         }
     }
 
@@ -199,8 +205,10 @@ impl History {
             variables: Vec::new(),
             applied: index.applied,
             last_operation_number: index.last_operation_number,
+            last_sketch_number: index.last_sketch_number,
         };
         history.regroup();
+        history.number_the_unnumbered();
         Some(history)
     }
 
@@ -214,11 +222,7 @@ impl History {
     /// among the others stands in the index where it is in the part, not where
     /// its number would put it.
     fn regroup(&mut self) {
-        let mut steps: Vec<Step> = self
-            .steps
-            .iter()
-            .map(|step| Step::opened(step.kind()))
-            .collect();
+        let mut steps: Vec<Step> = self.steps.iter().map(Step::emptied).collect();
         let mut variables = Vec::new();
         for (number, operation) in self.numbers.iter().zip(&self.operations) {
             if matches!(operation, Operation::Variable(_)) {
@@ -301,7 +305,8 @@ impl History {
         }
         let owner = match opens {
             Some(kind) => {
-                self.steps.push(Step::opened(kind));
+                let opened = self.open(kind);
+                self.steps.push(opened);
                 self.steps.len() - 1
             }
             None => match StepKind::owner(&self.steps, &operation) {

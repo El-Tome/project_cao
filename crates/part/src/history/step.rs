@@ -103,23 +103,41 @@ pub struct Step {
     /// were done. Never reused, so undo can walk them back in the order the
     /// user acted whatever the tree comes to look like.
     operations: Vec<u32>,
+    /// The number a sketch bears, the « n » it is named by: given once, when
+    /// it is made, and never again to another. Nothing for any other step.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    number: Option<u32>,
 }
 
 impl Step {
     pub(crate) fn opened(kind: StepKind) -> Self {
-        Self {
-            kind,
-            operations: Vec::new(),
-        }
+        Self::listed(kind, Vec::new(), None)
     }
 
     /// A step as the index of a file names it.
-    pub(crate) fn listed(kind: StepKind, operations: Vec<u32>) -> Self {
-        Self { kind, operations }
+    pub(crate) fn listed(kind: StepKind, operations: Vec<u32>, number: Option<u32>) -> Self {
+        Self {
+            kind,
+            operations,
+            number,
+        }
+    }
+
+    /// The same step, its number kept, nothing recorded under it yet.
+    pub(crate) fn emptied(&self) -> Self {
+        Self::listed(self.kind, Vec::new(), self.number)
+    }
+
+    pub(crate) fn number_as(&mut self, number: u32) {
+        self.number = Some(number);
     }
 
     pub fn kind(&self) -> StepKind {
         self.kind
+    }
+
+    pub fn number(&self) -> Option<u32> {
+        self.number
     }
 
     pub fn operations(&self) -> &[u32] {

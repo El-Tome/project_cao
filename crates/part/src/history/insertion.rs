@@ -4,7 +4,7 @@
 //! The operation opening it is numbered last, as everything recorded is, so
 //! undo takes it back first: only its place among the steps is not the end.
 
-use super::{History, Operation, Step, StepKind};
+use super::{History, Operation, StepKind};
 
 impl History {
     /// Records an operation opening a step of that kind, the step put in right
@@ -15,7 +15,7 @@ impl History {
         let at = self
             .place_of_key_step(key_step)
             .map_or(self.steps.len(), |read| read + 1);
-        let mut step = Step::opened(kind);
+        let mut step = self.open(kind);
         step.record(self.number(operation));
         self.steps.insert(at, step);
     }

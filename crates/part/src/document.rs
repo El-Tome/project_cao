@@ -115,6 +115,11 @@ impl PartDocument {
         &self.state.sketches
     }
 
+    /// The number a sketch bears, the « n » it is named by.
+    pub fn sketch_number(&self, sketch: usize) -> Option<u32> {
+        self.history.sketch_number(sketch)
+    }
+
     /// The matter of the part, as one surface.
     pub fn body(&self) -> &cao_solid::Body {
         &self.state.body

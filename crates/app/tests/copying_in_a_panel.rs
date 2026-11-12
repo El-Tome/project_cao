@@ -198,33 +198,33 @@ fn a_broken_value_refuses_validate_and_nothing_else() {
     click_the_step(&mut app, "Centre");
     driver::click_at_sketch_point(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
     assert!(
-        buttons_over_the_view(&app)
+        driver::buttons_over_the_view(&app)
             .iter()
             .any(|chip| chip.starts_with("Point (")),
         "a click in the target slot still stores the centre, its chip in the \
          panel: {:?}",
-        buttons_over_the_view(&app)
+        driver::buttons_over_the_view(&app)
     );
     click_the_step(&mut app, "Éléments à copier");
     assert!(
-        buttons_over_the_view(&app).contains(&"Trait 1".to_string()),
+        driver::buttons_over_the_view(&app).contains(&"Trait 1".to_string()),
         "the trait first picked stands in the panel as a chip: {:?}",
-        buttons_over_the_view(&app)
+        driver::buttons_over_the_view(&app)
     );
     driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
     assert!(
-        !buttons_over_the_view(&app).contains(&"Trait 1".to_string()),
+        !driver::buttons_over_the_view(&app).contains(&"Trait 1".to_string()),
         "a click in Elements still takes the trait back out: {:?}",
-        buttons_over_the_view(&app)
+        driver::buttons_over_the_view(&app)
     );
     driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
 
     driver::click(&mut app, "Valider");
 
     assert!(
-        buttons_over_the_view(&app).contains(&"Trait 1".to_string()),
+        driver::buttons_over_the_view(&app).contains(&"Trait 1".to_string()),
         "Validate refused, so the panel still holds the trait: {:?}",
-        buttons_over_the_view(&app)
+        driver::buttons_over_the_view(&app)
     );
     assert_eq!(driver::steps(&app), history, "and nothing is laid");
     assert!(
@@ -244,17 +244,6 @@ fn click_the_step(app: &mut driver::App, title: &str) {
         .rect()
         .center();
     driver::click_at(app, at);
-}
-
-/// What every button standing over the view reads — the chips of the copy
-/// panel among them, and never a row of the tree, which reads the same names
-/// beside the view.
-fn buttons_over_the_view(app: &driver::App) -> Vec<String> {
-    let view = driver::canvas(app);
-    app.query_all_by_role(egui::accesskit::Role::Button)
-        .filter(|node| view.contains_rect(node.rect()))
-        .filter_map(|node| node.accesskit_node().label())
-        .collect()
 }
 
 #[test]

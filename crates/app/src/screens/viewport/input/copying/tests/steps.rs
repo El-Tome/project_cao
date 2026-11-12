@@ -76,7 +76,10 @@
 //!   reaches
 //! - In the view: the copies dashed in amber, the circle, the radius,
 //!   « Centre », the arrowed arc « 60° », the source lit amber — no test: the
-//!   tests do not reach the screen; it is tried by hand, see « To try it »
+//!   tests do not reach the screen; it is tried by hand, see « To try it ».
+//!   The geometry the guides are drawn from — the arc, its arrow, where what
+//!   is copied stands — is held in `screens/viewport/render/pattern/tests.rs`,
+//!   under its own `Closes #738`
 //! - The panel can still be dragged and keeps its place — no test: here. A
 //!   drag is egui's pointer on a drawn panel, which only the whole application
 //!   reaches: held in `crates/app/tests/copying_in_a_panel.rs` by

@@ -6,12 +6,16 @@ use cao_prefs::theme::Theme;
 use cao_sketch::{Element, PointId, RulePick, Selection, Sketch};
 
 use super::super::input::corners_taken;
+use super::pattern::{amber, dashes_its_copies};
 use super::tint_at;
 use crate::screens::SketchContext;
 
 /// How faint what a click has not laid yet is drawn: there, and plainly not
 /// there yet.
 const A_PROMISE: f32 = 0.55;
+
+/// How much wider what a tool holds is drawn.
+const LIT_WIDER: f32 = 1.8;
 
 /// The colour of what a tool is only offering to lay.
 pub(super) fn ghost(theme: &Theme) -> [f32; 4] {
@@ -41,7 +45,32 @@ pub(super) fn mark(
     };
     let held = context.editor.is_selected(what) || context.editor.hovered == Some(what);
     let only_shown = matches!(what, Selection::Element(element) if laid.contains(&element));
+    if let Some(turned) = turned_about(context, what, only_shown, width) {
+        return turned;
+    }
     drawn_as(theme, picked, held, only_shown, color, width)
+}
+
+/// The circular pattern draws in its amber what its panel holds, lit, and the
+/// copies it offers.
+fn turned_about(
+    context: &SketchContext<'_>,
+    what: Selection,
+    only_shown: bool,
+    width: f32,
+) -> Option<([f32; 4], f32)> {
+    let Selection::Element(element) = what else {
+        return None;
+    };
+    let panel = context
+        .editor
+        .copy_panel()
+        .filter(|_| dashes_its_copies(context))?;
+    match (only_shown, panel.elements().contains(&element)) {
+        (true, _) => Some((amber(), width)),
+        (false, true) => Some((amber(), width * LIT_WIDER)),
+        (false, false) => None,
+    }
 }
 
 /// Whether a point stands at a corner the chamfer or the fillet is holding.
@@ -75,10 +104,10 @@ fn drawn_as(
         return (ghost(theme), width);
     }
     if picked_by_a_rule {
-        return (tint_at(theme.picked, 1.0), width * 1.8);
+        return (tint_at(theme.picked, 1.0), width * LIT_WIDER);
     }
     if held_or_hovered {
-        return (tint_at(theme.highlight, 1.0), width * 1.8);
+        return (tint_at(theme.highlight, 1.0), width * LIT_WIDER);
     }
     (color, width)
 }

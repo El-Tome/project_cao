@@ -145,6 +145,10 @@ impl Seen {
                     |row| matches!(row, Points::Element { element: lit, .. } if lit == element),
                 )
         };
+        // The circular pattern's copies are dashed: only offered, and offered
+        // as P13 draws them.
+        let dashes = super::pattern::dashes_its_copies(context);
+        let dashed = |element| dashes && laid.contains(&element);
         let marked = |element: Element, color, width| {
             if lit(element) {
                 return Some((tint_at(theme.highlight, 1.0), width * LOUDER));
@@ -176,7 +180,7 @@ impl Seen {
             let stroke = Stroke {
                 color,
                 width,
-                construction: segment.construction,
+                construction: segment.construction || dashed(Element::Segment(id)),
             };
             canvas.push_side(out, id, ends, stroke, (theme, scale));
         }
@@ -199,7 +203,7 @@ impl Seen {
                 circle.radius,
                 color,
                 width,
-                circle.construction,
+                circle.construction || dashed(Element::Circle(id)),
                 scale,
             );
         }
@@ -215,7 +219,7 @@ impl Seen {
             let stroke = Stroke {
                 color,
                 width,
-                construction: arc.construction,
+                construction: arc.construction || dashed(Element::Arc(id)),
             };
             canvas.push_arc(out, id, stroke, (theme, scale));
         }
@@ -232,7 +236,7 @@ impl Seen {
             let stroke = Stroke {
                 color,
                 width,
-                construction: oval.construction,
+                construction: oval.construction || dashed(Element::Ellipse(id)),
             };
             canvas.push_ellipse(out, id, stroke, (theme, scale));
         }

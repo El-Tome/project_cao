@@ -193,7 +193,8 @@ impl Ribbon {
             }
         });
 
-        extrusion_row(ui, drawn.document, drawn.extrusion, &mut asked, lang);
+        let read = &self.sketches_read;
+        extrusion_row(ui, drawn.document, drawn.extrusion, read, &mut asked, lang);
         let state = drawn.context(settings, lang, self.section_on);
         chamfer_row(ui, &state, &mut asked, shown);
         asked

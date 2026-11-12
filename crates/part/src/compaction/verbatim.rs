@@ -52,14 +52,13 @@ pub(super) fn keep_as_drawn(
 /// The operations of one sketch in effect, in the order they replay, the
 /// opening one left out: it has been laid already.
 fn operations_of(history: &History, sketch: usize) -> Vec<(u32, &Operation)> {
-    let mut opened = 0;
+    let made = history.sketches_made();
     let mut current = None;
     let mut held = Vec::new();
     for (number, operation) in history.replay_order() {
         match StepKind::opened_by(operation) {
             Some(StepKind::Sketch) => {
-                current = Some(opened);
-                opened += 1;
+                current = made.binary_search(&number).ok();
                 continue;
             }
             Some(_) => current = None,

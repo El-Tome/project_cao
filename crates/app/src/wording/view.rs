@@ -6,11 +6,12 @@ use cao_sketch::WorkPlane;
 use crate::lang::Catalogue;
 use crate::wording::plane;
 
-/// What the view is showing, in the facts it is named by. Ranks count from
-/// one, the way the Part tree words a sketch and a section.
+/// What the view is showing, in the facts it is named by, the way the Part
+/// tree words a sketch and a section: a sketch by the number the part gave
+/// it, a section by its rank from one.
 #[derive(Clone, Copy, Debug)]
 pub struct Standing {
-    pub open_sketch_rank: Option<usize>,
+    pub open_sketch_number: Option<u32>,
     pub section_view_on: bool,
     pub kept_section_rank: Option<usize>,
     pub plane: Option<WorkPlane>,
@@ -19,12 +20,11 @@ pub struct Standing {
 /// The sketch open, else the section view, else the kept section shown, else
 /// the plane the view stands on, else the free view.
 pub fn standing_on(lang: &Catalogue, standing: Standing) -> String {
-    let numbered = |key: &str, rank: usize| lang.t_with(key, &[("rank", &rank.to_string())]);
     match standing {
         Standing {
-            open_sketch_rank: Some(rank),
+            open_sketch_number: Some(number),
             ..
-        } => numbered("part_tree.sketch", rank),
+        } => super::sketch::numbered(lang, number),
         Standing {
             section_view_on: true,
             ..

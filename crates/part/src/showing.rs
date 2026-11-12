@@ -26,7 +26,7 @@ use cao_sketch::WorkPlane;
 use cao_solid::Body;
 
 use crate::document::PartDocument;
-use crate::history::{ExtrusionMode, History, Step, StepKind};
+use crate::history::{ExtrusionMode, History};
 use crate::state::PartState;
 
 /// How one volume of the part is shown.
@@ -114,29 +114,13 @@ fn not_opaque(states: &BTreeMap<u32, VolumeState>) -> BTreeMap<u32, VolumeState>
         .collect()
 }
 
-/// The number of the operation opening the step of the design that follows
-/// the one the `key_step`th key step in effect opens; nothing when no key
-/// step in effect comes after it, the part then being read whole.
+/// The number of the operation opening the step of the design in effect that
+/// follows the one the `key_step`th key step in effect opens; nothing when no
+/// key step in effect comes after it, the part then being read whole.
 fn where_reading_stops(history: &History, key_step: usize) -> Option<u32> {
-    let in_effect = |number: &u32| {
-        history
-            .position_of(*number)
-            .is_some_and(|at| at < history.applied())
-    };
-    let key = |step: &Step| {
-        step.kind() != StepKind::Section && step.operations().first().is_some_and(in_effect)
-    };
-    let steps = history.steps();
-    let (read, _) = steps
-        .iter()
-        .enumerate()
-        .filter(|(_, step)| key(step))
-        .nth(key_step)?;
-    let after = &steps[read + 1..];
-    if !after.iter().any(key) {
-        return None;
-    }
-    after.first()?.operations().first().copied()
+    let read = history.place_of_key_step(key_step)?;
+    history.place_of_key_step(key_step + 1)?;
+    history.opening_after(read)
 }
 
 impl PartState {

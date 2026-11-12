@@ -17,6 +17,7 @@ use crate::state::PartState;
 
 mod design;
 mod geometry_cache;
+mod insertion;
 mod matter;
 mod rule_in_place;
 mod sections;
@@ -112,6 +113,11 @@ impl PartDocument {
 
     pub fn sketches(&self) -> &[Sketch] {
         &self.state.sketches
+    }
+
+    /// The number a sketch bears, the « n » it is named by.
+    pub fn sketch_number(&self, sketch: usize) -> Option<u32> {
+        self.history.sketch_number(sketch)
     }
 
     /// The matter of the part, as one surface.

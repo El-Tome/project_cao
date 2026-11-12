@@ -5,7 +5,7 @@ use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::variables::{NAMING, offered};
 use crate::ui::formula_field::formula_field;
-use crate::wording::constraints;
+use crate::wording::{self, constraints};
 
 /// The values an extrusion needs, shown only while one is being set up.
 ///
@@ -15,17 +15,19 @@ pub(super) fn extrusion_row(
     ui: &mut egui::Ui,
     document: &PartDocument,
     extrusion: &mut ExtrusionState,
+    read: &[usize],
     asked: &mut Vec<Command>,
     lang: &Catalogue,
 ) {
     if extrusion.sketch.is_none() {
-        if document.sketches().is_empty() {
+        if read.is_empty() {
             return;
         }
         ui.horizontal_wrapped(|ui| {
             ui.label(lang.t("extrusion.pick_a_sketch"));
-            for index in 0..document.sketches().len() {
-                if ui.button(format!("{}", index + 1)).clicked() {
+            for &index in read {
+                let number = wording::sketch::number(document, index);
+                if ui.button(number.to_string()).clicked() {
                     extrusion.offer(index);
                 }
             }

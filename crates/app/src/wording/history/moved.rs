@@ -9,7 +9,11 @@ use crate::wording::dimension::short;
 
 /// The unfolded line of a step that moved something, and nothing for any
 /// other step.
-pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
+pub(super) fn moved(
+    lang: &Catalogue,
+    operation: &Operation,
+    number: &dyn Fn(usize) -> u32,
+) -> String {
     match operation {
         Operation::MovePoint {
             sketch,
@@ -20,7 +24,7 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
         } => lang.t_with(
             "history.detail.point_dropped_on",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("point", &point.0.to_string()),
                 ("kept", &kept.0.to_string()),
                 ("x", &short(position.x)),
@@ -35,7 +39,7 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
         } => lang.t_with(
             "history.detail.point_moved",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("point", &point.0.to_string()),
                 ("x", &short(position.x)),
                 ("y", &short(position.y)),
@@ -48,7 +52,7 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
         } => lang.t_with(
             "history.detail.circle_resized",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("circle", &circle.0.to_string()),
                 ("reach", &short(*reach)),
             ],
@@ -60,7 +64,7 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
         } => lang.t_with(
             "history.detail.ellipse_resized",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("ellipse", &ellipse.0.to_string()),
                 ("reach", &short(*reach)),
             ],
@@ -68,7 +72,7 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
         Operation::ResizeArc { sketch, arc, reach } => lang.t_with(
             "history.detail.arc_resized",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("arc", &arc.0.to_string()),
                 ("reach", &short(*reach)),
             ],
@@ -76,7 +80,7 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
         Operation::MoveMany { sketch, points, by } => lang.t_with(
             "history.detail.many_moved",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("count", &points.len().to_string()),
                 ("x", &short(by.x)),
                 ("y", &short(by.y)),
@@ -85,7 +89,7 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
         Operation::MoveDimension { sketch, offset, .. } => lang.t_with(
             "history.detail.dimension_moved",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("x", &short(offset.x)),
                 ("y", &short(offset.y)),
             ],
@@ -97,7 +101,7 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
         } => lang.t_with(
             "history.detail.side_moved",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("segment", &segment.0.to_string()),
                 ("x", &short(by.x)),
                 ("y", &short(by.y)),
@@ -111,7 +115,7 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
         } => lang.t_with(
             "history.detail.turned",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("count", &points.len().to_string()),
                 ("angle", &short(angle.to_degrees())),
                 ("x", &short(about.x)),

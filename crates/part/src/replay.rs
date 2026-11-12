@@ -17,6 +17,8 @@
 
 use std::collections::{HashMap, HashSet};
 
+use cao_sketch::Sketch;
+
 use crate::formula::Formula;
 use crate::history::{History, Operation};
 use crate::outcome::Outcome;
@@ -46,6 +48,9 @@ pub(crate) struct Replay {
     gone: HashMap<SetBy, u32>,
     /// What the variables came to, for each value that went, as it went.
     pub(crate) superseded: HashMap<SetBy, Vec<f64>>,
+    /// The numbers of the operations that opened the sketches, in the order
+    /// they were made.
+    sketches_made: Vec<u32>,
 }
 
 /// How many of each element — points, traits, circles, arcs, ellipses — a
@@ -124,6 +129,7 @@ impl PartState {
     fn replayed(history: &History, superseded: HashMap<SetBy, Vec<f64>>, showing: Showing) -> Self {
         let mut state = Self::default();
         state.replay.superseded = superseded;
+        state.replay.sketches_made = history.sketches_made();
         state.showing = showing;
         state.read_variables(history);
         if history.first_size_is_off_the_drawing() {
@@ -159,6 +165,27 @@ impl PartState {
         let outcome = self.apply(operation);
         self.replaying = 0;
         outcome
+    }
+
+    /// The rank the sketch about to be made is named by: its place in the
+    /// order the sketches were made, which a step put in among the others
+    /// makes another order than the one they replay in. One made live comes
+    /// after every other.
+    pub(crate) fn sketch_being_made(&self) -> usize {
+        self.replay
+            .sketches_made
+            .binary_search(&self.replaying)
+            .unwrap_or(self.sketches.len())
+    }
+
+    /// Lays a sketch just made at its rank. One replayed before sketches made
+    /// earlier leaves their places blank until they come.
+    pub(crate) fn lay_sketch(&mut self, sketch: Sketch) {
+        let at = self.sketch_being_made();
+        if self.sketches.len() <= at {
+            self.sketches.resize(at + 1, Sketch::new(sketch.plane));
+        }
+        self.sketches[at] = sketch;
     }
 
     /// Which value the replay sets next, and what the variables come to for

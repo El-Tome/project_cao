@@ -4,7 +4,7 @@ use cao_sketch::{PlaneKind, Sketch};
 
 use crate::lang::Catalogue;
 use crate::screens::sketch::SketchEditor;
-use crate::wording::{command, plane, shortcuts, view};
+use crate::wording::{self, command, plane, shortcuts, view};
 
 /// What the pill reads while a sketch is open: the sketch's name, where it is
 /// drawn, what the solver leaves it to set, and its button.
@@ -54,9 +54,9 @@ impl Left {
 }
 
 impl SketchPill {
-    /// Nothing outside a sketch. The sketch is ranked by its place among the
-    /// part's drawings, from one, as the Part tree names it; `finish_on` is
-    /// what the settings bind finishing it to.
+    /// Nothing outside a sketch. The sketch goes by the number the part gave
+    /// it, as the Part tree names it; `finish_on` is what the settings bind
+    /// finishing it to.
     pub fn of(
         document: &PartDocument,
         editor: &SketchEditor,
@@ -65,10 +65,9 @@ impl SketchPill {
     ) -> Option<Self> {
         let index = editor.active_sketch()?;
         let sketch = document.sketches().get(index)?;
-        let rank = (index + 1).to_string();
         let left = Left::of(sketch, document.scale());
         Some(Self {
-            name: lang.t_with("part_tree.sketch", &[("rank", &rank)]),
+            name: wording::sketch::name(lang, document, index),
             plane: laid_on(document, index, sketch, lang, plane::label),
             left,
             left_read: left.read(lang),

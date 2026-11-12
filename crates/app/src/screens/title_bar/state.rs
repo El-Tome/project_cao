@@ -8,8 +8,8 @@ use crate::screens::part_tree::state::{About, Flagged, PartTree};
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::ViewportState;
 use crate::ui::badge::Level;
-use crate::wording::alerts;
 use crate::wording::view::{Standing, standing_on};
+use crate::wording::{self, alerts};
 
 /// What the title bar reads: the part's name and the file it is kept in, the
 /// name of where the view stands, what the pill says, and what is wrong with
@@ -147,7 +147,9 @@ impl<'a> TitleBar<'a> {
         lang: &Catalogue,
     ) -> Self {
         let standing = Standing {
-            open_sketch_rank: editor.active_sketch().map(|sketch| sketch + 1),
+            open_sketch_number: editor
+                .active_sketch()
+                .map(|sketch| wording::sketch::number(document, sketch)),
             section_view_on: viewport.section().is_some(),
             kept_section_rank: viewport.kept_sections.cutting().map(|id| id + 1),
             plane: viewport.mode().plane(),

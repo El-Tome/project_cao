@@ -103,6 +103,9 @@ struct Listed {
     #[serde(flatten)]
     stands_on: Stands,
     operations: Vec<u32>,
+    /// The number a sketch bears, which names it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    number: Option<u32>,
 }
 
 /// The index as the archive carries it.
@@ -115,6 +118,10 @@ struct Contents {
     variables: Vec<u32>,
     applied: usize,
     last_operation_number: u32,
+    /// The highest number a sketch was ever given, so that one dropped before
+    /// the part was put away is not given again once it is reopened.
+    #[serde(default)]
+    last_sketch_number: u32,
 }
 
 /// A step's folder: what its opening operation sets, and everything recorded
@@ -159,6 +166,7 @@ pub(super) fn laid_out(history: &History) -> Result<Vec<Written>, PartFileError>
         listed.push(Listed {
             stands_on,
             operations: step.operations().to_vec(),
+            number: step.number(),
         });
         folders.push(Written {
             path: ranks.folder_of(step.kind()),
@@ -177,6 +185,7 @@ pub(super) fn laid_out(history: &History) -> Result<Vec<Written>, PartFileError>
             variables: index.variables,
             applied: index.applied,
             last_operation_number: index.last_operation_number,
+            last_sketch_number: index.last_sketch_number,
         })?,
     }];
     files.append(&mut folders);
@@ -233,7 +242,7 @@ pub(super) fn read<R: Read + Seek>(
         let folder: Folder = serde_json::from_str(&text)?;
         operations.push(put_together(listed.stands_on, folder.opening)?);
         operations.extend(folder.operations);
-        steps.push(Step::listed(kind, listed.operations));
+        steps.push(Step::listed(kind, listed.operations, listed.number));
         read.push(text);
     }
 
@@ -249,14 +258,16 @@ pub(super) fn read<R: Read + Seek>(
         variables: contents.variables,
         applied: contents.applied,
         last_operation_number: contents.last_operation_number,
+        last_sketch_number: contents.last_sketch_number,
     };
     let history = History::restore(index, operations).ok_or(PartFileError::BrokenDesign)?;
     Ok((history, read))
 }
 
-/// How many steps of each kind have gone by, which is what names their
-/// folders: the rank the operations already speak in, so that `sketch-1` is
-/// the sketch those operations call 1.
+/// How many steps of each kind have gone by in the order of the part, which is
+/// what names their folders. Until a step is put in among the others, it is
+/// also the rank the operations speak in, so that `sketch-1` is the sketch
+/// those operations call 1.
 #[derive(Default)]
 struct Ranks {
     sketches: usize,

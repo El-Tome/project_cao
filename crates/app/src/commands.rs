@@ -3,7 +3,7 @@ use cao_prefs::Command;
 use cao_sketch::Rule;
 
 use crate::screens::SketchContext;
-use crate::screens::extrusion::apply_extrusion;
+use crate::screens::extrusion::apply_extrusion_with;
 use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::{
@@ -339,7 +339,10 @@ pub(crate) fn run(
             false
         }
         Command::ExtrusionApply => {
-            let changed = apply_extrusion(doc, extrusion, &mut editor.message, lang);
+            let record = |doc: &mut PartDocument, operation| {
+                viewport.record_where_read(doc, operation);
+            };
+            let changed = apply_extrusion_with(doc, extrusion, &mut editor.message, lang, record);
             if changed {
                 // Seen from straight above its own plane, a new prism looks
                 // exactly like the drawing it came from.

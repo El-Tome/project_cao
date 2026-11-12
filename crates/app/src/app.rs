@@ -200,6 +200,7 @@ impl CaoApp {
             extrusion,
         };
         ribbon.section_on = viewport.section().is_some();
+        ribbon.sketches_read = viewport.sketches_read(doc);
         asked.extend(ribbon.show(ui, &settings, &mut drawn, lang));
         asked.extend(
             shortcuts_pressed(ui, &settings, |command| {

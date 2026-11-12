@@ -116,6 +116,8 @@ pub fn compact(history: &History) -> History {
         }
     }
 
+    new_history.arranged_as(history);
+    new_history.numbered_as(history);
     new_history
 }
 

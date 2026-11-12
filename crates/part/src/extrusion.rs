@@ -17,21 +17,24 @@ use crate::state::PartState;
 
 impl PartState {
     /// Raises a step of matter, or cuts it, noting the faces of the part it
-    /// made: a tool's faces are numbered above the part's, so they are the
-    /// ones numbered from where the part's ended. Noted even when the step
-    /// made nothing, so that the rank of a step is the rank of its note.
+    /// made under the number of the operation replayed: a tool's faces are
+    /// numbered above the part's, so they are the ones numbered from where
+    /// the part's ended. Noted even when the step made nothing, so that every
+    /// step of matter has its note.
     pub(crate) fn raising(&mut self, raise: impl FnOnce(&mut Self)) {
         let from = self.body.faces_end();
         raise(self);
-        self.made.push(from..self.body.faces_end());
+        self.made
+            .push((self.replaying, from..self.body.faces_end()));
     }
 
     /// The faces the part still holds of those the step of matter of that
-    /// rank made, counting the steps in the order they replay, and the
-    /// pieces a later cut parted from them, which answer to numbers of their
-    /// own: a cut makes none of the pieces it leaves of another step's face.
-    pub(crate) fn faces_made(&self, rank: usize) -> Vec<usize> {
-        self.made.get(rank).map_or_else(Vec::new, |made| {
+    /// number made, and the pieces a later cut parted from them, which answer
+    /// to numbers of their own: a cut makes none of the pieces it leaves of
+    /// another step's face.
+    pub(crate) fn faces_made(&self, step: u32) -> Vec<usize> {
+        let made = self.made.iter().find(|(number, _)| *number == step);
+        made.map_or_else(Vec::new, |(_, made)| {
             let root = |piece: usize| {
                 std::iter::successors(Some(piece), |&face| self.body.parted_from(face))
                     .last()

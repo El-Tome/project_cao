@@ -78,10 +78,11 @@ pub struct PartState {
     /// from it; there is a single body rather than a pile of separate lumps,
     /// so that a pocket cut in a block really is a hole in the block.
     pub body: Body,
-    /// The numbers of the faces each step of matter made, in the order the
-    /// steps replay. Kept with the body it numbers, in the cache as well.
+    /// The numbers of the faces each step of matter made, by the number of
+    /// its operation, in the order the steps replay. Kept with the body it
+    /// numbers, in the cache as well.
     #[serde(default)]
-    pub(crate) made: Vec<Range<usize>>,
+    pub(crate) made: Vec<(u32, Range<usize>)>,
     /// Each volume's state, when the replay is of the part shown.
     #[serde(skip)]
     pub(crate) showing: Showing,
@@ -125,7 +126,7 @@ impl PartState {
             }
             Operation::CreateSketch { plane, on } => {
                 let plane = self.plane_for(*plane, on);
-                self.sketches.push(Sketch::new(plane));
+                self.lay_sketch(Sketch::new(plane));
                 None
             }
             Operation::AddPoint {

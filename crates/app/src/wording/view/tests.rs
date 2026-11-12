@@ -3,7 +3,8 @@
 //!
 //! Closes #726.
 //! - the view pill reads « Esquisse N » when a sketch is open, N its rank as
-//!   the Part tree words it — `an_open_sketch_names_the_view_by_its_rank`, and
+//!   the Part tree words it — N its number since #737, the one the part gave
+//!   it — `an_open_sketch_names_the_view_by_its_number`, and
 //!   ahead of the section view, so that the two cannot trade places unseen —
 //!   `a_sketch_open_with_the_section_view_on_names_the_view_by_the_sketch`
 //! - and so ahead of the kept section the sketch stands on, which the bar read
@@ -17,11 +18,12 @@
 //! - else « Vue 3D libre » — `the_free_view_is_named_the_free_3d_view`
 //!
 //! The order is the rule, so each case is written with every fact that the
-//! cases below it would answer to, and has to win over them. Ranks are handed
-//! in as the Part tree counts them, from one: the wording prints a rank and
-//! does not work one out, since which sketch is the third is the tree's
-//! business. That `crates/app/tests/title_bar.rs` hands it what the screen
-//! shows is held there.
+//! cases below it would answer to, and has to win over them. A section's rank
+//! and a sketch's number are handed in as the Part tree words them: the
+//! wording prints them and does not work one out, since which sketch is
+//! « Esquisse 3 » is the part's business. That
+//! `crates/app/tests/title_bar.rs` hands it what the screen shows is held
+//! there.
 
 use super::*;
 
@@ -30,9 +32,9 @@ fn named(standing: Standing) -> String {
 }
 
 #[test]
-fn an_open_sketch_names_the_view_by_its_rank() {
+fn an_open_sketch_names_the_view_by_its_number() {
     let view = named(Standing {
-        open_sketch_rank: Some(3),
+        open_sketch_number: Some(3),
         section_view_on: false,
         kept_section_rank: None,
         plane: Some(WorkPlane::XY),
@@ -44,7 +46,7 @@ fn an_open_sketch_names_the_view_by_its_rank() {
 #[test]
 fn a_sketch_open_on_a_kept_section_names_the_view_by_the_sketch() {
     let view = named(Standing {
-        open_sketch_rank: Some(2),
+        open_sketch_number: Some(2),
         section_view_on: false,
         kept_section_rank: Some(1),
         plane: Some(WorkPlane::YZ),
@@ -59,7 +61,7 @@ fn a_sketch_open_on_a_kept_section_names_the_view_by_the_sketch() {
 #[test]
 fn a_sketch_open_with_the_section_view_on_names_the_view_by_the_sketch() {
     let view = named(Standing {
-        open_sketch_rank: Some(2),
+        open_sketch_number: Some(2),
         section_view_on: true,
         kept_section_rank: None,
         plane: Some(WorkPlane::YZ),
@@ -74,7 +76,7 @@ fn a_sketch_open_with_the_section_view_on_names_the_view_by_the_sketch() {
 #[test]
 fn with_the_section_view_on_the_pill_names_the_section_view() {
     let view = named(Standing {
-        open_sketch_rank: None,
+        open_sketch_number: None,
         section_view_on: true,
         kept_section_rank: Some(1),
         plane: Some(WorkPlane::XY),
@@ -86,7 +88,7 @@ fn with_the_section_view_on_the_pill_names_the_section_view() {
 #[test]
 fn a_kept_section_shown_names_the_view_by_its_rank() {
     let view = named(Standing {
-        open_sketch_rank: None,
+        open_sketch_number: None,
         section_view_on: false,
         kept_section_rank: Some(2),
         plane: Some(WorkPlane::XY),
@@ -98,7 +100,7 @@ fn a_kept_section_shown_names_the_view_by_its_rank() {
 #[test]
 fn a_view_landed_on_a_plane_names_the_plane() {
     let view = named(Standing {
-        open_sketch_rank: None,
+        open_sketch_number: None,
         section_view_on: false,
         kept_section_rank: None,
         plane: Some(WorkPlane::YZ),
@@ -110,7 +112,7 @@ fn a_view_landed_on_a_plane_names_the_plane() {
 #[test]
 fn the_free_view_is_named_the_free_3d_view() {
     let view = named(Standing {
-        open_sketch_rank: None,
+        open_sketch_number: None,
         section_view_on: false,
         kept_section_rank: None,
         plane: None,

@@ -239,6 +239,38 @@
 //! the leaning one, the worst sagging 0.0152 off the cylinder where upright
 //! it sags 0.0017: its turn is sampled coarser once one end is the leaning
 //! wall's trim.
+//!
+//! Closes #877.
+//!
+//! - The step takes one value, or declines, whatever the order, where an
+//!   outer wall of three edges in a row overhangs —
+//!   `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_whose_outer_wall_overhangs_take_one_value_in_every_order_the_least_any_of_the_three_takes_alone`.
+//!   Read as decided when the issue was taken: one value in every order —
+//!   the value asked where every order can build it, else the same reduced
+//!   value or the same decline in every order, never a wrong body. The
+//!   front wall, or wall four, leaning in 40 degrees on #792's prism, asked
+//!   4.9; and 50 degrees on a prism twice as tall, asked 8, past where two
+//!   chamfers' flats laid whole would meet in a line leaving through the
+//!   leaning wall before the middle one; chamfer and fillet, in all six
+//!   orders: every order builds, at the least any of the three takes alone,
+//!   a sound body, the same body in each
+//! - #792's and #822's tests, the hexagon's overhanging middle wall
+//!   included — no test: held by their own tests in this file, left as they
+//!   are; the overhanging middle wall's comparison of the bodies across
+//!   orders moved into `the_same_body_in_every_order`, asserting what it did
+//!
+//! Measured when the issue was taken: no overhanging outer wall gave two
+//! orders two outcomes — over 240 steps, either outer wall leaning 20 to 70
+//! degrees, both leaning at once, prisms 5 to 14 tall, asked 2 to 8.3. The
+//! meeting line leaves through an outer wall, inside the middle wall, only
+//! where the other outer edge's blend reaches that wall there; along the
+//! line where it crosses that wall, the blend's distance in from the middle
+//! wall runs straight for a flat and bends one way for a round, so it is
+//! greatest at one end, on that edge's own top or wall. That edge alone
+//! reaches the overhanging wall first, and the value is bounded short of
+//! it before any order is read: a chamfer leaning 50 degrees takes
+//! `hexagon_half / tan 50°`, 7.2668, where its meeting line would leave
+//! through the leaning wall only from 7.71.
 
 use std::collections::BTreeSet;
 use std::f64::consts::{FRAC_1_SQRT_2, PI, TAU};
@@ -2958,42 +2990,176 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_whose
             closed_and_uncrossed(&body, &what);
             laid_in_every_order.push((what, body, [0, 1, 2].map(number_of)));
         }
-        let (first_what, first, first_numbers) = &laid_in_every_order[0];
-        for (what, body, numbers) in &laid_in_every_order[1..] {
-            let which = format!("{first_what}, and {what}");
-            assert!(
-                (body.volume() - first.volume()).abs() <= EXACT * first.volume(),
-                "{which}: the two hold {} and {}",
-                first.volume(),
-                body.volume()
+        the_same_body_in_every_order(&laid_in_every_order);
+    }
+}
+
+/// Holds that the bodies a step on three edges in a row laid in several
+/// orders are one body: the same matter, within [`EXACT`] of it, and on each
+/// edge of the row a face flat in all of them or in none, a flat with the
+/// same corners, within [`PLACE`]. Each body comes with what it is and the
+/// numbers of the faces laid on the row's edges, by their rank in the row.
+fn the_same_body_in_every_order(laid_in_every_order: &[(String, Body, [usize; 3])]) {
+    let (first_what, first, first_numbers) = &laid_in_every_order[0];
+    for (what, body, numbers) in &laid_in_every_order[1..] {
+        let which = format!("{first_what}, and {what}");
+        assert!(
+            (body.volume() - first.volume()).abs() <= EXACT * first.volume(),
+            "{which}: the two hold {} and {}",
+            first.volume(),
+            body.volume()
+        );
+        for rank in 0..3 {
+            let [mine, theirs] = [numbers[rank], first_numbers[rank]];
+            assert_eq!(
+                body.is_flat(mine),
+                first.is_flat(theirs),
+                "{which}: the face laid on the edge of rank {rank} in the row is flat in one \
+                 and not in the other"
             );
-            for rank in 0..3 {
-                let [mine, theirs] = [numbers[rank], first_numbers[rank]];
-                assert_eq!(
-                    body.is_flat(mine),
-                    first.is_flat(theirs),
-                    "{which}: the face laid on the edge of rank {rank} in the row is flat in one \
-                     and not in the other"
-                );
-                if let (Some(plane), Some(other)) = (body.plane_of(mine), first.plane_of(theirs)) {
-                    let among = |corners: &[DVec3], point: &DVec3| {
-                        corners.iter().any(|corner| corner.distance(*point) < PLACE)
-                    };
-                    assert!(
-                        plane
+            if let (Some(plane), Some(other)) = (body.plane_of(mine), first.plane_of(theirs)) {
+                let among = |corners: &[DVec3], point: &DVec3| {
+                    corners.iter().any(|corner| corner.distance(*point) < PLACE)
+                };
+                assert!(
+                    plane
+                        .corners
+                        .iter()
+                        .all(|point| among(&other.corners, point))
+                        && other
                             .corners
                             .iter()
-                            .all(|point| among(&other.corners, point))
-                            && other
-                                .corners
-                                .iter()
-                                .all(|point| among(&plane.corners, point)),
-                        "{which}: the flat laid on the edge of rank {rank} in the row has the \
-                         corners {:?} in one and {:?} in the other",
-                        plane.corners,
-                        other.corners
+                            .all(|point| among(&plane.corners, point)),
+                    "{which}: the flat laid on the edge of rank {rank} in the row has the \
+                     corners {:?} in one and {:?} in the other",
+                    plane.corners,
+                    other.corners
+                );
+            }
+        }
+    }
+}
+
+/// The hexagonal prism of [`hexagonal_prism`], raised `height` instead.
+fn hexagonal_prism_of(height: f64) -> Body {
+    raised_with(
+        &Body::default(),
+        Contour::straight(hexagon_corners().to_vec()),
+        height,
+    )
+}
+
+/// The outer walls of the three top edges in a row tried overhanging: the
+/// prism's height, how far the wall leans in under its top edge, in degrees,
+/// and what is asked, past where the outer two's set-backs would cross on the
+/// middle edge. The prism as #792 raised it, leaning as its middle wall does;
+/// and one twice as tall, leaning 50 degrees, asked 8, where two chamfers'
+/// flats, laid whole, would meet in a line leaving through the leaning wall
+/// before the middle one: from where the value times `1 − cos θ + sin θ`
+/// passes [`hexagon_half`].
+const OUTER_OVERHANGS: [(f64, f64, f64); 2] = [
+    (HEXAGON_HEIGHT, OVERHANG_DEGREES, HEXAGON_ASKED),
+    (2.0 * HEXAGON_HEIGHT, 50.0, 8.0),
+];
+
+/// What a step gives: the value it took and the body it laid, or why it
+/// declined.
+type Outcome = Result<(f64, Body), Declined>;
+
+#[test]
+fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_whose_outer_wall_overhangs_take_one_value_in_every_order_the_least_any_of_the_three_takes_alone()
+ {
+    let corners = hexagon_corners();
+    for (height, degrees, asked) in OUTER_OVERHANGS {
+        for (outer, leaning) in [(0, "front wall"), (2, "wall four")] {
+            let (from, to) = (corners[outer], corners[outer + 1]);
+            let (_, out) = trapezoid_edge(from, to);
+            let (part, wall) = leaning_in(
+                &hexagonal_prism_of(height),
+                [from, to].map(|at| at.extend(height)),
+                out.extend(0.0),
+                degrees,
+            );
+            let mut walls = IN_A_ROW;
+            walls[outer] = wall;
+            let edges = walls.map(|wall| edge_between(&part, TOP, wall));
+            for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
+                let called = format!(
+                    "the {kind} on three top edges in a row of a hexagonal prism {height} tall \
+                     whose {leaning} overhangs {degrees} degrees, asked {asked}"
+                );
+                let least = (edges.iter())
+                    .map(|edge| {
+                        let alone = if fillet {
+                            part.fillet(edge, asked).map(|single| single.taken)
+                        } else {
+                            part.chamfer(edge, asked).map(|single| single.taken)
+                        };
+                        alone.unwrap_or_else(|declined| {
+                            panic!("{called}: {edge:?} alone declined, {declined:?}")
+                        })
+                    })
+                    .fold(f64::INFINITY, f64::min);
+                let outcomes: Vec<([usize; 3], Outcome)> = (ORDERS_OF_THREE.iter())
+                    .map(|&order| {
+                        let names: Vec<EdgeName> =
+                            order.iter().map(|&rank| edges[rank].clone()).collect();
+                        let laid = if fillet {
+                            part.fillet_edges(&names, asked)
+                                .map(|done| (done.taken, done.body))
+                        } else {
+                            part.chamfer_edges(&names, asked)
+                                .map(|done| (done.taken, done.body))
+                        };
+                        (order, laid)
+                    })
+                    .collect();
+                let told: Vec<String> = (outcomes.iter())
+                    .map(|(order, laid)| match laid {
+                        Ok((taken, _)) => format!("named {order:?}, took {taken}"),
+                        Err(declined) => format!("named {order:?}, declined {declined:?}"),
+                    })
+                    .collect();
+                let agree = |one: &Outcome, other: &Outcome| match (one, other) {
+                    (Ok((one, _)), Ok((other, _))) => (one - other).abs() <= PLACE,
+                    (Err(one), Err(other)) => one == other,
+                    _ => false,
+                };
+                assert!(
+                    (outcomes.iter()).all(|(_, laid)| agree(laid, &outcomes[0].1)),
+                    "{called}: one value, or one decline, whatever the order:\n{}",
+                    told.join("\n")
+                );
+                assert!(
+                    (outcomes.iter()).all(|(_, laid)| laid
+                        .as_ref()
+                        .is_ok_and(|(taken, _)| (taken - least).abs() <= PLACE)),
+                    "{called}: every order builds the step at {least}, the least any of the \
+                     three takes alone:\n{}",
+                    told.join("\n")
+                );
+                let mut laid_in_every_order: Vec<(String, Body, [usize; 3])> = Vec::new();
+                for (order, laid) in outcomes {
+                    let (_, body) = laid.expect("built, as held above");
+                    let laid: Vec<usize> = (0..order.len())
+                        .map(|named| part.faces_end() + named)
+                        .collect();
+                    let number_of = |rank: usize| {
+                        laid[order
+                            .iter()
+                            .position(|&named| named == rank)
+                            .expect("named")]
+                    };
+                    let what = format!("{called}, named {order:?}");
+                    assert!(
+                        laid.iter().all(|&number| body.has_face(number)),
+                        "{what}: a face laid for each edge, {laid:?}, the leaning wall taken whole where \
+                         a round reaches the floor along it"
                     );
+                    closed_and_uncrossed(&body, &what);
+                    laid_in_every_order.push((what, body, [0, 1, 2].map(number_of)));
                 }
+                the_same_body_in_every_order(&laid_in_every_order);
             }
         }
     }

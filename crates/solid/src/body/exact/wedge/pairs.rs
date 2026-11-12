@@ -5,7 +5,8 @@
 //! corner (#803): each edge at its end, bounding the face that is gone, one
 //! across it or the two of a pointed or a V-notched end (#843), the upright
 //! at a point's tip with them, and any upright meeting one of the pair, at
-//! either end, alone or with the edge at their end (#837).
+//! either end, alone or with the edge at their end (#837); and the edge at a
+//! round bottom's end, which its fill meets in a valley (#838).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -159,16 +160,22 @@ pub(in crate::body::exact) fn together(rank: usize, pairs: &[Pair]) -> Vec<usize
 /// pair at a corner where no third edge of the list ends but the edge at
 /// their end, the three closed there, convex, `beside` holding the corners
 /// that are not — an upright at either end, one of a standing full round
-/// among them (#837) — whose cut is laid in turn against the one prism they
-/// are taken off with and against its neighbours, by its rank, with the
-/// pair's value, the radius that prism is raised at, so that its cut meets
-/// theirs where they meet across the face even where the value taken stands a
-/// hair short of it. Declined `Unsupported` where an edge of a pair meets
-/// another of `edges` at a corner any other way: a full round meeting an edge
-/// bounding its face at one of its edges alone, or an upright where a third
-/// edge of the list ends but the edge at their end (#837), a notched end with
-/// the upright at its bottom, a corner of mixed sense gone round that upright
-/// first (#914), a round bottom meeting any edge (#838), a slope meeting any.
+/// among them (#837) — and, of a pair whose faces meet inwards, a round
+/// bottom, each edge bounding the face they meet across that meets both of
+/// the pair at a corner, its faces meeting inwards too — the floor's edge on
+/// a pocket's end wall, or the edge at the foot of a standing round bottom of
+/// two uprights at that end, its fill joined to theirs in a valley (#838) —
+/// whose cut or fill is laid in turn against the one prism they are taken off
+/// or filled in with and against its neighbours, by its rank, with the pair's
+/// value, the radius that prism is raised at, so that it meets theirs where
+/// they meet across the face even where the value taken stands a hair short
+/// of it. Declined `Unsupported` where an edge of a pair meets another of
+/// `edges` at a corner any other way: a full round meeting an edge bounding
+/// its face at one of its edges alone, or an upright where a third edge of
+/// the list ends but the edge at their end (#837), a notched end with the
+/// upright at its bottom, a corner of mixed sense gone round that upright
+/// first (#914), a round bottom meeting any other edge — the uprights at its
+/// end (#919), the edges of a pointed or a notched end — a slope meeting any.
 pub(super) fn at_their_ends(
     body: &brep::Body,
     edges: &[EdgeId],
@@ -221,7 +228,12 @@ pub(super) fn at_their_ends(
         };
         for rank in (0..edges.len()).filter(|&rank| meets(one, rank) || meets(other, rank)) {
             let at_their_end = bounding(rank) && reaching(rank, one) && reaching(rank, other);
-            if !outwards || !(at_their_end || upright(rank)) {
+            let laid = if outwards {
+                at_their_end || upright(rank)
+            } else {
+                at_the_end(rank)
+            };
+            if !laid {
                 return Err(Declined::Unsupported);
             }
             ends.insert(rank, value);

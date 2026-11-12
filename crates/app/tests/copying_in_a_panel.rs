@@ -21,6 +21,16 @@
 //!   `undoing_past_the_sketch_keeps_the_place_the_panel_was_left_at`
 //! - with nowhere to keep the settings, letting the panel go raises no error —
 //!   `a_panel_let_go_with_nowhere_to_keep_settings_says_nothing`
+//!
+//! Closes #738 — the whole transcription is in
+//! `crates/app/src/screens/viewport/input/copying/tests/steps.rs`; these are
+//! the halves only the whole application holds, the keyboard's Escape and the
+//! pointer that drags.
+//! - ↵ validates the current step and moves on; on the last step it applies
+//!   the pattern; Escape cancels. One test per case — Escape's case,
+//!   `escape_on_a_step_of_the_circular_pattern_closes_its_panel_and_lays_nothing`
+//! - The panel can still be dragged and keeps its place —
+//!   `the_circular_pattern_s_panel_follows_its_title_and_reopens_where_it_was_let_go`
 
 mod driver;
 

@@ -32,7 +32,7 @@ pub(crate) fn copy(
     match panel.active() {
         CopySlot::Elements => gather(context, index, cursor, snap, pixel),
         CopySlot::Target => name_the_target(context, index, cursor, snap),
-        CopySlot::Value(_) | CopySlot::Validate => false,
+        CopySlot::Value(_) | CopySlot::Rotation | CopySlot::Validate => false,
     }
 }
 

@@ -23,6 +23,7 @@ use super::*;
 pub(super) mod bench;
 mod ends;
 mod panel;
+mod steps;
 
 /// A trait standing well clear of both sketch axes.
 fn a_drawing() -> (Sketch, cao_sketch::SegmentId) {

@@ -168,18 +168,17 @@ impl Exact {
     }
 
     /// Whether the round closed to nothing between two corners whose centres
-    /// are one (#837): the face answering to `made` answers past `closing` too,
-    /// where the pieces closing the step's corners are numbered, to the one
-    /// piece of sphere closing both, and to nothing else, as
-    /// [`Exact::rounded_as`] reads it of all those numbers.
+    /// are one (#837): the faces answering to `made` answer to nothing but it
+    /// and numbers from `closing` on, where the pieces closing the step's
+    /// corners are numbered, and [`Exact::rounded_as`] holds of all those
+    /// numbers.
     fn closed_between(&self, name: &EdgeName, made: u32, closing: u32) -> bool {
         let numbers: Vec<u32> = (self.named(made as usize))
             .flat_map(|face| self.brep.numbers(face).to_vec())
             .collect();
-        numbers.iter().any(|&number| number >= closing)
-            && numbers
-                .iter()
-                .all(|&number| number == made || number >= closing)
+        numbers
+            .iter()
+            .all(|&number| number == made || number >= closing)
             && self.rounded_as(name, &numbers)
     }
 

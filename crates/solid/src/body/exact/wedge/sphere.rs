@@ -216,9 +216,9 @@ fn bounding(
 }
 
 /// The faces a corner closed before laid on the sphere of `radius` about
-/// `centre` beside `walls`, an edge of each one of theirs: the other end of
-/// an edge whose round, between two corners whose centres are one, closes
-/// to nothing, so that the two pieces are one.
+/// `centre`, none of `walls`: the other end of an edge whose round, between
+/// two corners whose centres are one, closes to nothing, so that the two
+/// pieces are one.
 fn laid_before(
     body: &brep::Body,
     walls: &[FaceId],
@@ -226,20 +226,6 @@ fn laid_before(
     radius: f64,
     eps: f64,
 ) -> Vec<FaceId> {
-    let edges = |face: FaceId| {
-        body.face(face)
-            .loops
-            .iter()
-            .flatten()
-            .map(|coedge| coedge.edge)
-    };
-    let beside = |face: FaceId| {
-        edges(face).any(|edge| {
-            walls
-                .iter()
-                .any(|&wall| edges(wall).any(|theirs| theirs == edge))
-        })
-    };
     let sphere = |face: FaceId| match body.surface(body.face(face).surface) {
         Surface::Sphere(sphere) => {
             sphere.middle().distance(centre) <= eps && (sphere.radius - radius).abs() <= eps
@@ -247,7 +233,7 @@ fn laid_before(
         _ => false,
     };
     body.face_ids()
-        .filter(|&face| !walls.contains(&face) && sphere(face) && beside(face))
+        .filter(|&face| !walls.contains(&face) && sphere(face))
         .collect()
 }
 

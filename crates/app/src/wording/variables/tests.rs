@@ -14,6 +14,14 @@
 //!   named, among what uses that variable, as it now stands rather than as it
 //!   was first raised —
 //!   `a_step_changed_to_lean_on_a_variable_is_named_as_it_now_stands`
+//!
+//! Closes #737 — the whole transcription is in
+//! `crates/part/tests/inserting_a_step.rs`; this bullet is the variables'
+//! wording's half of one criterion.
+//! - Must not break: every name an alert or a dimension uses to find its step
+//!   still finds it after an insertion — a refusal names a sketch by the
+//!   number its row shows, a number dropped before it left behind —
+//!   `a_refusal_names_a_sketch_by_its_number_once_one_was_dropped`
 
 use cao_part::VariableChange;
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
@@ -131,6 +139,68 @@ fn every_way_a_name_does_not_do_has_a_sentence_of_its_own() {
             "{problem:?}"
         );
     }
+}
+
+/// Three sketches with a rectangle each, the third taken back and dropped by
+/// a fourth opened on YZ, whose first side is sized 20: the sketch of index 2
+/// bears the number 4.
+fn a_part_whose_third_sketch_was_dropped() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    let square = |sketch| Operation::AddRectangle {
+        sketch,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::splat(20.0)),
+        construction: false,
+    };
+    for (sketch, plane) in [(0, WorkPlane::XY), (1, WorkPlane::XY), (2, WorkPlane::XZ)] {
+        document.apply(Operation::CreateSketch { plane, on: None });
+        document.apply(square(sketch));
+    }
+    document.undo();
+    document.undo();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::YZ,
+        on: None,
+    });
+    document.apply(square(2));
+    document.apply(Operation::SetDimension {
+        sketch: 2,
+        target: DimensionTarget::Length(SegmentId(0)),
+        value: 20.0.into(),
+        placement: None,
+    });
+    assert_eq!(
+        document.sketch_number(2),
+        Some(4),
+        "the fixture wants the sketch on YZ numbered 4, the third one's 3 dropped",
+    );
+    document
+}
+
+#[test]
+fn a_refusal_names_a_sketch_by_its_number_once_one_was_dropped() {
+    let document = a_part_whose_third_sketch_was_dropped();
+
+    let sentences = [
+        said(&document, &Refused::Breaks(vec![Broken::Adrift(2)])),
+        said(
+            &document,
+            &Refused::Breaks(vec![Broken::Dimension {
+                sketch: 2,
+                target: DimensionTarget::Length(SegmentId(0)),
+            }]),
+        ),
+    ];
+
+    let wrong: Vec<&String> = sentences
+        .iter()
+        .filter(|sentence| !sentence.contains("esquisse 4") || sentence.contains("esquisse 3"))
+        .collect();
+    assert!(
+        wrong.is_empty(),
+        "a sketch set adrift, and a value on it, are not named « esquisse 4 » as the sketch's \
+         row is: {wrong:?}",
+    );
 }
 
 #[test]

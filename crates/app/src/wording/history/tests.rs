@@ -35,6 +35,25 @@ fn said(operation: &Operation) -> String {
     )
 }
 
+/// A part of two sketches, numbered 1 and 2 by the part itself: what a line
+/// unfolded names a sketch by.
+fn a_part_of_two_sketches() -> cao_part::PartDocument {
+    let mut document =
+        cao_part::PartDocument::new("part", "2026-11-12T09:00:00Z".parse().expect("a date"));
+    for _ in 0..2 {
+        document.apply(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+            on: None,
+        });
+    }
+    document
+}
+
+/// What a line of the history of `a_part_of_two_sketches` reads once unfolded.
+fn unfolded(operation: &Operation) -> String {
+    detail_in(&Catalogue::french(), &a_part_of_two_sketches(), operation)
+}
+
 const SEGMENT: SegmentId = SegmentId(0);
 const CIRCLE: CircleId = CircleId(3);
 const AWAY: DVec2 = DVec2::new(3.0, 0.0);
@@ -211,8 +230,6 @@ fn a_single_deletion_says_what_went_and_a_grouped_one_says_how_many() {
 
 #[test]
 fn a_side_moved_and_a_shape_turned_say_so_and_unfold_into_what_they_did() {
-    let lang = Catalogue::french();
-    let variables = cao_part::Variables::default();
     let moved = Operation::MoveSegment {
         sketch: 0,
         segment: SegmentId(2),
@@ -227,12 +244,9 @@ fn a_side_moved_and_a_shape_turned_say_so_and_unfold_into_what_they_did() {
 
     assert_eq!(said(&moved), "Côté déplacé");
     assert_eq!(said(&turned), "Forme tournée");
+    assert_eq!(unfolded(&moved), "Esquisse 1 · trait 2 de (0, 15)");
     assert_eq!(
-        detail(&lang, &variables, &moved),
-        "Esquisse 1 · trait 2 de (0, 15)"
-    );
-    assert_eq!(
-        detail(&lang, &variables, &turned),
+        unfolded(&turned),
         "Esquisse 1 · 4 points tournés de 30° autour de (70, 52.5)"
     );
 }
@@ -264,14 +278,7 @@ fn the_history_says_a_radius_to_a_tenth_of_a_micron() {
         construction: false,
     };
 
-    assert_eq!(
-        detail(
-            &Catalogue::french(),
-            &cao_part::Variables::default(),
-            &circle
-        ),
-        "Esquisse 2 · rayon 37.4618",
-    );
+    assert_eq!(unfolded(&circle), "Esquisse 2 · rayon 37.4618",);
 }
 
 #[test]
@@ -282,14 +289,7 @@ fn the_history_says_a_place_to_a_tenth_of_a_micron() {
         on: Vec::new(),
     };
 
-    assert_eq!(
-        detail(
-            &Catalogue::french(),
-            &cao_part::Variables::default(),
-            &point
-        ),
-        "Esquisse 1 · (12.5, 37.4618)",
-    );
+    assert_eq!(unfolded(&point), "Esquisse 1 · (12.5, 37.4618)",);
 }
 
 fn on_the_top() -> WorkPlane {

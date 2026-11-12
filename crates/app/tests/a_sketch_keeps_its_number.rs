@@ -14,19 +14,23 @@
 //!   one; a name is never reused, even if the sketch that bore it was deleted —
 //!   `a_number_taken_back_and_dropped_is_not_shown_again_on_the_next_sketch`
 //! - Must not break: every name an alert or a dimension uses to find its step
-//!   still finds it after an insertion — the sentences that name a sketch, an
-//!   alert's and a dimension's line in the history, naming it as its row does —
-//!   `a_sentence_naming_a_sketch_names_it_as_its_row_does_once_a_number_was_dropped`
+//!   still finds it after an insertion — a value's line in the history and the
+//!   alert of a lost face naming the sketch as its row does —
+//!   `a_sentence_naming_a_sketch_names_it_as_its_row_does_once_a_number_was_dropped`;
+//!   the variables' refusals, which name a sketch too, in
+//!   `crates/app/src/wording/variables/tests.rs`
 //!
 //! A name is read where the user reads it. The tree's row is a button that
 //! reads exactly it; the history's line reads « n. » before it; the pill and
-//! the title bar are told apart by where they stand, the pill inside the view
-//! on the row of its « Terminer », the title bar on the row of « Accueil ». The
-//! reader's boxes answer to « Étape n » alone, so a box's name is read off the
-//! line under the row once the box is clicked: the one text outside the view
-//! and the title bar, and no button, that starts with the name of a step.
+//! the title bar are told apart by the row they stand on, the pill on the row
+//! of its « Terminer », the title bar on the row of « Accueil », and neither
+//! is a button. The reader's boxes answer to « Étape n » alone, so a box's
+//! name is read off the line under the row once the box is clicked: the one
+//! text off the rows of the pill and the title bar, and no button, that starts
+//! with the name of a step.
 
 use egui_kittest::kittest::{NodeT, Queryable};
+use glam::{DVec2, DVec3};
 
 mod driver;
 
@@ -91,13 +95,23 @@ fn the_title_bar_s_sketch(app: &driver::App) -> Option<String> {
         .find_map(|(_, text, _)| sketch_named_by(&text))
 }
 
-/// The sketch the pill names, inside the view on the row of its « Terminer ».
+fn the_pill_s_row(app: &driver::App) -> Option<egui::Rect> {
+    driver::the_pill_s_finish(app).map(|finish| finish.rect())
+}
+
+fn on_the_row(row: Option<egui::Rect>, at: egui::Rect) -> bool {
+    row.is_some_and(|row| row.y_range().contains(at.center().y))
+}
+
+/// The sketch the pill names, on the row of its « Terminer »: no button there
+/// reads a sketch's name, and the title bar, which does, stands on another.
 fn the_pill_s_sketch(app: &driver::App) -> Option<String> {
-    let finish = driver::the_pill_s_finish(app)?.rect();
-    let view = driver::canvas(app);
+    let (pill, title_bar) = (the_pill_s_row(app)?, the_title_bar_s_row(app));
     texts(app)
         .into_iter()
-        .filter(|(at, _, _)| view.contains_rect(*at) && finish.y_range().contains(at.center().y))
+        .filter(|(at, _, button)| {
+            !button && on_the_row(Some(pill), *at) && !on_the_row(title_bar, *at)
+        })
         .find_map(|(_, text, _)| sketch_named_by(&text))
 }
 
@@ -157,15 +171,10 @@ fn the_history_s_sketches(app: &mut driver::App) -> (Vec<String>, Option<String>
 /// The name the line under the reader's row gives the step read to, without
 /// « · la suite est masquée ».
 fn the_reader_s_line(app: &driver::App) -> Option<String> {
-    let view = driver::canvas(app);
-    let title_bar = the_title_bar_s_row(app);
+    let (pill, title_bar) = (the_pill_s_row(app), the_title_bar_s_row(app));
     texts(app)
         .into_iter()
-        .filter(|(at, _, button)| {
-            !button
-                && !view.contains_rect(*at)
-                && !title_bar.is_some_and(|row| row.y_range().contains(at.center().y))
-        })
+        .filter(|(at, _, button)| !button && !on_the_row(pill, *at) && !on_the_row(title_bar, *at))
         .map(|(_, text, _)| text)
         .find(|text| text.starts_with("Esquisse ") || text.starts_with("Extrusion "))
         .map(|line| line.trim_end_matches(" · la suite est masquée").to_string())
@@ -260,9 +269,11 @@ fn a_sketch_inserted_after_the_second_takes_the_next_number_and_the_others_keep_
     );
 }
 
-#[test]
-fn a_number_taken_back_and_dropped_is_not_shown_again_on_the_next_sketch() {
-    let mut app = a_block_and_sketches("a_number_taken_back_and_dropped", 2);
+/// « Bloc » and two sketches after it, « Esquisse 3 » then taken back with
+/// « Annuler » until the tree no longer has it: the next sketch opened drops
+/// it, and its 3 with it.
+fn a_block_and_a_third_sketch_taken_back(test: &str) -> driver::App {
+    let mut app = a_block_and_sketches(test, 2);
     for _ in 0..5 {
         if !driver::in_the_tree(&app, "Esquisse 3") {
             break;
@@ -274,6 +285,12 @@ fn a_number_taken_back_and_dropped_is_not_shown_again_on_the_next_sketch() {
         ["Esquisse 1", "Esquisse 2"],
         "the fixture wants « Esquisse 3 » taken back, and nothing before it",
     );
+    app
+}
+
+#[test]
+fn a_number_taken_back_and_dropped_is_not_shown_again_on_the_next_sketch() {
+    let mut app = a_block_and_a_third_sketch_taken_back("a_number_taken_back_and_dropped");
 
     let seen = a_sketch_opened_then_every_name(&mut app, 4);
 
@@ -287,5 +304,94 @@ fn a_number_taken_back_and_dropped_is_not_shown_again_on_the_next_sketch() {
         ),
         "the sketch opened once « Esquisse 3 » was taken back, which dropped it, is not \
          « Esquisse 4 » everywhere its name shows: the 3 is given again",
+    );
+}
+
+/// On the block's face at x = 10, where `the_alerts.rs` lays a sketch.
+const ON_THE_BLOCK_S_FACE: DVec3 = DVec3::new(10.0, 41.51, -19.82);
+
+/// A point of the block's sketch away from what is drawn on it, where the hand
+/// rests while the selection is deleted: `the_alerts.rs`'s.
+const AWAY_FROM_THE_BLOCK_S_TRAITS: DVec2 = DVec2::new(173.9, -56.77);
+
+/// A trait drawn in the open sketch, and a value put on it with « Cote ».
+fn a_trait_and_its_dimension(app: &mut driver::App) {
+    driver::draw_a_segment(app);
+    driver::pick_the_dimension_tool(app);
+    driver::click_at_sketch_point(app, driver::ON_THE_SEGMENT);
+    driver::click_at_sketch_point(app, driver::WHERE_ITS_DIMENSION_GOES);
+    driver::press(app, egui::Key::Enter);
+    driver::press(app, egui::Key::Escape);
+}
+
+/// Everything drawn on « Esquisse 1 », the block's sketch, deleted, and the
+/// sketch finished, as `the_alerts.rs` does: the block loses its area, and a
+/// sketch on its face loses the face.
+fn empty_the_block_s_sketch(app: &mut driver::App) {
+    driver::double_click(app, "Esquisse 1");
+    driver::click(app, "Sélection (S)");
+    driver::press_with_command(app, egui::Key::A);
+    app.hover_at(driver::sketch_point_on_screen(
+        app,
+        AWAY_FROM_THE_BLOCK_S_TRAITS,
+    ));
+    app.run();
+    driver::press(app, egui::Key::Delete);
+    driver::finish_the_sketch(app);
+}
+
+/// The sketch the history's line of a value names, under that line; the
+/// history unfolded to read it, then folded again.
+fn the_sketch_the_dimension_s_line_names(app: &mut driver::App) -> Option<String> {
+    click_the_history_s_header(app);
+    let line = driver::steps(app).into_iter().find(|line| {
+        line.split_once(". ")
+            .is_some_and(|(_, name)| name.starts_with("Cote "))
+    });
+    let named = line.and_then(|line| the_sketch_under(app, &line));
+    click_the_history_s_header(app);
+    named
+}
+
+/// The sketch the list of alerts says lost its face, the list opened from the
+/// count in the title bar.
+fn the_sketch_the_alerts_say_lost_its_face(app: &mut driver::App) -> Option<String> {
+    let count = texts(app)
+        .into_iter()
+        .find(|(_, text, button)| *button && text.ends_with(" alertes"))
+        .map(|(_, text, _)| text)?;
+    driver::click_the_button(app, &count);
+    texts(app)
+        .into_iter()
+        .map(|(_, text, _)| text)
+        .find(|text| text.ends_with(" · face perdue"))
+        .and_then(|title| sketch_named_by(&title))
+}
+
+#[test]
+fn a_sentence_naming_a_sketch_names_it_as_its_row_does_once_a_number_was_dropped() {
+    let mut app = a_block_and_a_third_sketch_taken_back("a_sentence_naming_a_sketch");
+    driver::bring_into_the_ribbon(&mut app, "Nouvelle esquisse");
+    driver::click(&mut app, "Nouvelle esquisse");
+    driver::click_at_world_point(&mut app, ON_THE_BLOCK_S_FACE);
+    a_trait_and_its_dimension(&mut app);
+    driver::finish_the_sketch(&mut app);
+    assert_eq!(
+        the_tree_s_sketches(&app),
+        ["Esquisse 1", "Esquisse 2", "Esquisse 4"],
+        "the fixture wants the sketch laid on the block's face to be « Esquisse 4 », the 3 \
+         dropped",
+    );
+
+    let dimension = the_sketch_the_dimension_s_line_names(&mut app);
+    empty_the_block_s_sketch(&mut app);
+    let alert = the_sketch_the_alerts_say_lost_its_face(&mut app);
+
+    assert_eq!(
+        (dimension.as_deref(), alert.as_deref()),
+        (Some("Esquisse 4"), Some("Esquisse 4")),
+        "the value put on « Esquisse 4 » and the alert of its lost face do not name it as its \
+         row does, as (the value's line in the history, the alert): {:?}",
+        driver::on_screen(&app),
     );
 }

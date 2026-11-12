@@ -92,7 +92,9 @@ impl Exact {
     /// — a cut and a fill —, more than three edges meeting at a corner, an edge
     /// of a chain holding a crease — a leaning flight's (#926) — or whose
     /// flats stand a hair off one plane (#929), or one of a slope or a crease
-    /// meeting another edge of the list at a corner, a face so nearly flush
+    /// meeting another edge of the list at a corner — but an upright meeting
+    /// its cut at a convex corner, the front's at an end of the nose, mitred
+    /// against the slope (#814) — a face so nearly flush
     /// with the chamfer's plane that the prism cannot stand off it, and a cut
     /// that, carried along the edge's line, takes matter beyond the faces it
     /// meets there — past an end where the face the edge runs into is curved,

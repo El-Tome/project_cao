@@ -66,9 +66,13 @@ impl Body {
     /// filled in beside a concave edge left sharp, at a pocket's bottom corner,
     /// meet in a valley; at any other corner where an edge meets inwards they
     /// are declined `Unsupported`, as is an edge of a slope or a crease
-    /// meeting another edge of the list at a corner. Flats that would meet
-    /// only on a curved edge are not measured, and declined `Unsupported`
-    /// where they meet. The first edge declined declines the step.
+    /// meeting another edge of the list at a corner — but the front's upright
+    /// at an end of the nose, whose flat is mitred against the slope as two
+    /// flats at a convex corner are, along the line where their planes cross
+    /// (#814) — and the tread's side edge with them (#935). Flats that would
+    /// meet only on a curved edge are not measured, and declined
+    /// `Unsupported` where they meet. The first edge declined declines the
+    /// step.
     pub fn chamfer_edges(&self, edges: &[EdgeName], distance: f64) -> Result<Chamfered, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Lost(Lost::Gone));

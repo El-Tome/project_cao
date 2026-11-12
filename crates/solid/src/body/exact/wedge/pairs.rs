@@ -164,15 +164,19 @@ pub(in crate::body::exact) fn together(rank: usize, pairs: &[Pair]) -> Vec<usize
 /// that are not — an upright at either end, one of a standing full round
 /// among them (#837) — and, of a pair not laid outwards, a round bottom, a
 /// slope or a crease, each edge bounding the face they meet across that
-/// meets both of the pair at a corner, whatever its own sense — whose cut or
+/// meets both of the pair at a corner, whatever its own sense, and each such
+/// upright — the front's upright at a slope's nose (#814), a cut meeting the
+/// slope's cut, since `corners::admit` refuses one meeting a fill — whose cut or
 /// fill is laid in turn against the one prism they are taken off or filled
 /// in with and against its neighbours, by its rank, with the pair's value,
 /// the radius that prism is raised at, so that it meets theirs where they
 /// meet across the face even where the value taken stands a hair short of
-/// it. Of a pair not laid outwards, only an end edge meeting inwards is
-/// built: the floor's edge on a pocket's end wall, or the edge at the foot of
-/// a standing round bottom of two uprights at that end, its fill joined to
-/// theirs in a valley (#838). A list mixing senses there — a slope or a
+/// it. Of a pair not laid outwards, an end edge is built only where it meets
+/// inwards: the floor's edge on a pocket's end wall, or the edge at the foot
+/// of a standing round bottom of two uprights at that end, its fill joined
+/// to theirs in a valley (#838); an upright, its flat mitred against the
+/// slope's, as two chamfers meeting at a convex corner are. A list mixing
+/// senses there — a slope or a
 /// crease with the tread's end edge, a round bottom with a convex end edge
 /// such as an open slot's end, a standing round bottom with the rim above
 /// it — is let in here and refused
@@ -240,7 +244,7 @@ pub(super) fn at_their_ends(
             let laid = if outwards {
                 at_their_end || upright(rank)
             } else {
-                at_the_end(rank)
+                at_the_end(rank) || upright(rank)
             };
             if !laid {
                 return Err(Declined::Unsupported);

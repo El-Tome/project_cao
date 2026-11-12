@@ -208,9 +208,9 @@ impl Exact {
                     let value = (pairs.iter())
                         .filter(|&&(one, _, _)| joined.contains(&one))
                         .fold(f64::INFINITY, |least, &(_, _, value)| least.min(value));
-                    let chain: Vec<&EdgeName> = joined.iter().map(|&at| &names[at]).collect();
+                    let chain: Vec<(EdgeId, &Wedge)> = joined.iter().map(|&at| given[at]).collect();
                     let numbers: Vec<u32> = joined.iter().map(|&at| start + at as u32).collect();
-                    cut.sloped(&chain, &numbers, value, &tool)?
+                    cut.sloped(&self.brep, &chain, &numbers, value, &tool)?
                 }
                 (None, _) => {
                     let open = flush::open(&self.brep, rank, &given, &beside);

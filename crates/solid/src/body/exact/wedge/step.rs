@@ -159,7 +159,7 @@ impl Exact {
         } = step;
         let scale = self.brep.scale();
         let pairs = pairs::meeting(&wedges, &facing, taken, set_back, meeting.together, scale)?;
-        let ends = pairs::at_their_ends(&self.brep, &edges, &wedges, &pairs)?;
+        let ends = pairs::at_their_ends(&self.brep, &edges, &wedges, &pairs, &three)?;
         let closes = closing::closings(
             three,
             &wedges,
@@ -177,10 +177,20 @@ impl Exact {
             }
             cut.next = start + rank as u32;
             let partner = pairs.iter().find(|&&(_, later, _)| later == rank);
+            let own = [partner.map_or(rank, |&(earlier, _, _)| earlier), rank];
+            let mitred: Vec<u32> = (0..rank)
+                .filter(|before| !own.contains(before))
+                .filter(|&before| {
+                    own.iter()
+                        .any(|&laid| corners::meet(&self.brep, [edges[before], edges[laid]]))
+                })
+                .map(|before| start + before as u32)
+                .collect();
             cut = match (partner, meeting.together) {
                 (Some(&(earlier, _, _)), Together::Raised(raise)) => {
                     let pair = [given[earlier], given[rank]];
-                    cut.laid_together(&self.brep, pair, start + earlier as u32, raise)?
+                    let number = start + earlier as u32;
+                    cut.laid_together(&self.brep, pair, number, raise, &mitred)?
                 }
                 (Some(&(earlier, _, value)), Together::Sloped) => cut.sloped(
                     [&names[earlier], &names[rank]],
@@ -189,10 +199,6 @@ impl Exact {
                     &tool,
                 )?,
                 (None, _) => {
-                    let mitred: Vec<u32> = (0..rank)
-                        .filter(|&earlier| corners::meet(&self.brep, [edges[earlier], edges[rank]]))
-                        .map(|earlier| start + earlier as u32)
-                        .collect();
                     let open = flush::open(&self.brep, rank, &given, &beside);
                     let completed = completing(rank, &given, &crossing);
                     let met = Met {

@@ -210,9 +210,13 @@ impl Exact {
     /// it at, that end left a face of its own dug into the matter, flush at
     /// each of its other [`stops`], joined to each overlap, and cut, the ends
     /// trimmed flush and the overlaps merged into the faces they meet, as
-    /// [`Exact::merged_at`] merges them at the corners the edge ended at and
-    /// the points the overlaps clear, and carried past any other end. Declined
-    /// as the trims, the joins and the booleans decline.
+    /// [`Exact::merged_at`] merges them at the corners the edge ended at, the
+    /// points the overlaps clear and, where it takes one, the corners this
+    /// body holds on the planes of the edge's faces — a face an overlap
+    /// completes, stopped on one of them, may end there on a mitre with an
+    /// edge laid before it rather than where its set-back lines cross it —
+    /// and carried past any other end. Declined as the trims, the joins and
+    /// the booleans decline.
     pub(super) fn laid_flush(
         &self,
         flush: &Flush,
@@ -246,6 +250,13 @@ impl Exact {
         if stops.is_empty() {
             return Ok(cut);
         }
+        let on_its_faces = |point: &DVec3| {
+            (wedge.outward.iter()).any(|side| side.dot(*point - wedge.point).abs() <= eps)
+        };
+        let seams = (self.brep.vertex_ids())
+            .filter(|_| !flush.overlaps.is_empty())
+            .map(|vertex| self.brep.vertex(vertex).point)
+            .filter(on_its_faces);
         let corners: Vec<DVec3> = (stops.iter().map(|stop| stop.corner))
             .chain(
                 flush
@@ -253,6 +264,7 @@ impl Exact {
                     .iter()
                     .flat_map(|overlap| overlap.cleared.iter().copied()),
             )
+            .chain(seams)
             .collect();
         cut.merged_at(&corners)
     }

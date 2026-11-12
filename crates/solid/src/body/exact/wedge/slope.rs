@@ -55,6 +55,6 @@ impl Exact {
         if !filled.named(made).eq(filled.named(lent)) {
             return Err(Declined::Unsupported);
         }
-        filled.paired(self, [&first, &second], number)
+        filled.paired(self, [&first, &second], number, &[])
     }
 }

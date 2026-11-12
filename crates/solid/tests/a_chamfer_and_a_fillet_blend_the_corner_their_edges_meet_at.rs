@@ -302,18 +302,18 @@
 //!   before the fillet is built —
 //!   `a_chamfer_on_a_full_round_pair_s_edges_and_an_edge_meeting_them_at_a_corner_mitres_their_ridge_against_that_edge_s_flat_whatever_the_order`
 //! - What stays declined, so that the guard letting the end edge in lets in
-//!   nothing else: the full round of the top's front and back edges with the
-//!   top's right edge and both uprights at that end, until #837's second
-//!   slice; a pocket 6 wide whose floor's front and back edges are filled at 3
-//!   in a round bottom, with its floor's edge on its end wall, until #838; and
-//!   the four top edges of a block 6 by 6, two full rounds meeting at its
-//!   corners. Each is declined `Unsupported` in every order the list can name
-//!   its edges in, the pair alone laid. Green before this branch and after, a
-//!   pin of the guard rather than a red test —
-//!   `a_fillet_on_a_full_round_meeting_an_upright_or_another_full_round_and_on_a_round_bottom_meeting_the_edge_at_its_end_is_declined_as_unsupported_whatever_the_order`.
+//!   nothing else: a pocket 6 wide whose floor's front and back edges are
+//!   filled at 3 in a round bottom, with its floor's edge on its end wall,
+//!   until #838; and the four top edges of a block 6 by 6, two full rounds
+//!   meeting at its corners. Each is declined `Unsupported` in every order the
+//!   list can name its edges in, the pair alone laid. Green before this branch
+//!   and after, a pin of the guard rather than a red test —
+//!   `a_fillet_on_a_full_round_meeting_another_full_round_and_on_a_round_bottom_meeting_the_edge_at_its_end_is_declined_as_unsupported_whatever_the_order`.
 //!   The full round with the front's right edge, the upright at its end, was
 //!   held there too until #837's first slice built it, the upright's round
-//!   mitred against the full round on an ellipse, held now in
+//!   mitred against the full round on an ellipse; and the full round with the
+//!   top's right edge and both uprights at that end, the tongue, until #837's
+//!   second slice built it, its tip a quarter of a ball. Both are held now in
 //!   `a_full_round_meets_the_round_of_an_upright_at_its_end_on_an_ellipse.rs`.
 //!   A full round ending on a pointed end — a plate 6 wide whose right end
 //!   comes to a point at (33, 3) seen from above, filleted at 3 on the top's
@@ -331,12 +331,15 @@
 //!   bevel edge in the list, the step takes a value short of the full round,
 //!   where the rounds would meet through an end face, and no pair is laid
 //!   together; raising it to the value asked is #894's
-//! - What stays declined beside, though no guard of this branch holds it:
+//! - What stayed declined beside, though no guard of this branch held it:
 //!   the chamfer on the full round's edges, the end edge and both uprights,
-//!   `Unsupported` in every order until #837, where on the other lists above
-//!   the chamfer is built. Its two flats are laid edge by edge, never as one
-//!   pair, so the decline comes from elsewhere in the step —
-//!   `a_chamfer_on_a_full_round_pair_s_edges_the_edge_at_their_end_and_both_uprights_there_is_declined_as_unsupported_whatever_the_order`
+//!   `Unsupported` in every order, where on the other lists above the chamfer
+//!   is built, until #837's second slice built it — no test: the decline went
+//!   with that slice, and the body, the end edge's flat closed to nothing
+//!   between the two corners' triangles, is held in
+//!   `a_full_round_meets_the_round_of_an_upright_at_its_end_on_an_ellipse.rs`
+//!   by
+//!   `a_chamfer_on_a_full_round_the_edge_across_its_end_and_both_uprights_there_closes_the_end_edge_s_flat_to_a_ridge_between_the_corners_triangles_whatever_the_order`
 //!
 //! The volumes are arithmetic, measured from the corner along its three
 //! edges: a point stands `(a, b, c)` from it, `a` along the edge whose length
@@ -4159,19 +4162,11 @@ const POCKET_RIGHT: usize = 9;
 const POCKET_BACK: usize = 10;
 
 #[test]
-fn a_fillet_on_a_full_round_meeting_an_upright_or_another_full_round_and_on_a_round_bottom_meeting_the_edge_at_its_end_is_declined_as_unsupported_whatever_the_order()
+fn a_fillet_on_a_full_round_meeting_another_full_round_and_on_a_round_bottom_meeting_the_edge_at_its_end_is_declined_as_unsupported_whatever_the_order()
  {
-    let narrow = block([LENGTH, NARROW, HEIGHT]);
     let square = block([NARROW, NARROW, HEIGHT]);
     let pocket = narrow_pocket();
     let cases = [
-        (
-            "the full round of the top's front and back edges, the top's right edge and the two \
-             uprights at that end, until #837's second slice",
-            &narrow,
-            [TOP_FRONT, TOP_BACK],
-            vec![TOP_RIGHT, FRONT_RIGHT, BACK_RIGHT],
-        ),
         (
             "the round bottom of the pocket's floor edges on its front and back walls, and its \
              floor edge on its right wall, until #838",
@@ -4213,42 +4208,8 @@ fn a_fillet_on_a_full_round_meeting_an_upright_or_another_full_round_and_on_a_ro
         .collect();
     assert!(
         not_declined.is_empty(),
-        "a full round meeting an edge at a corner other than the end edge on the face it took, \
-         a round bottom meeting any, and a full round meeting another, are each a broken step \
-         and its reason, whatever the order, the pair alone laid; not so:\n{}",
-        not_declined.join("\n")
-    );
-}
-
-#[test]
-fn a_chamfer_on_a_full_round_pair_s_edges_the_edge_at_their_end_and_both_uprights_there_is_declined_as_unsupported_whatever_the_order()
- {
-    let narrow = block([LENGTH, NARROW, HEIGHT]);
-    let name = |[one, other]: [usize; 2]| edge_between(&narrow, one, other);
-    narrow
-        .chamfer_edges(&[TOP_FRONT, TOP_BACK].map(name), FULL_ROUND)
-        .unwrap_or_else(|declined| {
-            panic!("the top's front and back edges alone are chamfered, their flats meeting in a ridge; declined, {declined:?}")
-        });
-    let list = [TOP_FRONT, TOP_BACK, TOP_RIGHT, FRONT_RIGHT, BACK_RIGHT];
-
-    let not_declined: Vec<String> = every_order(list.len())
-        .into_iter()
-        .filter_map(|order| {
-            let faces: Vec<[usize; 2]> = order.iter().map(|&edge| list[edge]).collect();
-            let names: Vec<EdgeName> = faces.iter().map(|&edge| name(edge)).collect();
-            match narrow.chamfer_edges(&names, FULL_ROUND) {
-                Err(Declined::Unsupported) => None,
-                Ok(_) => Some(format!("the chamfer on {faces:?}: a body")),
-                Err(declined) => Some(format!("the chamfer on {faces:?}: declined, {declined:?}")),
-            }
-        })
-        .collect();
-    assert!(
-        not_declined.is_empty(),
-        "the chamfer at {FULL_ROUND} on the top's front and back edges of a block {NARROW} wide, \
-         its top's right edge and the two uprights at that end is a broken step and its reason, \
-         whatever the order, until #837; not so:\n{}",
+        "a round bottom meeting the edge at its end, and a full round meeting another, are each \
+         a broken step and its reason, whatever the order, the pair alone laid; not so:\n{}",
         not_declined.join("\n")
     );
 }

@@ -107,9 +107,10 @@ impl Exact {
     /// goes whatever the order — and an edge bounding the face two cuts laid
     /// together meet across, meeting both at a corner, or one and an edge of a
     /// pointed end with it that meets the other, and an upright meeting one of
-    /// them at a convex corner where no third edge of the list ends, meets
-    /// their one prism the same way, at their value, as
-    /// [`pairs::at_their_ends`] reads it, the two read on the body as given.
+    /// them at a convex corner where no third edge of the list ends but the
+    /// edge at their end, meets their one prism the same way, at their value,
+    /// as [`pairs::at_their_ends`] reads it, the two read on the body as
+    /// given.
     /// Two edges of one sense meeting at a
     /// corner beside an edge of the other sense left out of the list, as
     /// [`corners::admit`] admits it — two cuts beside a concave edge, two fills
@@ -122,7 +123,8 @@ impl Exact {
     /// and meet in a valley, the third edge left sharp one value short. A
     /// corner three of the edges meet at, all convex or all concave, is closed
     /// once all are laid, as `meeting` closes it by the way they meet, read
-    /// where each two's set-backs cross on the face they share, as
+    /// where each two's set-backs cross on the face they share at the value
+    /// they are laid at — a pair's, where one of them is laid as one — as
     /// [`Exact::closed`] closes it, its face numbered past the edges'. A corner
     /// three of them meet at, two of one sense and the odd one of the other —
     /// two feet and the upright above them, two top edges and the upright
@@ -147,7 +149,7 @@ impl Exact {
     /// [`Exact::closed_round`] cuts it, or one of two laid together that meets another
     /// edge of the list at a corner any other way — a pointed end's two edges
     /// among them where a third ends at the tip, an upright where a third edge
-    /// of the list ends too — a cut or a fill that left
+    /// of the list ends but the edge at their end — a cut or a fill that left
     /// something else than its one face, as
     /// [`Exact::cut_along`] reads it, a face of an overlap no edge covered, and
     /// a corner gone round its odd edge as [`Exact::round_the_odd`] declines
@@ -221,7 +223,7 @@ impl Exact {
             .into_iter()
             .chain(met.completed.iter().copied())
             .collect();
-        if cut.cut_along(&along, self, 1, met.mitred, met.open) {
+        if cut.cut_along(&along, self, 1, met.mitred, met.open, &[]) {
             Ok(cut)
         } else {
             Err(Declined::Unsupported)
@@ -261,10 +263,11 @@ impl Exact {
     /// face numbered in `mitred`, where a mitre with it ends — at a corner
     /// that is not square, on a face of the other edge, short of the third —
     /// or on the plane of one of `open`, where an edge laid after it completes
-    /// it, and every face `before` held but the edges' still there: no face,
-    /// nor piece of a face, of the prism but that one — but an overlap's,
-    /// numbered from [`OVERLAPS`], which an edge laid after it may cover, and
-    /// [`Exact::overlaps_covered`] holds once every edge is laid.
+    /// it, and every face `before` held but the edges' and those numbered in
+    /// `taken` still there: no face, nor piece of a face, of the prism but
+    /// that one — but an overlap's, numbered from [`OVERLAPS`], which an edge
+    /// laid after it may cover, and [`Exact::overlaps_covered`] holds once
+    /// every edge is laid.
     fn cut_along(
         &self,
         wedges: &[&Wedge],
@@ -272,6 +275,7 @@ impl Exact {
         laid: u32,
         mitred: &[u32],
         open: &[Stop],
+        taken: &[u32],
     ) -> bool {
         let made = before.next;
         let eps = self.brep.scale().eps();
@@ -303,6 +307,7 @@ impl Exact {
         });
         let consumable: BTreeSet<u32> = (wedges.iter())
             .flat_map(|wedge| wedge.numbers.iter().flatten().copied())
+            .chain(taken.iter().copied())
             .collect();
         let kept = before
             .brep

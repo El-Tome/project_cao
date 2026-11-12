@@ -164,13 +164,15 @@ impl Exact {
         }
         pairs::apart(&pairs)?;
         let ends = pairs::at_their_ends(&self.brep, &edges, &wedges, &pairs, &three, &beside)?;
-        let closes = closing::closings(
-            three,
-            &wedges,
-            |w| taken * set_back(w),
-            taken,
-            meeting.closing,
-        )?;
+        let laid_at = |rank: usize| {
+            (pairs.iter())
+                .find(|&&(one, other, _)| rank == one || rank == other)
+                .map_or(
+                    ends.get(&rank).copied().unwrap_or(taken),
+                    |&(_, _, value)| value,
+                )
+        };
+        let closes = closing::closings(three, &wedges, laid_at, set_back, meeting.closing)?;
         let given: Vec<(EdgeId, &Wedge)> = edges.iter().copied().zip(&wedges).collect();
         let crossing = set_backs::crossing_on(&self.brep, &edges, &wedges, set_back);
         let start = self.next;
@@ -210,7 +212,7 @@ impl Exact {
                         open: &open,
                         completed: &completed,
                     };
-                    let value = ends.get(&rank).copied().unwrap_or(taken);
+                    let value = laid_at(rank);
                     let flush =
                         Flush::beside(&self.brep, rank, &given, &beside, value, &set_back, &tool)?
                             .holding(&held);

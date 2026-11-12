@@ -118,11 +118,15 @@
 //! - Decided on the way, after the mutation run (2026-11-12): admitting an
 //!   edge at a full round's end holds only an edge of the top meeting both
 //!   edges of the pair, or one of them and another such edge meeting the
-//!   other; the lists it must keep declined are held, each `Unsupported` in
-//!   every order. A full round, the edge across its square end and the
-//!   upright at one corner of that end — a full round meeting an upright,
-//!   #837's: the upright lies off the face the pair meets across —
-//!   `a_fillet_on_a_full_round_its_square_end_s_edge_and_the_upright_at_one_corner_of_that_end_is_declined_as_unsupported_whatever_the_order`
+//!   other. A full round, the edge across its square end and the upright at
+//!   one corner of that end — a full round meeting an upright, #837's, the
+//!   upright lying off the face the pair meets across — was held here
+//!   declined `Unsupported` in every order, until #837's second slice built
+//!   it — no test: the decline went with that slice, and the body, its front
+//!   corner closed by a piece of sphere and its back corner mitred, is held in
+//!   `a_full_round_meets_the_round_of_an_upright_at_its_end_on_an_ellipse.rs`
+//!   by
+//!   `a_fillet_on_a_full_round_the_edge_across_its_end_and_the_upright_at_its_front_corner_closes_that_corner_with_a_piece_of_sphere_and_mitres_the_other_whatever_the_order`
 //! - Found on the way, after the mutation run (2026-11-12): a full round and
 //!   one edge of its point alone, tip (33,3), is not declined but stops short
 //!   of the full round, at 6 − 3√2 with the top kept, in every order — and
@@ -131,6 +135,17 @@
 //!   it is, exact, closed and uncrossed —
 //!   `a_fillet_on_a_full_round_and_one_edge_of_its_point_alone_stops_short_of_the_full_round_whatever_the_order`,
 //!   `a_fillet_on_a_full_round_one_edge_of_its_point_alone_and_its_square_far_end_s_edge_stops_short_of_the_full_round_whatever_the_order`
+//! - Decided on the way, after slice 2's mutants (2026-11-12): an upright
+//!   meeting one edge of a full round's pair at a convex corner is admitted
+//!   only where every third edge of the list there is the edge at the pair's
+//!   end, bounding the face that is gone and meeting both edges of the pair.
+//!   The pointed end, tip (33,3), its four top edges named with the upright
+//!   at one of its shoulders, (30,0) or (30,6) — where the third edge is the
+//!   point's, meeting one edge of the pair alone — is declined `Unsupported`
+//!   in each of the 120 orders of the five, at either shoulder, as one body
+//!   in every order or a decline in every order is the rule (#822); building
+//!   it is #911 —
+//!   `a_fillet_on_a_full_round_the_two_edges_of_its_pointed_end_and_the_upright_at_either_shoulder_is_declined_as_unsupported_whatever_the_order`
 //!
 //! The campaign is run by hand, out of the gate, compiled only under the
 //! `campaigns` feature: every one of the 720 orders of the plate pointed at
@@ -1941,6 +1956,40 @@ fn a_fillet_on_a_full_round_the_two_edges_of_a_pointed_or_v_notched_end_and_the_
     }
 }
 
+#[test]
+fn a_fillet_on_a_full_round_the_two_edges_of_its_pointed_end_and_the_upright_at_either_shoulder_is_declined_as_unsupported_whatever_the_order()
+ {
+    let plate = Plate::pointed(33.0, DVec3::ZERO);
+    let top_edges = [
+        ([TOP, FRONT], "the top's front edge"),
+        ([TOP, POINT_FRONT], "the point's front edge"),
+        ([TOP, POINT_BACK], "the point's back edge"),
+        ([TOP, BACK], "the top's back edge"),
+    ];
+    let shoulders = [
+        (
+            [FRONT, POINT_FRONT],
+            "the upright at the front shoulder, (30, 0)",
+        ),
+        (
+            [POINT_BACK, BACK],
+            "the upright at the back shoulder, (30, 6)",
+        ),
+    ];
+    for shoulder in shoulders {
+        let listed: Vec<([usize; 2], &str)> = top_edges.into_iter().chain([shoulder]).collect();
+        declined_in_every_order(
+            &plate.part,
+            &listed,
+            &format!(
+                "a full round, the two edges of the point and {}, whose third edge is the \
+                 point's and meets one edge of the pair alone, on {}",
+                shoulder.1, plate.called
+            ),
+        );
+    }
+}
+
 /// The plate pointed at both ends, top (0, 3), (3, 0), (30, 0), (33, 3),
 /// (30, 6), (3, 6), its six top edges listed from the front round to the
 /// left point's front edge, its crowns one radius in from both tips' walls.
@@ -2038,33 +2087,6 @@ fn a_fillet_on_a_full_round_and_the_two_edges_of_a_lopsided_point_tangent_to_one
         2.0,
         "the full round's pair and the two edges of the lopsided point whose tip stands at \
          (98/3, 2), both tangent to the circle of radius 3 about (29, 3), its back 31 long",
-    );
-}
-
-/// A block [`LENGTH`] long, [`WIDTH`] wide and [`HEIGHT`] high, raised as
-/// `cao_part` builds a step: its floor nought, its top one, its front, right
-/// end, back and left end two to five.
-fn square_ended_plate() -> Body {
-    raised(
-        Contour::rectangle(DVec2::ZERO, DVec2::new(LENGTH, WIDTH)),
-        HEIGHT,
-    )
-}
-
-#[test]
-fn a_fillet_on_a_full_round_its_square_end_s_edge_and_the_upright_at_one_corner_of_that_end_is_declined_as_unsupported_whatever_the_order()
- {
-    let [front, right_end, back] = [2, 3, 4];
-    declined_in_every_order(
-        &square_ended_plate(),
-        &[
-            ([TOP, front], "the top's front edge"),
-            ([TOP, back], "the top's back edge"),
-            ([TOP, right_end], "the top's right edge"),
-            ([front, right_end], "the upright at the front right corner"),
-        ],
-        "a full round, the edge across its square end and the upright at that end's front \
-         corner, a full round meeting an upright, until #837 builds it",
     );
 }
 

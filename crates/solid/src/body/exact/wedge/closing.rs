@@ -36,32 +36,43 @@ const SUNK: f64 = 0.125;
 /// it stands; where the set-backs of each two cross on the face the two share
 /// — the first and the second's, the second and the third's, the third and
 /// the first's — and the way each of those faces faces; the way each edge
-/// runs from the corner; and the value the step takes.
+/// runs from the corner; the value its first edge is laid at; and whether
+/// each edge runs from it to another corner the step closes.
 pub(in crate::body::exact) struct Corner {
     pub at: DVec3,
     pub crossings: [DVec3; 3],
     pub facing: [DVec3; 3],
     pub along: [DVec3; 3],
     pub value: f64,
+    pub between: [bool; 3],
 }
 
 /// Each corner three edges meet at, read as a [`Corner`] for the value
-/// `taken`, each edge set back `set_back` along its faces, with the ranks of
-/// its edges and what of `closing` closes it, by the way its edges meet.
-/// Declined `Unsupported` where two of a corner's edges share no face, their
-/// set-backs never cross, or the three do not all meet the same way.
+/// `laid_at` says each edge is laid at, the edge set back `set_back` of a
+/// value of one along its faces, with the ranks of its edges and what of
+/// `closing` closes it, by the way its edges meet. Declined `Unsupported`
+/// where two of a corner's edges share no face, their set-backs never cross,
+/// or the three do not all meet the same way.
 pub(super) fn closings(
     corners: Vec<Three>,
     wedges: &[Wedge],
+    laid_at: impl Fn(usize) -> f64,
     set_back: impl Fn(&Wedge) -> f64,
-    taken: f64,
     closing: Closing,
 ) -> Result<Vec<(Corner, [usize; 3], Close)>, Declined> {
+    let closed: Vec<[usize; 3]> = corners.iter().map(|&(_, ranks, _)| ranks).collect();
     corners
         .into_iter()
         .map(|(at, ranks, along)| {
             let three = ranks.map(|rank| &wedges[rank]);
-            let corner = read((at, along), three, three.map(&set_back), taken)
+            let backs = ranks.map(|rank| laid_at(rank) * set_back(&wedges[rank]));
+            let between = ranks.map(|rank| {
+                (closed.iter())
+                    .filter(|other| other.contains(&rank))
+                    .count()
+                    > 1
+            });
+            let corner = read((at, along), three, backs, laid_at(ranks[0]), between)
                 .ok_or(Declined::Unsupported)?;
             let close = match three.map(|wedge| wedge.inwards) {
                 [false, false, false] => closing.outwards,
@@ -80,6 +91,7 @@ fn read(
     wedges: [&Wedge; 3],
     set_back: [f64; 3],
     value: f64,
+    between: [bool; 3],
 ) -> Option<Corner> {
     let crossing = |one: usize, other: usize| {
         let [first, second] = [wedges[one], wedges[other]];
@@ -102,6 +114,7 @@ fn read(
         facing: [one, two, three],
         along,
         value,
+        between,
     })
 }
 

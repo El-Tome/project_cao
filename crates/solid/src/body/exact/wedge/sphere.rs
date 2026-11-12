@@ -12,7 +12,12 @@
 //! one radius out from the three faces, the fills laid trimmed flush, the
 //! corner between them filled up to the three planes, and the three quarter
 //! discs that leaves, facing the centre, replaced by the piece of sphere
-//! facing it, the matter outside the ball.
+//! facing it, the matter outside the ball. Two corners at the ends of one
+//! edge whose centres are one — the edge across a tongue's tip as wide as
+//! two radii, whose round closes to nothing between them (#837) — close on
+//! one sphere: the later corner's cut takes that round whole, and its piece
+//! takes in the earlier corner's, one face answering to the round's number
+//! and both corners'.
 
 use glam::DVec3;
 
@@ -27,11 +32,13 @@ use crate::brep::{self, Coedge, Curve, Declined, Face, FaceId, Sphere, Surface, 
 /// Declined `Unsupported` where the plane through the centre square to an
 /// edge does not stand between the corner and the edge's other end — the
 /// sphere would stand at or behind the corner along it —, the corner cut
-/// back leaves anything but three faces meeting at the centre,
-/// bounded towards the rounds by three arcs about it, or the piece of
+/// back leaves anything but three faces meeting at the centre, bounded
+/// towards the rounds by three arcs about it — one more for the piece an
+/// earlier corner laid on the same sphere beside them — or the piece of
 /// sphere left anything but its face, its every corner a corner of one of
-/// the three `rounds`, as [`Exact::cut_along`] reads it; `Undrawn` where the
-/// piece cannot be cut into triangles.
+/// the `rounds` still standing, as [`Exact::cut_along`] reads it, or took
+/// whole a round whose edge runs to no other corner the step closes;
+/// `Undrawn` where the piece cannot be cut into triangles.
 pub(in crate::body::exact) fn rounded_across(
     body: &Exact,
     corner: &Corner,
@@ -66,9 +73,15 @@ pub(in crate::body::exact) fn hollowed_across(
     sphered(body, joined, corner, centre, rounds, true)
 }
 
-/// `body` with the three faces `laid` left meeting at `centre` replaced by the
+/// `body` with the three faces `laid` left meeting at `centre`, and the piece
+/// an earlier corner laid on the same sphere beside them, replaced by the
 /// piece of sphere about it their arcs bound, `flipped` to face its centre
-/// where the matter lies outside the ball, as [`rounded_across`] lays it.
+/// where the matter lies outside the ball, as [`rounded_across`] lays it:
+/// answering to the earlier piece's numbers and to those of the `rounds` the
+/// cut took whole, between this corner and another the step closes, and read
+/// about the edge of such a round where there is
+/// one, so that no pole stands inside an arc the piece meets another round
+/// along, which then stays one edge.
 fn sphered(
     body: &Exact,
     laid: Exact,
@@ -79,19 +92,41 @@ fn sphered(
 ) -> Result<Exact, Declined> {
     let radius = corner.value;
     let eps = body.brep.scale().eps();
-    let walls = meeting_at(&laid.brep, centre, eps);
-    let lap = bounding(&laid.brep, &walls, centre, radius, eps).ok_or(Declined::Unsupported)?;
-    let sphere = Sphere::through(centre, axis(corner.along), 0.0, radius);
+    let mut walls = meeting_at(&laid.brep, centre, eps);
+    if walls.len() != 3 {
+        return Err(Declined::Unsupported);
+    }
+    let before = laid_before(&laid.brep, &walls, centre, radius, eps);
+    walls.extend(&before);
+    let lap = bounding(&laid.brep, &walls, centre, radius, eps)
+        .filter(|lap| lap.len() == 3 + before.len())
+        .ok_or(Declined::Unsupported)?;
+    let (gone, kept): (Vec<usize>, Vec<usize>) =
+        (0..3).partition(|&at| corner.between[at] && !laid.has_face(rounds[at] as usize));
+    let about = gone
+        .first()
+        .map_or(axis(corner.along), |&at| corner.along[at]);
+    let sphere = Sphere::through(centre, about, 0.0, radius);
+    let mut numbers: Vec<u32> = (gone.iter().map(|&at| rounds[at]))
+        .chain(
+            before
+                .iter()
+                .flat_map(|&face| laid.brep.numbers(face).iter().copied()),
+        )
+        .chain([body.next])
+        .collect();
+    numbers.sort_unstable();
     let face = Face {
         surface: SurfaceId(0),
         flipped,
         loops: vec![lap],
-        numbers: vec![body.next],
+        numbers,
         poles: Vec::new(),
     };
     let brep = laid.brep.replaced(&walls, Surface::Sphere(sphere), face)?;
     let closed = laid.patched(brep, laid.next)?;
-    if closed.cut_along(&[], body, 1, &rounds, &[]) {
+    let mitred: Vec<u32> = kept.iter().map(|&at| rounds[at]).collect();
+    if closed.cut_along(&[], body, 1, &mitred, &[], &[]) {
         Ok(closed)
     } else {
         Err(Declined::Unsupported)
@@ -160,10 +195,9 @@ fn meeting_at(body: &brep::Body, centre: DVec3, eps: f64) -> Vec<FaceId> {
         .collect()
 }
 
-/// The loop the three `walls` make towards the rest of the body, the way
-/// they run it, as [`lap`] reads it: three arcs about `centre` of `radius`.
-/// None where there are not three walls and three such arcs, or they close
-/// no loop.
+/// The loop `walls` make towards the rest of the body, the way they run it,
+/// as [`lap`] reads it: arcs about `centre` of `radius`. None where an edge
+/// of it is no such arc, or they close no loop.
 fn bounding(
     body: &brep::Body,
     walls: &[FaceId],
@@ -178,7 +212,29 @@ fn bounding(
         _ => false,
     };
     let lap = lap(body, walls)?;
-    (walls.len() == 3 && lap.len() == 3 && lap.iter().all(about)).then_some(lap)
+    lap.iter().all(about).then_some(lap)
+}
+
+/// The faces a corner closed before laid on the sphere of `radius` about
+/// `centre`, none of `walls`: the other end of an edge whose round, between
+/// two corners whose centres are one, closes to nothing, so that the two
+/// pieces are one.
+fn laid_before(
+    body: &brep::Body,
+    walls: &[FaceId],
+    centre: DVec3,
+    radius: f64,
+    eps: f64,
+) -> Vec<FaceId> {
+    let sphere = |face: FaceId| match body.surface(body.face(face).surface) {
+        Surface::Sphere(sphere) => {
+            sphere.middle().distance(centre) <= eps && (sphere.radius - radius).abs() <= eps
+        }
+        _ => false,
+    };
+    body.face_ids()
+        .filter(|&face| !walls.contains(&face) && sphere(face))
+        .collect()
 }
 
 /// The loop `walls` make towards the rest of the body, the way they run it:

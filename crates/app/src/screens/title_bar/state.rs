@@ -147,7 +147,7 @@ impl<'a> TitleBar<'a> {
         lang: &Catalogue,
     ) -> Self {
         let standing = Standing {
-            open_sketch_rank: editor
+            open_sketch_number: editor
                 .active_sketch()
                 .map(|sketch| wording::sketch::number(document, sketch)),
             section_view_on: viewport.section().is_some(),

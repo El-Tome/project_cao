@@ -77,6 +77,9 @@ pub(crate) struct Kept {
     /// Gone from the tree and changed no more, but the drawings laid on it
     /// still stand where it puts them.
     deleted: bool,
+    /// The number of the operation that last asked it, which named its face.
+    #[serde(default)]
+    asked_by: u32,
 }
 
 impl PartState {
@@ -87,10 +90,13 @@ impl PartState {
             Operation::SaveSection(asked) => self.sections.push(Kept {
                 asked: *asked,
                 deleted: false,
+                asked_by: self.replaying,
             }),
             Operation::EditSection { section, to } => {
+                let by = self.replaying;
                 if let Some(kept) = self.sections.get_mut(*section).filter(|kept| !kept.deleted) {
                     kept.asked = *to;
+                    kept.asked_by = by;
                 }
             }
             Operation::DeleteSection { section } => {
@@ -130,7 +136,10 @@ impl PartState {
 
     fn found(&self, id: usize, kept: &Kept) -> SavedSection {
         let asked = &kept.asked;
-        let face = asked.on.as_ref().map(|anchor| self.face_now(anchor));
+        let face = asked
+            .on
+            .as_ref()
+            .map(|anchor| self.face_now(anchor, kept.asked_by));
         let plane = face.flatten().unwrap_or(asked.plane);
         SavedSection {
             id,

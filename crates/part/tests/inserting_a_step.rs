@@ -73,12 +73,19 @@
 //! - decided with the insertion: a sketch compaction lays down again as it was
 //!   drawn, a corner rounded by a variable, is still the sketch that corner
 //!   was rounded on — `compacting_keeps_a_size_written_from_a_variable_on_its_own_sketch`
+//! - decided with the insertion: a section kept on a face made after the
+//!   insertion stays on that face, and what is drawn on its cut with it —
+//!   `a_section_on_a_face_made_after_an_insertion_stays_on_that_face`
+//! - decided with the insertion: a part with an insertion, saved and reopened,
+//!   is the same part — its steps in the order of the part, read through each
+//!   the same, its sketches numbered as before, its undo walking the same —
+//!   `a_part_with_an_insertion_saved_and_reopened_is_the_same_part`
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
-use cao_part::history::{FaceAnchor, StepKind};
+use cao_part::history::{FaceAnchor, SectionAsked, SideDrawing, StepKind};
 use cao_part::{
     ExtrusionMode, FileError, Files, Operation, PartDocument, PointRef, VariableChange,
 };
@@ -1042,4 +1049,128 @@ fn compacting_keeps_a_size_written_from_a_variable_on_its_own_sketch() {
          (traits, corners cut) sketch by sketch",
     );
     assert_seen_alike(&seen(&document), &inserted, "the part compacted");
+}
+
+/// A section kept on the face a ray coming down on `place` meets first, as a
+/// click there keeps one: held by that face, cutting along it.
+fn keep_a_section_on_the_face_over(document: &mut PartDocument, place: DVec2) {
+    let face = document
+        .body()
+        .ray_hit(place.extend(100.0), DVec3::NEG_Z)
+        .expect("a face under that place")
+        .face;
+    let offered = document.body().plane_of(face).expect("a flat face");
+    let up = DVec3::Y;
+    document.apply(Operation::SaveSection(SectionAsked {
+        plane: WorkPlane::from_face(&offered.corners, offered.normal, up),
+        on: Some(FaceAnchor { face, up }),
+        offset: 0.0,
+        behind: SideDrawing::Opaque,
+        in_front: SideDrawing::Hidden,
+        tilt_about_u_degrees: 0.0,
+        tilt_about_v_degrees: 0.0,
+        pivot: DVec3::ZERO,
+    }));
+}
+
+/// Where the first section kept stands, and whether it lost its face.
+fn the_section_stands(document: &PartDocument) -> (DVec3, DVec3, bool) {
+    let section = document.sections()[0];
+    (section.plane.origin, section.plane.normal(), section.broken)
+}
+
+#[test]
+fn a_section_on_a_face_made_after_an_insertion_stays_on_that_face() {
+    let mut document = PartDocument::new("part", Utc::now());
+    for (centre, depth) in [(DVec2::splat(5.0), 10.0), (DVec2::new(45.0, 5.0), 5.0)] {
+        let sketch = open_a_sketch(&mut document, WorkPlane::XY, None);
+        a_square_raised(
+            &mut document,
+            sketch,
+            (centre, 10.0),
+            depth,
+            (ExtrusionMode::Add, None),
+        );
+    }
+    keep_a_section_on_the_face_over(&mut document, DVec2::new(45.0, 5.0));
+    let cut = document.sections()[0]
+        .cutting_plane()
+        .expect("the section cuts");
+    document.apply(Operation::CreateSketchOnSection {
+        section: 0,
+        plane: cut,
+    });
+    let on_the_cut = document.sketches().len() - 1;
+    let (before, laid_before) = (the_section_stands(&document), laid(&document, on_the_cut));
+    assert!(
+        !before.2 && (before.0.z - 5.0).abs() < HEIGHT,
+        "the fixture wants the section on the second block's top, at 5: {before:?}",
+    );
+
+    insert_a_block_after_the_second_sketch(&mut document);
+
+    let (after, laid_after) = (the_section_stands(&document), laid(&document, on_the_cut));
+    assert!(
+        !after.2 && after.0.distance(before.0) < HEIGHT && after.1.distance(before.1) < HEIGHT,
+        "a block put in before the second block was raised moved the section kept on that \
+         block's top, from {before:?} to {after:?} as (origin, normal, lost its face)",
+    );
+    assert!(
+        laid_after.0.distance(laid_before.0) < HEIGHT
+            && laid_after.1.distance(laid_before.1) < HEIGHT,
+        "the sketch laid on the section's cut moved with it, from {laid_before:?} to \
+         {laid_after:?}",
+    );
+}
+
+/// `a_part_of_six_steps` with the block put in after its second sketch, then
+/// a square drawn in that second sketch after the insertion, filed under it.
+fn a_part_with_an_insertion() -> PartDocument {
+    let mut document = a_part_of_six_steps();
+    insert_a_block_after_the_second_sketch(&mut document);
+    document.apply(Operation::AddRectangle {
+        sketch: 1,
+        corner: PointRef::New(DVec2::new(42.0, 2.0)),
+        opposite: PointRef::New(DVec2::new(44.0, 4.0)),
+        construction: false,
+    });
+    document
+}
+
+#[test]
+fn a_part_with_an_insertion_saved_and_reopened_is_the_same_part() {
+    let document = a_part_with_an_insertion();
+    let as_made = seen(&document);
+    let mut undone = document.clone();
+    undone.undo();
+    undone.undo();
+    let as_undone = seen(&undone);
+
+    let files = Memory::default();
+    let (saved, put_away) = (
+        Path::new("/parts/saved.caopart"),
+        Path::new("/parts/put-away.caopart"),
+    );
+    document
+        .save(&files, saved, Utc::now())
+        .expect("the part is saved");
+    document
+        .put_away(&files, put_away, Utc::now())
+        .expect("the part is put away");
+
+    for path in [saved, put_away] {
+        let mut reopened = PartDocument::load(&files, path).expect("the part opens again");
+        assert_seen_alike(
+            &seen(&reopened),
+            &as_made,
+            &format!("reopened from {path:?}, the part"),
+        );
+        reopened.undo();
+        reopened.undo();
+        assert_seen_alike(
+            &seen(&reopened),
+            &as_undone,
+            &format!("reopened from {path:?} and undone twice, the part"),
+        );
+    }
 }

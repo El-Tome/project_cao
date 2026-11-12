@@ -308,6 +308,7 @@ pub fn apply_extrusion_with(
     }
     // A change is judged by what it does to the part without the step it
     // changes, as a new step is by what it does to the part as it stands.
+    let new = reopened.is_none();
     let before = match &reopened {
         Some(reopened) => {
             let left_out = BTreeMap::from([(reopened.raised_by, VolumeState::Invisible)]);
@@ -333,7 +334,11 @@ pub fn apply_extrusion_with(
     // at a lean the kernel reads unstably (#552), describe the part rather
     // than answer the gesture, and are its alerts while they hold.
     let alerted = doc.is_declined(step) || doc.unstable_at(step).is_some();
-    *notice = (!alerted && unchanged(before, doc.body().volume())).then(|| {
+    let (before, after) = match new.then(|| read_around(doc, step)).flatten() {
+        Some(around) => around,
+        None => (before, doc.body().volume()),
+    };
+    *notice = (!alerted && unchanged(before, after)).then(|| {
         lang.t(match (mode, extrusion.is_revolving()) {
             (_, true) => "extrusion.nothing_from_revolution",
             (ExtrusionMode::Add, false) => "extrusion.nothing_added",
@@ -341,6 +346,20 @@ pub fn apply_extrusion_with(
         })
     });
     true
+}
+
+/// The volumes of the part read through the step of matter of that number
+/// and through the key step before it, when a key step comes after it: a step
+/// put in is judged on the part the canvas reads through it, which a step
+/// after it may take back from the whole part. Nothing for the last step,
+/// judged on the whole part.
+fn read_around(doc: &PartDocument, step: u32) -> Option<(f64, f64)> {
+    let rank = doc.history.key_step_opened_by(step)?;
+    doc.history.key_steps().nth(rank + 1)?;
+    let all_opaque = BTreeMap::new();
+    let through = |rank: usize| doc.shown_through(&all_opaque, rank).body.volume();
+    let before = rank.checked_sub(1).map_or(0.0, through);
+    Some((before, through(rank)))
 }
 
 /// How near two volumes stand, relative to the larger, to be the same

@@ -60,9 +60,20 @@ impl ViewportState {
             .is_none_or(|rank| self.reads_through(rank))
     }
 
+    /// The sketches the part is read through: the ones a step can stand on,
+    /// whatever lies past the box read to.
+    pub(crate) fn sketches_read(&self, document: &PartDocument) -> Vec<usize> {
+        (0..document.sketches().len())
+            .filter(|sketch| self.reads_through_sketch(document, *sketch))
+            .collect()
+    }
+
     /// Records an operation made on the part as it is read. One that opens a
     /// key step while the part is read to a box goes in right after that box,
-    /// and the part is read to the new one, the rest still unread; anything
+    /// and the part is read to the new one, the rest still unread — a step of
+    /// matter whose sketch stands past that box going right after its sketch
+    /// instead, never before it. A sketch laid on a kept section's cut goes
+    /// at the end, after the section, and the part is read whole. Anything
     /// else, or anything made while the part is read whole, is recorded as it
     /// always is.
     pub(crate) fn record_where_read(
@@ -70,8 +81,20 @@ impl ViewportState {
         document: &mut PartDocument,
         operation: Operation,
     ) -> Option<Outcome> {
-        let Some(point) = self.reading.point else {
+        let Some(read) = self.reading.point else {
             return document.apply(operation);
+        };
+        if matches!(operation, Operation::CreateSketchOnSection { .. }) {
+            self.reading.point = None;
+            self.reading.moved = true;
+            return document.apply(operation);
+        }
+        let point = match &operation {
+            Operation::Extrude { sketch, .. } | Operation::Revolve { sketch, .. } => {
+                let own = document.history.key_step_of_sketch(*sketch);
+                own.map_or(read, |own| own.max(read))
+            }
+            _ => read,
         };
         let opens_a_box = StepKind::opened_by(&operation).is_some_and(StepKind::is_key);
         let outcome = document.insert_after(point, operation);

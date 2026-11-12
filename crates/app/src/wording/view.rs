@@ -11,7 +11,7 @@ use crate::wording::plane;
 /// it, a section by its rank from one.
 #[derive(Clone, Copy, Debug)]
 pub struct Standing {
-    pub open_sketch_rank: Option<u32>,
+    pub open_sketch_number: Option<u32>,
     pub section_view_on: bool,
     pub kept_section_rank: Option<usize>,
     pub plane: Option<WorkPlane>,
@@ -22,7 +22,7 @@ pub struct Standing {
 pub fn standing_on(lang: &Catalogue, standing: Standing) -> String {
     match standing {
         Standing {
-            open_sketch_rank: Some(number),
+            open_sketch_number: Some(number),
             ..
         } => super::sketch::numbered(lang, number),
         Standing {

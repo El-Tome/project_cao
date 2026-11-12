@@ -26,11 +26,7 @@ impl PartState {
         if let Some(plane) = self.plane_in_the_part(self.sketch_being_made()) {
             return plane;
         }
-        let found = FaceAnchor {
-            face: self.face_named_by(anchor.face, self.replaying),
-            ..*anchor
-        };
-        if let Some(plane) = self.face_now(&found) {
+        if let Some(plane) = self.face_now(anchor, self.replaying) {
             return plane;
         }
         self.adrift.insert(self.sketch_being_made());
@@ -48,12 +44,8 @@ impl PartState {
     /// the same place of the same step now. With no step put in, that is the
     /// number as it was named.
     fn face_named_by(&self, face: usize, recorded_by: u32) -> usize {
-        let raised = &self.replay.raised;
-        if raised.len() != self.made.len() {
-            return face;
-        }
-        let mut then = self.made.first().map_or(0, |range| range.start);
-        for ((number, _), now) in raised.iter().zip(&self.made) {
+        let mut then = self.made.first().map_or(0, |(_, range)| range.start);
+        for (number, now) in &self.made {
             if *number >= recorded_by {
                 continue;
             }
@@ -65,9 +57,12 @@ impl PartState {
         face
     }
 
-    /// The plane the anchored face offers as the part stands now.
-    pub(crate) fn face_now(&self, anchor: &FaceAnchor) -> Option<WorkPlane> {
-        let face = self.body.plane_of(anchor.face)?;
+    /// The plane the anchored face offers as the part stands now, the face
+    /// found again as the operation of number `recorded_by` named it.
+    pub(crate) fn face_now(&self, anchor: &FaceAnchor, recorded_by: u32) -> Option<WorkPlane> {
+        let face = self
+            .body
+            .plane_of(self.face_named_by(anchor.face, recorded_by))?;
         Some(WorkPlane::from_face(&face.corners, face.normal, anchor.up))
     }
 }

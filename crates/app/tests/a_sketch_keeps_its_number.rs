@@ -13,6 +13,9 @@
 //! - Numbering rule: "the next number" is the highest number ever used plus
 //!   one; a name is never reused, even if the sketch that bore it was deleted —
 //!   `a_number_taken_back_and_dropped_is_not_shown_again_on_the_next_sketch`
+//! - decided with the numbering rule: the extrusion offers each sketch by the
+//!   number its row reads, and that number raises that sketch —
+//!   `the_extrusion_offers_a_sketch_by_its_number_and_raises_that_one`
 //! - Must not break: every name an alert or a dimension uses to find its step
 //!   still finds it after an insertion — a value's line in the history and the
 //!   alert of a lost face naming the sketch as its row does —
@@ -393,5 +396,64 @@ fn a_sentence_naming_a_sketch_names_it_as_its_row_does_once_a_number_was_dropped
         "the value put on « Esquisse 4 » and the alert of its lost face do not name it as its \
          row does, as (the value's line in the history, the alert): {:?}",
         driver::on_screen(&app),
+    );
+}
+
+/// A rectangle 30 by 80 drawn on YZ beside the block, clear of it, as two
+/// corners and a place inside them.
+const BESIDE_THE_BLOCK: [DVec2; 3] = [
+    DVec2::new(-60.0, 40.0),
+    DVec2::new(-30.0, -40.0),
+    DVec2::new(-45.0, 0.0),
+];
+
+/// The numbers the extrusion's buttons offer to raise, in order.
+fn the_sketches_offered(app: &driver::App) -> Vec<String> {
+    texts(app)
+        .into_iter()
+        .filter(|(_, text, button)| *button && text.parse::<u32>().is_ok())
+        .map(|(_, text, _)| text)
+        .collect()
+}
+
+#[test]
+fn the_extrusion_offers_a_sketch_by_its_number_and_raises_that_one() {
+    let test = "the_extrusion_offers_a_sketch_by_its_number";
+    let mut app = a_block_and_a_third_sketch_taken_back(test);
+    open_a_sketch(&mut app);
+    driver::click(&mut app, "Rectangle (R)");
+    driver::click_at_sketch_point(&mut app, BESIDE_THE_BLOCK[0]);
+    driver::click_at_sketch_point(&mut app, BESIDE_THE_BLOCK[1]);
+    driver::click_exactly(&mut app, "Extrusion");
+    let offered = the_sketches_offered(&app);
+    driver::click_the_button(&mut app, "4");
+    driver::click(&mut app, "Ajout de matière");
+    driver::click_at_sketch_point(&mut app, BESIDE_THE_BLOCK[2]);
+    driver::click(&mut app, "Appliquer");
+    driver::press(&mut app, egui::Key::Escape);
+    driver::finish_the_sketch(&mut app);
+
+    let part = driver::the_part_put_away(&mut app, test, "Bloc");
+    let raised =
+        part.history
+            .applied_operations()
+            .iter()
+            .rev()
+            .find_map(|operation| match operation {
+                cao_part::Operation::Extrude { sketch, .. } => Some(*sketch),
+                _ => None,
+            });
+    assert_eq!(
+        (
+            offered,
+            raised.and_then(|sketch| part.sketch_number(sketch))
+        ),
+        (
+            vec!["1".to_string(), "2".to_string(), "4".to_string()],
+            Some(4)
+        ),
+        "with « Esquisse 3 » dropped, the extrusion does not offer the sketches by the \
+         numbers their rows read, or « 4 » does not raise « Esquisse 4 », as (the numbers \
+         offered, the number of the sketch raised)",
     );
 }

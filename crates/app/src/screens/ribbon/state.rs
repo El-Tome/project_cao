@@ -43,6 +43,8 @@ pub struct Ribbon {
     pub section_delete_confirm: Option<usize>,
     /// Whether the viewport's section view is on, so its button shows pressed.
     pub section_on: bool,
+    /// The sketches the part is read through, the ones the extrusion offers.
+    pub sketches_read: Vec<usize>,
     /// The command last picked from each menu, by group, for the session.
     last_used: HashMap<String, Command>,
     /// How wide what a floating bar holds came out last frame.
@@ -62,6 +64,7 @@ impl Ribbon {
             history_compact_confirm: false,
             section_delete_confirm: None,
             section_on: false,
+            sketches_read: Vec::new(),
             last_used: HashMap::new(),
             floating_width: 0.0,
         }

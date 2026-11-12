@@ -40,6 +40,19 @@
 //!   order of the part — the reading point, and the two lists —
 //!   `undoing_an_insertion_moves_the_reading_point_only_when_its_box_goes`,
 //!   `the_history_lists_the_order_done_and_the_reader_the_order_of_the_part`
+//! - decided with the insertion: while the part is read to a box, the
+//!   extrusion offers to raise only the sketches read, the ones the user sees —
+//!   `while_read_to_a_box_the_extrusion_offers_only_the_sketches_read`
+//! - decided with the insertion: a sketch past the reading point, opened from
+//!   the tree and raised, is raised by a step after it, never before it —
+//!   `a_sketch_opened_past_the_reading_point_is_raised_after_itself`
+//! - decided with the insertion: a sketch laid on a kept section's cut is not
+//!   put in at the reading point, which a section always stands after: it goes
+//!   at the end, and the reading point with it —
+//!   `a_sketch_laid_on_a_kept_section_while_read_to_a_box_goes_at_the_end`
+//! - decided with the insertion: « L'extrusion n'a rien ajouté » judges a step
+//!   put in on the part read through it, which the canvas shows, not on the
+//!   whole part — `an_extrusion_put_in_is_judged_on_the_part_read_through_it`
 //!
 //! The rest dashed is read off the counter: the boxes played are the first
 //! ones, as many as it says, and every box after them is dashed. Which box is
@@ -852,5 +865,207 @@ fn the_history_lists_the_order_done_and_the_reader_the_order_of_the_part() {
         "a sketch and its extrusion put in after « Esquisse 2 », before the hole: the history \
          does not list them last, in the order they were done, or the reader does not show \
          them before the hole, in the order of the part, as (the history, the reader)",
+    );
+}
+
+/// The sketches the extrusion offers to raise, by the numbers its buttons
+/// read.
+fn the_sketches_offered(app: &driver::App) -> Vec<u32> {
+    let mut offered: Vec<u32> = texts_placed(app)
+        .into_iter()
+        .filter(|(_, _, button)| *button)
+        .filter_map(|(_, text, _)| text.parse().ok())
+        .collect();
+    offered.sort_unstable();
+    offered
+}
+
+/// The extrusion armed then let go with its own « Annuler », which leaves it
+/// asking which sketch to raise.
+fn ask_which_sketch_to_raise(app: &mut driver::App) {
+    driver::click(app, "Ajout de matière");
+    driver::click_the_button(app, "Annuler");
+}
+
+#[test]
+fn while_read_to_a_box_the_extrusion_offers_only_the_sketches_read() {
+    let mut app = a_block_and_sketches("the_extrusion_offers_only_the_sketches_read", 1);
+    driver::click_the_button(&mut app, "Étape 2");
+    ask_which_sketch_to_raise(&mut app);
+    let read_to_the_block = the_sketches_offered(&app);
+    driver::click_the_button(&mut app, "Étape 3");
+    let read_whole = the_sketches_offered(&app);
+
+    assert_eq!(
+        (read_to_the_block, read_whole),
+        (vec![1], vec![1, 2]),
+        "the extrusion does not offer, while the part is read to « Extrusion 1 », only the \
+         sketch made before it, and every sketch once read whole, as (read to the block, \
+         read whole)",
+    );
+}
+
+/// « Bloc », then a second sketch on YZ with a rectangle beside the block,
+/// finished and raising nothing: three boxes, the extrusion offered on that
+/// second sketch as finishing one does.
+fn a_block_and_a_rectangle_beside_it(test: &str) -> driver::App {
+    let mut app = driver::a_block(test);
+    driver::bring_into_the_ribbon(&mut app, "Nouvelle esquisse");
+    driver::start_a_sketch(&mut app);
+    driver::click(&mut app, "Rectangle (R)");
+    driver::click_at_sketch_point(&mut app, BESIDE_THE_BLOCK[0]);
+    driver::click_at_sketch_point(&mut app, BESIDE_THE_BLOCK[1]);
+    driver::finish_the_sketch(&mut app);
+    assert_eq!(
+        the_counter(&app),
+        Some((3, 3)),
+        "the fixture wants three boxes, the part read to its end",
+    );
+    app
+}
+
+/// `a_block_and_a_rectangle_beside_it`, read to « Extrusion 1 » first when
+/// `read_to_the_block`, then « Esquisse 2 » opened from the tree and its
+/// rectangle raised: the reader's names once the part is read whole, and how
+/// much matter the rectangle added to the part put away.
+fn the_rectangle_raised_from_the_tree(
+    test: &str,
+    read_to_the_block: bool,
+) -> (Vec<Option<String>>, f64) {
+    let mut app = a_block_and_a_rectangle_beside_it(test);
+    if read_to_the_block {
+        driver::click_the_button(&mut app, "Étape 2");
+    }
+    driver::double_click(&mut app, "Esquisse 2");
+    driver::click_exactly(&mut app, "Extrusion");
+    driver::click(&mut app, "Ajout de matière");
+    driver::click_at_sketch_point(&mut app, BESIDE_THE_BLOCK[2]);
+    driver::click(&mut app, "Appliquer");
+    finish_after_extruding(&mut app);
+    driver::click_the_button(&mut app, "Étape 4");
+    let reader = the_reader_s_names(&mut app);
+
+    let part = driver::the_part_put_away(&mut app, test, "Bloc");
+    let block = part
+        .shown_through(&std::collections::BTreeMap::new(), 1)
+        .body
+        .volume();
+    (reader, part.body().volume() - block)
+}
+
+#[test]
+fn a_sketch_opened_past_the_reading_point_is_raised_after_itself() {
+    let (reader, raised) =
+        the_rectangle_raised_from_the_tree("a_sketch_opened_past_the_reading_point", true);
+    let (_, raised_read_whole) =
+        the_rectangle_raised_from_the_tree("a_sketch_opened_with_the_part_read_whole", false);
+
+    assert_eq!(
+        reader,
+        ["Esquisse 1", "Extrusion 1", "Esquisse 2", "Extrusion 2"]
+            .map(|name| Some(name.to_string())),
+        "the rectangle beside the block, its sketch opened from the tree while the part was \
+         read to « Extrusion 1 », was raised by a step put in before its own sketch",
+    );
+    assert!(
+        raised_read_whole > 0.0 && (raised - raised_read_whole).abs() < 1e-6 * raised_read_whole,
+        "the rectangle beside the block, raised while the part was read to « Extrusion 1 », \
+         adds {raised} to the part, where the same gestures on the part read whole add \
+         {raised_read_whole}",
+    );
+}
+
+#[test]
+fn a_sketch_laid_on_a_kept_section_while_read_to_a_box_goes_at_the_end() {
+    let mut app = a_block_and_sketches("a_sketch_laid_on_a_kept_section_while_read", 1);
+    driver::click_the_button(&mut app, "Étape 2");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
+    driver::click(&mut app, "Plan YZ");
+    driver::click_the_button(&mut app, "Enregistrer la coupe");
+    driver::click_the_button(&mut app, "Fermer");
+    driver::click_the_button(&mut app, "Coupe 1");
+    driver::click_in_the_ribbon(&mut app, "Nouvelle esquisse");
+    driver::click_at_world_point(&mut app, driver::ON_THE_CUT);
+    driver::draw_a_segment(&mut app);
+    driver::finish_the_sketch(&mut app);
+
+    assert!(
+        driver::in_the_tree(&app, "Esquisse 3"),
+        "no sketch was laid on the section's cut: {:?}",
+        driver::on_screen(&app),
+    );
+    assert_eq!(
+        (
+            the_counter(&app),
+            driver::shows_or_says(&app, "face perdue")
+        ),
+        (Some((4, 4)), false),
+        "a sketch laid on a kept section's cut while the part was read to « Extrusion 1 » \
+         does not go at the end, the reading point with it, or it lost the section it was \
+         laid on, as (the counter, « face perdue » shown)",
+    );
+}
+
+/// « Bloc » with a hole cut 30 deep: through the block's 10 and as far again
+/// beyond its face at x = 10 — four boxes.
+fn a_block_with_a_hole_cut_30_deep(test: &str) -> driver::App {
+    let mut app = driver::a_block(test);
+    driver::bring_into_the_ribbon(&mut app, "Nouvelle esquisse");
+    driver::start_a_sketch(&mut app);
+    driver::click(&mut app, "Rectangle (R)");
+    driver::click_at_sketch_point(&mut app, THE_HOLE[0]);
+    driver::click_at_sketch_point(&mut app, THE_HOLE[1]);
+    driver::click_exactly(&mut app, "Extrusion");
+    driver::click_the_button(&mut app, "2");
+    driver::click(&mut app, "Enlèvement de matière");
+    driver::click_at_sketch_point(&mut app, THE_HOLE[2]);
+    driver::type_over(&mut app, "10", "30");
+    driver::click(&mut app, "Appliquer");
+    finish_after_extruding(&mut app);
+    assert_eq!(
+        the_counter(&app),
+        Some((4, 4)),
+        "the fixture wants four boxes, the part read to its end",
+    );
+    app
+}
+
+/// Where the boss put in is drawn, on YZ inside the hole's outline, as two
+/// corners and a place inside them: corners the cursor lands on as they are,
+/// clear of the pull the plane's axis has on a point near it.
+const INSIDE_THE_HOLE: [DVec2; 3] = [
+    DVec2::new(31.3, 16.7),
+    DVec2::new(55.0, -17.5),
+    DVec2::new(43.0, 0.0),
+];
+
+#[test]
+fn an_extrusion_put_in_is_judged_on_the_part_read_through_it() {
+    let mut app = a_block_with_a_hole_cut_30_deep("an_extrusion_put_in_is_judged");
+    driver::click_the_button(&mut app, "Étape 2");
+    driver::bring_into_the_ribbon(&mut app, "Nouvelle esquisse");
+    driver::start_a_sketch(&mut app);
+    driver::click(&mut app, "Rectangle (R)");
+    driver::click_at_sketch_point(&mut app, INSIDE_THE_HOLE[0]);
+    driver::click_at_sketch_point(&mut app, INSIDE_THE_HOLE[1]);
+    driver::click_exactly(&mut app, "Extrusion");
+    driver::click_the_button(&mut app, "3");
+    driver::click(&mut app, "Ajout de matière");
+    driver::click_at_sketch_point(&mut app, INSIDE_THE_HOLE[2]);
+    driver::type_over(&mut app, "10", "20");
+    driver::click(&mut app, "Appliquer");
+
+    assert_eq!(
+        the_counter(&app),
+        Some((4, 6)),
+        "the fixture wants the boss and its sketch put in after the block, the part read to \
+         the boss",
+    );
+    assert!(
+        !driver::shows_or_says(&app, "L'extrusion n'a rien ajouté"),
+        "a boss raised 20 through the block and 10 past its face, which the part read to it \
+         shows, is said to have added nothing because the hole after it cuts it away from \
+         the whole part: {:?}",
+        driver::said(&app),
     );
 }

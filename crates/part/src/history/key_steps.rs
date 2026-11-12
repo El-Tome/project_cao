@@ -49,4 +49,11 @@ impl History {
             .get(sketch)?;
         self.key_steps().position(|(at, _)| at == place)
     }
+
+    /// The rank among the key steps in effect of the one the operation of that
+    /// number opened; nothing for any other operation.
+    pub fn key_step_opened_by(&self, number: u32) -> Option<usize> {
+        self.key_steps()
+            .position(|(_, opened_at)| self.number_at(opened_at) == Some(number))
+    }
 }

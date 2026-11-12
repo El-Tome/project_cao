@@ -15,16 +15,17 @@ pub(super) fn extrusion_row(
     ui: &mut egui::Ui,
     document: &PartDocument,
     extrusion: &mut ExtrusionState,
+    read: &[usize],
     asked: &mut Vec<Command>,
     lang: &Catalogue,
 ) {
     if extrusion.sketch.is_none() {
-        if document.sketches().is_empty() {
+        if read.is_empty() {
             return;
         }
         ui.horizontal_wrapped(|ui| {
             ui.label(lang.t("extrusion.pick_a_sketch"));
-            for index in 0..document.sketches().len() {
+            for &index in read {
                 let number = wording::sketch::number(document, index);
                 if ui.button(number.to_string()).clicked() {
                     extrusion.offer(index);

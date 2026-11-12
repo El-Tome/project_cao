@@ -13,7 +13,7 @@ use super::corners::{self, Beside, Three};
 use super::extent::runs;
 use super::flush::{self, Flush, Held};
 use super::reach::reach_within;
-use super::{Meeting, Met, Prism, Together, Wedge, closing, pairs, set_backs};
+use super::{Meeting, Met, Prism, Together, Wedge, closing, pairs, ring, set_backs};
 use crate::body::exact::Exact;
 use crate::brep::{self, Declined, EdgeId, EdgeName, Scale};
 
@@ -159,6 +159,10 @@ impl Exact {
         } = step;
         let scale = self.brep.scale();
         let pairs = pairs::meeting(&wedges, &facing, taken, set_back, meeting.together, scale)?;
+        if let Some(ring) = ring::closed(&self.brep, &edges, &wedges, &pairs) {
+            return Ok((self.closed_round(&ring, &wedges)?, taken, pairs));
+        }
+        pairs::apart(&pairs)?;
         let ends = pairs::at_their_ends(&self.brep, &edges, &wedges, &pairs, &three)?;
         let closes = closing::closings(
             three,

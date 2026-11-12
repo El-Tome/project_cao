@@ -68,10 +68,10 @@
 //!   numbered first —
 //!   `a_fillet_on_a_meeting_pair_whose_earlier_edge_is_not_named_first_numbers_the_edge_before_it_first_and_the_full_round_after`;
 //!   and an edge whose set-backs would meet two others', the four long edges
-//!   of a square bar asked more than half its side, declines the fillet
-//!   `Unsupported` — rounds that close on themselves are out of the issue's
-//!   scope, built by #790 — where less than half lays all four —
-//!   `a_fillet_on_the_four_long_edges_of_a_square_bar_asked_more_than_half_its_side_is_declined_as_unsupported`,
+//!   of a square bar asked more than half its side, declined the fillet
+//!   `Unsupported` here — rounds that close on themselves were out of the
+//!   issue's scope — and is one closed cylinder since #790, below; less than
+//!   half lays all four —
 //!   `a_fillet_and_a_chamfer_on_the_four_long_edges_of_a_square_bar_asked_less_than_half_its_side_lay_each_at_the_value_asked`;
 //!   the chamfer there takes half its side, its four flats meeting in four
 //!   ridges, a diamond —
@@ -191,6 +191,31 @@
 //!   and the chamfer on it short of the limit, its two flats laid apart and
 //!   each answering to its own number, a strip of tread left between —
 //!   `a_chamfer_on_a_tread_s_nose_and_foot_asked_less_than_half_its_depth_lays_two_flats_apart_a_strip_of_tread_between`
+//!
+//! Closes #790.
+//! - Where every round of a step meets its neighbours across every face they
+//!   share, the rounds are one closed cylinder: the bar's four long faces are
+//!   gone, its two end walls are discs, and the cylinder answers to every
+//!   edge's number — on the four long edges of a bar 10 square, asked half
+//!   its side and asked more, named in each of their 24 orders: one curved
+//!   face, the cylinder of half the side about the bar's axis, each end a
+//!   flat face bounded by one circle meeting the cylinder alone, and the
+//!   matter of that cylinder —
+//!   `a_fillet_on_the_four_long_edges_of_a_square_bar_asked_half_its_side_or_more_takes_half_in_one_closed_cylinder_in_every_order`;
+//!   and the same on a bar standing askew, away from the origin, so that its
+//!   axis is found from the bar rather than from the frame it is drawn on —
+//!   `a_fillet_on_the_four_long_edges_of_a_square_bar_standing_askew_away_from_the_origin_takes_half_in_one_closed_cylinder_about_its_own_axis`
+//! - The value is reduced to that half side as #698 reduces it, rather than
+//!   the step being declined — the two tests above, which ask more than half
+//!   and hold that half is taken and the asked value reported —
+//!   `a_fillet_on_the_four_long_edges_of_a_square_bar_asked_half_its_side_or_more_takes_half_in_one_closed_cylinder_in_every_order`,
+//!   `a_fillet_on_the_four_long_edges_of_a_square_bar_standing_askew_away_from_the_origin_takes_half_in_one_closed_cylinder_about_its_own_axis`
+//! - Every step #698 lays, and the full round of two edges — the tests of
+//!   #698 above, left as they were, among them
+//!   `a_fillet_lays_one_full_round_or_round_bottom_whichever_of_its_two_faces_each_edge_shares_and_in_either_order`,
+//!   `a_fillet_and_a_chamfer_on_the_four_long_edges_of_a_square_bar_asked_less_than_half_its_side_lay_each_at_the_value_asked`
+//!   and
+//!   `a_chamfer_on_the_four_long_edges_of_a_square_bar_asked_half_its_side_or_more_takes_half_a_diamond`
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -2132,22 +2157,246 @@ fn a_fillet_on_a_meeting_pair_named_apart_in_the_list_lays_one_full_round_answer
 /// every long face at half of it.
 const BAR: f64 = 10.0;
 
-#[test]
-fn a_fillet_on_the_four_long_edges_of_a_square_bar_asked_more_than_half_its_side_is_declined_as_unsupported()
- {
-    let bar = block([LENGTH, BAR, BAR]);
-    let names: Vec<EdgeName> = long_edges_of(BAR, BAR)
+/// A square bar [`BAR`] on a side and [`LENGTH`] long, as the closed round is
+/// held on it: the part, the names of its four long edges, the point its
+/// axis starts from on its first end and the way it runs, two ways square to
+/// it and to each other along its sides, its four long faces, and its two
+/// ends, the first then the second, each with the way it faces.
+struct SquareBar {
+    part: Body,
+    edges: Vec<EdgeName>,
+    start: DVec3,
+    along: DVec3,
+    across: [DVec3; 2],
+    long_faces: [usize; 4],
+    ends: [(usize, DVec3); 2],
+}
+
+/// The bar lying on the ground from the origin along X: a block
+/// [`LENGTH`] long, [`BAR`] across and [`BAR`] high, its left wall its first
+/// end.
+fn lying_bar() -> SquareBar {
+    let part = block([LENGTH, BAR, BAR]);
+    let edges = long_edges_of(BAR, BAR)
         .iter()
-        .map(|edge| edge.name(&bar))
+        .map(|edge| edge.name(&part))
         .collect();
+    SquareBar {
+        part,
+        edges,
+        start: DVec3::new(0.0, BAR / 2.0, BAR / 2.0),
+        along: DVec3::X,
+        across: [DVec3::Y, DVec3::Z],
+        long_faces: [FLOOR, TOP, FRONT, BACK],
+        ends: [(LEFT, -DVec3::X), (RIGHT, DVec3::X)],
+    }
+}
 
-    let declined = bar.fillet_edges(&names, MORE_THAN_HALF).err();
+/// The bar raised from a square drawn on a plane that leans every way and
+/// stands away from the origin: its floor, numbered nought, its first end,
+/// its top the second, and its walls two to five, each long edge between
+/// two walls that follow each other.
+fn askew_bar() -> SquareBar {
+    let frame = Frame {
+        origin: DVec3::new(7.0, -3.0, 4.0),
+        u: DVec3::new(2.0, 1.0, 2.0) / 3.0,
+        v: DVec3::new(-1.0, 2.0, 0.0) / 5.0_f64.sqrt(),
+    };
+    let along = frame.normal();
+    let tool = Body::default()
+        .tool_raised(
+            &profile(Contour::rectangle(DVec2::ZERO, DVec2::splat(BAR))),
+            frame,
+            along * LENGTH,
+        )
+        .expect("the tool raises");
+    let part = Body::default().union(&tool).expect("the join is built");
+    let edges = [[2, 3], [3, 4], [4, 5], [5, 2]]
+        .iter()
+        .map(|&[first, second]| edge_between(&part, first, second))
+        .collect();
+    SquareBar {
+        part,
+        edges,
+        start: frame.at(DVec2::splat(BAR / 2.0)),
+        along,
+        across: [frame.u, frame.v],
+        long_faces: [2, 3, 4, 5],
+        ends: [(0, -along), (1, along)],
+    }
+}
 
+/// Every order a list may be named in.
+fn every_order<T: Clone>(items: &[T]) -> Vec<Vec<T>> {
+    if items.is_empty() {
+        return vec![Vec::new()];
+    }
+    (0..items.len())
+        .flat_map(|first| {
+            let mut rest = items.to_vec();
+            let head = rest.remove(first);
+            every_order(&rest).into_iter().map(move |mut tail| {
+                tail.insert(0, head.clone());
+                tail
+            })
+        })
+        .collect()
+}
+
+/// Holds that a fillet on the bar's four long edges, named in the order
+/// `order`, asked `asked`, took half the bar's side and closed its four
+/// rounds into one cylinder about the bar's axis, its two ends discs.
+fn closes_into_one_cylinder(bar: &SquareBar, order: &[usize], asked: f64, what: &str) {
+    let half = BAR / 2.0;
+    let names: Vec<EdgeName> = order.iter().map(|&at| bar.edges[at].clone()).collect();
+    let filleted = bar
+        .part
+        .fillet_edges(&names, asked)
+        .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+    reduced(filleted.asked, filleted.taken, [asked, half], what);
+    let body = &filleted.body;
+    let laid: Vec<usize> = (bar.part.faces_end()..bar.part.faces_end() + 4).collect();
+    let mut ends_and_laid: BTreeSet<usize> = bar.ends.iter().map(|&(end, _)| end).collect();
+    ends_and_laid.extend(laid.iter().copied());
     assert_eq!(
-        declined,
-        Some(Declined::Unsupported),
-        "every edge's set-backs would meet two others', across the face on either side of it"
+        numbers(body),
+        ends_and_laid,
+        "{what}: the four long faces {:?} gone, the bar's two ends and the cylinder answering \
+         to {laid:?} left",
+        bar.long_faces
     );
+    assert_eq!(
+        body.faces_end(),
+        laid[3] + 1,
+        "{what}: the next step numbers its faces past all four the cylinder answers to"
+    );
+    one_curved_face_answers_to(body, &laid, what);
+    let [first, second] = bar.across;
+    let quarters = [
+        [first, second],
+        [second, -first],
+        [-first, -second],
+        [-second, first],
+    ]
+    .map(|facing| Round {
+        start: bar.start,
+        along: bar.along,
+        length: LENGTH,
+        radius: half,
+        facing,
+    });
+    is_made_of(
+        body,
+        laid[0],
+        &quarters.each_ref(),
+        &format!(
+            "{what}: the closed round, a cylinder of {half} about the line from {} along {}",
+            bar.start, bar.along
+        ),
+    );
+    for (end, (face, facing)) in bar.ends.iter().copied().enumerate() {
+        let centre = bar.start + bar.along * LENGTH * end as f64;
+        is_a_disc(
+            body,
+            face,
+            [centre, facing],
+            half,
+            &laid,
+            &format!("{what}: the end numbered {face}"),
+        );
+    }
+    sound_drawn_within(
+        body,
+        PI * half * half * LENGTH,
+        DRAWN * reach_of(&bar.part) * 2.0 * PI * half * LENGTH,
+        what,
+    );
+}
+
+/// Holds that the face numbered `face` is a disc of `radius` about `centre`,
+/// facing `facing`: flat, every corner on its rim, its triangles covering
+/// it within the drawing's tolerance, and one edge only, shared with the
+/// face answering to the numbers `rim`.
+fn is_a_disc(
+    body: &Body,
+    face: usize,
+    [centre, facing]: [DVec3; 2],
+    radius: f64,
+    rim: &[usize],
+    what: &str,
+) {
+    let plane = body
+        .plane_of(face)
+        .unwrap_or_else(|| panic!("{what}: flat, a plane to draw on"));
+    assert!(
+        plane.normal.distance(facing) < PLACE,
+        "{what}: faces {}, where the bar's end faces {facing}",
+        plane.normal
+    );
+    assert!(!plane.corners.is_empty(), "{what}: has a rim");
+    for corner in &plane.corners {
+        let off = *corner - centre;
+        assert!(
+            off.dot(facing).abs() < PLACE && (off.length() - radius).abs() < PLACE,
+            "{what}: a corner at {corner}, off the circle of {radius} about {centre}"
+        );
+    }
+    let mut met: Vec<u32> = rim.iter().map(|&number| number as u32).collect();
+    met.sort();
+    assert_eq!(
+        sides_met(body, face),
+        vec![met],
+        "{what}: one edge, a circle shared with the cylinder and nothing else"
+    );
+    let area: f64 = body
+        .triangles_of(face)
+        .map(|[a, b, c]| (b - a).cross(c - a).length() / 2.0)
+        .sum();
+    let disc = PI * radius * radius;
+    assert!(
+        (area - disc).abs() <= DRAWN * reach_of(body) * 2.0 * PI * radius,
+        "{what}: its triangles cover {area}, where the disc is {disc}"
+    );
+}
+
+#[test]
+fn a_fillet_on_the_four_long_edges_of_a_square_bar_asked_half_its_side_or_more_takes_half_in_one_closed_cylinder_in_every_order()
+ {
+    let bar = lying_bar();
+    for asked in [BAR / 2.0, MORE_THAN_HALF] {
+        for order in every_order(&[0, 1, 2, 3]) {
+            closes_into_one_cylinder(
+                &bar,
+                &order,
+                asked,
+                &format!(
+                    "the fillet on the four long edges of a bar {BAR} square lying along X, \
+                     named in the order {order:?}, asked {asked}"
+                ),
+            );
+        }
+    }
+}
+
+#[test]
+fn a_fillet_on_the_four_long_edges_of_a_square_bar_standing_askew_away_from_the_origin_takes_half_in_one_closed_cylinder_about_its_own_axis()
+ {
+    let bar = askew_bar();
+    for asked in [BAR / 2.0, MORE_THAN_HALF] {
+        for order in every_order(&[0, 1, 2, 3]) {
+            closes_into_one_cylinder(
+                &bar,
+                &order,
+                asked,
+                &format!(
+                    "the fillet on the four long edges of a bar {BAR} square standing askew \
+                     from {}, named in the order {order:?}, asked {asked}",
+                    bar.start
+                ),
+            );
+        }
+    }
 }
 
 #[test]

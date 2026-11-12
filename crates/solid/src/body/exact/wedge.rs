@@ -16,6 +16,7 @@ mod overlap;
 mod pairs;
 mod reach;
 mod reading;
+mod ring;
 mod section;
 mod set_backs;
 mod slope;
@@ -37,7 +38,7 @@ pub(super) use closing::Closing;
 use flush::{Flush, Stop};
 pub(super) use odd::Around;
 use overlap::OVERLAPS;
-pub(super) use pairs::Together;
+pub(super) use pairs::{Together, together};
 pub(super) use section::Side;
 pub(super) use sphere::{hollowed_across, rounded_across};
 use step::Kind;
@@ -140,7 +141,8 @@ impl Exact {
     /// the list, nor two concave beside a third concave, nor three of mixed
     /// sense, more than three edges meeting at a corner, or three where
     /// another edge ends too, where `meeting` lays two together an edge
-    /// meeting two others, or one of two laid together that meets another
+    /// meeting two others but in a closed chain, cut down to one cylinder as
+    /// [`Exact::closed_round`] cuts it, or one of two laid together that meets another
     /// edge of the list at a corner any other way — a pointed end's two edges
     /// among them where a third ends at the tip — a cut or a fill that left
     /// something else than its one face, as

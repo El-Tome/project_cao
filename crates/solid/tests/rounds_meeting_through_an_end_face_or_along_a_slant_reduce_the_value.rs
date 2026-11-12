@@ -301,6 +301,32 @@
 //!   with its front wall leaning in 40 degrees, asked 9, in all 720 orders;
 //!   asked just past the half, 8.67, it splits the orders the same way, and
 //!   is not tried apart
+//!
+//! Closes #895.
+//!
+//! - The five tips above, filleted at 3 on the four edges, take one value in
+//!   every order of the four names (the 24 orders), and build one body; or
+//!   decline in every order —
+//!   `a_fillet_and_a_chamfer_on_a_plate_s_long_top_edges_and_its_lopsided_or_bevelled_end_take_one_value_in_every_order_and_lose_no_name`.
+//!   Read as decided when the issue was taken: one value and one sound body
+//!   whatever the order, or the same decline; which value is not held. The
+//!   plate's top (0, 0), (30, 0), the tip, (30, 6), (0, 6), 10 high, tips
+//!   (33, 2.9), (33, 2.5), (36, 2.5), (39, 2) and (33, 4); and beyond the
+//!   issue's table, from its comments, the tip (98/3, 2) whose walls are
+//!   tangent to one circle of radius 3, and #894's bevelled end, (29, 0),
+//!   (30, 1), (30, 5), (29, 6), its two bevels with and without the end
+//!   between them, 120 and 24 orders; no order declining for a name lost,
+//!   every edge named being on the body as given
+//! - The same chamfered at 3 —
+//!   `a_fillet_and_a_chamfer_on_a_plate_s_long_top_edges_and_its_lopsided_or_bevelled_end_take_one_value_in_every_order_and_lose_no_name`
+//! - No body of #822's, #792's or #823's tests changes — no test: held by
+//!   their own tests in this file, left as they are
+//!
+//! Measured when the issue was taken, on `main` with #877 and #899: every
+//! case already took one value in every order, a sound body each — the tips
+//! 2.9, 2.5, 2.5, 2, 2 and the tangent tip 2, filleted and chamfered; the
+//! bevelled end 1 with and without the end edge — where the issue saw two
+//! values and four orders losing a name. The test stands as their net.
 
 use std::collections::BTreeSet;
 use std::f64::consts::{FRAC_1_SQRT_2, PI, TAU};
@@ -3105,7 +3131,7 @@ fn uneven_hexagon(third: f64, back: f64) -> [DVec2; 6] {
 /// the orders, each the ranks in the row in the order named.
 struct Row {
     called: &'static str,
-    corners: [DVec2; 6],
+    corners: Vec<DVec2>,
     height: f64,
     walls: Vec<usize>,
     leaning: Option<(usize, f64)>,
@@ -3150,7 +3176,10 @@ fn stepped_in_every_order(row: &Row, fillet: bool) -> (Body, Vec<EdgeName>, InEv
     let part = match row.leaning {
         Some((outer, degrees)) => {
             let side = walls[outer] - HEXAGON_FRONT;
-            let (from, to) = (row.corners[side], row.corners[(side + 1) % 6]);
+            let (from, to) = (
+                row.corners[side],
+                row.corners[(side + 1) % row.corners.len()],
+            );
             let (_, out) = trapezoid_edge(from, to);
             let (part, wall) = leaning_in(
                 &raised,
@@ -3179,7 +3208,8 @@ fn stepped_in_every_order(row: &Row, fillet: bool) -> (Body, Vec<EdgeName>, InEv
 /// outcome — the same value and the same matter, within [`PLACE`] and
 /// [`EXACT`], or the same decline — listing what each order gave where they
 /// do not, or where `at_the_least_alone` and they did not all build at the
-/// least value any of its edges takes alone; and where they agree and
+/// least value any of its edges takes alone, or where any declined for a
+/// name lost, every edge named being on the part; and where they agree and
 /// the step is built, holds each body sound and all of them one body.
 fn one_outcome_in_every_order(row: &Row, fillet: bool, at_the_least_alone: bool) -> Option<String> {
     let kind = if fillet { "fillet" } else { "chamfer" };
@@ -3222,6 +3252,12 @@ fn one_outcome_in_every_order(row: &Row, fillet: bool, at_the_least_alone: bool)
     };
     if !(outcomes.iter()).all(|(_, laid)| agree(laid, &outcomes[0].1)) {
         return Some(format!("{called}:\n{}", told(&outcomes)));
+    }
+    if (outcomes.iter()).any(|(_, laid)| matches!(laid, Err(Declined::Lost(_)))) {
+        return Some(format!(
+            "{called}: a name lost, where every edge named is on the body as given:\n{}",
+            told(&outcomes)
+        ));
     }
     if at_the_least_alone {
         let mut least = f64::INFINITY;
@@ -3274,7 +3310,7 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_whose_outer_edge_alone_rea
         Row {
             called: "three top edges in a row of a hexagon whose third side turns a twelfth \
                      of a turn, 12 tall, that side's wall leaning in 40 degrees",
-            corners: uneven_hexagon(10.0, 20.0),
+            corners: uneven_hexagon(10.0, 20.0).to_vec(),
             height: 12.0,
             walls: three_in_a_row().0,
             leaning: Some((2, 40.0)),
@@ -3284,7 +3320,7 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_whose_outer_edge_alone_rea
         Row {
             called: "three top edges in a row of a hexagon whose third side turns a twelfth \
                      of a turn and runs 30 long, 12 tall, every wall upright",
-            corners: uneven_hexagon(30.0, 40.0),
+            corners: uneven_hexagon(30.0, 40.0).to_vec(),
             height: 12.0,
             walls: three_in_a_row().0,
             leaning: None,
@@ -3295,7 +3331,7 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_whose_outer_edge_alone_rea
             called: "three top edges in a row of a hexagon whose third side turns a twelfth \
                      of a turn and runs 30 long, 12 tall, that side's wall leaning in 20 \
                      degrees",
-            corners: uneven_hexagon(30.0, 40.0),
+            corners: uneven_hexagon(30.0, 40.0).to_vec(),
             height: 12.0,
             walls: three_in_a_row().0,
             leaning: Some((2, 20.0)),
@@ -3307,7 +3343,7 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_whose_outer_edge_alone_rea
                      leaning in 50 degrees, asked past where two chamfers' flats laid whole \
                      would meet in a line leaving through the leaning wall before the middle \
                      one",
-            corners: hexagon_corners(),
+            corners: hexagon_corners().to_vec(),
             height: 2.0 * HEXAGON_HEIGHT,
             walls: three_in_a_row().0,
             leaning: Some((0, 50.0)),
@@ -3317,7 +3353,7 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_whose_outer_edge_alone_rea
         Row {
             called: "three top edges in a row of a hexagon whose third side turns a twelfth \
                      of a turn, 12 tall, its first wall leaning in 40 degrees",
-            corners: uneven_hexagon(10.0, 20.0),
+            corners: uneven_hexagon(10.0, 20.0).to_vec(),
             height: 12.0,
             walls: three_in_a_row().0,
             leaning: Some((0, 40.0)),
@@ -3327,7 +3363,7 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_whose_outer_edge_alone_rea
         Row {
             called: "three top edges in a row of a hexagon whose third side turns a twelfth \
                      of a turn, 20 tall, its first wall leaning in 40 degrees",
-            corners: uneven_hexagon(10.0, 20.0),
+            corners: uneven_hexagon(10.0, 20.0).to_vec(),
             height: 20.0,
             walls: three_in_a_row().0,
             leaning: Some((0, 40.0)),
@@ -3337,7 +3373,7 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_whose_outer_edge_alone_rea
         Row {
             called: "three top edges in a row of a hexagon whose third side turns a twelfth \
                      of a turn, 12 tall, that side's wall leaning in 40 degrees",
-            corners: uneven_hexagon(10.0, 20.0),
+            corners: uneven_hexagon(10.0, 20.0).to_vec(),
             height: 12.0,
             walls: three_in_a_row().0,
             leaning: Some((2, 40.0)),
@@ -3363,7 +3399,7 @@ fn a_chamfer_on_three_top_edges_in_a_row_whose_first_wall_leans_in_60_degrees_ta
     let row = Row {
         called: "three top edges in a row of a hexagon whose third side turns a twelfth of a \
                  turn, 12 tall, its first wall leaning in 60 degrees",
-        corners: uneven_hexagon(10.0, 20.0),
+        corners: uneven_hexagon(10.0, 20.0).to_vec(),
         height: 12.0,
         walls: three_in_a_row().0,
         leaning: Some((0, 60.0)),
@@ -3400,7 +3436,7 @@ fn a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_asked_past_its_half_takes
  {
     let ring = |called, leaning| Row {
         called,
-        corners: hexagon_corners(),
+        corners: hexagon_corners().to_vec(),
         height: 12.0,
         walls: HEXAGON_WALLS.to_vec(),
         leaning,
@@ -3429,6 +3465,97 @@ fn a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_asked_past_its_half_takes
     assert!(
         wrong.is_empty(),
         "one value, or one decline, whatever the order the six edges are named in:\n{}",
+        wrong.join("\n")
+    );
+}
+
+/// A plate 6 wide whose top runs from the origin through `end`, the corners
+/// of its far end from the front round to the back, and back along y = 6 to
+/// (0, 6): its walls numbered from two, the long front's first.
+fn plate(end: &[DVec2]) -> Vec<DVec2> {
+    [&[DVec2::ZERO][..], end, &[DVec2::new(0.0, 6.0)][..]].concat()
+}
+
+/// The far end of [`plate`] drawn to a point at `tip` from the long edges'
+/// ends at (30, 0) and (30, 6).
+fn pointed_at(tip: DVec2) -> Vec<DVec2> {
+    plate(&[DVec2::new(30.0, 0.0), tip, DVec2::new(30.0, 6.0)])
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_a_plate_s_long_top_edges_and_its_lopsided_or_bevelled_end_take_one_value_in_every_order_and_lose_no_name()
+ {
+    let bevelled = || {
+        plate(&[
+            DVec2::new(29.0, 0.0),
+            DVec2::new(30.0, 1.0),
+            DVec2::new(30.0, 5.0),
+            DVec2::new(29.0, 6.0),
+        ])
+    };
+    let ends: [(&str, Vec<DVec2>, Vec<usize>); 8] = [
+        (
+            "tip at (33, 2.9)",
+            pointed_at(DVec2::new(33.0, 2.9)),
+            vec![2, 3, 4, 5],
+        ),
+        (
+            "tip at (33, 2.5)",
+            pointed_at(DVec2::new(33.0, 2.5)),
+            vec![2, 3, 4, 5],
+        ),
+        (
+            "tip at (36, 2.5)",
+            pointed_at(DVec2::new(36.0, 2.5)),
+            vec![2, 3, 4, 5],
+        ),
+        (
+            "tip at (39, 2)",
+            pointed_at(DVec2::new(39.0, 2.0)),
+            vec![2, 3, 4, 5],
+        ),
+        (
+            "tip at (33, 4)",
+            pointed_at(DVec2::new(33.0, 4.0)),
+            vec![2, 3, 4, 5],
+        ),
+        (
+            "tip at (98/3, 2), both its walls tangent to one circle of radius 3",
+            pointed_at(DVec2::new(98.0 / 3.0, 2.0)),
+            vec![2, 3, 4, 5],
+        ),
+        (
+            "end bevelled from (29, 0) to (30, 1) and from (30, 5) to (29, 6), its \
+             two bevels and the end between them",
+            bevelled(),
+            vec![2, 3, 4, 5, 6],
+        ),
+        (
+            "end bevelled from (29, 0) to (30, 1) and from (30, 5) to (29, 6), its \
+             two bevels, the end between them left out",
+            bevelled(),
+            vec![2, 3, 5, 6],
+        ),
+    ];
+    let rows: Vec<Row> = (ends.into_iter())
+        .map(|(called, corners, walls)| Row {
+            called,
+            corners,
+            height: 10.0,
+            orders: every_order(walls.len()),
+            walls,
+            leaning: None,
+            asked: 3.0,
+        })
+        .collect();
+    let wrong: Vec<String> = (rows.iter())
+        .flat_map(|row| [true, false].map(|fillet| one_outcome_in_every_order(row, fillet, false)))
+        .flatten()
+        .collect();
+    assert!(
+        wrong.is_empty(),
+        "one value and one body, or one decline, whatever the order the plate's long top \
+         edges and its end's are named in, and no name lost:\n{}",
         wrong.join("\n")
     );
 }

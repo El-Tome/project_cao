@@ -221,7 +221,16 @@
 //!   on one end, and a tube bored through —
 //!   `a_fillet_on_the_four_upright_edges_of_a_square_post_standing_on_a_plate_asked_half_its_side_or_more_is_declined_as_unsupported_and_less_lays_four_rounds`,
 //!   `a_fillet_on_the_four_long_edges_of_a_square_bar_with_a_boss_on_one_end_asked_half_its_side_or_more_is_declined_as_unsupported_and_less_lays_four_rounds`,
-//!   `a_fillet_on_the_four_long_edges_of_a_square_tube_asked_half_its_side_or_more_is_declined_as_unsupported_and_less_lays_four_rounds`
+//!   `a_fillet_on_the_four_long_edges_of_a_square_tube_asked_half_its_side_or_more_is_declined_as_unsupported_and_less_lays_four_rounds`;
+//!   a closed square cavity, whose edges meet inwards and whose ends are its
+//!   own, is declined the same way, and less fills four hollows —
+//!   `a_fillet_on_the_four_long_edges_of_a_square_cavity_closed_inside_a_block_asked_half_its_side_or_more_is_declined_as_unsupported_and_less_fills_four_hollows`;
+//!   and matter standing apart from the bar, a little past each end and well
+//!   away beside it, is left whole by the cut that closes the round —
+//!   `a_fillet_on_the_four_long_edges_of_a_square_bar_with_blocks_standing_apart_past_its_ends_and_beside_it_takes_half_and_leaves_them_whole`
+//!   — and does not change the round itself, each end still bounded by one
+//!   circle —
+//!   `a_fillet_on_the_four_long_edges_of_a_square_bar_among_blocks_standing_apart_closes_into_one_cylinder_each_end_bounded_by_one_circle`
 //! - The value is reduced to that half side as #698 reduces it, rather than
 //!   the step being declined — the two tests above, which ask more than half
 //!   and hold that half is taken and the asked value reported —
@@ -233,6 +242,26 @@
 //!   `a_fillet_and_a_chamfer_on_the_four_long_edges_of_a_square_bar_asked_less_than_half_its_side_lay_each_at_the_value_asked`
 //!   and
 //!   `a_chamfer_on_the_four_long_edges_of_a_square_bar_asked_half_its_side_or_more_takes_half_a_diamond`
+//!
+//! Six mutants of `wedge/ring.rs` live on, and no body tells them apart. In
+//! `closed`, the guard `count < 3 || pairs.len() != count || !in_two ||
+//! inwards` reads one thing twice and another three times: every edge in
+//! two pairs makes as many pairs as edges, two ends each, so turning either
+//! of its first two `||` into `&&` changes nothing a drawable list reaches —
+//! a list where it would, as many pairs as edges and one edge in three, needs
+//! a face holding three of the edges, the other faces of all three tangent
+//! to the one circle `about` asks for, which no solid has; and an edge that
+//! meets inwards has its round's axis on the outer side of both its faces,
+//! which `about` refuses on its own, so `||` into `&&` before `inwards`
+//! changes nothing either — the closed cavity above runs through it. Adding
+//! the base in `flat`, or the centre in the offset of each corner along the
+//! axis, rather than taking it away, changes nothing, because a wedge's
+//! point is its line's origin, the point of the line nearest the world's
+//! origin, so that the base and the centre lie at nought along the axis.
+//! And numbering the tool's floor, top and square sides by a product rather
+//! than past the edges' numbers renames faces that stand outside the body,
+//! past its ends by the margin and off its corners by more, which a cut the
+//! step accepts never keeps.
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -2179,8 +2208,9 @@ const BAR: f64 = 10.0;
 /// circle its long faces stand tangent to, the point its axis starts from on
 /// its first end, the way it runs and how far to the second end, how far
 /// past either end the cylinder reaches where an end is slanted, two ways
-/// square to the axis and to each other, its long faces, and its two ends,
-/// the first then the second, each with the way it faces.
+/// square to the axis and to each other, its long faces, its two ends, the
+/// first then the second, each with the way it faces, and the faces and the
+/// matter of whatever stands apart from it, which the step leaves whole.
 struct ClosingPrism {
     part: Body,
     edges: Vec<EdgeName>,
@@ -2192,6 +2222,7 @@ struct ClosingPrism {
     across: [DVec3; 2],
     sides: Vec<usize>,
     ends: [(usize, DVec3); 2],
+    apart: (Vec<usize>, f64),
 }
 
 /// The bar lying on the ground from the origin along X: a block
@@ -2214,6 +2245,7 @@ fn lying_bar() -> ClosingPrism {
         across: [DVec3::Y, DVec3::Z],
         sides: vec![FLOOR, TOP, FRONT, BACK],
         ends: [(LEFT, -DVec3::X), (RIGHT, DVec3::X)],
+        apart: (Vec::new(), 0.0),
     }
 }
 
@@ -2251,6 +2283,7 @@ fn askew_bar() -> ClosingPrism {
         across: [frame.u, frame.v],
         sides: vec![2, 3, 4, 5],
         ends: [(0, -along), (1, along)],
+        apart: (Vec::new(), 0.0),
     }
 }
 
@@ -2276,6 +2309,7 @@ fn upright_prism(corners: Vec<DVec2>, centre: DVec2, radius: f64) -> ClosingPris
         across: [DVec3::X, DVec3::Y],
         sides,
         ends: [(FLOOR, -DVec3::Z), (TOP, DVec3::Z)],
+        apart: (Vec::new(), 0.0),
     }
 }
 
@@ -2380,11 +2414,13 @@ fn closes_into_one_cylinder(prism: &ClosingPrism, order: &[usize], asked: f64, w
     let laid: Vec<usize> = (first..first + prism.edges.len()).collect();
     let mut ends_and_laid: BTreeSet<usize> = prism.ends.iter().map(|&(end, _)| end).collect();
     ends_and_laid.extend(laid.iter().copied());
+    let (apart, matter_apart) = &prism.apart;
+    ends_and_laid.extend(apart.iter().copied());
     assert_eq!(
         numbers(body),
         ends_and_laid,
-        "{what}: the long faces {:?} gone, the two ends and the cylinder answering to {laid:?} \
-         left",
+        "{what}: the long faces {:?} gone, the two ends, the cylinder answering to {laid:?} and \
+         the faces {apart:?} of what stands apart left",
         prism.sides
     );
     assert_eq!(
@@ -2429,7 +2465,7 @@ fn closes_into_one_cylinder(prism: &ClosingPrism, order: &[usize], asked: f64, w
     }
     sound_drawn_within(
         body,
-        PI * radius * radius * prism.length,
+        PI * radius * radius * prism.length + matter_apart,
         DRAWN * reach_of(&prism.part) * 2.0 * PI * radius * (prism.length + prism.overhang),
         what,
     );
@@ -2581,6 +2617,88 @@ fn a_fillet_on_the_four_long_edges_of_a_square_bar_with_one_end_cut_at_20_degree
     );
 }
 
+/// The lying bar with a block standing apart a little past each of its ends,
+/// across its axis, and one standing well away beside it, along it: none of
+/// them touches the bar, so its ends are its rounds' alone.
+fn bar_among_blocks() -> ClosingPrism {
+    let bar = lying_bar();
+    let (beside, past_the_left, past_the_right) = (
+        [DVec2::new(5.0, 25.0), DVec2::new(25.0, 30.0)],
+        [DVec2::new(-6.0, 3.0), DVec2::new(-1.0, 7.0)],
+        [DVec2::new(LENGTH + 1.0, 3.0), DVec2::new(LENGTH + 6.0, 7.0)],
+    );
+    let part = [past_the_left, past_the_right, beside]
+        .iter()
+        .fold(bar.part.clone(), |part, &corners| {
+            joined_to(&part, corners, BAR)
+        });
+    let edges = long_edges_of(BAR, BAR)
+        .iter()
+        .map(|edge| edge.name(&part))
+        .collect();
+    let apart = (bar.part.faces_end()..part.faces_end()).collect();
+    ClosingPrism {
+        part,
+        edges,
+        apart: (apart, (2.0 * 5.0 * 4.0 + 20.0 * 5.0) * BAR),
+        ..bar
+    }
+}
+
+#[test]
+fn a_fillet_on_the_four_long_edges_of_a_square_bar_with_blocks_standing_apart_past_its_ends_and_beside_it_takes_half_and_leaves_them_whole()
+ {
+    let among = bar_among_blocks();
+    let half = BAR / 2.0;
+    let laid: Vec<usize> = (among.part.faces_end()..among.part.faces_end() + 4).collect();
+    let (apart, matter_apart) = &among.apart;
+    for asked in [half, MORE_THAN_HALF] {
+        for order in every_order(&[0, 1, 2, 3]) {
+            let what = format!(
+                "the fillet on the long edges of a bar {BAR} square lying along X, a block \
+                 standing 1 past each end and one 15 beside it, named in the order {order:?}, \
+                 asked {asked}"
+            );
+            let names: Vec<EdgeName> = order.iter().map(|&at| among.edges[at].clone()).collect();
+            let filleted = among
+                .part
+                .fillet_edges(&names, asked)
+                .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+            reduced(filleted.asked, filleted.taken, [asked, half], &what);
+            let body = &filleted.body;
+            let mut left: BTreeSet<usize> = [LEFT, RIGHT].into();
+            left.extend(laid.iter().copied());
+            left.extend(apart.iter().copied());
+            assert_eq!(
+                numbers(body),
+                left,
+                "{what}: the bar's ends, the cylinder answering to {laid:?}, and every face of \
+                 the blocks apart, {apart:?}"
+            );
+            one_curved_face_answers_to(body, &laid, &what);
+            sound_drawn_within(
+                body,
+                PI * half * half * LENGTH + matter_apart,
+                DRAWN * reach_of(&among.part) * 2.0 * PI * half * LENGTH,
+                &format!("{what}: the cylinder and the three blocks whole"),
+            );
+        }
+    }
+}
+
+#[test]
+fn a_fillet_on_the_four_long_edges_of_a_square_bar_among_blocks_standing_apart_closes_into_one_cylinder_each_end_bounded_by_one_circle()
+ {
+    closes_in_each_order(
+        &bar_among_blocks(),
+        &every_order(&[0, 1, 2, 3]),
+        &format!(
+            "a bar {BAR} square lying along X, a block standing 1 past each end and one 15 \
+             beside it"
+        ),
+    );
+}
+
 /// Holds that a fillet on the four edges `edges` of `part`, each `length`
 /// long, is declined `Unsupported` asked half the side [`BAR`] or more, in
 /// every order, and asked less lays four rounds, each taking from the part
@@ -2614,6 +2732,64 @@ fn declined_from_half_and_laid_below(part: &Body, edges: &[EdgeName], length: f6
         body,
         part.volume() - 4.0 * length * value * value * (1.0 - PI / 4.0),
         DRAWN * reach_of(part) * 4.0 * PI / 2.0 * value * length,
+        &what,
+    );
+}
+
+#[test]
+fn a_fillet_on_the_four_long_edges_of_a_square_cavity_closed_inside_a_block_asked_half_its_side_or_more_is_declined_as_unsupported_and_less_fills_four_hollows()
+ {
+    let side = 30.0;
+    let block = block([side, side, side]);
+    let cavity = block
+        .tool_raised(
+            &profile(Contour::rectangle(
+                DVec2::new(5.0, 10.0),
+                DVec2::new(5.0 + 20.0, 10.0 + BAR),
+            )),
+            Frame {
+                origin: DVec3::Z * 10.0,
+                ..ground()
+            },
+            DVec3::Z * BAR,
+        )
+        .expect("the cavity raises");
+    let part = block.difference(&cavity).expect("the cavity is cut");
+    let [floor, top, near, far] = [6, 7, 8, 10];
+    let edges: Vec<EdgeName> = [[floor, near], [top, far], [top, near], [floor, far]]
+        .iter()
+        .map(|&[first, second]| edge_between(&part, first, second))
+        .collect();
+    let what = format!(
+        "the fillet on the long edges of a cavity {BAR} square, 20 long, closed inside a block"
+    );
+    for asked in [BAR / 2.0, MORE_THAN_HALF] {
+        for order in every_order(&[0, 1, 2, 3]) {
+            let names: Vec<EdgeName> = order.iter().map(|&at| edges[at].clone()).collect();
+            assert_eq!(
+                part.fillet_edges(&names, asked).err(),
+                Some(Declined::Unsupported),
+                "{what}, named in the order {order:?}, asked {asked}: declined, the hollows \
+                 would close on themselves and fills do not"
+            );
+        }
+    }
+    let value = 4.0;
+    let filleted = part
+        .fillet_edges(&edges, value)
+        .unwrap_or_else(|declined| panic!("{what}, asked {value}: declined, {declined:?}"));
+    let what = format!("{what}, asked {value}");
+    taken_as_asked(filleted.asked, filleted.taken, value, &what);
+    let body = &filleted.body;
+    assert_eq!(
+        faces_made(&part, body).len(),
+        4,
+        "{what}: four hollows, one for each edge"
+    );
+    sound_drawn_within(
+        body,
+        part.volume() + 4.0 * 20.0 * value * value * (1.0 - PI / 4.0),
+        DRAWN * reach_of(&part) * 4.0 * PI / 2.0 * value * 20.0,
         &what,
     );
 }

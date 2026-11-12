@@ -101,9 +101,13 @@ impl Exact {
     /// the margin the first of `wedges` takes, and the circle of the ring's
     /// radius a hole through it, drawn in as many runs as there are edges —
     /// the cylinder's one face answering to every edge's number, where the
-    /// steps' numbers ended, the ends of the body left discs. Declined as the
-    /// cut declines, and `Unsupported` where it left anything else than that
-    /// face, as [`Exact::cut_along`] reads it of every edge.
+    /// steps' numbers ended, the ends of the body left discs, each bounded by
+    /// one circle: a corner the cut left on a rim, where the circle touches
+    /// the plane of a face the body still holds elsewhere — a block standing
+    /// apart on the bar's floor — is cleared, as [`Exact::merged_at`] clears
+    /// it. Declined as the cut declines, and `Unsupported` where it left
+    /// anything else than that face, as [`Exact::cut_along`] reads it of
+    /// every edge.
     pub(super) fn closed_round(&self, ring: &Ring, wedges: &[Wedge]) -> Result<Exact, Declined> {
         let count = wedges.len();
         let (across, facing) = wedges[0].square();
@@ -148,10 +152,14 @@ impl Exact {
         };
         let cut = self.cut_by(&tool)?;
         let wedges: Vec<&Wedge> = wedges.iter().collect();
-        if cut.cut_along(&wedges, self, laid, &[], &[]) {
-            Ok(cut)
-        } else {
-            Err(Declined::Unsupported)
+        if !cut.cut_along(&wedges, self, laid, &[], &[]) {
+            return Err(Declined::Unsupported);
         }
+        let rims: Vec<DVec3> = (cut.named(self.next as usize))
+            .flat_map(|face| cut.brep.face(face).loops.iter().flatten())
+            .flat_map(|coedge| cut.brep.edge(coedge.edge).ends.into_iter().flatten())
+            .map(|end| cut.brep.vertex(end).point)
+            .collect();
+        cut.merged_at(&rims)
     }
 }

@@ -302,13 +302,18 @@
 //!   before the fillet is built —
 //!   `a_chamfer_on_a_full_round_pair_s_edges_and_an_edge_meeting_them_at_a_corner_mitres_their_ridge_against_that_edge_s_flat_whatever_the_order`
 //! - What stays declined, so that the guard letting the end edge in lets in
-//!   nothing else: a pocket 6 wide whose floor's front and back edges are
-//!   filled at 3 in a round bottom, with its floor's edge on its end wall,
-//!   until #838; and the four top edges of a block 6 by 6, two full rounds
-//!   meeting at its corners. Each is declined `Unsupported` in every order the
-//!   list can name its edges in, the pair alone laid. Green before this branch
-//!   and after, a pin of the guard rather than a red test —
-//!   `a_fillet_on_a_full_round_meeting_another_full_round_and_on_a_round_bottom_meeting_the_edge_at_its_end_is_declined_as_unsupported_whatever_the_order`.
+//!   nothing else: the four top edges of a block 6 by 6, two full rounds
+//!   meeting at its corners, declined `Unsupported` in every order the list
+//!   can name its edges in, the pair alone laid. Green before this branch and
+//!   after, a pin of the guard rather than a red test —
+//!   `a_fillet_on_a_full_round_meeting_another_full_round_is_declined_as_unsupported_whatever_the_order`.
+//!   A pocket 6 wide whose floor's front and back edges are filled at 3 in a
+//!   round bottom, with its floor's edge on its end wall, was held there too,
+//!   the test then named for both, until #838 built it, the round bottom
+//!   meeting the end edge's fill in a valley: held now, with the pocket, in
+//!   `a_round_bottom_meets_the_fill_of_the_edge_at_its_pocket_s_end_in_a_valley.rs`
+//!   by
+//!   `a_fillet_on_a_pocket_s_round_bottom_and_the_floor_edge_at_its_end_meets_that_edge_s_fill_in_a_valley_whatever_the_order`.
 //!   The full round with the front's right edge, the upright at its end, was
 //!   held there too until #837's first slice built it, the upright's round
 //!   mitred against the full round on an ellipse; and the full round with the
@@ -4137,65 +4142,27 @@ fn a_fillet_on_a_full_round_pair_and_an_end_edge_cut_at_an_angle_seen_from_above
     );
 }
 
-/// A block 30 by 10 by 20 with a pocket 20 long, [`NARROW`] wide and
-/// [`NARROW`] deep cut into the middle of its top: its floor numbered six,
-/// its walls, front, right, back and left, eight to eleven, the tool's top,
-/// above the block, gone. The floor's front and back edges meet inwards,
-/// facing each other across the floor, and filled at [`FULL_ROUND`] meet in
-/// one round bottom.
-fn narrow_pocket() -> Body {
-    let solid = block([LENGTH, BREADTH, HEIGHT]);
-    let tool = tool_between(
-        &solid,
-        [DVec2::new(5.0, 2.0), DVec2::new(25.0, 2.0 + NARROW)],
-        HEIGHT - NARROW,
-        NARROW + 1.0,
-    );
-    solid.difference(&tool).expect("the pocket is cut")
-}
-
-/// The numbers [`narrow_pocket`]'s floor and the walls whose floor edges a
-/// round bottom and its end take answer to.
-const POCKET_FLOOR: usize = 6;
-const POCKET_FRONT: usize = 8;
-const POCKET_RIGHT: usize = 9;
-const POCKET_BACK: usize = 10;
-
 #[test]
-fn a_fillet_on_a_full_round_meeting_another_full_round_and_on_a_round_bottom_meeting_the_edge_at_its_end_is_declined_as_unsupported_whatever_the_order()
+fn a_fillet_on_a_full_round_meeting_another_full_round_is_declined_as_unsupported_whatever_the_order()
  {
     let square = block([NARROW, NARROW, HEIGHT]);
-    let pocket = narrow_pocket();
-    let cases = [
-        (
-            "the round bottom of the pocket's floor edges on its front and back walls, and its \
-             floor edge on its right wall, until #838",
-            &pocket,
-            [[POCKET_FLOOR, POCKET_FRONT], [POCKET_FLOOR, POCKET_BACK]],
-            vec![[POCKET_FLOOR, POCKET_RIGHT]],
-        ),
-        (
-            "the four top edges of a block 6 by 6, two full rounds meeting at its four corners",
-            &square,
-            [TOP_FRONT, TOP_BACK],
-            vec![TOP_RIGHT, TOP_LEFT],
-        ),
-    ];
+    let called =
+        "the four top edges of a block 6 by 6, two full rounds meeting at its four corners";
+    let name = |[one, other]: [usize; 2]| edge_between(&square, one, other);
+    let pair = [TOP_FRONT, TOP_BACK];
+    square
+        .fillet_edges(&pair.map(name), FULL_ROUND)
+        .unwrap_or_else(|declined| {
+            panic!("{called}: the pair alone is laid, a full round; declined, {declined:?}")
+        });
+    let list = [TOP_FRONT, TOP_BACK, TOP_RIGHT, TOP_LEFT];
 
     let mut laid = Vec::new();
-    for (called, part, pair, others) in &cases {
-        let name = |[one, other]: [usize; 2]| edge_between(part, one, other);
-        part.fillet_edges(&pair.map(name), FULL_ROUND)
-            .unwrap_or_else(|declined| {
-                panic!("{called}: the pair alone is laid, a full round or a round bottom; declined, {declined:?}")
-            });
-        let list: Vec<[usize; 2]> = pair.iter().chain(others).copied().collect();
-        for order in every_order(list.len()) {
-            let faces: Vec<[usize; 2]> = order.iter().map(|&edge| list[edge]).collect();
-            let names: Vec<EdgeName> = faces.iter().map(|&edge| name(edge)).collect();
-            let filleted = part.fillet_edges(&names, FULL_ROUND).map(|_| ());
-            laid.push((format!("{called}, the fillet on {faces:?}"), filleted));
-        }
+    for order in every_order(list.len()) {
+        let faces: Vec<[usize; 2]> = order.iter().map(|&edge| list[edge]).collect();
+        let names: Vec<EdgeName> = faces.iter().map(|&edge| name(edge)).collect();
+        let filleted = square.fillet_edges(&names, FULL_ROUND).map(|_| ());
+        laid.push((format!("{called}, the fillet on {faces:?}"), filleted));
     }
 
     let not_declined: Vec<String> = laid
@@ -4208,8 +4175,8 @@ fn a_fillet_on_a_full_round_meeting_another_full_round_and_on_a_round_bottom_mee
         .collect();
     assert!(
         not_declined.is_empty(),
-        "a round bottom meeting the edge at its end, and a full round meeting another, are each \
-         a broken step and its reason, whatever the order, the pair alone laid; not so:\n{}",
+        "a full round meeting another is a broken step and its reason, whatever the order, the \
+         pair alone laid; not so:\n{}",
         not_declined.join("\n")
     );
 }

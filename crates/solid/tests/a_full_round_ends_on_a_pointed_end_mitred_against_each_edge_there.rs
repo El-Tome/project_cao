@@ -263,6 +263,19 @@
 //!   `a_fillet_on_a_full_round_pointed_at_one_end_square_at_the_other_its_edge_there_and_the_upright_at_the_tip_closes_the_tip_with_a_piece_of_sphere_whichever_block_is_named_first`;
 //!   all 720 in the campaign —
 //!   `a_fillet_on_a_full_round_pointed_at_one_end_square_at_the_other_its_edge_there_and_the_upright_at_the_tip_closes_the_tip_with_a_piece_of_sphere_in_each_of_the_720_orders_of_its_six_edges`
+//! - Decided on the way, after slice 3's mutants (2026-11-12): an edge of the
+//!   end meeting one edge of the pair is let in only where it meets the other
+//!   too, or a listed edge of the top meets both it and the other; no other
+//!   edge of the list stands for that one. A V-notched end with one of its
+//!   notch's edges named, the other left out — the front edge on the notches
+//!   (27,3) and (28,3), the back edge on (27,3) — alone or with the edge
+//!   across the square far end, which meets both edges of the pair there, is
+//!   declined `Unsupported` in each of its orders, 6 or 24. Unlike the point's
+//!   lone edge, which stops short at 6 − 3√2, the notch edge's set-back never
+//!   reaches the other edge's on an edge of the body, so nothing bounds the
+//!   value before the pair forms, and the decline is read at the full round's
+//!   end; building it is #917 —
+//!   `a_fillet_on_a_full_round_and_one_edge_of_its_v_notched_end_alone_or_with_its_square_far_end_s_edge_is_declined_as_unsupported_whatever_the_order`
 //!
 //! The campaign is run by hand, out of the gate, compiled only under the
 //! `campaigns` feature: every one of the 720 orders of the plate pointed at
@@ -3932,6 +3945,46 @@ fn a_fillet_on_a_full_round_one_edge_of_its_point_alone_and_its_square_far_end_s
             plate.called
         ),
     );
+}
+
+#[test]
+fn a_fillet_on_a_full_round_and_one_edge_of_its_v_notched_end_alone_or_with_its_square_far_end_s_edge_is_declined_as_unsupported_whatever_the_order()
+ {
+    let left_end = 6;
+    let pair = [
+        ([TOP, FRONT], "the top's front edge"),
+        ([TOP, BACK], "the top's back edge"),
+    ];
+    let far_end = ([TOP, left_end], "the top's left edge");
+    for (tip, notch_edge) in [
+        (27.0, ([TOP, POINT_FRONT], "the notch's front edge")),
+        (28.0, ([TOP, POINT_FRONT], "the notch's front edge")),
+        (27.0, ([TOP, POINT_BACK], "the notch's back edge")),
+    ] {
+        let plate = Plate::pointed(tip, DVec3::ZERO);
+        for with_the_far_end in [false, true] {
+            let mut listed: Vec<([usize; 2], &str)> =
+                pair.into_iter().chain([notch_edge]).collect();
+            if with_the_far_end {
+                listed.push(far_end);
+            }
+            declined_in_every_order(
+                &plate.part,
+                &listed,
+                &format!(
+                    "the full round's pair, {}{}, on {}, the notch edge meeting one edge of the \
+                     pair and joined to the other by no listed edge",
+                    notch_edge.1,
+                    if with_the_far_end {
+                        " and the edge across the square far end"
+                    } else {
+                        " alone"
+                    },
+                    plate.called
+                ),
+            );
+        }
+    }
 }
 
 #[cfg(feature = "campaigns")]

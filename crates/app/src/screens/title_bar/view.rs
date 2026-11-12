@@ -92,7 +92,10 @@ fn list(
                 let said = (alert.title.as_str(), alert.sentence.as_str());
                 let (_, ink) = worn(theme, alert.level);
                 let actions = (actions.0.as_str(), actions.1.as_str());
-                let [show, modify] = alert_line(ui, (alert.level, ink), said, actions);
+                let actions = alert.can_be_acted_on().then_some(actions);
+                let Some([show, modify]) = alert_line(ui, (alert.level, ink), said, actions) else {
+                    return;
+                };
                 for (response, button) in [(show, AlertButton::Show), (modify, AlertButton::Modify)]
                 {
                     if response.clicked() {

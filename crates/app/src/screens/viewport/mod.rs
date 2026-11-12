@@ -6,6 +6,7 @@
 //! is in [`view`].
 
 mod cube_labels;
+mod edges;
 pub(crate) use cube_labels::repaint_if_the_atlas_grew;
 mod finish;
 mod input;
@@ -24,6 +25,7 @@ mod state;
 mod values;
 mod view;
 
+pub use edges::EDGE_REACH;
 pub use state::DEFAULT_SKETCH_RADIUS;
 pub use state::{ViewMode, ViewportState};
 pub use view::{Shown, show};

@@ -78,6 +78,7 @@ pub enum Command {
     ExtrusionRevolution,
     ExtrusionApply,
     ExtrusionCancel,
+    BlendApply,
 
     ExportStlCoarse,
     ExportStlNormal,
@@ -113,7 +114,7 @@ pub enum CommandFamily {
 
 impl Command {
     /// Every command, in the order the settings screen offers them.
-    pub const ALL: [Self; 67] = [
+    pub const ALL: [Self; 68] = [
         Self::NewSketch,
         Self::FinishSketch,
         Self::Reframe,
@@ -175,6 +176,7 @@ impl Command {
         Self::ExtrusionRevolution,
         Self::ExtrusionApply,
         Self::ExtrusionCancel,
+        Self::BlendApply,
         Self::ExportStlCoarse,
         Self::ExportStlNormal,
         Self::ExportStlFine,
@@ -244,7 +246,8 @@ impl Command {
             | Self::ExtrusionStraight
             | Self::ExtrusionRevolution
             | Self::ExtrusionApply
-            | Self::ExtrusionCancel => CommandFamily::Extrusion,
+            | Self::ExtrusionCancel
+            | Self::BlendApply => CommandFamily::Extrusion,
             Self::ExportStlCoarse
             | Self::ExportStlNormal
             | Self::ExportStlFine

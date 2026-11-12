@@ -71,6 +71,7 @@ impl Bench {
             &mut self.context(),
             &mut Ribbon::default(),
             &mut ViewportState::default(),
+            &mut crate::screens::blend::BlendState::default(),
         );
     }
 

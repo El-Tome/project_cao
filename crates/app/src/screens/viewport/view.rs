@@ -8,10 +8,11 @@ use cao_render::SceneFrame;
 use glam::DVec3;
 
 use crate::screens::SketchContext;
+use crate::screens::blend::BlendState;
 use crate::screens::sketch::Tool;
 
 use super::finish::advance_on_enter;
-use super::input::{handle_sketch_input, pick_areas, point_the_section};
+use super::input::{handle_sketch_input, pick_an_edge, pick_areas, point_the_section};
 use super::matter::seen;
 use super::navigation::{advance_transition, handle_navigation};
 use super::render::{
@@ -35,7 +36,12 @@ pub struct Shown {
     pub unit: Option<LengthUnit>,
 }
 
-pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchContext<'_>) -> Shown {
+pub fn show(
+    ui: &mut egui::Ui,
+    state: &mut ViewportState,
+    sketch: &mut SketchContext<'_>,
+    blend: &mut BlendState,
+) -> Shown {
     let (rect, response) =
         ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
     if rect.width() < 1.0 || rect.height() < 1.0 {
@@ -57,11 +63,19 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     );
     let sectioning =
         !handled_cube && point_the_section(ui, state, &response, (rect, scale), sketch);
+    state.edge_under_the_hand = None;
+    state.edge_chosen = blend.edge.clone();
     let mut changed = match gesture_goes_to(handled_cube, sketch) {
         _ if sectioning => false,
         GestureGoesTo::TheCube => false,
         GestureGoesTo::PickingAnArea => {
             pick_areas(state, &response, rect, scale, sketch);
+            false
+        }
+        GestureGoesTo::TheToolInHand
+            if blend.is_active() && sketch.editor.active_sketch().is_none() =>
+        {
+            pick_an_edge(state, &response, rect, sketch.document.body(), blend);
             false
         }
         // A click is refused while a field at the cursor holds what cannot be

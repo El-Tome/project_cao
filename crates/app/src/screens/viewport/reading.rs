@@ -47,6 +47,11 @@ impl ViewportState {
         self.reading.point = (at + 1 < last).then_some(at + 1);
     }
 
+    /// Whether the part is read to its end.
+    pub(crate) fn is_read_whole(&self) -> bool {
+        self.reading.point.is_none()
+    }
+
     /// Whether the part is read through the `rank`th box of the step reader.
     pub(crate) fn reads_through(&self, rank: usize) -> bool {
         self.reading.point.is_none_or(|last| rank <= last)

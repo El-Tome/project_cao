@@ -203,7 +203,7 @@ impl PartState {
     /// A step the kernel declined: broken, named among the declined ones with
     /// the reason it gave, and counted past the numbers it would have given its
     /// faces, so that the steps after it number theirs as if it had stood.
-    fn declined_with(&mut self, reason: Declined, count_past: impl FnOnce(&mut Body)) {
+    pub(crate) fn declined_with(&mut self, reason: Declined, count_past: impl FnOnce(&mut Body)) {
         self.broke(Broken::Operation(self.replaying));
         self.declined.insert(self.replaying, reason);
         count_past(&mut self.body);

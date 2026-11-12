@@ -162,11 +162,12 @@
 //!   in `crates/app/src/screens/ribbon/state/tests.rs`
 //! - Extrusion tab holds « Matière » (« Ajout de matière », « Enlèvement de
 //!   matière ») · « Forme » (« Extrusion droite », « Révolution ») · « Édition »
-//!   — `the_extrusion_tab_writes_its_three_groups_in_order_each_under_its_buttons`;
+//!   — `the_extrusion_tab_writes_its_four_groups_in_order_each_under_its_buttons`,
+//!   which reads « Arêtes » (« Chanfrein », « Congé ») too since #920;
 //!   the tree and its sizes in `crates/prefs/src/toolbar/tests.rs` by
-//!   `the_default_extrusion_tab_holds_its_three_groups_and_their_commands_in_order`,
+//!   `the_default_extrusion_tab_holds_its_four_groups_and_their_commands_in_order`,
 //!   the group names in `crates/app/src/wording/toolbar/tests.rs` by
-//!   `the_three_groups_of_the_extrusion_tab_read_as_the_design_names_them`
+//!   `the_four_groups_of_the_extrusion_tab_read_as_the_design_names_them`
 //! - Export tab holds « Exporter en STL… ▾ » (« Grossière » « rapide »,
 //!   « Normale » « par défaut », « Fine » « lourd ») and « Exporter en STEP… » —
 //!   `the_export_tab_draws_one_stl_split_with_its_three_levels_and_the_step_export`;
@@ -1363,9 +1364,9 @@ fn assert_groups_read_in_order_each_under_its_buttons(
 }
 
 #[test]
-fn the_extrusion_tab_writes_its_three_groups_in_order_each_under_its_buttons() {
+fn the_extrusion_tab_writes_its_four_groups_in_order_each_under_its_buttons() {
     let mut app = opened(
-        "the_extrusion_tab_writes_its_three_groups",
+        "the_extrusion_tab_writes_its_four_groups",
         WIDE,
         Settings::default(),
     );
@@ -1376,10 +1377,11 @@ fn the_extrusion_tab_writes_its_three_groups_in_order_each_under_its_buttons() {
         &[
             ("MATIÈRE", &["Ajout de matière", "Enlèvement de matière"]),
             ("FORME", &["Extrusion droite", "Révolution"]),
+            ("ARÊTES", &["Chanfrein", "Congé"]),
             ("ÉDITION", &["Annuler", "Rétablir"]),
         ],
     );
-    for name in ["Ajout de matière", "Extrusion droite"] {
+    for name in ["Ajout de matière", "Extrusion droite", "Chanfrein"] {
         let height = the_ribbon_button(&app, name).height();
         assert!(
             height >= 64.0,

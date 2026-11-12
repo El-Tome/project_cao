@@ -94,8 +94,20 @@
 //!   shape, an extrusion staying one and a revolution one; « Extrusion
 //!   droite » and « Révolution » are offered on a panel armed afresh and not
 //!   on one reopened — `the_shape_of_a_reopened_step_is_not_offered_for_change`
+//!
+//! Closes #920 — the whole transcription is in
+//! `crates/part/tests/an_edge_is_chamfered_or_rounded.rs`; these bullets are
+//! the rules the ribbon and the keyboard share.
+//! - Outside a sketch, the part ribbon offers « Chanfrein » and « Congé » —
+//!   with matter to take an edge of, and, found in review, only while the
+//!   part is read whole —
+//!   `outside_a_sketch_chamfer_and_fillet_are_offered_on_matter_read_whole`
+//! - found in review: « Appliquer » is the blend's own command, offered once
+//!   an edge is chosen and the size typed reads as one an edge can be given —
+//!   `the_blend_s_apply_is_offered_only_with_an_edge_chosen_and_a_usable_size`
 
 use super::*;
+use crate::screens::blend::BlendState;
 use cao_sketch::WorkPlane;
 use chrono::Utc;
 
@@ -118,13 +130,17 @@ fn a_drawing_tool_is_offered_only_while_a_sketch_is_open() {
         Command::ToolLine,
         &part,
         &SketchEditor::default(),
-        &extrusion
+        &extrusion,
+        &BlendState::default(),
+        true
     ));
     assert!(is_enabled(
         Command::ToolLine,
         &part,
         &drawing_on_a_sketch(),
-        &extrusion
+        &extrusion,
+        &BlendState::default(),
+        true
     ));
 }
 
@@ -134,13 +150,29 @@ fn a_fresh_part_has_nothing_to_undo_and_nothing_to_redo() {
     let editor = SketchEditor::default();
     let extrusion = ExtrusionState::default();
 
-    assert!(!is_enabled(Command::Undo, &part, &editor, &extrusion));
-    assert!(!is_enabled(Command::Redo, &part, &editor, &extrusion));
+    assert!(!is_enabled(
+        Command::Undo,
+        &part,
+        &editor,
+        &extrusion,
+        &BlendState::default(),
+        true
+    ));
+    assert!(!is_enabled(
+        Command::Redo,
+        &part,
+        &editor,
+        &extrusion,
+        &BlendState::default(),
+        true
+    ));
     assert!(!is_enabled(
         Command::CompactHistory,
         &part,
         &editor,
-        &extrusion
+        &extrusion,
+        &BlendState::default(),
+        true
     ));
 }
 
@@ -151,7 +183,14 @@ fn an_extrusion_is_applied_only_once_it_holds_every_value_it_needs() {
     let ready = ExtrusionState::default();
 
     assert_eq!(
-        is_enabled(Command::ExtrusionApply, &part, &editor, &ready),
+        is_enabled(
+            Command::ExtrusionApply,
+            &part,
+            &editor,
+            &ready,
+            &BlendState::default(),
+            true
+        ),
         ready.is_ready(part.variables()),
     );
 }
@@ -170,6 +209,8 @@ fn the_tool_in_hand_is_the_one_shown_as_pressed() {
         extrusion: &extrusion,
         lang: &lang,
         section_on: false,
+        blend: &BlendState::default(),
+        read_whole: true,
     };
 
     assert!(active(Command::ToolLine, &state));
@@ -187,16 +228,27 @@ fn the_matter_in_front_button_is_offered_only_while_a_sketch_is_open() {
         Command::NextMatterInFront,
         &part,
         &SketchEditor::default(),
-        &extrusion
+        &extrusion,
+        &BlendState::default(),
+        true
     ));
     assert!(is_enabled(
         Command::NextMatterInFront,
         &part,
         &drawing_on_a_sketch(),
-        &extrusion
+        &extrusion,
+        &BlendState::default(),
+        true
     ));
     assert!(
-        !is_enabled(Command::NextMatterInFront, &part, &closed, &extrusion),
+        !is_enabled(
+            Command::NextMatterInFront,
+            &part,
+            &closed,
+            &extrusion,
+            &BlendState::default(),
+            true
+        ),
         "a closed sketch has no matter in front of it to show",
     );
 }
@@ -214,7 +266,14 @@ fn reframe_is_offered_in_and_out_of_a_sketch() {
         (finished, "once the sketch is finished"),
     ] {
         assert!(
-            is_enabled(Command::Reframe, &part, &editor, &extrusion),
+            is_enabled(
+                Command::Reframe,
+                &part,
+                &editor,
+                &extrusion,
+                &BlendState::default(),
+                true
+            ),
             "« Recadrer » is greyed {when}",
         );
     }
@@ -237,7 +296,14 @@ fn the_origin_view_is_offered_outside_a_sketch_and_while_a_plane_is_chosen() {
         (finished, true, "once the sketch is finished"),
     ] {
         assert_eq!(
-            is_enabled(Command::OriginView, &part, &editor, &extrusion),
+            is_enabled(
+                Command::OriginView,
+                &part,
+                &editor,
+                &extrusion,
+                &BlendState::default(),
+                true
+            ),
             offered,
             "« Vue d'origine » {when}: a shortcut and a ribbon button go through this, and \
              the button under the cube is shown exactly when it answers true",
@@ -262,6 +328,8 @@ fn the_matter_in_front_button_names_the_state_it_is_in() {
             extrusion: &extrusion,
             lang: &lang,
             section_on: false,
+            blend: &BlendState::default(),
+            read_whole: true,
         };
         faces.push(label(Command::NextMatterInFront, &state));
         editor.next_matter_in_front();
@@ -298,6 +366,8 @@ fn faces_of_the_three_states<Face>(face: fn(Command, &Context<'_>) -> Face) -> V
             extrusion: &extrusion,
             lang: &lang,
             section_on: false,
+            blend: &BlendState::default(),
+            read_whole: true,
         };
         faces.push(face(Command::NextMatterInFront, &state));
         editor.next_matter_in_front();
@@ -335,6 +405,8 @@ fn every_other_button_wears_the_icon_of_its_command() {
         extrusion: &extrusion,
         lang: &lang,
         section_on: false,
+        blend: &BlendState::default(),
+        read_whole: true,
     };
 
     for command in Command::ALL
@@ -411,15 +483,36 @@ fn the_three_stl_levels_are_offered_only_while_the_part_holds_matter() {
 
     for level in STL_LEVELS {
         assert!(
-            !is_enabled(level, &empty, &editor, &extrusion),
+            !is_enabled(
+                level,
+                &empty,
+                &editor,
+                &extrusion,
+                &BlendState::default(),
+                true
+            ),
             "{level:?} is offered on a part with no matter"
         );
         assert!(
-            is_enabled(level, &raised, &editor, &extrusion),
+            is_enabled(
+                level,
+                &raised,
+                &editor,
+                &extrusion,
+                &BlendState::default(),
+                true
+            ),
             "{level:?} is not offered on a part holding a block"
         );
         assert!(
-            is_enabled(level, &raised, &drawing_on_a_sketch(), &extrusion),
+            is_enabled(
+                level,
+                &raised,
+                &drawing_on_a_sketch(),
+                &extrusion,
+                &BlendState::default(),
+                true
+            ),
             "{level:?} is not offered while a sketch is open on a part holding a block"
         );
     }
@@ -461,11 +554,25 @@ fn the_step_export_is_offered_only_while_the_part_holds_matter() {
     let extrusion = ExtrusionState::default();
 
     assert!(
-        !is_enabled(Command::ExportStep, &a_part(), &editor, &extrusion),
+        !is_enabled(
+            Command::ExportStep,
+            &a_part(),
+            &editor,
+            &extrusion,
+            &BlendState::default(),
+            true
+        ),
         "the STEP export is offered on a part with no matter"
     );
     assert!(
-        is_enabled(Command::ExportStep, &a_raised_block(), &editor, &extrusion),
+        is_enabled(
+            Command::ExportStep,
+            &a_raised_block(),
+            &editor,
+            &extrusion,
+            &BlendState::default(),
+            true
+        ),
         "the STEP export is not offered on a part holding a block"
     );
     assert!(
@@ -473,7 +580,9 @@ fn the_step_export_is_offered_only_while_the_part_holds_matter() {
             Command::ExportStep,
             &a_raised_block(),
             &drawing_on_a_sketch(),
-            &extrusion
+            &extrusion,
+            &BlendState::default(),
+            true
         ),
         "the STEP export is not offered while a sketch is open on a part holding a block"
     );
@@ -509,11 +618,25 @@ fn the_section_view_is_offered_while_the_part_holds_matter() {
     let extrusion = ExtrusionState::default();
 
     assert!(
-        !is_enabled(Command::SectionView, &a_part(), &editor, &extrusion),
+        !is_enabled(
+            Command::SectionView,
+            &a_part(),
+            &editor,
+            &extrusion,
+            &BlendState::default(),
+            true
+        ),
         "the section view is offered on a part with no matter to cut",
     );
     assert!(
-        is_enabled(Command::SectionView, &a_raised_block(), &editor, &extrusion),
+        is_enabled(
+            Command::SectionView,
+            &a_raised_block(),
+            &editor,
+            &extrusion,
+            &BlendState::default(),
+            true
+        ),
         "the section view is not offered on a part holding a block",
     );
     assert_eq!(
@@ -530,6 +653,8 @@ fn the_section_view_is_not_offered_while_a_sketch_is_edited() {
             &a_raised_block(),
             &drawing_on_a_sketch(),
             &ExtrusionState::default(),
+            &BlendState::default(),
+            true,
         ),
         "« Vue en coupe » is offered over a sketch, whose own cut already wins",
     );
@@ -554,6 +679,8 @@ fn the_section_view_button_shows_pressed_while_the_section_is_on() {
                 extrusion: &extrusion,
                 lang: &lang,
                 section_on,
+                blend: &BlendState::default(),
+                read_whole: true,
             },
         )
     };
@@ -578,11 +705,25 @@ fn select_all_is_offered_only_in_a_sketch_with_the_selection_tool() {
     lining.tool = Tool::Line;
 
     assert!(
-        is_enabled(Command::SelectAll, &part, &selecting, &extrusion),
+        is_enabled(
+            Command::SelectAll,
+            &part,
+            &selecting,
+            &extrusion,
+            &BlendState::default(),
+            true
+        ),
         "in a sketch with the selection tool",
     );
     assert!(
-        !is_enabled(Command::SelectAll, &part, &lining, &extrusion),
+        !is_enabled(
+            Command::SelectAll,
+            &part,
+            &lining,
+            &extrusion,
+            &BlendState::default(),
+            true
+        ),
         "with the line tool in hand",
     );
     assert!(
@@ -590,7 +731,9 @@ fn select_all_is_offered_only_in_a_sketch_with_the_selection_tool() {
             Command::SelectAll,
             &part,
             &SketchEditor::default(),
-            &extrusion
+            &extrusion,
+            &BlendState::default(),
+            true
         ),
         "with no sketch open",
     );
@@ -763,6 +906,8 @@ fn a_chevron_is_offered_while_any_entry_can_be_carried_out() {
         extrusion: &extrusion,
         lang: &lang,
         section_on: false,
+        blend: &BlendState::default(),
+        read_whole: true,
     };
 
     assert!(
@@ -796,8 +941,16 @@ fn the_shape_of_a_reopened_step_is_not_offered_for_change() {
     afresh.arm(cao_part::ExtrusionMode::Add);
     let reopened = ExtrusionState::reopened(&part, 2).expect("the block's extrusion reopens");
     let offered = |extrusion: &ExtrusionState| {
-        [Command::ExtrusionStraight, Command::ExtrusionRevolution]
-            .map(|shape| is_enabled(shape, &part, &editor, extrusion))
+        [Command::ExtrusionStraight, Command::ExtrusionRevolution].map(|shape| {
+            is_enabled(
+                shape,
+                &part,
+                &editor,
+                extrusion,
+                &BlendState::default(),
+                true,
+            )
+        })
     };
 
     assert_eq!(
@@ -901,4 +1054,65 @@ fn a_plane_being_chosen_forgets_nothing_and_the_next_sketch_keeps_the_first_s_ta
         (1, 0, 2),
         "(the tab while a plane is chosen, once the new sketch is entered, once it is finished)",
     );
+}
+
+#[test]
+fn outside_a_sketch_chamfer_and_fillet_are_offered_on_matter_read_whole() {
+    let extrusion = ExtrusionState::default();
+    let blend = BlendState::default();
+    let outside = SketchEditor::default();
+    let (empty, raised) = (a_part(), a_raised_block());
+
+    for tool in [Command::ToolChamfer, Command::ToolFillet] {
+        assert!(
+            !is_enabled(tool, &empty, &outside, &extrusion, &blend, true),
+            "{tool:?} offered on a part with no matter",
+        );
+        assert!(
+            is_enabled(tool, &raised, &outside, &extrusion, &blend, true),
+            "{tool:?} greyed on a block read whole",
+        );
+        assert!(
+            !is_enabled(tool, &raised, &outside, &extrusion, &blend, false),
+            "{tool:?} offered while the block is read to an earlier step",
+        );
+        assert!(
+            is_enabled(
+                tool,
+                &empty,
+                &drawing_on_a_sketch(),
+                &extrusion,
+                &blend,
+                true
+            ),
+            "{tool:?} greyed in a sketch, where it acts on corners",
+        );
+    }
+}
+
+#[test]
+fn the_blend_s_apply_is_offered_only_with_an_edge_chosen_and_a_usable_size() {
+    let part = a_raised_block();
+    let editor = SketchEditor::default();
+    let extrusion = ExtrusionState::default();
+    let offered = |blend: &BlendState| {
+        is_enabled(Command::BlendApply, &part, &editor, &extrusion, blend, true)
+    };
+
+    let mut blend = BlendState::default();
+    assert!(!offered(&blend), "offered with no edge panel open");
+    blend.offer(cao_part::history::BlendShape::Chamfer);
+    assert!(!offered(&blend), "offered with no edge chosen");
+
+    blend.edge = part.body().edge_names().into_iter().next();
+    assert!(blend.edge.is_some(), "the block names its edges");
+    blend.size_input = "2".to_string();
+    assert!(offered(&blend), "greyed with an edge chosen and 2 typed");
+    for unusable in ["0", "-1", "deux"] {
+        blend.size_input = unusable.to_string();
+        assert!(
+            !offered(&blend),
+            "offered with an edge chosen and « {unusable} » typed",
+        );
+    }
 }

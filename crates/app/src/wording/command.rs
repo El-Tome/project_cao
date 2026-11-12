@@ -69,6 +69,7 @@ pub fn label(lang: &Catalogue, command: Command) -> String {
         Command::ExtrusionStraight => "command.label.extrusion_straight",
         Command::ExtrusionRevolution => "command.label.extrusion_revolution",
         Command::ExtrusionApply => "command.label.extrusion_apply",
+        Command::BlendApply => "command.label.blend_apply",
         Command::ExtrusionCancel => "command.label.extrusion_cancel",
         Command::ExportStlCoarse => "command.label.export_stl_coarse",
         Command::ExportStlNormal => "command.label.export_stl_normal",
@@ -144,6 +145,7 @@ pub fn hint(lang: &Catalogue, command: Command) -> String {
         Command::ExtrusionStraight => "command.hint.extrusion_straight",
         Command::ExtrusionRevolution => "command.hint.extrusion_revolution",
         Command::ExtrusionApply => "command.hint.extrusion_apply",
+        Command::BlendApply => "command.hint.blend_apply",
         Command::ExtrusionCancel => "command.hint.extrusion_cancel",
         Command::ExportStlCoarse | Command::ExportStlNormal | Command::ExportStlFine => {
             "command.hint.export_stl"
@@ -158,6 +160,17 @@ pub fn hint(lang: &Catalogue, command: Command) -> String {
         Some(gap) => lang.t_with(key, &[("gap", &dimension::short(gap))]),
         None => lang.t(key),
     }
+}
+
+/// What a command does outside a sketch, where it does something else than
+/// inside one: nothing for the others.
+pub fn hint_on_the_part(lang: &Catalogue, command: Command) -> Option<String> {
+    let key = match command {
+        Command::ToolChamfer => "command.hint.edge_chamfer",
+        Command::ToolFillet => "command.hint.edge_fillet",
+        _ => return None,
+    };
+    Some(lang.t(key))
 }
 
 /// The heading a run of the palette is listed under.

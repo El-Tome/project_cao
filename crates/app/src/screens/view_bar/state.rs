@@ -1,3 +1,4 @@
+use crate::screens::blend::BlendState;
 use cao_prefs::config::LengthUnit;
 use cao_prefs::{Command, Shortcuts};
 use cao_render::MatterInFront;
@@ -41,6 +42,7 @@ impl Offered {
         command: Command,
         on: Option<bool>,
         part: &SketchContext<'_>,
+        (blend, read_whole): (&BlendState, bool),
         bound: &Shortcuts,
     ) -> Self {
         let lang = part.lang;
@@ -51,7 +53,14 @@ impl Offered {
                 .chord_for(command)
                 .map(|chord| shortcuts::chord(lang, chord)),
             hint: wording::hint(lang, command),
-            enabled: is_enabled(command, part.document, part.editor, part.extrusion),
+            enabled: is_enabled(
+                command,
+                part.document,
+                part.editor,
+                part.extrusion,
+                blend,
+                read_whole,
+            ),
             on,
         }
     }
@@ -63,11 +72,13 @@ impl ViewBar {
     pub fn of(
         part: &SketchContext<'_>,
         viewport: &ViewportState,
+        blend: &BlendState,
         shown: &Shown,
         bound: &Shortcuts,
     ) -> Self {
         let (document, editor, lang) = (&*part.document, &*part.editor, part.lang);
-        let offered = |command, on| Offered::of(command, on, part, bound);
+        let panel = (blend, viewport.is_read_whole());
+        let offered = |command, on| Offered::of(command, on, part, panel, bound);
         let unit = shown.unit.unwrap_or(LengthUnit::Millimeter);
         let pointed = Pointed::of(editor, shown.on_the_part);
         Self {

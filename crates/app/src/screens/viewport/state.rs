@@ -7,17 +7,22 @@
 use cao_prefs::{Modifier, Shortcuts, ViewportConfig, config::ViewportCorner, theme::Theme};
 use cao_render::camera::{CubeZone, view_angles_towards};
 use cao_render::{OrbitCamera, ViewTransition, adaptive_step};
-use cao_sketch::{DimensionTarget, SnapSettings, WorkPlane};
+use cao_sketch::{SnapSettings, WorkPlane};
+use cao_solid::EdgeName;
 use glam::DVec3;
 
 use crate::screens::SketchContext;
 use crate::ui::floating_bar::TOP_ABOVE_THE_EDGE as BAR_TOP;
 
+use super::edges::DrawnEdges;
 use super::kept_sections::KeptSections;
 use super::navigation::Drag;
 use super::reading::Reading;
 use super::section::Section;
 use super::{matter::Sections, visibility::Visibility};
+use blinking::Blinking;
+
+mod blinking;
 
 /// How close, in pixels, the cursor has to be to take hold of something.
 ///
@@ -73,14 +78,11 @@ pub struct ViewportState {
     pub(super) visibility: Visibility,
     pub(super) reading: Reading,
     blinking: Option<Blinking>,
-}
-
-/// What a refusal named that stands on the canvas — values on a drawing,
-/// faces of the part — and when it was refused.
-struct Blinking {
-    values: Vec<(usize, DimensionTarget)>,
-    faces: Vec<usize>,
-    since: f64,
+    /// The edge of the part the hand is on, while the edge panel is open.
+    pub edge_under_the_hand: Option<EdgeName>,
+    /// The edge the edge panel holds as chosen, drawn wherever the hand is.
+    pub edge_chosen: Option<EdgeName>,
+    pub(super) edges: DrawnEdges,
 }
 
 impl Default for ViewportState {
@@ -105,6 +107,9 @@ impl Default for ViewportState {
             visibility: Visibility::default(),
             reading: Reading::default(),
             blinking: None,
+            edge_under_the_hand: None,
+            edge_chosen: None,
+            edges: DrawnEdges::default(),
         }
     }
 }
@@ -136,42 +141,6 @@ impl ViewportState {
     /// Opens the section view on a section the part keeps, to change it.
     pub(crate) fn reopen_section(&mut self, kept: &cao_part::SavedSection) {
         self.section = Some(Section::reopened(kept));
-    }
-
-    /// Has what a refusal named blink from `now` — these values on the
-    /// drawing, these faces of the part — so that it is seen where it is.
-    pub fn blink(&mut self, values: Vec<(usize, DimensionTarget)>, faces: Vec<usize>, now: f64) {
-        self.blinking = (!values.is_empty() || !faces.is_empty()).then_some(Blinking {
-            values,
-            faces,
-            since: now,
-        });
-    }
-
-    /// The values of a sketch blinking at `now`, and whether they are lit or
-    /// dark at that instant — nothing once the blinking is over.
-    pub(crate) fn blinking_on(
-        &self,
-        sketch: usize,
-        now: f64,
-    ) -> Option<(Vec<DimensionTarget>, bool)> {
-        let blinking = self.blinking.as_ref()?;
-        let lit = crate::screens::blinking::lit(blinking.since, now)?;
-        let here: Vec<DimensionTarget> = blinking
-            .values
-            .iter()
-            .filter(|(on, _)| *on == sketch)
-            .map(|(_, target)| *target)
-            .collect();
-        (!here.is_empty()).then_some((here, lit))
-    }
-
-    /// The faces of the part blinking at `now`, and whether they are lit or
-    /// dark at that instant — nothing once the blinking is over.
-    pub(crate) fn faces_blinking(&self, now: f64) -> Option<(&[usize], bool)> {
-        let blinking = self.blinking.as_ref()?;
-        let lit = crate::screens::blinking::lit(blinking.since, now)?;
-        (!blinking.faces.is_empty()).then_some((blinking.faces.as_slice(), lit))
     }
 }
 

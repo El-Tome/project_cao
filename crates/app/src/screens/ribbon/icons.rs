@@ -64,7 +64,7 @@ pub(crate) fn of(command: Command) -> Icon {
         Command::ExtrusionCut => icon::EXTRUSION_CUT,
         Command::ExtrusionStraight => icon::EXTRUSION_STRAIGHT,
         Command::ExtrusionRevolution => icon::REVOLUTION,
-        Command::ExtrusionApply => icon::EXTRUSION_APPLY,
+        Command::ExtrusionApply | Command::BlendApply => icon::EXTRUSION_APPLY,
         Command::ExtrusionCancel => icon::EXTRUSION_CANCEL,
         Command::ExportStlCoarse => icon::STL_COARSE,
         Command::ExportStlNormal => icon::STL_NORMAL,

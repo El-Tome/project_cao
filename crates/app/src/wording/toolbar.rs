@@ -35,6 +35,7 @@ pub fn group(lang: &Catalogue, name: &str) -> String {
         "extrusion" => lang.t("toolbar.group.extrusion"),
         "matter" => lang.t("toolbar.group.matter"),
         "shape" => lang.t("toolbar.group.shape"),
+        "edges" => lang.t("toolbar.group.edges"),
         "export" => lang.t("toolbar.group.export"),
         "formats" => lang.t("toolbar.group.formats"),
         "stl" => lang.t("toolbar.group.stl"),

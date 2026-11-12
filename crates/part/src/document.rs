@@ -180,10 +180,16 @@ impl PartDocument {
     /// Records an operation and applies it. Recording and applying go together
     /// so the two can never fall out of step. A rule refused is neither: it
     /// left the drawing as it was, and would only be a step that does nothing.
+    /// Nor is an edge the kernel declines: the part is put back as it stood.
     pub fn apply(&mut self, operation: Operation) -> Option<Outcome> {
+        let before = matches!(operation, Operation::Blend { .. }).then(|| self.state.clone());
         let outcome = self
             .state
             .applied_live(self.history.next_number(), &operation);
+        if let (Some(Outcome::BlendDeclined(_)), Some(before)) = (outcome, before) {
+            self.state = before;
+            return outcome;
+        }
         if outcome == Some(Outcome::RuleRefused) {
             return outcome;
         }

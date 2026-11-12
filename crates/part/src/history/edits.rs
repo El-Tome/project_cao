@@ -30,7 +30,8 @@ impl Operation {
             | Self::SaveSection(_)
             | Self::EditSection { .. }
             | Self::DeleteSection { .. }
-            | Self::EditMatter { .. } => None,
+            | Self::EditMatter { .. }
+            | Self::Blend { .. } => None,
             Self::Gesture(done) => done.iter().find_map(Self::edits),
             Self::AddPoint { sketch, .. }
             | Self::AddSegment { sketch, .. }

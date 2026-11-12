@@ -43,7 +43,7 @@ impl PartState {
     /// order of the part: found again among those, it is the face standing at
     /// the same place of the same step now. With no step put in, that is the
     /// number as it was named.
-    fn face_named_by(&self, face: usize, recorded_by: u32) -> usize {
+    pub(crate) fn face_named_by(&self, face: usize, recorded_by: u32) -> usize {
         let mut then = self.made.first().map_or(0, |(_, range)| range.start);
         for (number, now) in &self.made {
             if *number >= recorded_by {

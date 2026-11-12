@@ -72,4 +72,13 @@ impl Body {
             taken,
         })
     }
+
+    /// Moves the faces' count past the numbers a chamfer or a fillet of
+    /// `edges` edges would have given, one each, for one the kernel declined:
+    /// the steps after it number their faces as if it had stood.
+    pub fn count_past_cut(&mut self, edges: usize) {
+        if let Matter::Exact(exact) = &mut self.matter {
+            exact.count_past_turned(edges as u32);
+        }
+    }
 }

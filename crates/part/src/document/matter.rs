@@ -45,4 +45,10 @@ impl PartDocument {
     pub fn capped_at(&self, step: u32) -> Option<crate::copying::Capped> {
         self.state.capped.get(&step).copied()
     }
+
+    /// The size the chamfer or fillet of that number asked and the one its
+    /// edge's faces gave, when they gave less.
+    pub fn reduced_at(&self, step: u32) -> Option<crate::Reduced> {
+        self.state.reduced.get(&step).copied()
+    }
 }

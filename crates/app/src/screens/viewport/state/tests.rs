@@ -243,7 +243,13 @@ fn reframed(document: &mut PartDocument, editor: &mut SketchEditor, state: &mut 
         extrusion: &mut extrusion,
         lang: &lang,
     };
-    crate::commands::run(Command::Reframe, &mut part, &mut Ribbon::default(), state);
+    crate::commands::run(
+        Command::Reframe,
+        &mut part,
+        &mut Ribbon::default(),
+        state,
+        &mut crate::screens::blend::BlendState::default(),
+    );
     if let Some(mut turn) = state.transition.take() {
         while turn.advance(&mut state.camera, 1.0) {}
     }
@@ -578,6 +584,7 @@ fn reframing_while_a_plane_is_being_chosen_frames_the_whole_part() {
         },
         &mut Ribbon::default(),
         &mut state,
+        &mut crate::screens::blend::BlendState::default(),
     );
     assert!(
         editor.is_choosing_plane() && editor.plane == Some(WorkPlane::XZ),
@@ -631,7 +638,13 @@ fn ask_for_the_origin_view(document: &mut PartDocument, state: &mut ViewportStat
         extrusion: &mut extrusion,
         lang: &lang,
     };
-    crate::commands::run(the_origin_view(), &mut part, &mut Ribbon::default(), state);
+    crate::commands::run(
+        the_origin_view(),
+        &mut part,
+        &mut Ribbon::default(),
+        state,
+        &mut crate::screens::blend::BlendState::default(),
+    );
 }
 
 fn land(state: &mut ViewportState) {

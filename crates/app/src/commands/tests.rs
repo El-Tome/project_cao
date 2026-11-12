@@ -102,6 +102,7 @@ fn a_command_clears_the_message_the_last_one_left() {
         &mut part,
         &mut Ribbon::default(),
         &mut ViewportState::default(),
+        &mut crate::screens::blend::BlendState::default(),
     );
 
     assert_eq!(
@@ -133,6 +134,7 @@ fn the_matter_in_front_button_moves_the_open_sketch_to_the_next_state() {
             &mut part,
             &mut ribbon,
             &mut viewport,
+            &mut crate::screens::blend::BlendState::default(),
         );
         states.push(editor.matter_in_front);
     }
@@ -232,7 +234,13 @@ fn clicked(command: Command, document: &mut PartDocument, viewport: &mut Viewpor
         extrusion: &mut extrusion,
         lang: &lang,
     };
-    run(command, &mut part, &mut Ribbon::default(), viewport)
+    run(
+        command,
+        &mut part,
+        &mut Ribbon::default(),
+        viewport,
+        &mut crate::screens::blend::BlendState::default(),
+    )
 }
 
 #[test]

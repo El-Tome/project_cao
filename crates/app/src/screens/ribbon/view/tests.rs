@@ -21,6 +21,7 @@
 use chrono::Utc;
 
 use super::*;
+use crate::screens::blend::BlendState;
 use crate::screens::viewport::ViewportState;
 
 const WINDOW: egui::Vec2 = egui::vec2(1280.0, 800.0);
@@ -43,6 +44,7 @@ fn a_frame_with(
     let document = PartDocument::new("part", Utc::now());
     let editor = SketchEditor::default();
     let mut extrusion = ExtrusionState::default();
+    let mut blend = BlendState::default();
     let viewport = ViewportState::default();
     let lang = Catalogue::french();
     let (mut beside, mut part) = (0.0, 0.0);
@@ -57,6 +59,7 @@ fn a_frame_with(
             document: &document,
             editor: &editor,
             extrusion: &mut extrusion,
+            blend: &mut blend,
         };
         ribbon.show(ui, &settings, &mut drawn, &lang);
         let before = ui.available_rect_before_wrap().width();
@@ -180,6 +183,7 @@ fn ribbon_texts(
     let document = PartDocument::new("part", Utc::now());
     let editor = SketchEditor::default();
     let mut extrusion = ExtrusionState::default();
+    let mut blend = BlendState::default();
     let lang = Catalogue::french();
 
     let input = egui::RawInput {
@@ -195,6 +199,7 @@ fn ribbon_texts(
                 document: &document,
                 editor: &editor,
                 extrusion: &mut extrusion,
+                blend: &mut blend,
             };
             ribbon.show(ui, &settings, &mut drawn, &lang);
         });
@@ -281,6 +286,7 @@ fn on_a_bench<R>(
     let (mut ribbon, lang) = (Ribbon::new(), Catalogue::french());
     ribbon.tab = tab;
     let mut extrusion = ExtrusionState::default();
+    let mut blend = BlendState::default();
     let mut asked = Vec::new();
     let mut installed = false;
 
@@ -296,6 +302,7 @@ fn on_a_bench<R>(
                     document: &document,
                     editor: &editor,
                     extrusion: &mut extrusion,
+                    blend: &mut blend,
                 };
                 asked.extend(ribbon.show(ui, &settings, &mut drawn, &lang));
             });

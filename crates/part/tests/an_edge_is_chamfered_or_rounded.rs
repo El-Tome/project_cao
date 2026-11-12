@@ -41,10 +41,14 @@
 //!   its edge and with both its values —
 //!   `a_history_compacted_keeps_its_chamfer_or_fillet`
 //! - A decline of the kernel at « Appliquer » records nothing: the panel stays
-//!   open and shows the reason in French — no test: not written yet, the
-//!   part's half (nothing recorded, the reason in the outcome) and the
-//!   panel's
-//! - Undo removes the step and redo puts it back — no test: not written yet
+//!   open and shows the reason in French — the part's half, the history and
+//!   the body left as they were and the kernel's reason handed back with the
+//!   outcome, on a disc's rim, which the kernel declines until #700, by
+//!   `a_chamfer_or_a_fillet_the_kernel_declines_records_nothing_and_says_why`;
+//!   an edge lost on a later replay stays a broken step, as above. The panel
+//!   left open and the French sentence are still to be written
+//! - Undo removes the step and redo puts it back —
+//!   `undo_takes_a_chamfer_or_a_fillet_off_and_redo_lays_it_again`
 //! - Face picking for a sketch, the hovered face and the section view behave
 //!   as before; every existing test still passes — no test: held by the
 //!   existing suite, which this branch leaves as it found it
@@ -56,7 +60,8 @@ use std::path::{Path, PathBuf};
 
 use cao_part::history::{BlendShape, Operation, PointRef, StepKind};
 use cao_part::{
-    ExtrusionMode, FileError, Files, Formula, PartDocument, Reduced, VariableChange, VariableId,
+    ExtrusionMode, FileError, Files, Formula, Outcome, PartDocument, Reduced, VariableChange,
+    VariableId,
 };
 use cao_sketch::WorkPlane;
 use cao_solid::{Body, Declined, EdgeName};
@@ -426,6 +431,109 @@ fn a_history_compacted_keeps_its_chamfer_or_fillet() {
             .find(|step| step.kind() == StepKind::Blend)
             .unwrap_or_else(|| panic!("{what}: the step is gone"))
             .operations()[0];
+        assert_eq!(part.declined_because(step), None, "{what}: built");
+        assert_near(
+            part.body().volume(),
+            BLOCK - taken_off(shape, BREADTH, LENGTH),
+            &what,
+        );
+        assert_reduced(part.reduced_at(step), asked, BREADTH, &what);
+    }
+}
+
+#[test]
+fn a_chamfer_or_a_fillet_the_kernel_declines_records_nothing_and_says_why() {
+    for shape in [BlendShape::Chamfer, BlendShape::Fillet] {
+        let mut part = PartDocument::new("Disc", at_nine());
+        part.apply(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+            on: None,
+        });
+        part.apply(Operation::AddCircle {
+            sketch: 0,
+            center: PointRef::New(DVec2::ZERO),
+            radius: 5.0,
+            rim: Vec::new(),
+            construction: false,
+        });
+        let areas = part.areas_at(0, &[DVec2::ZERO]);
+        part.apply(Operation::Extrude {
+            sketch: 0,
+            areas,
+            distance: 10.0.into(),
+            mode: ExtrusionMode::Add,
+        });
+        let disc = PI * 25.0 * 10.0;
+        let top = face(part.body(), DVec3::Z, 10.0);
+        let rim = part
+            .body()
+            .edge_names()
+            .into_iter()
+            .find(|name| name.between.contains(&vec![top]))
+            .expect("the rim of the top");
+        let before = part.history.clone();
+        let what = format!("{shape:?} on the rim of a disc");
+
+        let outcome = part.apply(Operation::Blend {
+            edge: rim,
+            shape,
+            size: 1.0.into(),
+        });
+
+        assert_eq!(
+            outcome,
+            Some(Outcome::BlendDeclined(Declined::Unsupported)),
+            "{what}: the kernel's reason handed back",
+        );
+        assert_eq!(part.history, before, "{what}: nothing recorded");
+        assert!(part.body().is_exact(), "{what}: exact");
+        assert_near(
+            part.body().volume(),
+            disc,
+            &format!("{what}: the disc as it was"),
+        );
+
+        part.undo();
+        assert!(
+            part.body().is_empty(),
+            "{what}: one undo takes the disc's extrusion back, there being no step after it",
+        );
+    }
+}
+
+#[test]
+fn undo_takes_a_chamfer_or_a_fillet_off_and_redo_lays_it_again() {
+    let asked = 50.0;
+    for shape in [BlendShape::Chamfer, BlendShape::Fillet] {
+        let mut part = a_block();
+        let before = part.history.replay_order().len();
+        let step = applied_on_the_top_front_edge(&mut part, shape, asked);
+        let laid = part.history.steps().to_vec();
+
+        assert!(part.undo(), "{shape:?}: something to undo");
+        let what = format!("{shape:?} undone");
+        assert_eq!(part.history.replay_order().len(), before, "{what}");
+        assert!(
+            part.history
+                .replay_order()
+                .iter()
+                .all(|(number, _)| *number != step),
+            "{what}: the step is no longer replayed",
+        );
+        assert_near(
+            part.body().volume(),
+            BLOCK,
+            &format!("{what}: the block whole"),
+        );
+        assert!(
+            part.reduced_at(step).is_none(),
+            "{what}: nothing reduced on a step not in effect, {:?}",
+            part.reduced_at(step),
+        );
+
+        assert!(part.redo(), "{shape:?}: something to redo");
+        let what = format!("{shape:?} redone");
+        assert_eq!(part.history.steps(), laid.as_slice(), "{what}");
         assert_eq!(part.declined_because(step), None, "{what}: built");
         assert_near(
             part.body().volume(),

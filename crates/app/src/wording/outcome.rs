@@ -29,6 +29,7 @@ pub fn message(lang: &Catalogue, outcome: Option<Outcome>) -> Option<String> {
             refused,
         } => cut_cost(lang, rules, values, refused),
         Outcome::RuleRefused => Some(constraints::impossible(lang)),
+        Outcome::BlendDeclined(_) => Some(lang.t("blend.declined")),
     }
 }
 

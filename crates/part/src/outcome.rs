@@ -5,6 +5,8 @@
 //! holds, a value it could not honour, a rule a cut took away — and the
 //! interface is the only place that can say so.
 
+use cao_solid::Declined;
+
 use crate::dimensioning::DimensionOutcome;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -25,4 +27,8 @@ pub enum Outcome {
     /// A rule the drawing could not hold, whatever gave way: the drawing is as
     /// it was, and the rule was not laid.
     RuleRefused,
+    /// An edge the kernel would not chamfer or round, for the reason it gave.
+    /// Applied by hand, the part is as it was and nothing is recorded; on a
+    /// replay, the step is broken.
+    BlendDeclined(Declined),
 }

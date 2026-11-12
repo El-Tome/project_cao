@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::formula::Formula;
 use crate::history::BlendShape;
+use crate::outcome::Outcome;
 use crate::state::PartState;
 
 /// Closer than this to the size asked, the size taken is the same: the rest
@@ -21,10 +22,13 @@ pub struct Reduced {
 }
 
 impl PartState {
-    pub(crate) fn blend(&mut self, edge: &EdgeName, shape: BlendShape, size: &Formula) {
-        let Some(size) = self.size(size, |size| size >= 1e-6) else {
-            return;
-        };
+    pub(crate) fn blend(
+        &mut self,
+        edge: &EdgeName,
+        shape: BlendShape,
+        size: &Formula,
+    ) -> Option<Outcome> {
+        let size = self.size(size, |size| size >= 1e-6)?;
         let scale = self.scale();
         let blended = match shape {
             BlendShape::Chamfer => self
@@ -44,8 +48,12 @@ impl PartState {
                     self.reduced
                         .insert(self.replaying, Reduced { asked: size, taken });
                 }
+                None
             }
-            Err(reason) => self.declined_with(reason, |_| {}),
+            Err(reason) => {
+                self.declined_with(reason, |_| {});
+                Some(Outcome::BlendDeclined(reason))
+            }
         }
     }
 }

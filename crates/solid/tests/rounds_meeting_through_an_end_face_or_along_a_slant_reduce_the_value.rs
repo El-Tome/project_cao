@@ -307,26 +307,27 @@
 //! - The five tips above, filleted at 3 on the four edges, take one value in
 //!   every order of the four names (the 24 orders), and build one body; or
 //!   decline in every order —
-//!   `a_fillet_and_a_chamfer_on_a_plate_s_long_top_edges_and_its_lopsided_or_bevelled_end_take_one_value_in_every_order_and_lose_no_name`.
-//!   Read as decided when the issue was taken: one value and one sound body
-//!   whatever the order, or the same decline; which value is not held. The
-//!   plate's top (0, 0), (30, 0), the tip, (30, 6), (0, 6), 10 high, tips
-//!   (33, 2.9), (33, 2.5), (36, 2.5), (39, 2) and (33, 4); and beyond the
-//!   issue's table, from its comments, the tip (98/3, 2) whose walls are
-//!   tangent to one circle of radius 3, and #894's bevelled end, (29, 0),
-//!   (30, 1), (30, 5), (29, 6), its two bevels with and without the end
-//!   between them, 120 and 24 orders; no order declining for a name lost,
-//!   every edge named being on the body as given
+//!   `a_fillet_and_a_chamfer_on_a_plate_s_long_top_edges_and_its_lopsided_or_bevelled_end_take_one_value_in_every_order_and_lose_no_name`
 //! - The same chamfered at 3 —
 //!   `a_fillet_and_a_chamfer_on_a_plate_s_long_top_edges_and_its_lopsided_or_bevelled_end_take_one_value_in_every_order_and_lose_no_name`
-//! - No body of #822's, #792's or #823's tests changes — no test: held by
-//!   their own tests in this file, left as they are
+//! - No body of #822's, #792's or #823's tests changes — no test: held by their own tests here
 //!
-//! Measured when the issue was taken, on `main` with #877 and #899: every
-//! case already took one value in every order, a sound body each — the tips
-//! 2.9, 2.5, 2.5, 2, 2 and the tangent tip 2, filleted and chamfered; the
-//! bevelled end 1 with and without the end edge — where the issue saw two
-//! values and four orders losing a name. The test stands as their net.
+//! The plate's top is (0, 0), (30, 0), its end, (0, 6), 10 high. Every case
+//! builds one sound body, filleted and chamfered at 3, in every order:
+//!
+//! | End | Value |
+//! | --- | --- |
+//! | tip (33, 2.9) from (30, 6) | 2.9 |
+//! | tip (33, 2.5) from (30, 6) | 2.5 |
+//! | tip (36, 2.5) from (30, 6) | 2.5 |
+//! | tip (39, 2) from (30, 6) | 2 |
+//! | tip (33, 4) from (30, 6) | 2 |
+//! | tip (98/3, 2) from (31, 6), walls tangent to one circle of radius 3 | 2 |
+//! | #894's bevels (29, 0)–(30, 1), (30, 5)–(29, 6) and the end, 120 orders | 1 |
+//! | the same, the end left out, 24 orders | 1 |
+//!
+//! The tangent tip's 2 is its front long edge's own limit; raising it to the
+//! full round's 3 is #894's. No order declines for a name lost.
 
 use std::collections::BTreeSet;
 use std::f64::consts::{FRAC_1_SQRT_2, PI, TAU};
@@ -3204,14 +3205,24 @@ fn stepped_in_every_order(row: &Row, fillet: bool) -> (Body, Vec<EdgeName>, InEv
     (part, edges, outcomes)
 }
 
+/// What every order of a [`Row`] is held to take, beyond one outcome: any
+/// value, or a decline; the least value any of its edges takes alone; or
+/// the value given, every order building.
+#[derive(Clone, Copy)]
+enum Taken {
+    Either,
+    TheLeastAlone,
+    Exactly(f64),
+}
+
 /// Says, for the chamfer or the fillet on `row`, whether every order gave one
 /// outcome — the same value and the same matter, within [`PLACE`] and
 /// [`EXACT`], or the same decline — listing what each order gave where they
-/// do not, or where `at_the_least_alone` and they did not all build at the
-/// least value any of its edges takes alone, or where any declined for a
-/// name lost, every edge named being on the part; and where they agree and
-/// the step is built, holds each body sound and all of them one body.
-fn one_outcome_in_every_order(row: &Row, fillet: bool, at_the_least_alone: bool) -> Option<String> {
+/// do not, or where they did not all build at the value `taken` holds them
+/// to, within [`PLACE`], or where any declined for a name lost, every edge
+/// named being on the part; and where they agree and the step is built,
+/// holds each body sound and all of them one body.
+fn one_outcome_in_every_order(row: &Row, fillet: bool, taken: Taken) -> Option<String> {
     let kind = if fillet { "fillet" } else { "chamfer" };
     let called = format!("the {kind} of {} on {}", row.asked, row.called);
     let (part, edges, outcomes) = stepped_in_every_order(row, fillet);
@@ -3259,7 +3270,21 @@ fn one_outcome_in_every_order(row: &Row, fillet: bool, at_the_least_alone: bool)
             told(&outcomes)
         ));
     }
-    if at_the_least_alone {
+    let at = |value: f64| {
+        move |(_, laid): &(Vec<usize>, Outcome)| {
+            laid.as_ref()
+                .is_ok_and(|(taken, _)| (taken - value).abs() <= PLACE)
+        }
+    };
+    if let Taken::Exactly(value) = taken
+        && !outcomes.iter().all(at(value))
+    {
+        return Some(format!(
+            "{called}: every order builds at {value}:\n{}",
+            told(&outcomes)
+        ));
+    }
+    if let Taken::TheLeastAlone = taken {
         let mut least = f64::INFINITY;
         for edge in &edges {
             match step_on(&part, std::slice::from_ref(edge), row.asked, fillet) {
@@ -3269,11 +3294,7 @@ fn one_outcome_in_every_order(row: &Row, fillet: bool, at_the_least_alone: bool)
                 }
             }
         }
-        let at_least = |(_, laid): &(Vec<usize>, Outcome)| {
-            laid.as_ref()
-                .is_ok_and(|(taken, _)| (taken - least).abs() <= PLACE)
-        };
-        if !outcomes.iter().all(at_least) {
+        if !outcomes.iter().all(at(least)) {
             return Some(format!(
                 "{called}: every order builds at {least}, the least any of the three takes \
                  alone, each edge's own limit holding whatever its rank:\n{}",
@@ -3382,7 +3403,10 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_whose_outer_edge_alone_rea
         },
     ];
     let wrong: Vec<String> = (rows.iter())
-        .flat_map(|row| [true, false].map(|fillet| one_outcome_in_every_order(row, fillet, true)))
+        .flat_map(|row| {
+            [true, false]
+                .map(|fillet| one_outcome_in_every_order(row, fillet, Taken::TheLeastAlone))
+        })
         .flatten()
         .collect();
     assert!(
@@ -3406,7 +3430,7 @@ fn a_chamfer_on_three_top_edges_in_a_row_whose_first_wall_leans_in_60_degrees_ta
         asked: 6.0,
         orders: three_in_a_row().1,
     };
-    let wrong = one_outcome_in_every_order(&row, false, false);
+    let wrong = one_outcome_in_every_order(&row, false, Taken::Either);
     assert!(
         wrong.is_none(),
         "one value, or one decline, whatever the order the three edges are named in:\n{}",
@@ -3460,7 +3484,7 @@ fn a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_asked_past_its_half_takes
         hexagon_half()
     );
     let wrong: Vec<String> = (rows.iter())
-        .filter_map(|row| one_outcome_in_every_order(row, false, false))
+        .filter_map(|row| one_outcome_in_every_order(row, false, Taken::Either))
         .collect();
     assert!(
         wrong.is_empty(),
@@ -3477,85 +3501,82 @@ fn plate(end: &[DVec2]) -> Vec<DVec2> {
 }
 
 /// The far end of [`plate`] drawn to a point at `tip` from the long edges'
-/// ends at (30, 0) and (30, 6).
-fn pointed_at(tip: DVec2) -> Vec<DVec2> {
-    plate(&[DVec2::new(30.0, 0.0), tip, DVec2::new(30.0, 6.0)])
+/// ends at (30, 0) and `back`.
+fn pointed_at(tip: DVec2, back: DVec2) -> Vec<DVec2> {
+    plate(&[DVec2::new(30.0, 0.0), tip, back])
+}
+
+/// The plate of [`plate`] pointed at `tip` from (30, 0) and `back`, 10
+/// high, its two long top edges and its point's two named in every order,
+/// asked 3: what it is called and the value every order is held to take.
+fn tip_row(called: &'static str, tip: DVec2, back: DVec2, value: f64) -> (Row, f64) {
+    let row = Row {
+        called,
+        corners: pointed_at(tip, back),
+        height: 10.0,
+        walls: vec![2, 3, 4, 5],
+        leaning: None,
+        asked: 3.0,
+        orders: every_order(4),
+    };
+    (row, value)
 }
 
 #[test]
 fn a_fillet_and_a_chamfer_on_a_plate_s_long_top_edges_and_its_lopsided_or_bevelled_end_take_one_value_in_every_order_and_lose_no_name()
  {
-    let bevelled = || {
-        plate(&[
-            DVec2::new(29.0, 0.0),
-            DVec2::new(30.0, 1.0),
-            DVec2::new(30.0, 5.0),
-            DVec2::new(29.0, 6.0),
-        ])
-    };
-    let ends: [(&str, Vec<DVec2>, Vec<usize>); 8] = [
-        (
-            "tip at (33, 2.9)",
-            pointed_at(DVec2::new(33.0, 2.9)),
-            vec![2, 3, 4, 5],
-        ),
-        (
-            "tip at (33, 2.5)",
-            pointed_at(DVec2::new(33.0, 2.5)),
-            vec![2, 3, 4, 5],
-        ),
-        (
-            "tip at (36, 2.5)",
-            pointed_at(DVec2::new(36.0, 2.5)),
-            vec![2, 3, 4, 5],
-        ),
-        (
-            "tip at (39, 2)",
-            pointed_at(DVec2::new(39.0, 2.0)),
-            vec![2, 3, 4, 5],
-        ),
-        (
-            "tip at (33, 4)",
-            pointed_at(DVec2::new(33.0, 4.0)),
-            vec![2, 3, 4, 5],
-        ),
-        (
-            "tip at (98/3, 2), both its walls tangent to one circle of radius 3",
-            pointed_at(DVec2::new(98.0 / 3.0, 2.0)),
-            vec![2, 3, 4, 5],
-        ),
-        (
-            "end bevelled from (29, 0) to (30, 1) and from (30, 5) to (29, 6), its \
-             two bevels and the end between them",
-            bevelled(),
-            vec![2, 3, 4, 5, 6],
-        ),
-        (
-            "end bevelled from (29, 0) to (30, 1) and from (30, 5) to (29, 6), its \
-             two bevels, the end between them left out",
-            bevelled(),
-            vec![2, 3, 5, 6],
-        ),
-    ];
-    let rows: Vec<Row> = (ends.into_iter())
-        .map(|(called, corners, walls)| Row {
+    let back = DVec2::new(30.0, 6.0);
+    let bevelled = |called, walls: Vec<usize>| {
+        let row = Row {
             called,
-            corners,
+            corners: plate(&[
+                DVec2::new(29.0, 0.0),
+                DVec2::new(30.0, 1.0),
+                DVec2::new(30.0, 5.0),
+                DVec2::new(29.0, 6.0),
+            ]),
             height: 10.0,
             orders: every_order(walls.len()),
             walls,
             leaning: None,
             asked: 3.0,
-        })
-        .collect();
+        };
+        (row, 1.0)
+    };
+    let rows = [
+        tip_row("tip at (33, 2.9)", DVec2::new(33.0, 2.9), back, 2.9),
+        tip_row("tip at (33, 2.5)", DVec2::new(33.0, 2.5), back, 2.5),
+        tip_row("tip at (36, 2.5)", DVec2::new(36.0, 2.5), back, 2.5),
+        tip_row("tip at (39, 2)", DVec2::new(39.0, 2.0), back, 2.0),
+        tip_row("tip at (33, 4)", DVec2::new(33.0, 4.0), back, 2.0),
+        tip_row(
+            "tip at (98/3, 2) from (31, 6), both its walls tangent to one circle of radius 3",
+            DVec2::new(98.0 / 3.0, 2.0),
+            DVec2::new(31.0, 6.0),
+            2.0,
+        ),
+        bevelled(
+            "end bevelled from (29, 0) to (30, 1) and from (30, 5) to (29, 6), its two \
+             bevels and the end between them",
+            vec![2, 3, 4, 5, 6],
+        ),
+        bevelled(
+            "end bevelled from (29, 0) to (30, 1) and from (30, 5) to (29, 6), its two \
+             bevels, the end between them left out",
+            vec![2, 3, 5, 6],
+        ),
+    ];
     let wrong: Vec<String> = (rows.iter())
-        .flat_map(|row| [true, false].map(|fillet| one_outcome_in_every_order(row, fillet, false)))
+        .flat_map(|(row, value)| {
+            [true, false]
+                .map(|fillet| one_outcome_in_every_order(row, fillet, Taken::Exactly(*value)))
+        })
         .flatten()
         .collect();
     assert!(
         wrong.is_empty(),
-        "one value and one body, or one decline, whatever the order the plate's long top \
-         edges and its end's are named in, and no name lost:\n{}",
+        "one value and one body whatever the order the plate's long top edges and its \
+         end's are named in, and no name lost:\n{}",
         wrong.join("\n")
     );
 }

@@ -277,7 +277,7 @@ impl Exact {
         number: u32,
         mitred: &[u32],
     ) -> Result<Exact, Declined> {
-        if !self.cut_along(&wedges, before, 2, mitred, &[]) {
+        if !self.cut_along(&wedges, before, 2, mitred, &[], &[]) {
             return Err(Declined::Unsupported);
         }
         let Exact {

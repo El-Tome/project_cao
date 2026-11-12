@@ -124,7 +124,7 @@ fn sphered(
     };
     let brep = laid.brep.replaced(&walls, Surface::Sphere(sphere), face)?;
     let closed = laid.patched(brep, laid.next)?;
-    if closed.cut_along(&[], body, 1, &rounds, &[]) {
+    if closed.cut_along(&[], body, 1, &rounds, &[], &[]) {
         Ok(closed)
     } else {
         Err(Declined::Unsupported)

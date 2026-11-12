@@ -258,7 +258,7 @@ impl Exact {
     /// corner of the first a corner of a face numbered in `rounds`. Declined
     /// `Unsupported` where it does not hold.
     fn closed_as(&self, closed: Exact, laid: u32, rounds: &[u32]) -> Result<Exact, Declined> {
-        if closed.cut_along(&[], self, laid, rounds, &[]) {
+        if closed.cut_along(&[], self, laid, rounds, &[], &[]) {
             Ok(closed)
         } else {
             Err(Declined::Unsupported)

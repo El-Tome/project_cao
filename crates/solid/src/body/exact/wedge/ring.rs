@@ -152,7 +152,7 @@ impl Exact {
         };
         let cut = self.cut_by(&tool)?;
         let wedges: Vec<&Wedge> = wedges.iter().collect();
-        if !cut.cut_along(&wedges, self, laid, &[], &[]) {
+        if !cut.cut_along(&wedges, self, laid, &[], &[], &[]) {
             return Err(Declined::Unsupported);
         }
         let rims: Vec<DVec3> = (cut.named(self.next as usize))

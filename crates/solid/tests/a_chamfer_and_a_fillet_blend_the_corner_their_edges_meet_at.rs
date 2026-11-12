@@ -331,12 +331,15 @@
 //!   bevel edge in the list, the step takes a value short of the full round,
 //!   where the rounds would meet through an end face, and no pair is laid
 //!   together; raising it to the value asked is #894's
-//! - What stays declined beside, though no guard of this branch holds it:
+//! - What stayed declined beside, though no guard of this branch held it:
 //!   the chamfer on the full round's edges, the end edge and both uprights,
-//!   `Unsupported` in every order until #837, where on the other lists above
-//!   the chamfer is built. Its two flats are laid edge by edge, never as one
-//!   pair, so the decline comes from elsewhere in the step —
-//!   `a_chamfer_on_a_full_round_pair_s_edges_the_edge_at_their_end_and_both_uprights_there_is_declined_as_unsupported_whatever_the_order`
+//!   `Unsupported` in every order, where on the other lists above the chamfer
+//!   is built, until #837's second slice built it — no test: the decline went
+//!   with that slice, and the body, the end edge's flat closed to nothing
+//!   between the two corners' triangles, is held in
+//!   `a_full_round_meets_the_round_of_an_upright_at_its_end_on_an_ellipse.rs`
+//!   by
+//!   `a_chamfer_on_a_full_round_the_edge_across_its_end_and_both_uprights_there_closes_the_end_edge_s_flat_to_a_ridge_between_the_corners_triangles_whatever_the_order`
 //!
 //! The volumes are arithmetic, measured from the corner along its three
 //! edges: a point stands `(a, b, c)` from it, `a` along the edge whose length
@@ -4207,39 +4210,6 @@ fn a_fillet_on_a_full_round_meeting_another_full_round_and_on_a_round_bottom_mee
         not_declined.is_empty(),
         "a round bottom meeting the edge at its end, and a full round meeting another, are each \
          a broken step and its reason, whatever the order, the pair alone laid; not so:\n{}",
-        not_declined.join("\n")
-    );
-}
-
-#[test]
-fn a_chamfer_on_a_full_round_pair_s_edges_the_edge_at_their_end_and_both_uprights_there_is_declined_as_unsupported_whatever_the_order()
- {
-    let narrow = block([LENGTH, NARROW, HEIGHT]);
-    let name = |[one, other]: [usize; 2]| edge_between(&narrow, one, other);
-    narrow
-        .chamfer_edges(&[TOP_FRONT, TOP_BACK].map(name), FULL_ROUND)
-        .unwrap_or_else(|declined| {
-            panic!("the top's front and back edges alone are chamfered, their flats meeting in a ridge; declined, {declined:?}")
-        });
-    let list = [TOP_FRONT, TOP_BACK, TOP_RIGHT, FRONT_RIGHT, BACK_RIGHT];
-
-    let not_declined: Vec<String> = every_order(list.len())
-        .into_iter()
-        .filter_map(|order| {
-            let faces: Vec<[usize; 2]> = order.iter().map(|&edge| list[edge]).collect();
-            let names: Vec<EdgeName> = faces.iter().map(|&edge| name(edge)).collect();
-            match narrow.chamfer_edges(&names, FULL_ROUND) {
-                Err(Declined::Unsupported) => None,
-                Ok(_) => Some(format!("the chamfer on {faces:?}: a body")),
-                Err(declined) => Some(format!("the chamfer on {faces:?}: declined, {declined:?}")),
-            }
-        })
-        .collect();
-    assert!(
-        not_declined.is_empty(),
-        "the chamfer at {FULL_ROUND} on the top's front and back edges of a block {NARROW} wide, \
-         its top's right edge and the two uprights at that end is a broken step and its reason, \
-         whatever the order, until #837; not so:\n{}",
         not_declined.join("\n")
     );
 }

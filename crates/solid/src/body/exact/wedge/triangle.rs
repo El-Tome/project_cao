@@ -1,7 +1,10 @@
 //! The triangle three chamfers at a convex corner are closed with (#699):
 //! its corners where the set-backs of each two of the corner's edges cross on
 //! the face the two share, the corner cut off flat through them, across the
-//! point the three flats would otherwise meet at. At a concave corner, a
+//! point the three flats would otherwise meet at. Two corners at the ends of
+//! an edge whose flat has no width between them — the edge across a tongue's
+//! tip as wide as two distances (#837) — meet on a ridge in its place: the
+//! later corner's cut takes that flat whole. At a concave corner, a
 //! pocket's bottom (#801), the three fills leave a hollow behind that point,
 //! which the same prism fills, joined, cut back into the corner's walls.
 
@@ -24,9 +27,10 @@ const SPREAD: f64 = 3.0;
 const PAST: f64 = 0.125;
 
 /// The body with the corner cut off flat through the crossings by the prism
-/// [`across`] raises, the prism's floor the face it lays. Declined
-/// `Unsupported` where the cut left anything but that face, every corner of
-/// it a corner of one of the three `flats`, as [`Exact::cut_along`] reads it.
+/// [`across`] raises, the prism's floor the face it lays, a flat of `flats`
+/// it takes whole gone. Declined `Unsupported` where the cut left anything
+/// but that face, every corner of it a corner of one of the three `flats`, as
+/// [`Exact::cut_along`] reads it.
 pub(in crate::body::exact) fn cut_across(
     body: &Exact,
     corner: &Corner,
@@ -35,7 +39,10 @@ pub(in crate::body::exact) fn cut_across(
     let (outline, frame, travel) = across(corner.crossings, corner.at);
     let tool = Exact::raised(&outline, &[], frame, travel)?;
     let cut = body.cut_by(&Exact { next: 1, ..tool })?;
-    if cut.cut_along(&[], body, 1, &flats, &[]) {
+    let taken: Vec<u32> = (flats.into_iter())
+        .filter(|&flat| !cut.has_face(flat as usize))
+        .collect();
+    if cut.cut_along(&[], body, 1, &flats, &[], &taken) {
         Ok(cut)
     } else {
         Err(Declined::Unsupported)
@@ -61,7 +68,7 @@ pub(in crate::body::exact) fn joined_across(
         + travel.length();
     let tool = corner.sunk(Exact::raised(&outline, &[], frame, travel)?, reach)?;
     let joined = body.joined(&Exact { next: 1, ..tool })?;
-    if joined.cut_along(&[], body, 1, &flats, &[]) {
+    if joined.cut_along(&[], body, 1, &flats, &[], &[]) {
         Ok(joined)
     } else {
         Err(Declined::Unsupported)

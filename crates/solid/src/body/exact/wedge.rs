@@ -222,7 +222,7 @@ impl Exact {
             .into_iter()
             .chain(met.completed.iter().copied())
             .collect();
-        if cut.cut_along(&along, self, 1, met.mitred, met.open) {
+        if cut.cut_along(&along, self, 1, met.mitred, met.open, &[]) {
             Ok(cut)
         } else {
             Err(Declined::Unsupported)
@@ -262,10 +262,11 @@ impl Exact {
     /// face numbered in `mitred`, where a mitre with it ends — at a corner
     /// that is not square, on a face of the other edge, short of the third —
     /// or on the plane of one of `open`, where an edge laid after it completes
-    /// it, and every face `before` held but the edges' still there: no face,
-    /// nor piece of a face, of the prism but that one — but an overlap's,
-    /// numbered from [`OVERLAPS`], which an edge laid after it may cover, and
-    /// [`Exact::overlaps_covered`] holds once every edge is laid.
+    /// it, and every face `before` held but the edges' and those numbered in
+    /// `taken` still there: no face, nor piece of a face, of the prism but
+    /// that one — but an overlap's, numbered from [`OVERLAPS`], which an edge
+    /// laid after it may cover, and [`Exact::overlaps_covered`] holds once
+    /// every edge is laid.
     fn cut_along(
         &self,
         wedges: &[&Wedge],
@@ -273,6 +274,7 @@ impl Exact {
         laid: u32,
         mitred: &[u32],
         open: &[Stop],
+        taken: &[u32],
     ) -> bool {
         let made = before.next;
         let eps = self.brep.scale().eps();
@@ -304,6 +306,7 @@ impl Exact {
         });
         let consumable: BTreeSet<u32> = (wedges.iter())
             .flat_map(|wedge| wedge.numbers.iter().flatten().copied())
+            .chain(taken.iter().copied())
             .collect();
         let kept = before
             .brep

@@ -1,3 +1,4 @@
+use crate::screens::blend::BlendState;
 use cao_prefs::config::ViewportCorner;
 use cao_prefs::{Command, Shortcuts};
 use egui::{Align2, Pos2, Rect, vec2};
@@ -23,6 +24,7 @@ impl OriginViewButton {
     pub fn of(
         part: &SketchContext<'_>,
         viewport: &ViewportState,
+        blend: &BlendState,
         view: Rect,
         bound: &Shortcuts,
     ) -> Option<Self> {
@@ -40,7 +42,13 @@ impl OriginViewButton {
             ViewportCorner::BottomRight => (Align2::RIGHT_BOTTOM, cube.right_top() - below + out),
         };
         Some(Self {
-            offered: Offered::of(Command::OriginView, None, part, bound),
+            offered: Offered::of(
+                Command::OriginView,
+                None,
+                part,
+                (blend, viewport.is_read_whole()),
+                bound,
+            ),
             pivot,
             at,
         })

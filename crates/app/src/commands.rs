@@ -1,8 +1,10 @@
 use cao_part::PartDocument;
+use cao_part::history::BlendShape;
 use cao_prefs::Command;
 use cao_sketch::Rule;
 
 use crate::screens::SketchContext;
+use crate::screens::blend::{BlendState, apply_blend};
 use crate::screens::extrusion::apply_extrusion_with;
 use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
@@ -29,6 +31,7 @@ pub(crate) fn run(
     part: &mut SketchContext<'_>,
     ribbon: &mut Ribbon,
     viewport: &mut ViewportState,
+    blend: &mut BlendState,
 ) -> bool {
     use crate::screens::extrusion::Shape;
     use crate::screens::sketch::{
@@ -66,6 +69,7 @@ pub(crate) fn run(
         | Command::ExportStep => false,
         Command::NewSketch => {
             extrusion.close();
+            blend.close();
             editor.start_choosing_plane(lang);
             false
         }
@@ -179,6 +183,17 @@ pub(crate) fn run(
         Command::ToolSplit => {
             tool(editor, Tool::Split);
             editor.message = Some(lang.t("sketch.click_a_crossing"));
+            false
+        }
+        Command::ToolChamfer | Command::ToolFillet if editor.active_sketch().is_none() => {
+            let shape = match command {
+                Command::ToolChamfer => BlendShape::Chamfer,
+                _ => BlendShape::Fillet,
+            };
+            if let Some(sketch) = extrusion.sketch {
+                extrusion.offer(sketch);
+            }
+            blend.offer(shape);
             false
         }
         Command::ToolChamfer => {
@@ -318,10 +333,12 @@ pub(crate) fn run(
             false
         }
         Command::ExtrusionAdd => {
+            blend.close();
             extrusion.arm(cao_part::ExtrusionMode::Add);
             false
         }
         Command::ExtrusionCut => {
+            blend.close();
             extrusion.arm(cao_part::ExtrusionMode::Cut);
             false
         }
@@ -338,6 +355,7 @@ pub(crate) fn run(
             ribbon.tab = 0;
             false
         }
+        Command::BlendApply => apply_blend(doc, blend),
         Command::ExtrusionApply => {
             let record = |doc: &mut PartDocument, operation| {
                 viewport.record_where_read(doc, operation);

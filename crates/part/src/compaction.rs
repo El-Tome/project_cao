@@ -11,15 +11,17 @@
 
 use std::collections::HashSet;
 
-use cao_sketch::{ArcId, Area, CircleId, Constraint, PointId, Segment, SegmentId, Sketch};
+use cao_sketch::{ArcId, CircleId, Constraint, PointId, Segment, SegmentId, Sketch};
 
 use crate::history::{History, Operation, PointRef, RevolutionAxis};
 use crate::state::PartState;
-use remap::{SketchIdMap, remap_area, remap_constraint, remap_target, without_order};
+use matter::{renamed, revolve_axis_segments};
+use remap::{SketchIdMap, remap_constraint, remap_target, without_order};
 use variables::{Renumbered, compact_variables};
 
 mod cuts;
 mod ellipses;
+mod matter;
 mod remap;
 mod variables;
 mod verbatim;
@@ -105,6 +107,15 @@ pub fn compact(history: &History) -> History {
                     &mut new_state,
                 );
             }
+            Operation::Blend { edge, shape, size } => record(
+                Operation::Blend {
+                    edge: edge.clone(),
+                    shape: *shape,
+                    size: renumbered.formula(size),
+                },
+                &mut new_history,
+                &mut new_state,
+            ),
             Operation::SaveSection(_)
             | Operation::EditSection { .. }
             | Operation::DeleteSection { .. } => {
@@ -126,27 +137,6 @@ pub fn compact(history: &History) -> History {
 fn record(op: Operation, new_history: &mut History, new_state: &mut PartState) {
     new_state.apply(&op);
     new_history.push(op);
-}
-
-/// Every segment a `Revolve` of this sketch turns around.
-///
-/// A revolution already ran against the segment's place at the time, and
-/// stays there whatever is drawn afterwards — including erasing that segment,
-/// an ordinary cleanup once it has served as an axis. So this can name a
-/// segment `old_sketch.live_segments()` no longer does, and compaction has to
-/// bring it back rather than leave the axis pointing at nothing.
-fn revolve_axis_segments(sketch_index: usize, operations: &[Operation]) -> HashSet<SegmentId> {
-    operations
-        .iter()
-        .filter_map(|operation| match operation {
-            Operation::Revolve {
-                sketch,
-                axis: RevolutionAxis::Segment(segment),
-                ..
-            } if *sketch == sketch_index => Some(*segment),
-            _ => None,
-        })
-        .collect()
 }
 
 /// `old_id`'s place in the point already re-emitted, or the `PointRef` that
@@ -366,33 +356,6 @@ fn compact_sketch(
     cuts::add_cuts(old_sketch, sketch_index, &mut map, new_history, new_state);
     cuts::hang_again(old_sketch, sketch_index, &map, new_history, new_state);
     map
-}
-
-/// An extrusion's areas, said in the numbers the re-emitted sketch uses.
-///
-/// A name is read against the drawing **as the old history leaves it** before
-/// it is translated: it was written when the area was clicked, and the curves
-/// it named may have been chamfered, rounded, trimmed or divided since.
-/// Compaction drops those cuts and re-emits what they left, so a name still
-/// speaking of what they took out would name nothing at all — which is how a
-/// part came out of compaction with its matter gone.
-///
-/// A name the drawing no longer answers to is carried over as it stands: it
-/// was already lost, and it stays lost.
-fn renamed(areas: &[Area], old: &PartState, maps: &[SketchIdMap], sketch: usize) -> Vec<Area> {
-    let (Some(map), Some(drawing)) = (maps.get(sketch), old.sketches.get(sketch)) else {
-        return areas.to_vec();
-    };
-    let regions = drawing.regions();
-    areas
-        .iter()
-        .map(|area| {
-            old.area_rank(sketch, area, &regions)
-                .map(|rank| Area::of(&regions[rank], area.inside))
-                .and_then(|now| remap_area(&now, map))
-                .unwrap_or_else(|| area.clone())
-        })
-        .collect()
 }
 
 #[cfg(test)]

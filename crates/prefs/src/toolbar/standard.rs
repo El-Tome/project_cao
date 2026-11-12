@@ -127,6 +127,10 @@ impl Default for ToolbarLayout {
                                 Item::Command(C::ExtrusionRevolution),
                             ],
                         ),
+                        Item::group(
+                            "edges",
+                            vec![Item::Command(C::ToolChamfer), Item::Command(C::ToolFillet)],
+                        ),
                         Item::Group {
                             name: "edit".to_string(),
                             size: GroupSize::SmallTwoRows,

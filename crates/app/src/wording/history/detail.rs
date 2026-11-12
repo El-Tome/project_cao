@@ -187,7 +187,8 @@ fn unfolded(
         Operation::EditMatter { to, .. } => super::label(lang, variables, to),
         Operation::SaveSection(_)
         | Operation::EditSection { .. }
-        | Operation::DeleteSection { .. } => String::new(),
+        | Operation::DeleteSection { .. }
+        | Operation::Blend { .. } => String::new(),
         Operation::Mirror {
             sketch,
             elements,

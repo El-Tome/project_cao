@@ -24,14 +24,15 @@
 use std::io::{Read, Seek, Write};
 
 use cao_sketch::{Area, WorkPlane};
+use cao_solid::EdgeName;
 use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::PartFileError;
 use crate::formula::Formula;
 use crate::history::{
-    ExtrusionMode, FaceAnchor, History, Index, Operation, RevolutionAxis, SideDrawing, Step,
-    StepKind,
+    BlendShape, ExtrusionMode, FaceAnchor, History, Index, Operation, RevolutionAxis, SideDrawing,
+    Step, StepKind,
 };
 use crate::variables::VariableChange;
 use opening::{kind_of, put_together, taken_apart};
@@ -69,6 +70,9 @@ enum Stands {
         #[serde(default)]
         on: Option<FaceAnchor>,
     },
+    Blend {
+        edge: EdgeName,
+    },
 }
 
 /// What the operation opening a step sets, once the index has taken what the
@@ -94,6 +98,10 @@ enum Opening {
         tilt_about_v_degrees: f64,
         #[serde(default)]
         pivot: DVec3,
+    },
+    Blend {
+        shape: BlendShape,
+        size: Formula,
     },
 }
 
@@ -274,6 +282,7 @@ struct Ranks {
     extrusions: usize,
     revolutions: usize,
     sections: usize,
+    blends: usize,
 }
 
 impl Ranks {
@@ -283,6 +292,7 @@ impl Ranks {
             StepKind::Extrusion => &mut self.extrusions,
             StepKind::Revolution => &mut self.revolutions,
             StepKind::Section => &mut self.sections,
+            StepKind::Blend => &mut self.blends,
         };
         *seen += 1;
         format!("design/{}-{}/steps.json", kind.folder(), *seen - 1)

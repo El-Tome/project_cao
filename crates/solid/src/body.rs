@@ -5,7 +5,7 @@ pub(crate) mod chamfer;
 mod drawn;
 mod exact;
 pub(crate) mod fillet;
-mod names;
+pub(crate) mod names;
 mod section;
 mod turned;
 

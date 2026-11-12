@@ -24,6 +24,8 @@ pub enum StepKind {
     Revolution,
     /// A section kept in the part: a way of looking, which raises nothing.
     Section,
+    /// An edge of the part chamfered or rounded.
+    Blend,
 }
 
 impl StepKind {
@@ -37,6 +39,7 @@ impl StepKind {
             Operation::Extrude { .. } => Some(Self::Extrusion),
             Operation::Revolve { .. } => Some(Self::Revolution),
             Operation::SaveSection(_) => Some(Self::Section),
+            Operation::Blend { .. } => Some(Self::Blend),
             _ => None,
         }
     }
@@ -48,13 +51,15 @@ impl StepKind {
             Self::Extrusion => "extrusion",
             Self::Revolution => "revolution",
             Self::Section => "section",
+            Self::Blend => "blend",
         }
     }
 
     /// Whether a step of this kind is a key step of the part — a sketch, an
-    /// extrusion, a revolution — which a section, raising nothing, is not.
+    /// extrusion, a revolution — which a section, raising nothing, is not, nor
+    /// yet a blend, which the reader has no row for.
     pub fn is_key(self) -> bool {
-        self != Self::Section
+        !matches!(self, Self::Section | Self::Blend)
     }
 
     /// Which of these steps an operation that opens none is recorded under:

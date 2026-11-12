@@ -2,6 +2,8 @@ use cao_part::PartDocument;
 use cao_prefs::{Command, Edge, Item, Settings, ToolbarLayout};
 
 use crate::lang::Catalogue;
+use crate::screens::blend::BlendState;
+use crate::screens::blend_row::blend_row;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::extrusion_row::extrusion_row;
 use crate::screens::sketch::SketchEditor;
@@ -31,6 +33,7 @@ pub struct Drawn<'a> {
     pub document: &'a PartDocument,
     pub editor: &'a SketchEditor,
     pub extrusion: &'a mut ExtrusionState,
+    pub blend: &'a mut BlendState,
 }
 
 impl Drawn<'_> {
@@ -39,7 +42,7 @@ impl Drawn<'_> {
         &'a self,
         settings: &'a Settings,
         lang: &'a Catalogue,
-        section_on: bool,
+        (section_on, read_whole): (bool, bool),
     ) -> Context<'a> {
         Context {
             settings,
@@ -48,6 +51,8 @@ impl Drawn<'_> {
             extrusion: self.extrusion,
             lang,
             section_on,
+            blend: self.blend,
+            read_whole,
         }
     }
 }
@@ -166,7 +171,11 @@ impl Ribbon {
         let header_width = self.header(ui, layout, &mut asked, side, lang);
         ui.separator();
 
-        let state = drawn.context(settings, lang, self.section_on);
+        let state = drawn.context(
+            settings,
+            lang,
+            (self.section_on, !self.read_to_an_earlier_step),
+        );
 
         // The open tab, then whatever sits at the top level outside any group. A
         // button's own label must never wrap: a row that no longer fits the widest
@@ -194,8 +203,15 @@ impl Ribbon {
         });
 
         let read = &self.sketches_read;
-        extrusion_row(ui, drawn.document, drawn.extrusion, read, &mut asked, lang);
-        let state = drawn.context(settings, lang, self.section_on);
+        match drawn.blend.is_active() {
+            true => blend_row(ui, drawn.document, drawn.blend, &mut asked, lang),
+            false => extrusion_row(ui, drawn.document, drawn.extrusion, read, &mut asked, lang),
+        }
+        let state = drawn.context(
+            settings,
+            lang,
+            (self.section_on, !self.read_to_an_earlier_step),
+        );
         chamfer_row(ui, &state, &mut asked, shown);
         asked
     }
@@ -329,7 +345,11 @@ fn named_button(
     asked: &mut Vec<Command>,
     shown: Shown,
 ) -> egui::Response {
-    let hint = wording::hint(state.lang, command);
+    let hint = match state.editor.active_sketch() {
+        None => wording::hint_on_the_part(state.lang, command),
+        Some(_) => None,
+    }
+    .unwrap_or_else(|| wording::hint(state.lang, command));
     let pressable = enabled(command, state);
     let on = active(command, state);
     let worn = icon(command, state);

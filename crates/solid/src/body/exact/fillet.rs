@@ -41,7 +41,16 @@ impl Exact {
     /// two corners, by one quarter of a ball answering to its number and both
     /// corners'; the two edges of a pointed end, rounded at that radius too,
     /// with the upright at its tip closed there by a piece of sphere about the
-    /// crown's axis, which the full round touches at the crown alone. Where
+    /// crown's axis, which the full round touches at the crown alone. The edge
+    /// at a round bottom's end whose faces meet inwards too, bounding the face
+    /// that is gone and meeting both its edges at a corner — the floor's edge
+    /// on a pocket's end wall — is filled in at that same radius, its round
+    /// meeting the round bottom in a valley on two ellipses, from where the
+    /// round bottom leaves the walls down to where both touch the floor's
+    /// plane, as two fills at a pocket's bottom corner meet; and so is the
+    /// end's floor edge named with the two
+    /// uprights there, a standing round bottom meeting the edge at its foot.
+    /// Where
     /// matter lies past an end of an edge rounded off, behind the one flat face
     /// it runs into there — the inner corner of an L, a pocket's rim, the foot
     /// of a block standing on another — its round stops flush on that face,
@@ -117,7 +126,11 @@ impl Exact {
     /// of a pointed or a V-notched end or an upright, a notch's two where the
     /// upright at its bottom is named too and an upright where a third edge
     /// of the list ends but the edge at its end, one of a round bottom meeting
-    /// any, and a cut that left anything but its round —
+    /// any but the edge at its end — the uprights at a pocket's end with the
+    /// round bottom along its floor (#919), the edges of a pointed or a
+    /// notched end (#921) — or that edge where its faces meet outwards — an
+    /// open slot's end, the rim above a standing round bottom — refused by
+    /// the laying, and a cut that left anything but its round —
     /// a face of the prism, the round in two
     /// pieces or with a corner on neither of the edge's faces, a face the body
     /// held, but the edge's two, taken away whole — as where a round leaving

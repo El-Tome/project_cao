@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
+mod blend;
 mod cut_change;
 mod edits;
 mod insertion;
@@ -19,6 +20,7 @@ mod sizes;
 mod sketch_numbers;
 mod step;
 mod table;
+pub use blend::BlendShape;
 pub use cut_change::{CutAsked, CutChange};
 pub use operation::Operation;
 pub use point_ref::PointRef;

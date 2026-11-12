@@ -20,6 +20,11 @@ use crate::mesh::{Mesh, ray_triangle};
 /// are drawn this fine closed and uncrossed, each in a millisecond or two.
 pub(super) const DRAWN: f64 = 2e-4;
 
+/// How far the triangles of `body` may stand from its exact surfaces.
+pub(super) fn tolerance(body: &brep::Body) -> f64 {
+    DRAWN * reach(body)
+}
+
 /// How far `body` itself reaches from the origin, as [`Scale`] reads a reach,
 /// and never further than its scale's: what its triangles' tolerance is a
 /// share of. The scale of a body cut by a tool wider than itself carries the
@@ -43,7 +48,7 @@ pub(super) struct Drawn {
 impl Drawn {
     /// The triangles of a body, each beside the face it was cut from.
     pub fn of(body: &brep::Body) -> Drawn {
-        let cut = body.triangles_by_face(DRAWN * reach(body));
+        let cut = body.triangles_by_face(tolerance(body));
         Drawn {
             triangles: cut.triangles,
             faces: cut.faces,

@@ -19,6 +19,7 @@ mod curves;
 mod cuts;
 mod dimensions;
 mod drawing;
+mod edges;
 mod ellipse;
 mod emphasis;
 mod extrusion;
@@ -43,6 +44,7 @@ use extrusion::push_chosen_areas;
 pub(crate) use live_fields::paint_live_input;
 pub(crate) use overlays::{
     mark_under, paint_band, paint_face_labels, paint_rule_marks, paint_ruler, placed_marks,
+    to_screen,
 };
 pub(crate) use pattern::{Guides, paint_pattern_labels, turning_guides};
 use planes::{push_choosable_planes, push_hovered_face};
@@ -205,6 +207,7 @@ pub(crate) fn frame_of(
     body::push_matter(&mut solids, &mut surfaces, state, drawn);
     let veiled_matter = matter_from..surfaces.len();
     body::push_marked(&mut surfaces, state, context.document);
+    edges::push_lit_edges(&mut lines, state, context.document.body());
     section_panel::push_section_plane(&mut surfaces, &mut lines, state, scale, context);
 
     let mut cube_triangles = Vec::new();

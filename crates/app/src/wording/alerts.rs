@@ -1,5 +1,8 @@
 //! What an alert of the part says, decided by its problem.
 
+use cao_part::history::BlendShape;
+use cao_solid::Declined;
+
 use crate::lang::Catalogue;
 use crate::wording::part_tree::{Problem, badge};
 
@@ -27,4 +30,17 @@ pub fn why(lang: &Catalogue, problem: Problem, unstable: Option<&str>) -> String
         Problem::AreaLost => lang.t("alerts.area_lost"),
         Problem::FaceLost => lang.t("alerts.face_lost"),
     }
+}
+
+/// Why a chamfer or a fillet laid before is not built once the part replays:
+/// its edge gone, an edge it does not handle, or the computation failing.
+pub fn blend_not_built(lang: &Catalogue, shape: BlendShape, reason: Declined) -> String {
+    lang.t(match (reason, shape) {
+        (Declined::Lost(_), BlendShape::Chamfer) => "alerts.blend_lost_chamfer",
+        (Declined::Lost(_), BlendShape::Fillet) => "alerts.blend_lost_fillet",
+        (Declined::Unsupported, BlendShape::Chamfer) => "alerts.blend_unsupported_chamfer",
+        (Declined::Unsupported, BlendShape::Fillet) => "alerts.blend_unsupported_fillet",
+        (_, BlendShape::Chamfer) => "alerts.blend_failed_chamfer",
+        (_, BlendShape::Fillet) => "alerts.blend_failed_fillet",
+    })
 }

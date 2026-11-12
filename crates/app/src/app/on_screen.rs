@@ -43,6 +43,21 @@ impl CaoApp {
         self.named(part, part.viewport.lit()?)
     }
 
+    /// The points of the edge of the part the hand lights, while the edge
+    /// panel is open.
+    pub fn the_edge_lit_by_the_hand(&self) -> Option<Vec<DVec3>> {
+        let part = self.part_opened()?;
+        let name = part.viewport.edge_under_the_hand.as_ref()?;
+        part.viewport.edge_points(part.doc.body(), name)
+    }
+
+    /// The points of the edge the edge panel holds as chosen.
+    pub fn the_edge_chosen(&self) -> Option<Vec<DVec3>> {
+        let part = self.part_opened()?;
+        let name = part.blend.edge.as_ref()?;
+        part.viewport.edge_points(part.doc.body(), name)
+    }
+
     fn named(&self, part: &OpenPart, lit: Points) -> Option<LitRow> {
         let tree = PartTree::of(&part.doc, self.remembered.lang());
         let drawing = tree

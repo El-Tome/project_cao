@@ -82,12 +82,13 @@ fn the_five_groups_of_the_sketch_tab_read_as_the_design_names_them() {
 }
 
 #[test]
-fn the_three_groups_of_the_extrusion_tab_read_as_the_design_names_them() {
+fn the_four_groups_of_the_extrusion_tab_read_as_the_design_names_them() {
     let lang = Catalogue::french();
 
     for (key, read) in [
         ("matter", "Matière"),
         ("shape", "Forme"),
+        ("edges", "Arêtes"),
         ("edit", "Édition"),
     ] {
         assert_eq!(group(&lang, key), read, "the group {key:?}");

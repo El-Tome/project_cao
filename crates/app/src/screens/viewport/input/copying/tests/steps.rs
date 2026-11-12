@@ -48,9 +48,27 @@
 //!   chip and the number field with − / +. The controls already there
 //!   (`floating_panel`, `formula_field`, `primary_button`, `secondary_button`)
 //!   are reused. None knows a `cao_*` crate; the architecture test keeps it —
-//!   no test: here. Each new control is held beside itself, in
-//!   `ui/step_dot/tests.rs`, `ui/chip/tests.rs` and `ui/number_field/tests.rs`,
-//!   each under its own `Closes #738`; that none of them knows a `cao_*` crate,
+//!   no test: here. Each new control is held beside itself, under its own
+//!   `Closes #738`: in `ui/step_dot/tests.rs`, what each state shows and that
+//!   it is drawn 22 across, by
+//!   `a_done_dot_shows_a_check_on_green_at_18_percent`,
+//!   `the_current_dot_shows_its_number_on_amber`,
+//!   `a_dot_to_come_shows_its_number_on_the_neutral_background` and
+//!   `a_step_dot_is_drawn_22_points_across_with_its_face_in_each_state`; in
+//!   `ui/chip/tests.rs`, its three variants and its height, by
+//!   `a_selection_chip_is_amber_in_its_fill_its_border_and_its_ink`,
+//!   `an_addition_chip_is_green_in_its_border_and_its_ink`,
+//!   `only_the_chip_inviting_a_click_in_the_view_is_dashed_and_it_fills_nothing`
+//!   and `a_chip_is_drawn_24_points_tall_with_its_label_in_each_variant`; in
+//!   `ui/number_field/tests.rs`, − / +, its height and its amber border, by
+//!   `plus_adds_one_to_the_number_in_the_field`,
+//!   `minus_takes_one_off_down_to_the_least_and_no_further`,
+//!   `minus_and_plus_leave_a_formula_as_it_was_written`,
+//!   `a_click_on_plus_puts_the_next_number_in_the_field_and_says_it_changed`,
+//!   `a_number_field_is_drawn_34_points_tall_on_the_field_background` and
+//!   `the_field_of_the_current_step_is_bordered_amber_and_no_other`, the amber
+//!   border of the current step's field being C13's. That none of them knows
+//!   a `cao_*` crate,
 //!   by `a_primitive_knows_the_interface_and_nothing_else` in
 //!   `crates/app/tests/architecture.rs`, which already reads every file of
 //!   `ui/`. That the controls already there are reused rather than written

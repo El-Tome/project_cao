@@ -3,26 +3,18 @@
 //! Closes #738 — the whole transcription is in
 //! `crates/app/src/screens/viewport/input/copying/tests/steps.rs`; this is the
 //! chip's share of one criterion.
-//! - `ui/` gains the controls it lacks: the chip — the three variants of C14,
-//!   `a_selection_chip_is_amber_in_its_fill_its_border_and_its_ink`,
-//!   `an_addition_chip_is_green_in_its_border_and_its_ink`,
+//! - `ui/` gains the controls it lacks: the chip — the two variants of C14 a
+//!   panel uses, `a_selection_chip_is_amber_in_its_fill_its_border_and_its_ink`,
 //!   `only_the_chip_inviting_a_click_in_the_view_is_dashed_and_it_fills_nothing`;
 //!   and that each is drawn 24 points tall with its label —
 //!   `a_chip_is_drawn_24_points_tall_with_its_label_in_each_variant`
 
 use super::*;
-use crate::ui::theme::tokens::{
-    ACCENT_AMBER_BACKGROUND, ACCENT_AMBER_BORDER, ACCENT_AMBER_TEXT, VOLUME_ADD,
-};
+use crate::ui::theme::tokens::{ACCENT_AMBER_BACKGROUND, ACCENT_AMBER_BORDER, ACCENT_AMBER_TEXT};
 
 /// How far a size may stray from the one C14 asks for: shapes are placed on
 /// rounded points.
 const SIZED_WITHIN: f32 = 0.5;
-
-fn rgb(colour: egui::Color32) -> [u8; 3] {
-    let [r, g, b, _] = colour.to_srgba_unmultiplied();
-    [r, g, b]
-}
 
 #[test]
 fn a_selection_chip_is_amber_in_its_fill_its_border_and_its_ink() {
@@ -31,22 +23,6 @@ fn a_selection_chip_is_amber_in_its_fill_its_border_and_its_ink() {
     assert_eq!(look.fill, ACCENT_AMBER_BACKGROUND);
     assert_eq!(look.border, ACCENT_AMBER_BORDER);
     assert_eq!(look.ink, ACCENT_AMBER_TEXT);
-}
-
-#[test]
-fn an_addition_chip_is_green_in_its_border_and_its_ink() {
-    let look = ChipKind::Addition.look();
-
-    assert_eq!(look.ink, VOLUME_ADD, "written in the green of matter added");
-    assert!(
-        look.border.a() > 0
-            && rgb(look.border)
-                .iter()
-                .zip(rgb(VOLUME_ADD))
-                .all(|(a, b)| a.abs_diff(b) <= 2),
-        "bordered in {:?}, where the green of matter added is {VOLUME_ADD:?}",
-        look.border,
-    );
 }
 
 #[test]
@@ -63,18 +39,14 @@ fn only_the_chip_inviting_a_click_in_the_view_is_dashed_and_it_fills_nothing() {
         "it holds nothing yet, and fills nothing"
     );
     assert!(
-        !ChipKind::Selection.look().dashed && !ChipKind::Addition.look().dashed,
+        !ChipKind::Selection.look().dashed,
         "a chip holding an element is bordered in a solid line"
     );
 }
 
 #[test]
 fn a_chip_is_drawn_24_points_tall_with_its_label_in_each_variant() {
-    for kind in [
-        ChipKind::Addition,
-        ChipKind::Selection,
-        ChipKind::Invitation,
-    ] {
+    for kind in [ChipKind::Selection, ChipKind::Invitation] {
         let (rect, texts) = drawn("Cercle 1", kind);
 
         assert!(

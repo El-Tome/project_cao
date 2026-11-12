@@ -21,7 +21,17 @@
 //!   still empty, as it did from a slot (`enter_moves_down_one_slot` in
 //!   `tests/panel.rs`), and on the last step with one left empty it lays
 //!   nothing and brings the first empty one back, marked, as Validate did —
-//!   `enter_on_the_last_step_with_a_step_left_empty_brings_that_step_back_marked`
+//!   `enter_on_the_last_step_with_a_step_left_empty_brings_that_step_back_marked`,
+//!   a field of the number and the step emptied included —
+//!   `enter_on_the_last_step_with_a_field_emptied_brings_that_field_back_marked`.
+//!   Found in review: the number of copies is the first field of its step and
+//!   the step the second, so that ↵, the message and the panel's « Nombre »
+//!   then « Pas » agree, and what is typed once the centre is clicked is the
+//!   number of copies, as « To try it » does it —
+//!   `what_is_typed_once_the_centre_is_clicked_is_the_number_of_copies`, and
+//!   on screen by
+//!   `once_the_centre_is_clicked_what_is_typed_goes_to_the_number_of_copies`
+//!   in `crates/app/tests/copying_in_a_panel.rs`, under its own `Closes #738`
 //! - The message pill follows the step
 //!   (« Réseau circulaire — étape 3 : nombre de copies »);
 //!   a test on the wording checks it —
@@ -55,9 +65,8 @@
 //!   `the_current_dot_shows_its_number_on_amber`,
 //!   `a_dot_to_come_shows_its_number_on_the_neutral_background` and
 //!   `a_step_dot_is_drawn_22_points_across_with_its_face_in_each_state`; in
-//!   `ui/chip/tests.rs`, its three variants and its height, by
+//!   `ui/chip/tests.rs`, the two variants a panel uses and its height, by
 //!   `a_selection_chip_is_amber_in_its_fill_its_border_and_its_ink`,
-//!   `an_addition_chip_is_green_in_its_border_and_its_ink`,
 //!   `only_the_chip_inviting_a_click_in_the_view_is_dashed_and_it_fills_nothing`
 //!   and `a_chip_is_drawn_24_points_tall_with_its_label_in_each_variant`; in
 //!   `ui/number_field/tests.rs`, − / +, its height and its amber border, by
@@ -277,8 +286,8 @@ fn clockwise_lays_the_same_pattern_with_its_step_of_opposite_sign() {
 #[test]
 fn clockwise_lays_a_step_typed_as_a_formula_as_that_formula_negated() {
     let typed = |bench: &mut Bench| {
-        bench.type_value(0, "360 / 6");
-        bench.type_value(1, "6");
+        bench.type_value(0, "6");
+        bench.type_value(1, "360 / 6");
     };
     let written = |laid: &Operation| match laid {
         Operation::CircularPattern { degrees, .. } => Variables::default().written(degrees),
@@ -330,7 +339,7 @@ fn the_preview_turns_clockwise_once_clockwise_is_chosen() {
     bench.click(ON_THE_TRAIT_TO_COPY);
     bench.enter();
     bench.click(THE_CENTRE);
-    bench.type_value(1, "2");
+    bench.type_value(0, "2");
     let counter_clockwise = the_copy_previewed(&bench);
 
     choose(&mut bench, Rotation::Clockwise);
@@ -555,5 +564,64 @@ fn a_row_clicked_in_the_mirror_s_or_the_rectangular_pattern_s_panel_leaves_the_m
                 "{command:?}: the row clicked is active"
             );
         }
+    }
+}
+
+#[test]
+fn what_is_typed_once_the_centre_is_clicked_is_the_number_of_copies() {
+    let mut bench = a_trait_and_a_centre();
+    let elements = bench.a_trait_and_its_ends(TRAIT_TO_COPY);
+    let centre = bench.point_at(THE_CENTRE);
+    bench.take(Command::ToolCircularPattern);
+    bench.click(ON_THE_TRAIT_TO_COPY);
+    bench.enter();
+    bench.click(THE_CENTRE);
+    assert_eq!(bench.active(), CopySlot::Value(0));
+    assert_eq!(said(&bench), Some(STEP_3));
+
+    bench.type_value(0, "3");
+    for _ in 0..3 {
+        bench.enter();
+    }
+
+    assert_eq!(
+        bench.last_laid(),
+        Some(&Operation::CircularPattern {
+            sketch: 0,
+            elements,
+            centre,
+            degrees: Formula::Number(90.0),
+            count: Formula::Number(3.0),
+        }),
+        "the 3 typed in the field the centre's click lands on is the number of \
+         copies the message asks for; the step stays the quarter turn it opened on"
+    );
+}
+
+#[test]
+fn enter_on_the_last_step_with_a_field_emptied_brings_that_field_back_marked() {
+    for rank in [0, 1] {
+        let mut bench = a_trait_and_a_centre();
+        bench.take(Command::ToolCircularPattern);
+        bench.click(ON_THE_TRAIT_TO_COPY);
+        bench.enter();
+        bench.click(THE_CENTRE);
+        bench.type_value(rank, "");
+        bench.click_the_slot(CopySlot::Rotation);
+        let laid_before = bench.laid();
+
+        bench.enter();
+
+        assert_eq!(
+            bench.laid(),
+            laid_before,
+            "field {rank} emptied: nothing is laid"
+        );
+        assert_eq!(bench.active(), CopySlot::Value(rank));
+        assert_eq!(
+            bench.panel().marked(),
+            Some(CopySlot::Value(rank)),
+            "field {rank} emptied is the one marked, for the panel to warn on it"
+        );
     }
 }

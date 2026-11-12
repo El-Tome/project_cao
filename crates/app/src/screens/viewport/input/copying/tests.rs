@@ -77,11 +77,18 @@ fn a_click_far_from_anything_names_no_axis() {
 
 #[test]
 fn a_pattern_waits_for_both_its_values() {
-    let some = |first, second| LockedInput { first, second };
+    let some = |count, degrees| LockedInput {
+        first: count,
+        second: degrees,
+    };
 
-    assert_eq!(turned(some(Some(30.0), None)), None);
-    assert_eq!(turned(some(None, Some(6.0))), None);
-    assert_eq!(turned(some(Some(30.0), Some(6.0))), Some((30.0, 6)));
+    assert_eq!(turned(some(Some(6.0), None)), None);
+    assert_eq!(turned(some(None, Some(30.0))), None);
+    assert_eq!(
+        turned(some(Some(6.0), Some(30.0))),
+        Some((30.0, 6)),
+        "the number of copies is typed first, then the step"
+    );
 }
 
 #[test]
@@ -119,11 +126,14 @@ fn a_grid_of_one_by_one_is_no_pattern_at_all() {
 
 #[test]
 fn a_count_under_two_is_no_pattern_at_all() {
-    let some = |first, second| LockedInput { first, second };
+    let some = |count, degrees| LockedInput {
+        first: count,
+        second: degrees,
+    };
 
-    assert_eq!(turned(some(Some(30.0), Some(1.0))), None);
+    assert_eq!(turned(some(Some(1.0), Some(30.0))), None);
     assert_eq!(
-        turned(some(Some(30.0), Some(1.6))),
+        turned(some(Some(1.6), Some(30.0))),
         Some((30.0, 2)),
         "a count is a whole number of copies, so what was typed is rounded to one"
     );
@@ -161,9 +171,11 @@ fn a_count_typed_as_a_plain_number_is_rounded_as_it_always_was() {
     );
 }
 
-fn typed(degrees: &str, count: &str) -> crate::screens::sketch::LiveInput {
+/// The circular pattern's two fields: the number of copies first, then the
+/// step, as the panel lays them out.
+fn typed(count: &str, degrees: &str) -> crate::screens::sketch::LiveInput {
     let mut live = crate::screens::sketch::LiveInput::default();
-    for (rank, text) in [(0, degrees), (1, count)] {
+    for (rank, text) in [(0, count), (1, degrees)] {
         live.field(rank).text = text.to_string();
         live.take(rank, &cao_part::Variables::default(), None);
     }
@@ -172,41 +184,41 @@ fn typed(degrees: &str, count: &str) -> crate::screens::sketch::LiveInput {
 
 #[test]
 fn a_count_typed_above_a_full_turn_is_brought_down_to_it() {
-    let mut live = typed("90", "6");
+    let mut live = typed("6", "90");
 
     assert_eq!(
         count_brought_down(&mut live, &cao_part::Variables::default()),
         Some(4)
     );
-    assert_eq!(live.typed(1), Some(4.0));
-    assert_eq!(live.field(1).text, "4");
+    assert_eq!(live.typed(0), Some(4.0));
+    assert_eq!(live.field(0).text, "4");
 }
 
 #[test]
 fn an_angle_typed_after_the_count_brings_the_count_down_too() {
-    let mut live = typed("", "6");
+    let mut live = typed("6", "");
     assert_eq!(
         count_brought_down(&mut live, &cao_part::Variables::default()),
         None
     );
 
-    live.field(0).text = "72".to_string();
-    live.take(0, &cao_part::Variables::default(), None);
+    live.field(1).text = "72".to_string();
+    live.take(1, &cao_part::Variables::default(), None);
 
     assert_eq!(
         count_brought_down(&mut live, &cao_part::Variables::default()),
         Some(5)
     );
-    assert_eq!(live.typed(1), Some(5.0));
+    assert_eq!(live.typed(0), Some(5.0));
 }
 
 #[test]
 fn an_angle_that_never_comes_back_round_leaves_the_count_as_typed() {
-    let mut live = typed("7.3", "60");
+    let mut live = typed("60", "7.3");
 
     assert_eq!(
         count_brought_down(&mut live, &cao_part::Variables::default()),
         None
     );
-    assert_eq!(live.typed(1), Some(60.0));
+    assert_eq!(live.typed(0), Some(60.0));
 }

@@ -44,7 +44,7 @@ pub(crate) use live_fields::paint_live_input;
 pub(crate) use overlays::{
     mark_under, paint_band, paint_face_labels, paint_rule_marks, paint_ruler, placed_marks,
 };
-pub(crate) use pattern::paint_pattern_labels;
+pub(crate) use pattern::{Guides, paint_pattern_labels, turning_guides};
 use planes::{push_choosable_planes, push_hovered_face};
 use preview::pending_annotation;
 use reading::push_measure;
@@ -95,7 +95,8 @@ pub(crate) fn build_frame(
     measuring: Option<&Measuring>,
 ) -> SceneFrame {
     let drawn = super::matter::seen(state, context.editor, context.document);
-    let shown = (going, measuring, drawn.as_ref());
+    let turning = turning_guides(context);
+    let shown = (going, measuring, drawn.as_ref(), turning.as_ref());
     frame_of(state, (rect, cube_rect), scale, context, shown)
 }
 
@@ -106,7 +107,12 @@ pub(crate) fn frame_of(
     (rect, cube_rect): (egui::Rect, egui::Rect),
     scale: ViewScale,
     context: &SketchContext<'_>,
-    (going, measuring, drawn): (Option<&Going>, Option<&Measuring>, Option<&Drawn<'_>>),
+    (going, measuring, drawn, turning): (
+        Option<&Going>,
+        Option<&Measuring>,
+        Option<&Drawn<'_>>,
+        Option<&Guides>,
+    ),
 ) -> SceneFrame {
     let camera = &state.camera;
     let pixels_per_point = scale.height_px / rect.height();
@@ -178,7 +184,9 @@ pub(crate) fn frame_of(
     if let Some(index) = context.editor.active_sketch()
         && let Some(sketch) = context.document.sketches().get(index)
     {
-        pattern::push_guides(&mut lines, sketch, context, theme, scale);
+        if let Some(turning) = turning {
+            pattern::push_guides(&mut lines, sketch, turning, theme, scale);
+        }
         push_measure(
             &mut lines,
             &mut surfaces,

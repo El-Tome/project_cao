@@ -9,7 +9,7 @@ use egui::{
 
 use crate::ui::theme::tokens::{
     ACCENT_AMBER_BACKGROUND, ACCENT_AMBER_BORDER, ACCENT_AMBER_TEXT, BORDER_STRONG, RADIUS_PILL,
-    TEXT_SUBDUED, TYPOGRAPHY_SIZES_DETAIL, VOLUME_ADD,
+    TEXT_SUBDUED, TYPOGRAPHY_SIZES_DETAIL,
 };
 
 /// How tall a chip stands: C14's 24 px.
@@ -19,11 +19,6 @@ const HEIGHT: f32 = 24.0;
 /// `docs/redesign/source/part.html` draws it.
 const PADDING: f32 = 8.0;
 
-/// How much of the green of matter added an addition is filled and bordered
-/// with, as `part.html` draws « Zone 1 ».
-const ADDITION_FILL: f32 = 0.16;
-const ADDITION_BORDER: f32 = 0.45;
-
 /// The dashes of the invitation's border, and the gaps between them.
 const DASH: f32 = 3.0;
 const GAP: f32 = 3.0;
@@ -31,12 +26,9 @@ const GAP: f32 = 3.0;
 /// How many straight pieces each round end of the dashed border is drawn in.
 const ARC_PIECES: usize = 12;
 
-/// What a chip stands for: C14's three variants.
+/// What a chip stands for, as C14 draws it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ChipKind {
-    /// An element that adds matter.
-    #[cfg_attr(not(test), expect(dead_code))]
-    Addition,
     /// An element chosen.
     Selection,
     /// The place of the next element, still to be clicked in the view.
@@ -55,12 +47,6 @@ pub struct ChipLook {
 impl ChipKind {
     pub fn look(self) -> ChipLook {
         match self {
-            Self::Addition => ChipLook {
-                fill: VOLUME_ADD.gamma_multiply(ADDITION_FILL),
-                ink: VOLUME_ADD,
-                border: VOLUME_ADD.gamma_multiply(ADDITION_BORDER),
-                dashed: false,
-            },
             Self::Selection => ChipLook {
                 fill: ACCENT_AMBER_BACKGROUND,
                 ink: ACCENT_AMBER_TEXT,

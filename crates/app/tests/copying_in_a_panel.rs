@@ -24,11 +24,14 @@
 //!
 //! Closes #738 — the whole transcription is in
 //! `crates/app/src/screens/viewport/input/copying/tests/steps.rs`; these are
-//! the halves only the whole application holds, the keyboard's Escape and the
-//! pointer that drags.
+//! the halves only the whole application holds, the keyboard's Escape, where
+//! the keyboard lands, and the pointer that drags.
 //! - ↵ validates the current step and moves on; on the last step it applies
 //!   the pattern; Escape cancels. One test per case — Escape's case,
-//!   `escape_on_a_step_of_the_circular_pattern_closes_its_panel_and_lays_nothing`
+//!   `escape_on_a_step_of_the_circular_pattern_closes_its_panel_and_lays_nothing`;
+//!   and, found in review, the field the centre's click hands the keyboard to
+//!   is the number of copies the message asks for —
+//!   `once_the_centre_is_clicked_what_is_typed_goes_to_the_number_of_copies`
 //! - The panel can still be dragged and keeps its place —
 //!   `the_circular_pattern_s_panel_follows_its_title_and_reopens_where_it_was_let_go`
 
@@ -122,6 +125,36 @@ fn escape_hands_what_the_panel_held_to_the_selection_tool() {
 fn a_panel_is_open(app: &driver::App, tool: &str) -> bool {
     app.query_all_by_role(egui::accesskit::Role::Label)
         .any(|node| node.accesskit_node().value().as_deref() == Some(tool))
+}
+
+#[test]
+fn once_the_centre_is_clicked_what_is_typed_goes_to_the_number_of_copies() {
+    let mut app = a_trait_drawn(
+        "once_the_centre_is_clicked_what_is_typed",
+        cao_prefs::Settings::default(),
+    );
+    driver::click(&mut app, "Réseau circulaire");
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
+    driver::press(&mut app, egui::Key::Enter);
+    driver::click_at_sketch_point(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
+    assert!(
+        driver::says(&app, "étape 3 : nombre de copies"),
+        "{:?}",
+        driver::said(&app)
+    );
+    let opened = driver::fields(&app);
+    assert!(
+        opened.contains(&"4".to_string()) && opened.contains(&"90".to_string()),
+        "the fields open on four copies a quarter turn apart: {opened:?}"
+    );
+
+    driver::key(&mut app, egui::Key::Num3, "3");
+
+    let fields = driver::fields(&app);
+    assert!(
+        fields.contains(&"3".to_string()) && fields.contains(&"90".to_string()),
+        "the 3 typed went over the number of copies, and the step stands: {fields:?}"
+    );
 }
 
 #[test]

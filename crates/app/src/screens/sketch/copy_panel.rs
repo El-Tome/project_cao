@@ -111,7 +111,7 @@ impl CopyPanel {
             _ => &[],
         };
         let values: &[CopyValue] = match tool {
-            Tool::CircularPattern => &[CopyValue::StepInDegrees, CopyValue::Count],
+            Tool::CircularPattern => &[CopyValue::Count, CopyValue::StepInDegrees],
             Tool::RectangularPattern => &[
                 CopyValue::StepInMillimetres,
                 CopyValue::Count,

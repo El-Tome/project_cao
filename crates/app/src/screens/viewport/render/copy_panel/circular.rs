@@ -20,8 +20,8 @@ use crate::ui::theme::tokens::{SPACING_M, SPACING_XXL};
 use crate::wording::copy_panel as said;
 
 /// The ranks of the pattern's two values among the panel's fields.
-const STEP: usize = 0;
-const COUNT: usize = 1;
+const COUNT: usize = 0;
+const STEP: usize = 1;
 
 /// The fewest copies − leaves in the field: the original and one more.
 const LEAST_COUNT: f64 = 2.0;
@@ -107,7 +107,7 @@ fn first_slot(step: CopyStep) -> CopySlot {
     match step {
         CopyStep::Elements => CopySlot::Elements,
         CopyStep::Centre => CopySlot::Target,
-        CopyStep::CountAndStep => CopySlot::Value(STEP),
+        CopyStep::CountAndStep => CopySlot::Value(COUNT),
         CopyStep::Rotation => CopySlot::Rotation,
     }
 }
@@ -187,7 +187,8 @@ fn count_and_step(
         let [count, step] = columns else {
             return;
         };
-        if title(count, lang.t("copy_panel.count"), false) {
+        let marked = held.marked == Some(CopySlot::Value(COUNT));
+        if title(count, lang.t("copy_panel.count"), marked) {
             asked.activate = Some(CopySlot::Value(COUNT));
         }
         let current = held.active == CopySlot::Value(COUNT);
@@ -199,7 +200,8 @@ fn count_and_step(
             live.take(COUNT, variables, None);
         }
 
-        if title(step, lang.t("copy_panel.step"), false) {
+        let marked = held.marked == Some(CopySlot::Value(STEP));
+        if title(step, lang.t("copy_panel.step"), marked) {
             asked.activate = Some(CopySlot::Value(STEP));
         }
         step.horizontal(|ui| {

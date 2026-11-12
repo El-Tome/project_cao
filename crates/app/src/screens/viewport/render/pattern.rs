@@ -47,15 +47,16 @@ const PITCH_CLEARS_ITS_ARC: f32 = 6.0;
 /// A label's room around its text.
 const LABEL_PADDING: egui::Vec2 = egui::vec2(8.0, 3.0);
 
-/// What the guides are drawn from, on the sketch.
-pub(super) struct Guides {
-    pub(super) centre: DVec2,
+/// The guides, worked out once a frame for the scene and for the labels
+/// written over it, in the open sketch's terms.
+pub(crate) struct Guides {
+    centre: DVec2,
     /// Where what is copied stands: the middle of what the panel picked.
-    pub(super) source: DVec2,
-    /// The step the copies turn by, counter-clockwise when positive.
-    pub(super) step_degrees: f64,
+    source: DVec2,
+    /// The places the step's arc runs through, the way the copies turn.
+    arc: Vec<DVec2>,
     /// The step as the panel shows it.
-    pub(super) typed_degrees: f64,
+    typed_degrees: f64,
 }
 
 /// The amber of the circular pattern: what it copies, its copies, its guides.
@@ -71,10 +72,14 @@ pub(super) fn dashes_its_copies(context: &SketchContext<'_>) -> bool {
 
 /// The guides of the circular pattern in hand, once its centre is chosen and
 /// its step typed, and while what it copies stands apart from that centre.
-fn guides(sketch: &Sketch, context: &SketchContext<'_>) -> Option<Guides> {
+pub(crate) fn turning_guides(context: &SketchContext<'_>) -> Option<Guides> {
     if !dashes_its_copies(context) {
         return None;
     }
+    let sketch = context
+        .document
+        .sketches()
+        .get(context.editor.active_sketch()?)?;
     let panel = context.editor.copy_panel()?;
     let Some(CopyTarget::Centre(centre)) = panel.target() else {
         return None;
@@ -85,11 +90,13 @@ fn guides(sketch: &Sketch, context: &SketchContext<'_>) -> Option<Guides> {
         .filter_map(|element| stands_at(sketch, element))
         .collect();
     let source = middle(&standing).filter(|source| source.distance(centre) > f64::EPSILON)?;
-    let typed_degrees = context.editor.live.typed(0)?;
+    let typed_degrees = context.editor.live.typed(1)?;
+    let step_degrees = panel.rotation().step(typed_degrees);
+    let reach = centre.distance(source) * ARC_REACH;
     Some(Guides {
         centre,
         source,
-        step_degrees: panel.rotation().step(typed_degrees),
+        arc: step_arc(centre, source, step_degrees, reach),
         typed_degrees,
     })
 }
@@ -139,36 +146,26 @@ pub(super) fn arrow_wings(run: &[DVec2], length: f64) -> Option<[DVec2; 2]> {
     Some([wing(WING_OPENS), wing(-WING_OPENS)])
 }
 
-/// The guides, in the scene the GPU draws.
+/// The guides, in the scene the GPU draws, on the open sketch.
 pub(super) fn push_guides(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
-    context: &SketchContext<'_>,
+    guides: &Guides,
     theme: &Theme,
     scale: ViewScale,
 ) {
-    let Some(guides) = guides(sketch, context) else {
-        return;
-    };
     let (amber, width) = (amber(), theme.sketch_width * GUIDE_WIDTH);
     let world = |place: DVec2| sketch.plane.to_world(place);
     let mut line = |from: DVec2, to: DVec2| {
         push_line(out, world(from), world(to), amber, width, false, scale);
     };
-    let reach = guides.centre.distance(guides.source);
-    let arc = step_arc(
-        guides.centre,
-        guides.source,
-        guides.step_degrees,
-        reach * ARC_REACH,
-    );
     line(guides.centre, guides.source);
-    for pair in arc.windows(2) {
+    for pair in guides.arc.windows(2) {
         line(pair[0], pair[1]);
     }
     if let (Some(wings), Some(tip)) = (
-        arrow_wings(&arc, WING_PIXELS * scale.units_per_pixel),
-        arc.last(),
+        arrow_wings(&guides.arc, WING_PIXELS * scale.units_per_pixel),
+        guides.arc.last(),
     ) {
         for wing in wings {
             line(*tip, wing);
@@ -176,12 +173,11 @@ pub(super) fn push_guides(
     }
     let mark = MARK_PIXELS * scale.units_per_pixel;
     for across in [DVec2::X, DVec2::Y] {
-        line(
-            guides.centre - across * mark * 1.6,
-            guides.centre + across * mark * 1.6,
-        );
+        let reach = across * mark * 1.6;
+        line(guides.centre - reach, guides.centre + reach);
     }
-    let circle = |out: &mut Vec<_>, radius, dashed| {
+    let reach = guides.centre.distance(guides.source);
+    for (radius, dashed) in [(reach, true), (mark, false)] {
         push_circle_at(
             out,
             sketch,
@@ -192,9 +188,7 @@ pub(super) fn push_guides(
             dashed,
             scale,
         );
-    };
-    circle(out, reach, true);
-    circle(out, mark, false);
+    }
 }
 
 /// « Centre » beside the centre, and the pitch beside its arc.
@@ -203,14 +197,14 @@ pub(crate) fn paint_pattern_labels(
     state: &ViewportState,
     rect: egui::Rect,
     context: &SketchContext<'_>,
+    guides: Option<&Guides>,
 ) {
-    let Some(index) = context.editor.active_sketch() else {
+    let Some(guides) = guides else {
         return;
     };
-    let Some(sketch) = context.document.sketches().get(index) else {
-        return;
-    };
-    let Some(guides) = guides(sketch, context) else {
+    let Some(sketch) =
+        (context.editor.active_sketch()).and_then(|index| context.document.sketches().get(index))
+    else {
         return;
     };
     let view_projection = state
@@ -237,9 +231,7 @@ pub(crate) fn paint_pattern_labels(
         painter.galley(pill.min + LABEL_PADDING, text, ACCENT_AMBER_TEXT);
     }
 
-    let reach = guides.centre.distance(guides.source) * ARC_REACH;
-    let arc = step_arc(guides.centre, guides.source, guides.step_degrees, reach);
-    let Some(halfway) = arc.get(arc.len() / 2).copied() else {
+    let Some(halfway) = guides.arc.get(guides.arc.len() / 2).copied() else {
         return;
     };
     if let (Some(at), Some(centre)) = (screen(halfway), screen(guides.centre)) {

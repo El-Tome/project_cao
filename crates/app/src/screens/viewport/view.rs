@@ -17,8 +17,8 @@ use super::navigation::{advance_transition, handle_navigation};
 use super::render::{
     frame_of, paint_band, paint_copy_panel, paint_dimension_field, paint_dimension_labels,
     paint_face_labels, paint_measure, paint_pattern_labels, paint_rule_marks, paint_ruler,
-    paint_section_handle, paint_section_panel, push_blinking_matter, what_is_measured,
-    what_would_go,
+    paint_section_handle, paint_section_panel, push_blinking_matter, turning_guides,
+    what_is_measured, what_would_go,
 };
 use super::state::{GestureGoesTo, ViewScale, ViewportState, cube_rect, gesture_goes_to};
 use super::values::refused_for_what_is_typed;
@@ -115,7 +115,14 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         ui.ctx().request_repaint();
     }
     let drawn = seen(state, sketch.editor, sketch.document);
-    let shown = (going.as_ref(), measuring.as_ref(), drawn.as_ref());
+    // Once, for the same reason: the pitch has to stand on the arc drawn.
+    let turning = turning_guides(sketch);
+    let shown = (
+        going.as_ref(),
+        measuring.as_ref(),
+        drawn.as_ref(),
+        turning.as_ref(),
+    );
     let mut frame = frame_of(state, (rect, cube_rect), scale, sketch, shown);
     let on_the_part = response
         .hover_pos()
@@ -138,7 +145,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     paint_rule_marks(ui, state, rect, sketch, going.as_ref());
     paint_dimension_labels(ui, state, rect, sketch, going.as_ref());
     paint_measure(ui, state, rect, sketch, measuring.as_ref());
-    paint_pattern_labels(ui, state, rect, sketch);
+    paint_pattern_labels(ui, state, rect, sketch, turning.as_ref());
     if state.config.ruler_visible {
         paint_ruler(ui, state, rect, scale);
     }

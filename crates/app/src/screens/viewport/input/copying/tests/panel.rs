@@ -378,7 +378,9 @@ fn each_value_of_the_panel_is_named_by_its_kind() {
     assert_eq!(kinds(Command::ToolMirror), []);
     assert_eq!(
         kinds(Command::ToolCircularPattern),
-        [CopyValue::StepInDegrees, CopyValue::Count]
+        [CopyValue::Count, CopyValue::StepInDegrees],
+        "« Nombre » first, then « Pas », as the panel lays them out and the \
+         message asks for them (#738)"
     );
     assert_eq!(
         kinds(Command::ToolRectangularPattern),
@@ -481,7 +483,7 @@ fn picking_the_mirror_s_axis_lands_on_validate() {
 fn a_centre_picked_again_moves_onto_values_already_typed() {
     let mut bench = holding_the_trait_to_copy(Command::ToolCircularPattern);
     bench.click(THE_ORDINARY_TRAIT_S_FOOT);
-    bench.type_value(0, "30");
+    bench.type_value(0, "3");
 
     bench.click_the_slot(CopySlot::Target);
     bench.click(THE_ORDINARY_TRAIT_S_HEAD);
@@ -489,9 +491,9 @@ fn a_centre_picked_again_moves_onto_values_already_typed() {
     assert_eq!(
         bench.active(),
         CopySlot::Value(0),
-        "down one, onto the step already typed, not on to the first empty slot"
+        "down one, onto the number already typed, not on to the first empty slot"
     );
-    assert_eq!(bench.value(0), Some(30.0));
+    assert_eq!(bench.value(0), Some(3.0));
 }
 
 #[test]
@@ -556,15 +558,15 @@ fn enter_on_validate_with_a_slot_empty_activates_and_marks_the_first_empty_one()
 
     let mut bench = holding_the_trait_to_copy(Command::ToolCircularPattern);
     bench.click(THE_ORDINARY_TRAIT_S_FOOT);
-    bench.type_value(1, "");
+    bench.type_value(0, "");
     bench.click_the_slot(CopySlot::Validate);
     let laid_before = bench.laid();
 
     bench.enter();
 
     assert_eq!(bench.laid(), laid_before, "nothing is laid with no count");
-    assert_eq!(bench.active(), CopySlot::Value(1));
-    assert_eq!(bench.panel().marked(), Some(CopySlot::Value(1)));
+    assert_eq!(bench.active(), CopySlot::Value(0));
+    assert_eq!(bench.panel().marked(), Some(CopySlot::Value(0)));
 }
 
 #[test]

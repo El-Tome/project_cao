@@ -244,8 +244,8 @@ fn around(
     };
     let rotation = context.editor.copy_panel()?.rotation();
     let live = &context.editor.live;
-    let degrees = rotation.step_written(as_typed(live.typed_as_written(0), degrees));
-    let Some(count) = count_as_typed(live.typed_as_written(1), count) else {
+    let degrees = rotation.step_written(as_typed(live.typed_as_written(1), degrees));
+    let Some(count) = count_as_typed(live.typed_as_written(0), count) else {
         context.editor.message = Some(crate::wording::formula::not_a_count(context.lang));
         return None;
     };
@@ -334,11 +334,11 @@ fn filled(typed: [Option<f64>; 4]) -> Option<(Repeats, Repeats)> {
 /// holds, the moment the two no longer agree, and answers that full turn for
 /// as long as the count stands brought down to it.
 pub(crate) fn count_brought_down(live: &mut LiveInput, variables: &Variables) -> Option<usize> {
-    let largest = live.typed(0).and_then(largest_count_around);
-    match (largest, live.typed(1).map(f64::round)) {
+    let largest = live.typed(1).and_then(largest_count_around);
+    match (largest, live.typed(0).map(f64::round)) {
         (Some(largest), Some(count)) if count > largest as f64 => {
-            live.field(1).text = largest.to_string();
-            live.take(1, variables, None);
+            live.field(0).text = largest.to_string();
+            live.take(0, variables, None);
             live.brought_down = Some(largest);
         }
         (Some(largest), Some(count)) if count == largest as f64 => {}
@@ -347,14 +347,15 @@ pub(crate) fn count_brought_down(live: &mut LiveInput, variables: &Variables) ->
     live.brought_down
 }
 
-/// The step and the count a pattern was given, once both have been typed.
+/// The step and the count a pattern was given, once both have been typed —
+/// the count in its first field, the step in its second.
 ///
 /// A count is a whole number of copies, so what was typed is rounded to one;
 /// under two there is nothing to lay, and the drawing says so rather than
 /// recording a step that does nothing.
 fn turned(locked: LockedInput) -> Option<(f64, usize)> {
-    let count = locked.second?.round();
-    (count >= 2.0).then_some((locked.first?, count as usize))
+    let count = locked.first?.round();
+    (count >= 2.0).then_some((locked.second?, count as usize))
 }
 
 /// Which axis a click names: a trait of the drawing first, then one of the

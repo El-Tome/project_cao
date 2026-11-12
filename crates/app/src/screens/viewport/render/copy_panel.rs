@@ -1,11 +1,11 @@
-//! The panel of the mirror and the two patterns: its slots top to bottom, the
-//! active one shown as such, and the one `Entrée` found empty marked. The
-//! circular pattern's is laid out in numbered steps, in `circular`.
+//! The panel of the mirror and the rectangular pattern: its slots top to
+//! bottom, the active one shown as such, and the one `Entrée` found empty
+//! marked. The circular pattern's is laid out in numbered steps, in
+//! `circular`.
 
 use cao_prefs::Command;
 
 use super::super::input::copying::{activate_in_the_panel, enter_in_the_panel};
-use super::super::input::count_brought_down;
 use super::live_fields::value_field;
 use crate::screens::SketchContext;
 use crate::screens::sketch::{CopySlot, CopyValue, Rotation, Tool};
@@ -96,7 +96,6 @@ fn slots(ui: &mut egui::Ui, context: &mut SketchContext<'_>, arrived: bool) -> A
     };
 
     let target = match tool {
-        Tool::CircularPattern => Target::Centre,
         Tool::RectangularPattern => Target::Direction,
         _ => Target::Axis,
     };
@@ -138,11 +137,6 @@ fn slots(ui: &mut egui::Ui, context: &mut SketchContext<'_>, arrived: bool) -> A
             asked.enter |= response.lost_focus()
                 && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
         });
-    }
-    if tool == Tool::CircularPattern
-        && let Some(largest) = count_brought_down(live, variables)
-    {
-        ui.weak(crate::wording::pattern::count_brought_down(lang, largest));
     }
     if let Some(panel) = context.editor.copy_panel.as_mut() {
         panel.unmark_if_filled(&context.editor.live);

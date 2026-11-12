@@ -33,6 +33,9 @@ pub fn centre_at(lang: &Catalogue, (x, y): (f64, f64)) -> String {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Target {
     Axis,
+    /// The circular pattern's, until its panel's numbered steps stopped
+    /// asking for it this way.
+    #[cfg_attr(not(test), expect(dead_code))]
     Centre,
     Direction,
 }

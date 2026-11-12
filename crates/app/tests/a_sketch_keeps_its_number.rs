@@ -85,8 +85,15 @@ fn sketch_named_by(text: &str) -> Option<String> {
     }
 }
 
+/// The title bar's row: where the topmost text reading « Accueil » stands, as
+/// `title_bar.rs` finds it. Not `driver::the_row`, which leaves out every
+/// button standing above the view — the title bar's among them.
 fn the_title_bar_s_row(app: &driver::App) -> Option<egui::Rect> {
-    driver::the_row(app, "Accueil").map(|home| home.rect())
+    texts(app)
+        .into_iter()
+        .filter(|(_, text, _)| text == "Accueil")
+        .map(|(at, _, _)| at)
+        .min_by(|one, other| one.top().total_cmp(&other.top()))
 }
 
 /// The sketch the title bar names, on the row of « Accueil ».

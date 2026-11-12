@@ -781,10 +781,15 @@ fn texts_placed(app: &driver::App) -> Vec<(egui::Rect, String, bool)> {
 }
 
 /// The name the line under the reader's row gives the step read to, the rest
-/// hidden or not: the one text, no button and off the title bar's row, that
-/// starts with the name of a step. No sketch is open while it is read.
+/// hidden or not: the one text, no button and off the title bar's row — the
+/// row of the topmost « Accueil » — that starts with the name of a step. No
+/// sketch is open while it is read.
 fn the_reader_s_line(app: &driver::App) -> Option<String> {
-    let title_bar = driver::the_row(app, "Accueil").map(|home| home.rect());
+    let title_bar = texts_placed(app)
+        .into_iter()
+        .filter(|(_, text, _)| text == "Accueil")
+        .map(|(at, _, _)| at)
+        .min_by(|one, other| one.top().total_cmp(&other.top()));
     texts_placed(app)
         .into_iter()
         .filter(|(at, _, button)| {
@@ -881,9 +886,11 @@ fn the_sketches_offered(app: &driver::App) -> Vec<u32> {
 }
 
 /// The extrusion armed then let go with its own « Annuler », which leaves it
-/// asking which sketch to raise.
+/// asking which sketch to raise. Armed from whichever tab of the ribbon
+/// offers it: a sketch finished brings the ribbon back to the tab it was
+/// entered from (#897), not to the extrusion's.
 fn ask_which_sketch_to_raise(app: &mut driver::App) {
-    driver::click(app, "Ajout de matière");
+    driver::click_in_the_ribbon(app, "Ajout de matière");
     driver::click_the_button(app, "Annuler");
 }
 

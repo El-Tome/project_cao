@@ -36,10 +36,17 @@
 //!   as « 5 mm demandé, 2 mm appliqué »; otherwise only the value —
 //!   `a_value_the_faces_cannot_give_reads_both_values_on_its_history_line`,
 //!   the value alone by the test before it
+//! - A decline of the kernel at « Appliquer » records nothing: the panel stays
+//!   open and shows the reason in French — on the rim of a disc, which the
+//!   step does not handle until #700: no line added, the part as it was, the
+//!   panel open and saying why, until another edge is chosen or the panel
+//!   closed —
+//!   `a_chamfer_the_kernel_declines_records_nothing_and_its_panel_says_why_until_another_edge_or_cancel`
 
 mod driver;
 
 use cao_app::app::EDGE_REACH;
+use cao_solid::DrawnEdge;
 use egui_kittest::kittest::NodeT;
 use glam::{DVec2, DVec3};
 
@@ -154,10 +161,10 @@ struct Block {
 impl Block {
     /// Read back from the part's file, which the end of every gesture writes.
     fn of(test: &str) -> Self {
-        let path = driver::the_part_s_file(test, "Bloc");
-        let part = cao_part::PartDocument::load(&cao_app::adapters::files::DiskFiles, &path)
-            .unwrap_or_else(|err| panic!("the part at {path:?} does not open: {err:?}"));
-        let (low, high) = part.body().bounds().expect("the block holds matter");
+        let (low, high) = the_part(test, "Bloc")
+            .body()
+            .bounds()
+            .expect("the block holds matter");
         Self { low, high }
     }
 
@@ -401,13 +408,17 @@ fn with_the_panel_closed_no_edge_is_lit_and_a_click_chooses_none() {
     assert!(!driver::is_enabled(&app, "Appliquer"));
 }
 
-/// The part as the application last wrote it, its volume.
-fn the_part_s_volume(test: &str) -> f64 {
-    let path = driver::the_part_s_file(test, "Bloc");
+/// The part of that name as the application last wrote it, which the end of
+/// every gesture does.
+fn the_part(test: &str, named: &str) -> cao_part::PartDocument {
+    let path = driver::the_part_s_file(test, named);
     cao_part::PartDocument::load(&cao_app::adapters::files::DiskFiles, &path)
         .unwrap_or_else(|err| panic!("the part at {path:?} does not open: {err:?}"))
-        .body()
-        .volume()
+}
+
+/// The block as the application last wrote it, its volume.
+fn the_part_s_volume(test: &str) -> f64 {
+    the_part(test, "Bloc").body().volume()
 }
 
 /// What a chamfer or a fillet of `size` takes off a square edge `length` long.
@@ -493,5 +504,134 @@ fn a_value_the_faces_cannot_give_reads_both_values_on_its_history_line() {
     assert!(
         (made - expected).abs() <= 1e-6 * expected,
         "a chamfer of 50 reduced to {depth} leaves {made}, where the arithmetic gives {expected}",
+    );
+}
+
+const NOT_YET_A_CHAMFER: &str =
+    "Ce chanfrein n'est pas encore possible sur cette arête : la pièce reste comme elle était.";
+
+/// A part named « Disque »: a circle drawn on the plane YZ, 40 across its
+/// radius, raised 60 along X, its sketch then finished. Its two rims are
+/// circles, which a chamfer does not take until #700.
+fn a_disc(test: &str) -> driver::App {
+    let mut app = driver::open_held_with(test, cao_prefs::Settings::default());
+    driver::create_a_part(&mut app, "Disque");
+    driver::start_a_sketch(&mut app);
+    driver::click_exactly(&mut app, "Cercle (C)");
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_BLOCK);
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_BLOCK + DVec2::new(40.0, 0.0));
+    driver::click_exactly(&mut app, "Extrusion");
+    driver::click_the_button(&mut app, "1");
+    driver::click(&mut app, "Ajout de matière");
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_BLOCK);
+    driver::type_beside(&mut app, "Hauteur :", "60");
+    driver::click(&mut app, "Appliquer");
+    driver::press(&mut app, egui::Key::Escape);
+    driver::finish_the_sketch(&mut app);
+    driver::click_the_button(&mut app, "Esquisse");
+    assert!(
+        !driver::a_sketch_is_open(&app),
+        "the sketch the disc was raised from is still being edited, showing {:?}",
+        driver::on_screen(&app),
+    );
+    app
+}
+
+/// Of an edge's points, the one standing furthest on screen from `away`.
+fn furthest_on_screen_from(app: &driver::App, edge: &DrawnEdge, away: egui::Pos2) -> DVec3 {
+    edge.points
+        .iter()
+        .copied()
+        .max_by(|a, b| {
+            let from = |point: DVec3| driver::world_point_on_screen(app, point).distance(away);
+            from(*a).total_cmp(&from(*b))
+        })
+        .expect("an edge drawn through points")
+}
+
+fn the_middle_on_screen(app: &driver::App, edge: &DrawnEdge) -> egui::Pos2 {
+    let sum = edge
+        .points
+        .iter()
+        .map(|point| driver::world_point_on_screen(app, *point).to_vec2())
+        .fold(egui::Vec2::ZERO, |sum, at| sum + at);
+    (sum / edge.points.len() as f32).to_pos2()
+}
+
+#[test]
+fn a_chamfer_the_kernel_declines_records_nothing_and_its_panel_says_why_until_another_edge_or_cancel()
+ {
+    let test = "a_declined_chamfer_says_why";
+    let mut app = a_disc(test);
+    let disc = the_part(test, "Disque");
+    let volume = disc.body().volume();
+    let mut rims = disc.body().drawn_edges();
+    assert_eq!(rims.len(), 2, "a disc has two rims: {rims:?}");
+    rims.sort_by(|a, b| a.points[0].x.total_cmp(&b.points[0].x));
+    let [far, near] = [&rims[0], &rims[1]];
+    let on_the_near_rim = furthest_on_screen_from(&app, near, the_middle_on_screen(&app, far));
+    let on_the_far_rim = furthest_on_screen_from(&app, far, the_middle_on_screen(&app, near));
+    let on = |points: Option<Vec<DVec3>>, rim: &DrawnEdge| {
+        points.is_some_and(|points| {
+            points
+                .iter()
+                .all(|point| (point.x - rim.points[0].x).abs() < 1e-6)
+        })
+    };
+
+    driver::click_exactly(&mut app, "Extrusion");
+    driver::click_exactly(&mut app, "Chanfrein");
+    driver::open_the_history(&mut app);
+    let before = driver::steps(&app);
+    driver::click_at_world_point(&mut app, on_the_near_rim);
+    assert!(
+        on(chosen(&app), near),
+        "a click on the near rim chose {:?}",
+        chosen(&app),
+    );
+    driver::click(&mut app, "Appliquer");
+
+    assert!(
+        driver::reads(&app, THE_CHAMFER_S_VALUE),
+        "the panel closed on a chamfer the part could not take, showing {:?}",
+        driver::on_screen(&app),
+    );
+    assert!(
+        driver::reads(&app, NOT_YET_A_CHAMFER),
+        "the panel does not say why, showing {:?}",
+        driver::on_screen(&app),
+    );
+    assert_eq!(
+        driver::steps(&app),
+        before,
+        "a line was added for nothing done"
+    );
+    let after = the_part(test, "Disque").body().volume();
+    assert!(
+        (after - volume).abs() <= 1e-9 * volume,
+        "the disc holds {after}, where it held {volume}",
+    );
+
+    driver::click_at_world_point(&mut app, on_the_far_rim);
+    assert!(
+        on(chosen(&app), far),
+        "a click on the far rim chose {:?}",
+        chosen(&app),
+    );
+    assert!(
+        !driver::reads(&app, NOT_YET_A_CHAMFER),
+        "another edge chosen, the panel still says why the last one was declined",
+    );
+
+    driver::click(&mut app, "Appliquer");
+    assert!(
+        driver::reads(&app, NOT_YET_A_CHAMFER),
+        "the far rim is declined too"
+    );
+    driver::click_the_button(&mut app, "Annuler");
+    driver::click_exactly(&mut app, "Chanfrein");
+    assert!(
+        !driver::reads(&app, NOT_YET_A_CHAMFER),
+        "the panel closed and opened again still says why an edge was declined",
     );
 }

@@ -3,9 +3,8 @@
 //! that names the edge as the body before it named it, and keeps the value
 //! asked beside the value the faces gave.
 //!
-//! Closes #920 — the whole transcription is here until the application's half
-//! has a file of its own; the bullets marked "not written yet" are taken up
-//! one by one, each in the turn that writes its test.
+//! Closes #920 — the whole transcription is here; the bullets held elsewhere
+//! are transcribed again, checked, beside the tests that hold them.
 //! - Outside a sketch, the part ribbon offers « Chanfrein » and « Congé »;
 //!   clicking one opens its panel. Inside a sketch they still act on corners,
 //!   unchanged — no test: the application's, held in
@@ -65,8 +64,12 @@
 //!   the body left as they were and the kernel's reason handed back with the
 //!   outcome, on a disc's rim, which the kernel declines until #700, by
 //!   `a_chamfer_or_a_fillet_the_kernel_declines_records_nothing_and_says_why`;
-//!   an edge lost on a later replay stays a broken step, as above. The panel
-//!   left open and the French sentence are still to be written
+//!   an edge lost on a later replay stays a broken step, as above; the panel
+//!   left open and saying why, nothing added, held in
+//!   `crates/app/tests/the_edge_panel.rs` by
+//!   `a_chamfer_the_kernel_declines_records_nothing_and_its_panel_says_why_until_another_edge_or_cancel`;
+//!   the sentence for each reason, in `crates/app/src/wording/outcome/tests.rs`
+//!   by `a_chamfer_or_a_fillet_declined_says_why_in_the_user_s_words`
 //! - Undo removes the step and redo puts it back —
 //!   `undo_takes_a_chamfer_or_a_fillet_off_and_redo_lays_it_again`
 //! - Face picking for a sketch, the hovered face and the section view behave

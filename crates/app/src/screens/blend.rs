@@ -3,7 +3,7 @@
 
 use cao_part::history::{BlendShape, Operation};
 use cao_part::{Formula, Outcome, PartDocument, Variables};
-use cao_solid::EdgeName;
+use cao_solid::{Declined, EdgeName};
 
 /// What the edge panel remembers between frames. Closed while `shape` is
 /// nothing.
@@ -13,6 +13,9 @@ pub struct BlendState {
     pub edge: Option<EdgeName>,
     /// The distance or the radius typed, in millimetres.
     pub size_input: String,
+    /// Why the kernel declined the last « Appliquer », until another edge
+    /// is chosen.
+    pub declined: Option<Declined>,
 }
 
 impl BlendState {
@@ -23,6 +26,12 @@ impl BlendState {
             self.size_input = "1".to_string();
         }
         self.shape = Some(shape);
+        self.declined = None;
+    }
+
+    pub fn choose(&mut self, edge: EdgeName) {
+        self.edge = Some(edge);
+        self.declined = None;
     }
 
     pub fn is_active(&self) -> bool {
@@ -49,8 +58,8 @@ impl BlendState {
 }
 
 /// Chamfers or rounds the chosen edge and closes the panel. An edge the kernel
-/// declines records nothing and leaves the panel open. True when the part
-/// changed.
+/// declines records nothing and leaves the panel open, saying why. True when
+/// the part changed.
 pub fn apply_blend(document: &mut PartDocument, blend: &mut BlendState) -> bool {
     let (Some(shape), Some(edge), Some((size, _))) = (
         blend.shape,
@@ -59,8 +68,10 @@ pub fn apply_blend(document: &mut PartDocument, blend: &mut BlendState) -> bool 
     ) else {
         return false;
     };
-    if let Some(Outcome::BlendDeclined(_)) = document.apply(Operation::Blend { edge, shape, size })
+    if let Some(Outcome::BlendDeclined(reason)) =
+        document.apply(Operation::Blend { edge, shape, size })
     {
+        blend.declined = Some(reason);
         return false;
     }
     blend.close();

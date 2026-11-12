@@ -3,6 +3,20 @@
 //! Closes #467.
 //! - the message reads « Règle impossible : elle contredit le dessin » —
 //!   `a_refused_rule_says_it_contradicts_the_drawing`
+//!
+//! Closes #920 — the whole transcription is in
+//! `crates/part/tests/an_edge_is_chamfered_or_rounded.rs`; this bullet is
+//! what the edge panel says of a decline.
+//! - A decline of the kernel at « Appliquer » records nothing: the panel stays
+//!   open and shows the reason in French — the sentence for each reason the
+//!   kernel can give, in the user's words: an edge the step does not handle
+//!   yet, an edge no longer in the part, and every failure of the computation
+//!   alike, since the kernel makes no distinction the user could act on; said
+//!   in the panel, never in the message bar as well —
+//!   `a_chamfer_or_a_fillet_declined_says_why_in_the_user_s_words`
+
+use cao_part::history::BlendShape;
+use cao_solid::{Declined, Lost};
 
 use super::*;
 
@@ -91,5 +105,59 @@ fn a_refused_rule_says_it_contradicts_the_drawing() {
     assert_eq!(
         message(&Catalogue::french(), Some(Outcome::RuleRefused)).as_deref(),
         Some("Règle impossible : elle contredit le dessin"),
+    );
+}
+
+#[test]
+fn a_chamfer_or_a_fillet_declined_says_why_in_the_user_s_words() {
+    let lang = Catalogue::french();
+    let lost = "Cette arête n'est plus dans la pièce : choisissez-en une autre.";
+    for (shape, not_yet, failed) in [
+        (
+            BlendShape::Chamfer,
+            "Ce chanfrein n'est pas encore possible sur cette arête : la pièce reste comme elle était.",
+            "Le calcul de ce chanfrein n'a pas abouti : la pièce reste comme elle était.",
+        ),
+        (
+            BlendShape::Fillet,
+            "Ce congé n'est pas encore possible sur cette arête : la pièce reste comme elle était.",
+            "Le calcul de ce congé n'a pas abouti : la pièce reste comme elle était.",
+        ),
+    ] {
+        assert_eq!(
+            blend_declined(&lang, shape, Declined::Unsupported),
+            not_yet,
+            "{shape:?}",
+        );
+        for reason in [
+            Declined::Lost(Lost::Gone),
+            Declined::Lost(Lost::Split { now: 2 }),
+        ] {
+            assert_eq!(
+                blend_declined(&lang, shape, reason),
+                lost,
+                "{shape:?} {reason:?}"
+            );
+        }
+        for reason in [
+            Declined::Profile,
+            Declined::Travel,
+            Declined::Tie,
+            Declined::Unverified,
+            Declined::Unfinished,
+            Declined::Undrawn,
+            Declined::Panicked,
+        ] {
+            assert_eq!(
+                blend_declined(&lang, shape, reason),
+                failed,
+                "{shape:?} {reason:?}"
+            );
+        }
+    }
+    assert_eq!(
+        message(&lang, Some(Outcome::BlendDeclined(Declined::Unsupported))),
+        None,
+        "the panel says why; the message bar does not say it a second time",
     );
 }

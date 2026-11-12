@@ -29,7 +29,7 @@ pub(crate) fn pick_an_edge(
     if response.clicked()
         && let Some(name) = &under
     {
-        blend.edge = Some(name.clone());
+        blend.choose(name.clone());
     }
     state.edge_under_the_hand = under;
 }

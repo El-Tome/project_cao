@@ -5,8 +5,10 @@
 //! not honour — are applied from several call sites, and this is the one place
 //! that turns what they answered into a sentence.
 
+use cao_part::history::BlendShape;
 use cao_part::{DimensionOutcome, Outcome};
 use cao_sketch::LengthOutcome;
+use cao_solid::Declined;
 
 use crate::lang::Catalogue;
 use crate::wording::{constraints, dimension};
@@ -29,8 +31,19 @@ pub fn message(lang: &Catalogue, outcome: Option<Outcome>) -> Option<String> {
             refused,
         } => cut_cost(lang, rules, values, refused),
         Outcome::RuleRefused => Some(constraints::impossible(lang)),
-        Outcome::BlendDeclined(_) => Some(lang.t("blend.declined")),
+        Outcome::BlendDeclined(_) => None,
     }
+}
+
+/// Why an edge could not be chamfered or rounded, as the edge panel says it.
+pub fn blend_declined(lang: &Catalogue, shape: BlendShape, reason: Declined) -> String {
+    lang.t(match (reason, shape) {
+        (Declined::Lost(_), _) => "blend.edge_lost",
+        (Declined::Unsupported, BlendShape::Chamfer) => "blend.unsupported_chamfer",
+        (Declined::Unsupported, BlendShape::Fillet) => "blend.unsupported_fillet",
+        (_, BlendShape::Chamfer) => "blend.failed_chamfer",
+        (_, BlendShape::Fillet) => "blend.failed_fillet",
+    })
 }
 
 /// What a cut could not carry over to either piece: counted, never named. A

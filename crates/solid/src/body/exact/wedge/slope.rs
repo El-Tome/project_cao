@@ -9,10 +9,11 @@
 use glam::{DVec2, DVec3};
 
 use super::chain::TANGENT;
+use super::end::behind;
 use super::flush::Flush;
-use super::{Prism, Wedge};
+use super::{Prism, SHORTEST, Wedge, raised_over};
 use crate::body::exact::Exact;
-use crate::brep::{Declined, EdgeName, Plane, Scale, Surface};
+use crate::brep::{self, Declined, EdgeName, FaceId, Plane, Scale, Surface};
 use crate::profile::Contour;
 
 /// The way the flat a chamfer lays on `wedge` faces, whatever its value:
@@ -33,6 +34,14 @@ fn one_plane(one: &Wedge, other: &Wedge, value: f64, within: f64) -> bool {
     (other.into.iter()).all(|&into| normal.dot(other.point + into * value - near).abs() <= within)
 }
 
+/// The plane of the face `id`, where it is flat.
+fn plane_of(body: &brep::Body, id: FaceId) -> Option<Plane> {
+    match body.surface(body.face(id).surface) {
+        Surface::Plane(plane) => Some(*plane),
+        _ => None,
+    }
+}
+
 /// How far a point of the box from `low` to `high` may stand from `point`.
 fn farthest((low, high): (DVec3, DVec3), point: DVec3) -> f64 {
     (((low + high) / 2.0 - point).abs() + (high - low) / 2.0).length()
@@ -46,8 +55,8 @@ impl Wedge {
     /// run on `plane` from the face the two edges do not share to the face of
     /// rank `shared`, which they do. That other face runs along `along` only
     /// within what the two edges part by: the run goes on `past` behind the
-    /// line it meets that face on at this edge's point, and the join ends the
-    /// flat where the plane crosses the face.
+    /// line it meets that face on at this edge's point, for the prism to be
+    /// cut back to the face's own plane, as [`Exact::sloped`] cuts it.
     fn filled_on(
         &self,
         along: DVec3,
@@ -105,9 +114,13 @@ impl Exact {
     /// cut's plane, as [`one_plane`] reads it, within the kernel's tolerance
     /// all along the part, and otherwise raised on the cut's plane, as
     /// [`Wedge::filled_on`] raises it, its run going on behind the face the
-    /// two do not share by as far as their edges part across the part, and a
-    /// hair. Anywhere else the fill is laid by the prism `tool` raises, and
-    /// the two flats meet in a crease. Declined as [`Exact::cut_off`] says,
+    /// two do not share by as far as their edges part across the part, and
+    /// the shortest set-back the kernel keeps, [`SHORTEST`] hairs, then cut
+    /// back to that face's own plane, as [`behind`] cuts it — so that it ends
+    /// on that face whichever way it strays from the cut's edge, and never
+    /// stands past it, over the face beyond, where the slope takes it whole.
+    /// Anywhere else the fill is laid by the prism `tool` raises, and the two
+    /// flats meet in a crease. Declined as [`Exact::cut_off`] says,
     /// and `Unsupported` where the kernel left the slope in two faces, or the
     /// crease's fill something else than its one face, as
     /// [`Exact::cut_along`] reads it.
@@ -143,18 +156,23 @@ impl Exact {
         let filled = if part <= eps && one_plane(outward, inward, value, eps) {
             cut.cut_or_filled(&flush, &wedge, value, tool)?
         } else {
-            let plane = (cut.named(made))
-                .find_map(|face| match cut.brep.surface(cut.brep.face(face).surface) {
-                    Surface::Plane(plane) => Some(*plane),
-                    _ => None,
-                })
+            let slope = (cut.named(made))
+                .find_map(|face| plane_of(&cut.brep, face))
                 .ok_or(Declined::Unsupported)?;
             let shared = (inward.faces.iter())
                 .position(|face| outward.faces.contains(face))
                 .ok_or(Declined::Unsupported)?;
-            let past = part + Scale::HAIR * eps;
-            let prism = inward.filled_on(outward.along, &plane, (shared, past), scale, bounds);
-            cut.laid_over(&flush, &wedge, &prism)?
+            let riser =
+                plane_of(&self.brep, inward.faces[1 - shared]).ok_or(Declined::Unsupported)?;
+            let past = part + SHORTEST * Scale::HAIR * eps;
+            let prism = inward.filled_on(outward.along, &slope, (shared, past), scale, bounds);
+            let behind = behind(&prism, &riser, -inward.outward[1 - shared])?;
+            cut.laid_flush(
+                &flush,
+                &wedge,
+                &prism,
+                raised_over(&prism)?.cut_by(&behind)?,
+            )?
         };
         if !filled.named(made).eq(filled.named(made + 1)) {
             return Err(Declined::Unsupported);

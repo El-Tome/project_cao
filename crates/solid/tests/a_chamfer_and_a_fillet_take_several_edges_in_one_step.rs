@@ -421,6 +421,30 @@
 //!   reckoned by no arithmetic here, and its triangles enclosing that; and
 //!   each edge's flat, read by its rank, with the corners the first order
 //!   gave it, to the place's tolerance
+//! - Decided on the way, after the re-review (2026-11-12): a riser turned by
+//!   a billionth of a radian, its flats parting by about the kernel's own
+//!   tolerance along the stair, is one slope in both orders, as the riser
+//!   turned by 1e-7 is — the riser gone too where it is as high as half the
+//!   tread's depth, its 10 high control keeping it —
+//!   `a_chamfer_on_a_tread_s_nose_and_foot_whose_riser_is_turned_by_a_billionth_lays_one_slope_whichever_is_named_first_the_riser_gone_where_it_is_as_high_as_half_its_depth`.
+//!   Read as: the [`stair_with_its_riser_turned_by`] 1e-9, its taller block
+//!   20 high and 15 high, in both orders, asked 5 and 8: the value asked
+//!   reported and taken within a hair of 5; the tread gone, and the riser
+//!   too at 15, every other face of the stair kept, the next step numbering
+//!   past both edges' numbers; one flat face answering to both, drawn with
+//!   the same triangles, no edge between the two numbers, meeting the nose's
+//!   front, the stair's two ends and the riser by one edge each, or the
+//!   taller block's top where the riser is gone; its corners within a hair
+//!   of (x, 0, 5) and of (x, r, 15) at either end, r where the riser stands
+//!   there, and none anywhere else; the body exact, closed, uncrossed,
+//!   holding 30·10·(10 + h), h the taller block's height, 9000 and 7500, and
+//!   its triangles enclosing that, both within the slope's footprint times
+//!   twice a hair. Held to a hair rather than to the place's tolerance: the
+//!   flats part by about the kernel's tolerance, and where the riser is gone
+//!   the slope's corners may stand that far off its line. The review read
+//!   `main` as laying this slope; a probe on `main` declines every case of
+//!   the turned riser, the control at 20 too, where the straight riser at 15
+//!   and at 20 is one slope
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -4236,6 +4260,12 @@ const RISER_TURN: f64 = 1e-7;
 /// block reaches in under the taller one, so that no face of either lies a
 /// hair from another's. Its faces answer to the numbers [`stair`]'s do.
 fn stair_with_its_riser_turned_by(turn: f64) -> Body {
+    stair_with_its_riser_turned_by_up_to(turn, HEIGHT)
+}
+
+/// The [`stair_with_its_riser_turned_by`] `turn`, its taller block `height`
+/// high rather than [`HEIGHT`].
+fn stair_with_its_riser_turned_by_up_to(turn: f64, height: f64) -> Body {
     let shift = LENGTH / 2.0 * turn;
     let taller = raised_with(
         &Body::default(),
@@ -4245,7 +4275,7 @@ fn stair_with_its_riser_turned_by(turn: f64) -> Body {
             DVec2::new(LENGTH, 2.0 * TREAD),
             DVec2::new(0.0, 2.0 * TREAD),
         ]),
-        HEIGHT,
+        height,
     );
     joined_to(
         &taller,
@@ -4257,7 +4287,13 @@ fn stair_with_its_riser_turned_by(turn: f64) -> Body {
 /// Where the turned stair's riser stands across it at `x` along it: a hair
 /// in front of [`TREAD`] at its left end, a hair behind it at its right.
 fn turned_riser_at(x: f64) -> f64 {
-    let shift = LENGTH / 2.0 * RISER_TURN;
+    riser_turned_by_at(RISER_TURN, x)
+}
+
+/// Where the riser of the [`stair_with_its_riser_turned_by`] `turn` stands
+/// across it at `x` along it.
+fn riser_turned_by_at(turn: f64, x: f64) -> f64 {
+    let shift = LENGTH / 2.0 * turn;
     TREAD - shift + 2.0 * shift * x / LENGTH
 }
 
@@ -4490,6 +4526,108 @@ fn a_chamfer_on_a_tread_s_nose_and_foot_whose_riser_is_turned_by_a_hair_asked_ha
             corners_by_order[1],
             &format!("the turned stair, asked {asked}, the nose named first and the foot"),
         );
+    }
+}
+
+/// A turn of the riser a hundredth of [`RISER_TURN`]: the nose's flat and
+/// the foot's part by about the kernel's own tolerance from one end of the
+/// stair to the other, nought as a chamfer reads it.
+const HAIR_TURN: f64 = 1e-9;
+
+#[test]
+fn a_chamfer_on_a_tread_s_nose_and_foot_whose_riser_is_turned_by_a_billionth_lays_one_slope_whichever_is_named_first_the_riser_gone_where_it_is_as_high_as_half_its_depth()
+ {
+    let half = TREAD / 2.0;
+    let ends = [STAIR_RIGHT.to_vec(), STAIR_LEFT.to_vec()];
+
+    for height in [HEIGHT, TREAD_HEIGHT + half] {
+        let stair = stair_with_its_riser_turned_by_up_to(HAIR_TURN, height);
+        let laid = [stair.faces_end(), stair.faces_end() + 1];
+        let riser_gone = height - TREAD_HEIGHT <= half + PLACE;
+        let (gone, above) = if riser_gone {
+            (vec![TREAD_TOP, RISER], TOP)
+        } else {
+            (vec![TREAD_TOP], RISER)
+        };
+        let promised = LENGTH * TREAD * (TREAD_HEIGHT + height);
+        let within = 2.0 * LENGTH * TREAD * MEETING_HAIR;
+
+        for (order, names) in nose_and_foot_either_way(&stair) {
+            for asked in [half, MORE_THAN_HALF] {
+                let what = format!(
+                    "the chamfer on the nose and foot of the tread whose riser, {} high, is \
+                     turned by {HAIR_TURN}, {order}, asked {asked}",
+                    height - TREAD_HEIGHT
+                );
+                let chamfered = stair
+                    .chamfer_edges(&names, asked)
+                    .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+                assert!(
+                    (chamfered.asked - asked).abs() < PLACE
+                        && (chamfered.taken - half).abs() <= MEETING_HAIR,
+                    "{what}: asked {} and took {}, where the two flats meet a hair from {half}",
+                    chamfered.asked,
+                    chamfered.taken
+                );
+                let body = &chamfered.body;
+                is_one_slope_meeting(
+                    &stair,
+                    body,
+                    laid,
+                    &gone,
+                    &[&ends[..], &[vec![NOSE as u32], vec![above as u32]]].concat(),
+                    &what,
+                );
+                let plane = body
+                    .plane_of(laid[0])
+                    .unwrap_or_else(|| panic!("{what}: the body offers no plane on the slope"));
+                let expected: Vec<DVec3> = [0.0, LENGTH]
+                    .into_iter()
+                    .flat_map(|x| {
+                        [
+                            DVec3::new(x, 0.0, TREAD_HEIGHT - half),
+                            DVec3::new(x, riser_turned_by_at(HAIR_TURN, x), TREAD_HEIGHT + half),
+                        ]
+                    })
+                    .collect();
+                for corner in &plane.corners {
+                    assert!(
+                        expected
+                            .iter()
+                            .any(|point| point.distance(*corner) <= MEETING_HAIR),
+                        "{what}: the slope's corner at {corner}, where its corners are \
+                         {expected:?}, to a hair"
+                    );
+                }
+                for point in &expected {
+                    assert!(
+                        plane
+                            .corners
+                            .iter()
+                            .any(|corner| corner.distance(*point) <= MEETING_HAIR),
+                        "{what}: no corner of the slope within a hair of {point}, among {:?}",
+                        plane.corners
+                    );
+                }
+                assert!(
+                    body.is_exact(),
+                    "{what}: the exact kernel computed the body"
+                );
+                let triangles = body.triangles();
+                assert_eq!(closed(&triangles), Ok(()), "{what}");
+                assert_eq!(uncrossed(&triangles), Ok(()), "{what}");
+                let enclosed = enclosed(&triangles);
+                assert!(
+                    (body.volume() - promised).abs() <= within
+                        && (enclosed - promised).abs() <= within,
+                    "{what}: the body holds {} and its triangles enclose {enclosed}, where the \
+                     stair, as much matter given up at the nose as taken in at the foot, holds \
+                     {promised}, to {within}",
+                    body.volume()
+                );
+            }
+        }
     }
 }
 

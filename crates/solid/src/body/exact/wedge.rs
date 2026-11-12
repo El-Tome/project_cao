@@ -246,24 +246,7 @@ impl Exact {
     ) -> Result<Exact, Declined> {
         let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
         let prism = tool(wedge, taken, self.brep.scale(), bounds)?;
-        self.laid_over(flush, wedge, &prism)
-    }
-
-    /// The body with the edge of `wedge` cut off, or filled in, by the prism
-    /// raised from `prism`, its first wall numbered where the steps' numbers
-    /// ended, as [`Exact::cut_or_filled`] lays it.
-    fn laid_over(&self, flush: &Flush, wedge: &Wedge, prism: &Prism) -> Result<Exact, Declined> {
-        let (outline, frame, travel) = prism;
-        let raised = Exact::raised(outline, &[], *frame, *travel)?;
-        let tool = Exact {
-            brep: raised.brep.renumbered_by(|number| match number {
-                0 => MADE,
-                MADE => 0,
-                other => other,
-            }),
-            ..raised
-        };
-        self.laid_flush(flush, wedge, prism, tool)
+        self.laid_flush(flush, wedge, &prism, raised_over(&prism)?)
     }
 
     /// Whether the prism left its face alone on the body, numbered where the
@@ -327,6 +310,21 @@ impl Exact {
             .all(|number| self.has_face(number as usize));
         !stray && !parted && self.has_face(made as usize) && on_a_side && kept
     }
+}
+
+/// The solid a cut or a fill is laid with: the prism raised, its first wall
+/// numbered nought, so that it answers to where the steps' numbers ended
+/// once combined with the body.
+fn raised_over((outline, frame, travel): &Prism) -> Result<Exact, Declined> {
+    let raised = Exact::raised(outline, &[], *frame, *travel)?;
+    Ok(Exact {
+        brep: raised.brep.renumbered_by(|number| match number {
+            0 => MADE,
+            MADE => 0,
+            other => other,
+        }),
+        ..raised
+    })
 }
 
 /// The shortest distance a chamfer is set back, in `Scale::HAIR`

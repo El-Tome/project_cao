@@ -13,7 +13,7 @@ use super::corners::{self, Beside, Three};
 use super::extent::runs;
 use super::flush::{self, Flush, Held};
 use super::reach::reach_within;
-use super::{Meeting, Prism, Together, Wedge, closing, pairs, set_backs};
+use super::{Meeting, Met, Prism, Together, Wedge, closing, pairs, set_backs};
 use crate::body::exact::Exact;
 use crate::brep::{self, Declined, EdgeId, EdgeName, Scale};
 
@@ -36,11 +36,14 @@ pub(super) struct Step {
 
 impl Exact {
     /// The step the names make on this body, each edge's reach read only
-    /// where its blend runs once it is laid, as [`runs`] holds it for the
-    /// kind's `set_back`, with [`reach_within`]. Declined `Lost` where a name
-    /// no longer finds its edge, and `Unsupported` where an edge is not a
-    /// wedge, two names find one edge, or the corners are declined as
-    /// [`corners::admit`] and [`corners::of_three`] decline them.
+    /// where its blend runs laid before any other edge of the list, whatever
+    /// its rank, as [`runs`] holds it for the kind's `set_back`, with
+    /// [`reach_within`]: the least any edge takes alone bounds the step in
+    /// every order (#877).
+    /// Declined `Lost` where a name no longer finds its edge, and
+    /// `Unsupported` where an edge is not a wedge, two names find one edge,
+    /// or the corners are declined as [`corners::admit`] and
+    /// [`corners::of_three`] decline them.
     pub(super) fn step(&self, names: &[EdgeName], kind: &Kind) -> Result<Step, Declined> {
         let found = names
             .iter()
@@ -60,7 +63,7 @@ impl Exact {
                 (&edges, &wedges),
                 &beside,
                 (rank, side),
-                rank,
+                0,
                 &kind.set_back,
             );
             let wedge = &wedges[rank];
@@ -190,17 +193,22 @@ impl Exact {
                         .filter(|&earlier| corners::meet(&self.brep, [edges[earlier], edges[rank]]))
                         .map(|earlier| start + earlier as u32)
                         .collect();
-                    let mut open = flush::open(&self.brep, rank, &given, &beside);
-                    open.extend(flush::completing(&self.brep, rank, &given, &crossing));
+                    let open = flush::open(&self.brep, rank, &given, &beside);
+                    let completed = completing(rank, &given, &crossing);
+                    let met = Met {
+                        mitred: &mitred,
+                        open: &open,
+                        completed: &completed,
+                    };
                     let value = ends.get(&rank).copied().unwrap_or(taken);
                     if mitred.is_empty() {
-                        cut.laid(&names[rank], value, &tool, (&mitred, &open), &held)?
+                        cut.laid(&names[rank], value, &tool, met, &held)?
                     } else {
                         let flush = Flush::beside(
                             &self.brep, rank, &given, &beside, value, &set_back, &tool,
                         )?
                         .holding(&held);
-                        cut.laid_as(&flush, &wedges[rank], value, &tool, &mitred, &open)?
+                        cut.laid_as(&flush, &wedges[rank], value, &tool, met)?
                     }
                 }
             };
@@ -209,4 +217,19 @@ impl Exact {
         cut.next = start + names.len() as u32;
         Ok((cut.closed(&closes, start)?, taken, pairs))
     }
+}
+
+/// The wedges of the listed edges laid after the edge of rank `rank` in
+/// `edges` on whose faces its set-back and another's cross, as `crossing`
+/// holds them (#822): the crossing ends on that edge's wall, which its own
+/// cut takes away once it is laid — whole, where this one takes it whole.
+fn completing<'a>(
+    rank: usize,
+    edges: &[(EdgeId, &'a Wedge)],
+    crossing: &[(usize, [usize; 2])],
+) -> Vec<&'a Wedge> {
+    (crossing.iter())
+        .filter(|&&(between, pair)| pair.contains(&rank) && between > rank)
+        .map(|&(between, _)| edges[between].1)
+        .collect()
 }

@@ -110,6 +110,30 @@ impl Body {
     }
 }
 
+impl Body {
+    /// Each edge's points, by the edge's rank, as the triangles stand on them
+    /// at `tolerance`: from its first vertex to its last, and a ring round to
+    /// where it started.
+    pub(crate) fn edge_lines(&self, tolerance: f64) -> Vec<Vec<DVec3>> {
+        let samples = Samples::of(self, tolerance);
+        self.edge_ids()
+            .map(|edge| {
+                let mut line: Vec<DVec3> = samples
+                    .edge(edge)
+                    .iter()
+                    .map(|&sample| samples.point(sample))
+                    .collect();
+                if self.edge(edge).ends.is_none()
+                    && let Some(&start) = line.first()
+                {
+                    line.push(start);
+                }
+                line
+            })
+            .collect()
+    }
+}
+
 /// The triangles of a body, the face each belongs to, the faces that could
 /// not be laid out or cut, left open, and whether some round was too wide to
 /// be held within the tolerance by the most steps a turn is cut into.

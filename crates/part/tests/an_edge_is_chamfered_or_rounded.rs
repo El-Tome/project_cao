@@ -12,8 +12,11 @@
 //!   application's, driven through `crates/app/tests/driver/`
 //! - With the panel open, hovering an edge of the part in the 3D view lights
 //!   it, and clicking it chooses it; clicking another edge replaces the
-//!   first — no test: not written yet, it needs each edge's name with its
-//!   shape out of `cao_solid`, then the viewport's hover and click
+//!   first — no test: the kernel's half, every edge handed out drawn under
+//!   its name, is held in `crates/solid/tests/an_edge_is_drawn_where_its_name_finds_it.rs`
+//!   by `every_edge_of_a_block_is_drawn_once_under_its_name_from_corner_to_corner`
+//!   and the three tests beside it; the viewport's hover and click are not
+//!   written yet
 //! - An edge chosen, a value typed and « Appliquer » pressed, the part is
 //!   chamfered or rounded on that edge and one new line appears in the
 //!   history — the part's half, one new step of its own kind taking off what

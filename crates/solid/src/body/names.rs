@@ -1,6 +1,10 @@
 //! What a body's edges and vertices answer to (#582): the numbers of the
 //! faces they lie between, which a step pointing at one finds it again by.
 
+mod drawn_edges;
+
+pub use drawn_edges::DrawnEdge;
+
 use super::{Body, Matter};
 use crate::brep::{EdgeName, Lost, VertexName};
 

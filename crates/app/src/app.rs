@@ -199,6 +199,11 @@ impl CaoApp {
         let mut changed = false;
         let mut asked: Vec<Command> = Vec::new();
 
+        // A chamfer lands at the end of the part, which the view does not show
+        // while the part is read to an earlier step.
+        if !viewport.is_read_whole() {
+            blend.close();
+        }
         let mut drawn = screens::ribbon::Drawn {
             document: doc,
             editor,
@@ -206,6 +211,7 @@ impl CaoApp {
             blend,
         };
         ribbon.section_on = viewport.section().is_some();
+        ribbon.read_to_an_earlier_step = !viewport.is_read_whole();
         ribbon.sketches_read = viewport.sketches_read(doc);
         asked.extend(ribbon.show(ui, &settings, &mut drawn, lang));
         asked.extend(
@@ -215,7 +221,13 @@ impl CaoApp {
                 command == Command::FinishSketch && editor.copy_panel().is_some()
             })
             .into_iter()
-            .filter(|command| crate::screens::ribbon::is_enabled(*command, doc, editor, extrusion)),
+            .map(|command| blend.answering(command))
+            .filter(|command| {
+                let read_whole = viewport.is_read_whole();
+                crate::screens::ribbon::is_enabled(
+                    *command, doc, editor, extrusion, blend, read_whole,
+                )
+            }),
         );
         let mut worked_on = screens::SketchContext {
             document: doc,
@@ -275,12 +287,18 @@ impl CaoApp {
             extrusion,
             lang,
         };
-        let bar =
-            screens::view_bar::ViewBar::of(&worked_on, viewport, &view.inner, &settings.shortcuts);
+        let bar = screens::view_bar::ViewBar::of(
+            &worked_on,
+            viewport,
+            blend,
+            &view.inner,
+            &settings.shortcuts,
+        );
         let from_the_bar = screens::view_bar::show(ui.ctx(), view.response.rect, &bar);
         let from_the_cube = screens::origin_view::OriginViewButton::of(
             &worked_on,
             viewport,
+            blend,
             view.response.rect,
             &settings.shortcuts,
         )

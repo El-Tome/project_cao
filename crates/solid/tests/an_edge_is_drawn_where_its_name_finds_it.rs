@@ -15,7 +15,10 @@
 //!   a round edge drawn closed on its circle, by
 //!   `the_rims_of_a_disc_are_drawn_closed_on_their_circle_within_the_tolerance_of_the_triangles`;
 //!   and the edges a step lays drawn as well, by
-//!   `a_chamfered_block_draws_the_edges_its_chamfer_laid_under_their_names_too`
+//!   `a_chamfered_block_draws_the_edges_its_chamfer_laid_under_their_names_too`;
+//!   found by the mutants, a round edge drawn no finer than that tolerance
+//!   asks, by
+//!   `the_rims_of_a_disc_are_drawn_no_finer_than_the_tolerance_of_the_triangles_asks`
 
 use std::collections::BTreeSet;
 use std::f64::consts::TAU;
@@ -265,6 +268,23 @@ fn a_chamfered_block_draws_the_edges_its_chamfer_laid_under_their_names_too() {
             "no edge drawn from {} to {}, where the chamfer meets the front or the top",
             line[0],
             line[1],
+        );
+    }
+}
+
+#[test]
+fn the_rims_of_a_disc_are_drawn_no_finer_than_the_tolerance_of_the_triangles_asks() {
+    let radius = 5.0;
+    let disc = raised(Contour::circle(DVec2::ZERO, radius), 10.0);
+    let sag = DRAWN * reach(&disc);
+    let fewest = (std::f64::consts::PI / (1.0 - sag / radius).acos()).ceil() as usize;
+
+    for edge in disc.drawn_edges() {
+        let chords = edge.points.len() - 1;
+        assert!(
+            chords <= 2 * fewest,
+            "the rim {:?} is drawn in {chords} chords, where a sag of {sag} asks for {fewest}",
+            edge.name,
         );
     }
 }

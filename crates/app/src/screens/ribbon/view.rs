@@ -42,7 +42,7 @@ impl Drawn<'_> {
         &'a self,
         settings: &'a Settings,
         lang: &'a Catalogue,
-        section_on: bool,
+        (section_on, read_whole): (bool, bool),
     ) -> Context<'a> {
         Context {
             settings,
@@ -51,6 +51,8 @@ impl Drawn<'_> {
             extrusion: self.extrusion,
             lang,
             section_on,
+            blend: self.blend,
+            read_whole,
         }
     }
 }
@@ -169,7 +171,11 @@ impl Ribbon {
         let header_width = self.header(ui, layout, &mut asked, side, lang);
         ui.separator();
 
-        let state = drawn.context(settings, lang, self.section_on);
+        let state = drawn.context(
+            settings,
+            lang,
+            (self.section_on, !self.read_to_an_earlier_step),
+        );
 
         // The open tab, then whatever sits at the top level outside any group. A
         // button's own label must never wrap: a row that no longer fits the widest
@@ -201,7 +207,11 @@ impl Ribbon {
             true => blend_row(ui, drawn.document, drawn.blend, &mut asked, lang),
             false => extrusion_row(ui, drawn.document, drawn.extrusion, read, &mut asked, lang),
         }
-        let state = drawn.context(settings, lang, self.section_on);
+        let state = drawn.context(
+            settings,
+            lang,
+            (self.section_on, !self.read_to_an_earlier_step),
+        );
         chamfer_row(ui, &state, &mut asked, shown);
         asked
     }

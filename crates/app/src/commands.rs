@@ -354,7 +354,7 @@ pub(crate) fn run(
             ribbon.tab = 0;
             false
         }
-        Command::ExtrusionApply if blend.is_active() => apply_blend(doc, blend),
+        Command::BlendApply => apply_blend(doc, blend),
         Command::ExtrusionApply => {
             let record = |doc: &mut PartDocument, operation| {
                 viewport.record_where_read(doc, operation);

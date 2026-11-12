@@ -42,12 +42,39 @@
 //!   panel open and saying why, until another edge is chosen or the panel
 //!   closed —
 //!   `a_chamfer_the_kernel_declines_records_nothing_and_its_panel_says_why_until_another_edge_or_cancel`
+//! - Undo removes the step and redo puts it back — from the application, by
+//!   « Annuler » and « Rétablir » of the Édition group: the part whole again,
+//!   then chamfered again, its line still read; the history keeps an undone
+//!   line listed, dimmed, as #735 decided for every line —
+//!   `annuler_takes_the_chamfer_back_off_the_part_and_retablir_lays_it_again`
+//! - The step replays when a size changes upstream. An edge it no longer finds
+//!   makes it a broken step carrying its reason — the application's half: a
+//!   part opened holding a chamfer whose edge a change upstream parted counts
+//!   it among its alerts, « Arête chanfreinée · non construite », with a
+//!   sentence a user reads, and, found in review, neither « Montrer » nor
+//!   « Modifier », which nothing built answers to and nothing in this slice
+//!   reopens —
+//!   `a_chamfer_whose_edge_is_lost_is_an_alert_saying_so_in_the_user_s_words`
+//! - found in review: while the part is read to an earlier step, « Chanfrein »
+//!   and « Congé » are greyed outside a sketch, and an edge panel open closes
+//!   when the reading moves back — decided then, since the view draws the
+//!   part as read while a chamfer would land at its end, unseen —
+//!   `read_to_an_earlier_step_the_edge_tools_are_greyed_and_an_open_edge_panel_closes`
+//! - found in review: « Appliquer » is the blend's own command; the apply
+//!   chord applies the chamfer while the edge panel is open and an edge
+//!   chosen, and the extrusion while the extrusion's panel is — one chord for
+//!   both, since no two commands may answer to one chord
+//!   (`no_two_commands_answer_to_the_same_chord_on_a_fresh_installation`) —
+//!   `the_apply_chord_applies_the_chamfer_once_an_edge_is_chosen_in_the_edge_panel`,
+//!   `the_apply_chord_still_applies_an_extrusion_while_its_panel_is_open`
 
 mod driver;
 
 use cao_app::app::EDGE_REACH;
+use cao_part::history::{BlendShape, ExtrusionMode, Operation, PointRef};
+use cao_sketch::WorkPlane;
 use cao_solid::DrawnEdge;
-use egui_kittest::kittest::NodeT;
+use egui_kittest::kittest::{NodeT, Queryable};
 use glam::{DVec2, DVec3};
 
 /// What the chamfer's panel and the fillet's name the value they ask for.
@@ -634,4 +661,238 @@ fn a_chamfer_the_kernel_declines_records_nothing_and_its_panel_says_why_until_an
         !driver::reads(&app, NOT_YET_A_CHAMFER),
         "the panel closed and opened again still says why an edge was declined",
     );
+}
+
+fn is_enabled_in_the_ribbon(app: &driver::App, tool: &str) -> bool {
+    !driver::the_ribbon_s(app, tool)
+        .unwrap_or_else(|| panic!("the ribbon offers no « {tool} »"))
+        .accesskit_node()
+        .is_disabled()
+}
+
+#[test]
+fn read_to_an_earlier_step_the_edge_tools_are_greyed_and_an_open_edge_panel_closes() {
+    let (mut app, _) = chamfering("read_to_an_earlier_step_the_edge_tools_are_greyed");
+    assert!(
+        driver::reads(&app, THE_CHAMFER_S_VALUE),
+        "the fixture opens the edge panel"
+    );
+
+    driver::click_the_button(&mut app, "Étape 1");
+    assert!(
+        !driver::reads(&app, THE_CHAMFER_S_VALUE),
+        "the part read back to its sketch, the edge panel is still open",
+    );
+    for tool in ["Chanfrein", "Congé"] {
+        assert!(
+            !is_enabled_in_the_ribbon(&app, tool),
+            "« {tool} » offered while the part is read to its sketch",
+        );
+    }
+
+    driver::click_the_button(&mut app, "Étape 2");
+    for tool in ["Chanfrein", "Congé"] {
+        assert!(
+            is_enabled_in_the_ribbon(&app, tool),
+            "« {tool} » still greyed once the part is read to its end",
+        );
+    }
+}
+
+#[test]
+fn the_apply_chord_applies_the_chamfer_once_an_edge_is_chosen_in_the_edge_panel() {
+    let (mut app, block) = chamfering("the_apply_chord_applies_the_chamfer");
+    driver::open_the_history(&mut app);
+    let before = driver::steps(&app);
+
+    driver::press_with_command(&mut app, egui::Key::Enter);
+    assert_eq!(
+        driver::steps(&app),
+        before,
+        "the apply chord applied something with no edge chosen",
+    );
+
+    driver::click_at_world_point(&mut app, middle(block.near_top()));
+    driver::press_with_command(&mut app, egui::Key::Enter);
+    let after = driver::steps(&app);
+    assert_eq!(
+        after.last(),
+        Some(&format!("{}. Arête chanfreinée", before.len() + 1)),
+        "the apply chord, an edge chosen in the edge panel: {after:?}",
+    );
+    assert!(
+        !driver::reads(&app, THE_CHAMFER_S_VALUE),
+        "the chamfer applied by its chord left the panel open",
+    );
+}
+
+#[test]
+fn the_apply_chord_still_applies_an_extrusion_while_its_panel_is_open() {
+    let mut app = driver::open_held_with(
+        "the_apply_chord_still_applies_an_extrusion",
+        cao_prefs::Settings::default(),
+    );
+    driver::create_a_part(&mut app, "Bloc");
+    driver::start_a_sketch(&mut app);
+    driver::click(&mut app, "Rectangle (R)");
+    driver::click_at_sketch_point(&mut app, driver::THE_BLOCK_S_CORNERS[0]);
+    driver::click_at_sketch_point(&mut app, driver::THE_BLOCK_S_CORNERS[1]);
+    driver::click_exactly(&mut app, "Extrusion");
+    driver::click_the_button(&mut app, "1");
+    driver::click(&mut app, "Ajout de matière");
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_BLOCK);
+    driver::open_the_history(&mut app);
+
+    driver::press_with_command(&mut app, egui::Key::Enter);
+
+    assert!(
+        driver::steps(&app)
+            .iter()
+            .any(|line| line.ends_with(". Extrusion 1")),
+        "the apply chord, the extrusion's panel open, raised nothing: {:?}",
+        driver::steps(&app),
+    );
+}
+
+#[test]
+fn annuler_takes_the_chamfer_back_off_the_part_and_retablir_lays_it_again() {
+    let test = "annuler_takes_the_chamfer_back";
+    let (mut app, block) = chamfering(test);
+    let length = Block::length_of(block.near_top());
+    let before = applied_on_the_near_top(&mut app, &block, THE_CHAMFER_S_VALUE, "2");
+    let line = format!("{}. Arête chanfreinée", before.len() + 1);
+    let chamfered = block.volume() - taken_off("Chanfrein", 2.0, length);
+    assert!(
+        (the_part_s_volume(test) - chamfered).abs() <= 1e-6 * chamfered,
+        "the fixture chamfers the near top",
+    );
+
+    driver::click(&mut app, "Annuler (");
+    let whole = the_part_s_volume(test);
+    assert!(
+        (whole - block.volume()).abs() <= 1e-6 * block.volume(),
+        "« Annuler » after the chamfer leaves {whole}, where the block whole holds {}",
+        block.volume(),
+    );
+
+    driver::click(&mut app, "Rétablir (");
+    let again = the_part_s_volume(test);
+    assert!(
+        (again - chamfered).abs() <= 1e-6 * chamfered,
+        "« Rétablir » leaves {again}, where the chamfered block holds {chamfered}",
+    );
+    assert!(
+        driver::steps(&app).contains(&line),
+        "« Rétablir » and the history no longer reads « {line} »: {:?}",
+        driver::steps(&app),
+    );
+}
+
+/// A block 30 by 10 by 20 notched at its foot across its back, the edge at
+/// the foot of its front chamfered, then the notch moved across the front:
+/// the chamfer's edge is parted in two, and the step broken.
+fn a_block_whose_chamfer_lost_its_edge() -> cao_part::PartDocument {
+    let mut part =
+        cao_part::PartDocument::new("Bloc", "2026-11-12T09:00:00Z".parse().expect("a date"));
+    let rectangle = |part: &mut cao_part::PartDocument, sketch, corner: DVec2, opposite: DVec2| {
+        part.apply(Operation::AddRectangle {
+            sketch,
+            corner: PointRef::New(corner),
+            opposite: PointRef::New(opposite),
+            construction: false,
+        });
+    };
+    let on_xy = Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    };
+    part.apply(on_xy.clone());
+    rectangle(&mut part, 0, DVec2::ZERO, DVec2::new(30.0, 10.0));
+    let areas = part.areas_at(0, &[DVec2::new(15.0, 5.0)]);
+    part.apply(Operation::Extrude {
+        sketch: 0,
+        areas,
+        distance: 20.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    part.apply(on_xy);
+    rectangle(&mut part, 1, DVec2::new(10.0, 7.0), DVec2::new(20.0, 13.0));
+    rectangle(&mut part, 1, DVec2::new(10.0, -3.0), DVec2::new(20.0, 3.0));
+    let notch = |part: &cao_part::PartDocument, at: DVec2| Operation::Extrude {
+        sketch: 1,
+        areas: part.areas_at(1, &[at]),
+        distance: 5.0.into(),
+        mode: ExtrusionMode::Cut,
+    };
+    part.apply(notch(&part, DVec2::new(15.0, 10.0)));
+    let notched = part.history.steps().last().expect("the notch").operations()[0];
+    let foot_of_the_front = part
+        .body()
+        .drawn_edges()
+        .into_iter()
+        .find(|edge| {
+            edge.points
+                .iter()
+                .all(|point| point.y.abs() < 1e-9 && point.z.abs() < 1e-9)
+        })
+        .expect("the edge at the foot of the front")
+        .name;
+    let outcome = part.apply(Operation::Blend {
+        edge: foot_of_the_front,
+        shape: BlendShape::Chamfer,
+        size: 2.0.into(),
+    });
+    assert_eq!(outcome, None, "the fixture's chamfer is built");
+    part.apply(Operation::EditMatter {
+        raised_by: notched,
+        to: Box::new(notch(&part, DVec2::new(15.0, 0.0))),
+    });
+    part
+}
+
+#[test]
+fn a_chamfer_whose_edge_is_lost_is_an_alert_saying_so_in_the_user_s_words() {
+    let test = "a_chamfer_whose_edge_is_lost_is_an_alert";
+    let mut app = driver::a_block(test);
+    driver::the_part_put_away(&mut app, test, "Bloc");
+    a_block_whose_chamfer_lost_its_edge()
+        .save(
+            &cao_app::adapters::files::DiskFiles,
+            &driver::the_part_s_file(test, "Bloc"),
+            "2026-11-12T10:00:00Z".parse().expect("a date"),
+        )
+        .expect("the part is written");
+    app.query_all_by_label("Bloc")
+        .last()
+        .expect("the start menu lists the part")
+        .click();
+    app.run();
+    assert!(
+        driver::in_the_tree(&app, "Esquisse 2"),
+        "the part holding the chamfer did not open, showing {:?}",
+        driver::on_screen(&app),
+    );
+
+    driver::click_the_button(&mut app, "1 alerte");
+    for said in [
+        "Arête chanfreinée · non construite",
+        "L'arête de ce chanfrein n'est plus dans la pièce : il n'est pas construit.",
+    ] {
+        assert!(
+            driver::reads(&app, said),
+            "the alert of a chamfer whose edge is lost does not read « {said} »: {:?}",
+            driver::on_screen(&app),
+        );
+    }
+    for button in ["Montrer", "Modifier"] {
+        let offered = app
+            .query_all_by_label(button)
+            .filter(|node| node.accesskit_node().role() == egui::accesskit::Role::Button)
+            .count();
+        assert_eq!(
+            offered, 0,
+            "the alert of a chamfer not built offers « {button} », which nothing built \
+             answers to and nothing in this slice reopens",
+        );
+    }
 }

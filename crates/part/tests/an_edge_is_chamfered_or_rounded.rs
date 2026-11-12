@@ -61,7 +61,12 @@
 //!   by `a_chamfer_declined_on_a_later_replay_leaves_the_next_chamfer_on_its_edge`,
 //!   and a step put in before it while the part is read earlier leaving it on
 //!   its edge, by
-//!   `a_step_put_in_before_a_chamfer_while_the_part_is_read_earlier_leaves_it_on_its_edge`
+//!   `a_step_put_in_before_a_chamfer_while_the_part_is_read_earlier_leaves_it_on_its_edge`;
+//!   the broken step's reason, read in its alert, held in
+//!   `crates/app/tests/the_edge_panel.rs` by
+//!   `a_chamfer_whose_edge_is_lost_is_an_alert_saying_so_in_the_user_s_words`
+//!   and its sentences in `crates/app/src/wording/outcome/tests.rs` by
+//!   `a_chamfer_or_a_fillet_broken_on_a_later_replay_says_why_in_the_user_s_words`
 //! - found when the step was first made: compacting the history keeps it, on
 //!   its edge and with both its values —
 //!   `a_history_compacted_keeps_its_chamfer_or_fillet`
@@ -77,7 +82,10 @@
 //!   the sentence for each reason, in `crates/app/src/wording/outcome/tests.rs`
 //!   by `a_chamfer_or_a_fillet_declined_says_why_in_the_user_s_words`
 //! - Undo removes the step and redo puts it back —
-//!   `undo_takes_a_chamfer_or_a_fillet_off_and_redo_lays_it_again`
+//!   `undo_takes_a_chamfer_or_a_fillet_off_and_redo_lays_it_again`; from the
+//!   application's « Annuler » and « Rétablir », in
+//!   `crates/app/tests/the_edge_panel.rs` by
+//!   `annuler_takes_the_chamfer_back_off_the_part_and_retablir_lays_it_again`
 //! - Face picking for a sketch, the hovered face and the section view behave
 //!   as before; every existing test still passes — no test: here; held by the
 //!   existing suite, which this branch leaves as it found it, and, for a face

@@ -1,4 +1,5 @@
 use crate::lang::Catalogue;
+use crate::screens::blend::BlendState;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{SketchEditor, Tool};
 use crate::ui::icon::Icon;
@@ -44,6 +45,9 @@ pub struct Ribbon {
     pub section_delete_confirm: Option<usize>,
     /// Whether the viewport's section view is on, so its button shows pressed.
     pub section_on: bool,
+    /// Whether the part is read to an earlier step than its last, which
+    /// greys what would land at its end, out of sight.
+    pub read_to_an_earlier_step: bool,
     /// The sketches the part is read through, the ones the extrusion offers.
     pub sketches_read: Vec<usize>,
     /// The command last picked from each menu, by group, for the session.
@@ -65,6 +69,7 @@ impl Ribbon {
             history_compact_confirm: false,
             section_delete_confirm: None,
             section_on: false,
+            read_to_an_earlier_step: false,
             sketches_read: Vec::new(),
             last_used: HashMap::new(),
             floating_width: 0.0,
@@ -150,6 +155,8 @@ pub(super) struct Context<'a> {
     pub(super) extrusion: &'a ExtrusionState,
     pub(super) lang: &'a Catalogue,
     pub(super) section_on: bool,
+    pub(super) blend: &'a BlendState,
+    pub(super) read_whole: bool,
 }
 
 /// What the command's button reads: its name, or the state it is in for the
@@ -171,7 +178,14 @@ pub(super) fn icon(command: Command, state: &Context<'_>) -> Icon {
 }
 
 pub(super) fn enabled(command: Command, state: &Context<'_>) -> bool {
-    is_enabled(command, state.document, state.editor, state.extrusion)
+    is_enabled(
+        command,
+        state.document,
+        state.editor,
+        state.extrusion,
+        state.blend,
+        state.read_whole,
+    )
 }
 
 /// Whether a command can be carried out right now.
@@ -184,6 +198,8 @@ pub fn is_enabled(
     document: &PartDocument,
     editor: &SketchEditor,
     extrusion: &ExtrusionState,
+    blend: &BlendState,
+    read_whole: bool,
 ) -> bool {
     let drawing = editor.active_sketch().is_some();
     match command {
@@ -206,7 +222,10 @@ pub fn is_enabled(
         | Command::ToolMirror
         | Command::ToolCircularPattern
         | Command::ToolRectangularPattern => drawing,
-        Command::ToolChamfer | Command::ToolFillet => drawing || !document.body().is_empty(),
+        Command::ToolChamfer | Command::ToolFillet => {
+            drawing || (read_whole && !document.body().is_empty())
+        }
+        Command::BlendApply => blend.is_ready(document.variables()),
         Command::ChamferEqual | Command::ChamferAngled | Command::ChamferSided => drawing,
         Command::DimensionAuto
         | Command::DimensionPointToPoint

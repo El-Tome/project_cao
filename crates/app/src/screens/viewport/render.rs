@@ -43,6 +43,7 @@ use extrusion::push_chosen_areas;
 pub(crate) use live_fields::paint_live_input;
 pub(crate) use overlays::{
     mark_under, paint_band, paint_face_labels, paint_rule_marks, paint_ruler, placed_marks,
+    to_screen,
 };
 use planes::{push_choosable_planes, push_hovered_face};
 use preview::pending_annotation;

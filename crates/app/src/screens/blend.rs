@@ -3,6 +3,7 @@
 
 use cao_part::history::{BlendShape, Operation};
 use cao_part::{Formula, Outcome, PartDocument, Variables};
+use cao_prefs::Command;
 use cao_solid::{Declined, EdgeName};
 
 /// What the edge panel remembers between frames. Closed while `shape` is
@@ -32,6 +33,15 @@ impl BlendState {
     pub fn choose(&mut self, edge: EdgeName) {
         self.edge = Some(edge);
         self.declined = None;
+    }
+
+    /// The command a pressed chord stands for: the one apply chord applies
+    /// the blend while the edge panel is open, the extrusion otherwise.
+    pub fn answering(&self, command: Command) -> Command {
+        match command {
+            Command::ExtrusionApply if self.is_active() => Command::BlendApply,
+            other => other,
+        }
     }
 
     pub fn is_active(&self) -> bool {

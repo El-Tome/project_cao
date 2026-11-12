@@ -5,12 +5,13 @@ use crate::wording::part_tree::Problem;
 
 /// What a badge of the tree is pinned on: a sketch by its place among the
 /// part's drawings, a volume by its step in the design, a kept section by its
-/// id.
+/// id. A chamfer or a fillet, which has no row, by its step too.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum About {
     Sketch(usize),
     Volume { step: usize },
     Section(usize),
+    Blend { step: usize },
 }
 
 /// An element wearing a badge: what it is, named as the tree names it, and

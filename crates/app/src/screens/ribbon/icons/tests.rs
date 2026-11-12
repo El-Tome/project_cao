@@ -127,6 +127,7 @@ icons_drawn! {
     ExtrusionRevolution => "revolution",
     ExtrusionApply => "extrusion-apply",
     ExtrusionCancel => "extrusion-cancel",
+    BlendApply => "extrusion-apply",
     ExportStlCoarse => "stl-coarse",
     ExportStlNormal => "stl-normal",
     ExportStlFine => "stl-fine",

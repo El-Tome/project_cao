@@ -6,6 +6,7 @@ use glam::DVec3;
 
 use crate::screens::blend::BlendState;
 
+use super::super::render::to_screen;
 use super::super::{EDGE_REACH, ViewportState, to_ndc};
 
 /// How much nearer the eye than a point of an edge, as a share of how far it
@@ -40,33 +41,37 @@ fn edge_under(
     at: egui::Pos2,
     rect: egui::Rect,
 ) -> Option<EdgeName> {
+    let seen = |point: DVec3| {
+        let view_projection = state.camera.view_projection(rect.aspect_ratio());
+        to_screen(point, view_projection, rect)
+    };
     let edges = state.edges.of(body);
     let mut within: Vec<(f32, &DrawnEdge, DVec3)> = edges
         .iter()
         .filter_map(|edge| {
-            let (distance, point) = nearest_on_screen(state, &edge.points, at)?;
+            let (distance, point) = nearest_on_screen(seen, &edge.points, at)?;
             (distance <= EDGE_REACH).then_some((distance, edge, point))
         })
         .collect();
     within.sort_by(|one, other| one.0.total_cmp(&other.0));
     within
         .into_iter()
-        .find(|(_, _, point)| in_sight(state, body, *point, rect))
+        .find(|(_, _, point)| in_sight(state, body, seen(*point), *point, rect))
         .map(|(_, edge, _)| edge.name.clone())
 }
 
 /// How far from `at` the edge through these points passes on screen, and the
 /// point of it that comes nearest.
 fn nearest_on_screen(
-    state: &ViewportState,
+    seen: impl Fn(DVec3) -> Option<egui::Pos2>,
     points: &[DVec3],
     at: egui::Pos2,
 ) -> Option<(f32, DVec3)> {
     points
         .windows(2)
         .filter_map(|pair| {
-            let start = state.where_it_shows(pair[0])?;
-            let end = state.where_it_shows(pair[1])?;
+            let start = seen(pair[0])?;
+            let end = seen(pair[1])?;
             let along = end - start;
             let length = along.length_sq();
             let t = match length > 0.0 {
@@ -80,8 +85,14 @@ fn nearest_on_screen(
 }
 
 /// Whether nothing of the part stands between the eye and this point.
-fn in_sight(state: &ViewportState, body: &Body, point: DVec3, rect: egui::Rect) -> bool {
-    let Some(on_screen) = state.where_it_shows(point) else {
+fn in_sight(
+    state: &ViewportState,
+    body: &Body,
+    on_screen: Option<egui::Pos2>,
+    point: DVec3,
+    rect: egui::Rect,
+) -> bool {
+    let Some(on_screen) = on_screen else {
         return false;
     };
     let (origin, direction) = state

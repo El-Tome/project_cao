@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use cao_part::history::Operation;
 use cao_part::{History, PartDocument};
 
 use crate::lang::Catalogue;
@@ -8,6 +9,7 @@ use crate::screens::part_tree::state::{About, Flagged, PartTree};
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::ViewportState;
 use crate::ui::badge::Level;
+use crate::wording::part_tree::Problem;
 use crate::wording::view::{Standing, standing_on};
 use crate::wording::{self, alerts};
 
@@ -72,6 +74,12 @@ impl Alert {
         }
     }
 
+    /// Whether « Montrer » and « Modifier » answer to it: a chamfer or a
+    /// fillet not built has nothing to show, and is not edited in place.
+    pub fn can_be_acted_on(&self) -> bool {
+        !matches!(self.about, About::Blend { .. })
+    }
+
     /// What one of its buttons asks of the tree. « Modifier » reopens what
     /// the alert is about, a sketch or a section as a double-click on its row
     /// does; « Montrer » marks a sketch or a volume, the sketch left closed,
@@ -84,6 +92,7 @@ impl Alert {
             (AlertButton::Modify, About::Sketch(sketch)) => TreeAction::EditSketch(sketch),
             (AlertButton::Modify, About::Section(id)) => TreeAction::EditSection(id),
             (AlertButton::Modify, About::Volume { step }) => TreeAction::EditExtrusion(step),
+            (_, About::Blend { .. }) => TreeAction::None,
         }
     }
 }
@@ -167,12 +176,32 @@ impl<'a> TitleBar<'a> {
     }
 }
 
-/// One alert for each element of the part wearing a badge in its tree.
+/// One alert for each element of the part wearing a badge in its tree, and
+/// one for each chamfer or fillet the part could not build.
 fn alerts_of(document: &PartDocument, lang: &Catalogue) -> Vec<Alert> {
-    PartTree::of(document, lang)
-        .problems()
-        .map(|flagged| Alert::of(flagged, lang))
-        .collect()
+    let tree = PartTree::of(document, lang);
+    let flagged = tree.problems().map(|flagged| Alert::of(flagged, lang));
+    flagged.chain(blends_not_built(document, lang)).collect()
+}
+
+fn blends_not_built<'a>(
+    document: &'a PartDocument,
+    lang: &'a Catalogue,
+) -> impl Iterator<Item = Alert> + 'a {
+    let applied = document.history.applied_operations().iter().enumerate();
+    applied.filter_map(move |(step, operation)| {
+        let Operation::Blend { shape, .. } = operation else {
+            return None;
+        };
+        let reason = document.declined_because(document.history.number_at(step)?)?;
+        let name = wording::history::label(lang, document.variables(), operation);
+        Some(Alert {
+            about: About::Blend { step },
+            level: Problem::NotBuilt.level(),
+            title: alerts::title(lang, &name, Problem::NotBuilt),
+            sentence: alerts::blend_not_built(lang, *shape, reason),
+        })
+    })
 }
 
 fn counted(alerts: &[Alert], lang: &Catalogue) -> Option<AlertsButton> {

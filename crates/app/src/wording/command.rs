@@ -69,6 +69,7 @@ pub fn label(lang: &Catalogue, command: Command) -> String {
         Command::ExtrusionStraight => "command.label.extrusion_straight",
         Command::ExtrusionRevolution => "command.label.extrusion_revolution",
         Command::ExtrusionApply => "command.label.extrusion_apply",
+        Command::BlendApply => "command.label.blend_apply",
         Command::ExtrusionCancel => "command.label.extrusion_cancel",
         Command::ExportStlCoarse => "command.label.export_stl_coarse",
         Command::ExportStlNormal => "command.label.export_stl_normal",
@@ -144,6 +145,7 @@ pub fn hint(lang: &Catalogue, command: Command) -> String {
         Command::ExtrusionStraight => "command.hint.extrusion_straight",
         Command::ExtrusionRevolution => "command.hint.extrusion_revolution",
         Command::ExtrusionApply => "command.hint.extrusion_apply",
+        Command::BlendApply => "command.hint.blend_apply",
         Command::ExtrusionCancel => "command.hint.extrusion_cancel",
         Command::ExportStlCoarse | Command::ExportStlNormal | Command::ExportStlFine => {
             "command.hint.export_stl"

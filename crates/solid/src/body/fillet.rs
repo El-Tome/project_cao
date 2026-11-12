@@ -65,10 +65,15 @@ impl Body {
     /// round themselves — is rounded at that radius and mitred against it on
     /// one ellipse, from where the full round leaves the face the two share to
     /// where the upright's round leaves its other face, the crown at a square
-    /// end. An edge of a full round meeting any other edge of the list at a
-    /// corner, those two where the upright at the tip is named too, an upright
-    /// where a third edge of the list ends (#837), or one of a round bottom
-    /// meeting any, is declined `Unsupported`. Rounds
+    /// end; named with the edge at the full round's end, the three are closed
+    /// at their corner by a piece of sphere, and the tip of a tongue as wide
+    /// as two radii, its end edge and both uprights named, is one quarter of a
+    /// ball, the end edge's round closing to nothing between the two corners
+    /// and the ball answering to its number and both corners'. An edge of a
+    /// full round meeting any other edge of the list at a corner, those two
+    /// where the upright at the tip is named too, an upright where a third
+    /// edge of the list ends but the edge at its end (#837), or one of a round
+    /// bottom meeting any, is declined `Unsupported`. Rounds
     /// that would meet only on a curved edge are not measured, and declined
     /// `Unsupported` where they meet. The first edge declined declines the
     /// step.

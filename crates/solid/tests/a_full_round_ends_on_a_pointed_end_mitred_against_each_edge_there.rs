@@ -118,11 +118,15 @@
 //! - Decided on the way, after the mutation run (2026-11-12): admitting an
 //!   edge at a full round's end holds only an edge of the top meeting both
 //!   edges of the pair, or one of them and another such edge meeting the
-//!   other; the lists it must keep declined are held, each `Unsupported` in
-//!   every order. A full round, the edge across its square end and the
-//!   upright at one corner of that end — a full round meeting an upright,
-//!   #837's: the upright lies off the face the pair meets across —
-//!   `a_fillet_on_a_full_round_its_square_end_s_edge_and_the_upright_at_one_corner_of_that_end_is_declined_as_unsupported_whatever_the_order`
+//!   other. A full round, the edge across its square end and the upright at
+//!   one corner of that end — a full round meeting an upright, #837's, the
+//!   upright lying off the face the pair meets across — was held here
+//!   declined `Unsupported` in every order, until #837's second slice built
+//!   it — no test: the decline went with that slice, and the body, its front
+//!   corner closed by a piece of sphere and its back corner mitred, is held in
+//!   `a_full_round_meets_the_round_of_an_upright_at_its_end_on_an_ellipse.rs`
+//!   by
+//!   `a_fillet_on_a_full_round_the_edge_across_its_end_and_the_upright_at_its_front_corner_closes_that_corner_with_a_piece_of_sphere_and_mitres_the_other_whatever_the_order`
 //! - Found on the way, after the mutation run (2026-11-12): a full round and
 //!   one edge of its point alone, tip (33,3), is not declined but stops short
 //!   of the full round, at 6 − 3√2 with the top kept, in every order — and
@@ -2038,33 +2042,6 @@ fn a_fillet_on_a_full_round_and_the_two_edges_of_a_lopsided_point_tangent_to_one
         2.0,
         "the full round's pair and the two edges of the lopsided point whose tip stands at \
          (98/3, 2), both tangent to the circle of radius 3 about (29, 3), its back 31 long",
-    );
-}
-
-/// A block [`LENGTH`] long, [`WIDTH`] wide and [`HEIGHT`] high, raised as
-/// `cao_part` builds a step: its floor nought, its top one, its front, right
-/// end, back and left end two to five.
-fn square_ended_plate() -> Body {
-    raised(
-        Contour::rectangle(DVec2::ZERO, DVec2::new(LENGTH, WIDTH)),
-        HEIGHT,
-    )
-}
-
-#[test]
-fn a_fillet_on_a_full_round_its_square_end_s_edge_and_the_upright_at_one_corner_of_that_end_is_declined_as_unsupported_whatever_the_order()
- {
-    let [front, right_end, back] = [2, 3, 4];
-    declined_in_every_order(
-        &square_ended_plate(),
-        &[
-            ([TOP, front], "the top's front edge"),
-            ([TOP, back], "the top's back edge"),
-            ([TOP, right_end], "the top's right edge"),
-            ([front, right_end], "the upright at the front right corner"),
-        ],
-        "a full round, the edge across its square end and the upright at that end's front \
-         corner, a full round meeting an upright, until #837 builds it",
     );
 }
 

@@ -35,7 +35,11 @@ impl Exact {
     /// standing full round — is rounded at that radius too and mitred against
     /// it on one ellipse, from where the full round leaves the face the two
     /// share to where the upright's round leaves its other face, the crown at
-    /// a square end. Where
+    /// a square end; with the edge at its end, the three closed at their
+    /// corner by a piece of sphere, as below — and at the tip of a tongue as
+    /// wide as two radii, the end edge's round closing to nothing between the
+    /// two corners, by one quarter of a ball answering to its number and both
+    /// corners'. Where
     /// matter lies past an end of an edge rounded off, behind the one flat face
     /// it runs into there — the inner corner of an L, a pocket's rim, the foot
     /// of a block standing on another — its round stops flush on that face,
@@ -110,8 +114,8 @@ impl Exact {
     /// another edge of the list at a corner but the edge at its end, the two
     /// of a pointed or a V-notched end or an upright, those two meeting where
     /// the upright at the tip is named too and an upright where a third edge
-    /// of the list ends, one of a round bottom meeting any, and a cut that
-    /// left anything but its round —
+    /// of the list ends but the edge at its end, one of a round bottom meeting
+    /// any, and a cut that left anything but its round —
     /// a face of the prism, the round in two
     /// pieces or with a corner on neither of the edge's faces, a face the body
     /// held, but the edge's two, taken away whole — as where a round leaving
@@ -139,7 +143,10 @@ impl Exact {
             .iter()
             .enumerate()
             .all(|(rank, name)| match together(rank, &pairs)[..] {
-                [_] => cut.rounded_alone(name, made(rank)),
+                [_] => {
+                    cut.rounded_alone(name, made(rank))
+                        || cut.closed_between(name, made(rank), made(names.len()))
+                }
                 ref ranks => {
                     cut.rounded_as(name, &ranks.iter().map(|&at| made(at)).collect::<Vec<_>>())
                 }
@@ -158,6 +165,22 @@ impl Exact {
     /// floor [`Wedge::rounded`] declines would.
     fn rounded_alone(&self, name: &EdgeName, made: u32) -> bool {
         self.rounded_as(name, &[made])
+    }
+
+    /// Whether the round closed to nothing between two corners one radius
+    /// apart (#837): the face answering to `made` answers past `closing` too,
+    /// where the pieces closing the step's corners are numbered, to the one
+    /// piece of sphere closing both, and to nothing else, as
+    /// [`Exact::rounded_as`] reads it of all those numbers.
+    fn closed_between(&self, name: &EdgeName, made: u32, closing: u32) -> bool {
+        let numbers: Vec<u32> = (self.named(made as usize))
+            .flat_map(|face| self.brep.numbers(face).to_vec())
+            .collect();
+        numbers.iter().any(|&number| number >= closing)
+            && numbers
+                .iter()
+                .all(|&number| number == made || number >= closing)
+            && self.rounded_as(name, &numbers)
     }
 
     /// Whether the round stands as a face of its own answering to `numbers`,

@@ -92,12 +92,13 @@
 //!   `a_chamfer_and_a_fillet_blend_the_corner_their_edges_meet_at.rs` and
 //!   `a_full_round_ends_on_a_pointed_end_mitred_against_each_edge_there.rs`,
 //!   and run beside this file. What changes there is a decline, not a body:
-//!   in the second file,
-//!   `a_fillet_on_a_full_round_meeting_an_upright_or_another_full_round_and_on_a_round_bottom_meeting_the_edge_at_its_end_is_declined_as_unsupported_whatever_the_order`
+//!   in the second file, the decline now named
+//!   `a_fillet_on_a_full_round_meeting_another_full_round_and_on_a_round_bottom_meeting_the_edge_at_its_end_is_declined_as_unsupported_whatever_the_order`
 //!   gives up the list of the pair and the front-right upright, which this
-//!   slice builds, and keeps the tongue's for the second slice; in the third,
-//!   the decline of the pair, the end edge and the front-right upright stays
-//!   until the second slice
+//!   slice builds, and kept the tongue's for the second slice, which builds it
+//!   below; in the third, the decline of the pair, the end edge and the
+//!   front-right upright stayed until the second slice, which builds that list
+//!   below too
 //! - Decided on the way, after the review (2026-11-12): what the branch lets
 //!   in beside the issue's end, each list declined on `main`, is held to the
 //!   shape the distance to the named walls gives — built exact in every
@@ -240,6 +241,94 @@
 //! leaves the corner's other wall, at `z = 7 + r·sin β`. The booleans give
 //! each volume as well, every round's prism cut whole from the plate, the
 //! upright's raised up its height.
+//!
+//! The tip of a thin tongue rounded all round: the pair, the edge across the
+//! end and both uprights there, filleted at 3 on the block 6 wide. Each of the
+//! end's two top corners, where three named edges meet, is closed by a piece
+//! of sphere one radius from its three faces, as #699 closes it; at 6 wide
+//! both are centred at the crossing of the two full rounds' axes,
+//! (27, 3, 7), and the end edge's round between them closes to nothing. The
+//! tip is one quarter of a ball, past the planes x = 27 and z = 7, tangent to
+//! the lying full round along the half circle x = 27 and to the standing one
+//! along z = 7; the two full rounds touch only where those half circles end,
+//! (27, 0, 7) and (27, 6, 7). With the front upright alone, the front corner
+//! is closed by the piece of sphere about that same centre and the back corner
+//! mitred as #803 mitres it. Chamfered, the end edge's flat closes to nothing
+//! between the two corners' triangles, which meet on a ridge.
+//!
+//! Closes #837 — its second slice only, the spheres. Its third, the pointed
+//! end's tip, comes on a branch of its own.
+//! - The tongue — the pair, the end edge and both uprights — filleted at 3:
+//!   built in every order, one body; the tip a quarter of a ball of radius 3
+//!   centred (27, 3, 7), meeting the lying full round on the half circle
+//!   x = 27 and the standing one on z = 7; the volume arithmetic gives —
+//!   `a_fillet_on_a_full_round_the_edge_across_its_end_and_both_uprights_there_rounds_the_tongue_s_tip_into_a_quarter_of_a_ball_whatever_the_order`.
+//!   Read as: in each of the 120 orders, the value taken whole; the body
+//!   exact, closed, uncrossed, holding `1134 + 162π`, which the booleans give
+//!   too, and its triangles enclosing that within the drawing's tolerance; the
+//!   top and the end gone; the lying full round one face answering to both
+//!   its edges' ranks, the standing one one face answering to both uprights'
+//!   ranks, and the quarter ball one face answering to the end edge's rank
+//!   and to the two numbers #699 gives, after every edge's, the patches of the
+//!   two corners it closes, a ray meeting it naming the end edge's rank; the
+//!   quarter ball drawn on its sphere only, past both planes, and met there
+//!   from outside; the lying full round drawn on its half cylinder only and
+//!   never past x = 27, the standing one on its own and never above z = 7,
+//!   each met first from outside; each meeting the quarter ball along its half
+//!   circle, drawn from (27, 0, 7) to (27, 6, 7) through the points between,
+//!   and the two sharing no other point; at each of those two points one
+//!   vertex, where the wall there, both full rounds and the quarter ball meet;
+//!   the front and the back up to (27, 0, 7) and (27, 6, 7), and the floor up
+//!   to the half circle of radius 3 about (27, 3); every face meeting the
+//!   faces it bounds by one edge each, the quarter ball the two full rounds
+//!   only; and every order laying the body the listed order lays. Not in the
+//!   issue's wording, a choice of this test: the quarter ball answers to what
+//!   merged into it, as the full round answers to both its edges — the end
+//!   edge's round, of no length at 6 wide, and the two corners' pieces of
+//!   sphere, three faces numbered so at 6.5 wide
+//! - The pair, the end edge and the front-right upright: built in every
+//!   order, one body; the front corner closed by the piece of sphere centred
+//!   (27, 3, 7), the back corner mitred against the end edge's round as #803
+//!   does; the volume arithmetic gives —
+//!   `a_fillet_on_a_full_round_the_edge_across_its_end_and_the_upright_at_its_front_corner_closes_that_corner_with_a_piece_of_sphere_and_mitres_the_other_whatever_the_order`
+//! - The tongue chamfered at 3: built in every order, one body; the end
+//!   edge's flat gone, the two corners' triangles meeting on the ridge from
+//!   (27, 3, 10) to (30, 3, 7); the volume arithmetic gives —
+//!   `a_chamfer_on_a_full_round_the_edge_across_its_end_and_both_uprights_there_closes_the_end_edge_s_flat_to_a_ridge_between_the_corners_triangles_whatever_the_order`
+//! - Throughout, as far as this slice goes: the lists `main` builds keep their
+//!   bodies — the chamfers above but the tongue's, the end edge with both
+//!   uprights without the pair, and every one of these at 6.5 wide — held by
+//!   the first slice's test, which this slice leaves as it is —
+//!   `the_lists_main_builds_at_the_end_of_a_block_6_or_6_5_wide_keep_their_bodies_in_every_order`
+//! - Throughout: no body of #698's, #699's, #803's or #843's tests changes —
+//!   no test: those tests hold their own bodies and run beside this file.
+//!   What changes there is a decline, not a body: in
+//!   `a_chamfer_and_a_fillet_blend_the_corner_their_edges_meet_at.rs`, the
+//!   fillet's decline gives up the tongue, built above, keeps the round bottom
+//!   and the block 6 by 6, and is renamed for them
+//!   `a_fillet_on_a_full_round_meeting_another_full_round_and_on_a_round_bottom_meeting_the_edge_at_its_end_is_declined_as_unsupported_whatever_the_order`;
+//!   the chamfer's decline on the tongue there,
+//!   `a_chamfer_on_a_full_round_pair_s_edges_the_edge_at_their_end_and_both_uprights_there_is_declined_as_unsupported_whatever_the_order`,
+//!   gives way to the third criterion's test; and in
+//!   `a_full_round_ends_on_a_pointed_end_mitred_against_each_edge_there.rs`,
+//!   `a_fillet_on_a_full_round_its_square_end_s_edge_and_the_upright_at_one_corner_of_that_end_is_declined_as_unsupported_whatever_the_order`
+//!   goes, the list it declined built by the second criterion's test
+//!
+//! The tongue's volume is the arithmetic above, its five edges' rounds each
+//! taken whole, the top's front and back edges 30 long, the end edge 6 and
+//! each upright 10, and `r³(2 − 7π/12)` given back at each of the end's two
+//! top corners, where three named edges meet:
+//! `LWH − 86r²(1 − π/4) + 2r³(2 − 7π/12)`, `1134 + 162π`, 1642.94. Read the
+//! other way, it is the full round's section, `42 + 9π/2`, along the 27 the
+//! lying full round runs; the standing half disc, `9π/2`, up the 7 the
+//! standing one rises; and the quarter ball, `πr³/3`. The booleans give it as
+//! #699's give a corner's piece of sphere: the prisms of the lying full round,
+//! the standing one and the end edge's round cut whole from the block; then,
+//! of what is left, the cell past both planes x = 27 and z = 7 — where the
+//! three prisms leave a quarter of the solid common to the three cylinders —
+//! taken away,
+//! and the ball's sector over it given back, `r³Ω/3` for the quarter's solid
+//! angle `Ω = π`.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::f64::consts::{PI, SQRT_2};
@@ -261,8 +350,9 @@ const EXACT: f64 = 1e-9;
 const DRAWN: f64 = 2e-4;
 
 /// How far from the mitre a ray aims, on either side of it, to meet the
-/// triangles of the round it aims at rather than the other's: well over the
-/// drawing's tolerance on the block, [`DRAWN`] times its reach.
+/// triangles of the round it aims at rather than the other's — and as far
+/// from the seam where a full round meets the tip's quarter ball: well over
+/// the drawing's tolerance on the block, [`DRAWN`] times its reach.
 const CLEAR_OF_THE_MITRE: f64 = 0.1;
 
 /// How far a volume `main` measured may stand from the arithmetic: half the
@@ -1181,14 +1271,16 @@ fn every_order(count: usize) -> Vec<Vec<usize>> {
 /// it has, every face laid on the edges named in `order` read by the edge it
 /// was laid on, as the rank the listed order gives that edge: what tells two
 /// bodies the same face for face, whatever the order their edges were named
-/// in.
+/// in. A patch closing a corner, numbered past every edge's rank, is read as
+/// its own number: the lists here close no corner or one, or close both with
+/// one face answering to both patches.
 fn meetings(body: &Body, start: usize, order: &[usize]) -> BTreeMap<Vec<u32>, Vec<Vec<u32>>> {
     let as_listed = |side: Vec<u32>| -> Vec<u32> {
         let mut read: Vec<u32> = side
             .into_iter()
             .map(|number| {
                 let number = number as usize;
-                if number < start {
+                if number < start || number >= start + order.len() {
                     number as u32
                 } else {
                     (start + order[number - start]) as u32
@@ -2326,4 +2418,386 @@ fn a_fillet_on_a_full_round_a_hair_short_the_upright_at_its_end_and_the_floor_s_
         kept(Cut::Fillet, hair_wide, &edges),
         || left_by_booleans(&block(WIDTH), &tools),
     );
+}
+
+/// The slab beyond the plane through `through` square to `away`, on the side
+/// `away` points to: `size` each way across it, and `size` deep.
+fn beyond(part: &Body, through: DVec3, away: DVec3, size: f64) -> Body {
+    let away = away.normalize();
+    let u = away.any_orthonormal_vector();
+    part.tool_raised(
+        &profile(Contour::rectangle(DVec2::splat(-size), DVec2::splat(size))),
+        Frame {
+            origin: through,
+            u,
+            v: away.cross(u),
+        },
+        away * size,
+    )
+    .expect("the slab raises")
+}
+
+/// What the block keeps once the tongue's five edges are rounded at
+/// [`RADIUS`] and its tip closed by the quarter ball, computed apart from the
+/// step as #699 computes a corner's piece of sphere: the prisms of the lying
+/// full round, of the standing one and of the end edge's round, each raised
+/// whole, cut away by the booleans; then, of what is left, the part past both
+/// planes through the crossing square to the block and to the uprights,
+/// x = 27 and z = 7 — the cell the quarter ball fills — taken away, and the
+/// ball's sector over that cell given back, a third of the radius cubed times
+/// the quarter's solid angle, π.
+fn tip_by_booleans(part: &Body) -> f64 {
+    let tools: [&Tool; 3] = [&full_round_tool, &standing_full_round_tool, &end_edge_tool];
+    let rounded = tools.iter().fold(part.clone(), |left, tool| {
+        left.difference(&tool(&left))
+            .expect("a round's prism cuts the block")
+    });
+    let cell = [-DVec3::X, -DVec3::Z]
+        .into_iter()
+        .fold(rounded.clone(), |left, away| {
+            left.difference(&beyond(&left, crossing(), away, 100.0))
+                .expect("a plane through the crossing cuts the block")
+        });
+    rounded.volume() - cell.volume() + RADIUS.powi(3) * PI / 3.0
+}
+
+/// Every point of `some` that stands at a point of `others`, each once.
+fn shared_points(some: &[DVec3], others: &[DVec3]) -> Vec<DVec3> {
+    let mut shared: Vec<DVec3> = Vec::new();
+    for &point in some {
+        if drawn_through(others, point) && !drawn_through(&shared, point) {
+            shared.push(point);
+        }
+    }
+    shared
+}
+
+/// Holds that the fillet at [`RADIUS`] on the tongue's five edges — the full
+/// round's pair, the edge across the end and both uprights, listed in that
+/// order — named in `order` and laid as `filleted`, takes the value whole and
+/// rounds the tip into a quarter of a ball, as [`shaped_as_the_quarter_ball`]
+/// holds it, its faces numbered as #698 and #699 number them: each full round
+/// one face answering to both its edges' ranks; the quarter ball one face
+/// answering to the end edge's rank and to the two patches #699 numbers after
+/// every edge's, one for each corner it closes; the top and the end gone; and
+/// the next step numbering its faces past the patches.
+fn rounds_the_tip_into_a_quarter_ball(
+    part: &Body,
+    order: &[usize],
+    filleted: &Filleted,
+    what: &str,
+) {
+    let start = part.faces_end();
+    let count = order.len();
+    let laid_end = start + count + 2;
+    taken_as_asked(filleted.asked, filleted.taken, RADIUS, what);
+    let body = &filleted.body;
+    let lying = ranks_of(start, order, &[0, 1]);
+    let standing = ranks_of(start, order, &[3, 4]);
+    let mut ball = ranks_of(start, order, &[2]);
+    ball.extend(start + count..laid_end);
+
+    for (gone, which) in [(TOP, "the top"), (END, "the end")] {
+        assert!(
+            !body.has_face(gone),
+            "{what}: {which} is gone, the tip rounded over it"
+        );
+    }
+    let mut kept_and_laid = numbers(part);
+    kept_and_laid.remove(&TOP);
+    kept_and_laid.remove(&END);
+    kept_and_laid.extend(start..laid_end);
+    assert_eq!(
+        numbers(body),
+        kept_and_laid,
+        "{what}: every face of the block but its top and its end, the lying full round \
+         answering to {lying:?}, the standing one to {standing:?}, and the quarter ball to \
+         {ball:?}, the end edge's rank and a patch for each corner it closes"
+    );
+    assert_eq!(
+        body.faces_end(),
+        laid_end,
+        "{what}: the next step numbers its faces past the {count} the list gave its edges and \
+         the two patches of the corners the quarter ball closes"
+    );
+    one_curved_face_answers_to(body, &lying, &format!("{what}: the lying full round"));
+    one_curved_face_answers_to(body, &standing, &format!("{what}: the standing full round"));
+    one_curved_face_answers_to(body, &ball, &format!("{what}: the quarter ball"));
+    shaped_as_the_quarter_ball(part, body, &lying, &standing, &ball, what);
+}
+
+/// Holds that `body` is the block's tongue rounded all round, the lying full
+/// round answering to the numbers `lying`, the standing one to `standing` and
+/// the quarter ball to `ball`: the body exact, closed, uncrossed and drawn,
+/// holding what arithmetic promises; the quarter ball drawn on the sphere of
+/// [`RADIUS`] about the crossing of the two full rounds' axes, past both
+/// planes x = 27 and z = 7 only, and met there from outside; each full round
+/// drawn on its own half cylinder and on its own side of its plane, and met
+/// there from outside; the lying one meeting the quarter ball along the half
+/// circle x = 27, the standing one along the half circle z = 7, both drawn
+/// between their two ends; the two full rounds sharing those two ends only,
+/// each one vertex where the wall there, both full rounds and the quarter ball
+/// meet; the front, the back and the floor giving up what lies outside the
+/// standing half circle; and every face meeting the faces it bounds, one edge
+/// each, the quarter ball the two full rounds only.
+fn shaped_as_the_quarter_ball(
+    part: &Body,
+    body: &Body,
+    lying: &[usize],
+    standing: &[usize],
+    ball: &[usize],
+    what: &str,
+) {
+    let r = RADIUS;
+    let centre = crossing();
+    let lying_halves = [-DVec3::Y, DVec3::Y].map(lying_half);
+    let standing_halves = [-DVec3::Y, DVec3::Y].map(standing_half);
+    let area: f64 = lying_halves
+        .iter()
+        .chain(&standing_halves)
+        .map(Round::area)
+        .sum::<f64>()
+        + PI * r * r;
+    sound_drawn_within(
+        body,
+        kept(
+            Cut::Fillet,
+            WIDTH,
+            &[TOP_FRONT, TOP_BACK, TOP_END, FRONT_UPRIGHT, BACK_UPRIGHT],
+        ),
+        DRAWN * reach_of(part) * area,
+        what,
+    );
+
+    let ball_drawn: Vec<DVec3> = body.triangles_of(ball[0]).flatten().collect();
+    for &point in &ball_drawn {
+        assert!(
+            (point.distance(centre) - r).abs() < PLACE
+                && point.x >= centre.x - PLACE
+                && point.z >= centre.z - PLACE,
+            "{what}: the quarter ball is drawn through {point}, off the quarter of the sphere of \
+             {r} about {centre} past the planes x = {} and z = {}",
+            centre.x,
+            centre.z
+        );
+    }
+    for way in [
+        DVec3::new(1.0, 0.0, 1.0),
+        DVec3::new(2.0, 0.0, 1.0),
+        DVec3::new(1.0, 0.0, 2.0),
+        DVec3::new(1.0, -2.0, 1.0),
+        DVec3::new(1.0, 2.0, 1.0),
+        DVec3::new(2.0, -1.0, 2.0),
+        DVec3::new(2.0, 1.0, 2.0),
+    ] {
+        let facing = way.normalize();
+        let from = centre + facing * (r + 10.0);
+        let hit = body.ray_hit(from, -facing).unwrap_or_else(|| {
+            panic!("{what}: a ray from {from} toward the quarter ball's centre meets nothing")
+        });
+        assert_eq!(
+            hit.face, ball[0],
+            "{what}: a ray from {from} toward the quarter ball's centre meets face {} before it",
+            hit.face
+        );
+        assert!(
+            hit.normal.distance(facing) < PLACE,
+            "{what}: where a ray from {from} meets it, the quarter ball faces {}, not {facing}, \
+             away from its centre",
+            hit.normal
+        );
+    }
+
+    let lying_drawn: Vec<DVec3> = body.triangles_of(lying[0]).flatten().collect();
+    for &point in &lying_drawn {
+        assert!(
+            lying_halves.iter().any(|half| half.holds(point)) && point.x <= centre.x + PLACE,
+            "{what}: the lying full round is drawn through {point}, off its half cylinder of {r} \
+             about the line {r} under the middle of the top, or past x = {}, where the quarter \
+             ball takes over",
+            centre.x
+        );
+    }
+    let standing_drawn: Vec<DVec3> = body.triangles_of(standing[0]).flatten().collect();
+    for &point in &standing_drawn {
+        assert!(
+            standing_halves.iter().any(|half| half.holds(point)) && point.z <= centre.z + PLACE,
+            "{what}: the standing full round is drawn through {point}, off its half cylinder of \
+             {r} about the vertical through {}, or above z = {}, where the quarter ball takes over",
+            centre.truncate(),
+            centre.z
+        );
+    }
+    for half in &lying_halves {
+        met_from_outside_where(
+            body,
+            lying[0],
+            half,
+            |aim| aim.x < centre.x - CLEAR_OF_THE_MITRE,
+            &format!("{what}: the lying full round, short of the quarter ball"),
+        );
+    }
+    for half in &standing_halves {
+        met_from_outside_where(
+            body,
+            standing[0],
+            half,
+            |aim| aim.z < centre.z - CLEAR_OF_THE_MITRE,
+            &format!("{what}: the standing full round, under the quarter ball"),
+        );
+    }
+
+    let ends = [0.0, WIDTH].map(|y| DVec3::new(centre.x, y, centre.z));
+    for end in ends {
+        for (drawn, which) in [
+            (&lying_drawn, "the lying full round"),
+            (&standing_drawn, "the standing full round"),
+            (&ball_drawn, "the quarter ball"),
+        ] {
+            assert!(
+                drawn_through(drawn, end),
+                "{what}: {which} is drawn up to {end}, where the quarter ball's two half circles \
+                 meet"
+            );
+        }
+    }
+    for (seam, plane, way, called) in [
+        (
+            shared_points(&lying_drawn, &ball_drawn),
+            DVec3::X,
+            DVec3::Z,
+            "the lying full round",
+        ),
+        (
+            shared_points(&standing_drawn, &ball_drawn),
+            DVec3::Z,
+            DVec3::X,
+            "the standing full round",
+        ),
+    ] {
+        for &point in &seam {
+            assert!(
+                ((point - centre).dot(plane)).abs() < PLACE
+                    && on_the_circle_toward(point, centre, r, &[way]),
+                "{what}: {called} and the quarter ball meet at {point}, off the half circle of {r} \
+                 about {centre} square to {plane}"
+            );
+        }
+        assert!(
+            seam.len() > 2 && ends.iter().all(|&end| drawn_through(&seam, end)),
+            "{what}: {called} and the quarter ball meet along the half circle square to {plane}, \
+             drawn from {} to {} through the points between: {seam:?}",
+            ends[0],
+            ends[1]
+        );
+    }
+    let full_rounds_meet = shared_points(&lying_drawn, &standing_drawn);
+    assert!(
+        same_points(&full_rounds_meet, &ends),
+        "{what}: the two full rounds share no point but {} and {}, where both meet the quarter \
+         ball: {full_rounds_meet:?}",
+        ends[0],
+        ends[1]
+    );
+    for (wall, end) in [(FRONT, ends[0]), (BACK, ends[1])] {
+        assert_eq!(
+            vertices_among(body, &[&[wall], lying, standing, ball]),
+            1,
+            "{what}: the wall, the two full rounds and the quarter ball meet at one vertex, {end}"
+        );
+    }
+
+    for (wall, y, which) in [(FRONT, 0.0, "the front"), (BACK, WIDTH, "the back")] {
+        corners_are(
+            body,
+            wall,
+            &[
+                DVec3::new(0.0, y, 0.0),
+                DVec3::new(LENGTH - r, y, 0.0),
+                DVec3::new(LENGTH - r, y, HEIGHT - r),
+                DVec3::new(0.0, y, HEIGHT - r),
+            ],
+            &format!(
+                "{what}: {which}, up to where the lying full round takes over and out to where \
+                 the standing one does"
+            ),
+        );
+        assert_eq!(
+            sides_met_by(body, &[wall]),
+            sides_answering(&[&[FLOOR], &[LEFT], lying, standing]),
+            "{what}: {which} meets the floor, the left end and the two full rounds, by one edge \
+             each, and the quarter ball at a point only"
+        );
+    }
+    corners_are_along_an_arc(
+        body,
+        FLOOR,
+        &[
+            DVec3::ZERO,
+            DVec3::new(LENGTH - r, 0.0, 0.0),
+            DVec3::new(LENGTH - r, WIDTH, 0.0),
+            DVec3::new(0.0, WIDTH, 0.0),
+        ],
+        |corner| on_the_circle_toward(corner, centre.truncate().extend(0.0), r, &[DVec3::X]),
+        &format!(
+            "{what}: the floor, its end given up to the standing full round along the half \
+             circle of {r} about {}",
+            centre.truncate()
+        ),
+    );
+    assert_eq!(
+        sides_met_by(body, &[FLOOR]),
+        sides_answering(&[&[FRONT], &[BACK], &[LEFT], standing]),
+        "{what}: the floor meets the front, the back, the left end and the standing full round, \
+         by one edge each"
+    );
+    assert_eq!(
+        sides_met_by(body, &[LEFT]),
+        sides_answering(&[&[FLOOR], &[FRONT], &[BACK], lying]),
+        "{what}: the left end meets the floor, the front, the back and the lying full round, by \
+         one edge each"
+    );
+    assert_eq!(
+        sides_met_by(body, lying),
+        sides_answering(&[&[FRONT], &[BACK], &[LEFT], ball]),
+        "{what}: the lying full round meets the front and the back along its sides, the left \
+         end, and the quarter ball along the half circle x = 27, by one edge each"
+    );
+    assert_eq!(
+        sides_met_by(body, standing),
+        sides_answering(&[&[FLOOR], &[FRONT], &[BACK], ball]),
+        "{what}: the standing full round meets the floor, the front and the back along its \
+         sides, and the quarter ball along the half circle z = 7, by one edge each"
+    );
+    assert_eq!(
+        sides_met_by(body, ball),
+        sides_answering(&[lying, standing]),
+        "{what}: the quarter ball meets the two full rounds, by one edge each, and nothing else"
+    );
+}
+
+#[test]
+fn a_fillet_on_a_full_round_the_edge_across_its_end_and_both_uprights_there_rounds_the_tongue_s_tip_into_a_quarter_of_a_ball_whatever_the_order()
+ {
+    let part = block(WIDTH);
+    let listed = [
+        PAIR[0],
+        PAIR[1],
+        END_EDGE,
+        Upright::Front.edge(),
+        Upright::Back.edge(),
+    ];
+    let edges = listed.map(|(edge, _)| edge);
+    the_arithmetic_gives(&edges, 1134.0 + 162.0 * PI, "1134 + 162π");
+    let promised = kept(Cut::Fillet, WIDTH, &edges);
+    let by_booleans = tip_by_booleans(&part);
+    assert!(
+        (by_booleans - promised).abs() <= EXACT * promised,
+        "the prisms of the lying and the standing full rounds and of the end edge's round, cut \
+         from the block by the booleans, the cell past x = 27 and z = 7 taken away and the \
+         quarter ball given back, leave {by_booleans}, where arithmetic promises {promised}"
+    );
+    filleted_in_every_order(&part, ON_THE_BLOCK, &listed, |order, filleted, what| {
+        rounds_the_tip_into_a_quarter_ball(&part, order, filleted, what);
+    });
 }

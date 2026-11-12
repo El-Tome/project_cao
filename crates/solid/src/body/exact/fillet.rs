@@ -9,7 +9,8 @@ use glam::DVec3;
 
 use super::Exact;
 use super::wedge::{
-    Around, Closing, Meeting, Prism, Together, Wedge, hollowed_across, rounded_across, too_short,
+    Around, Closing, Meeting, Prism, Together, Wedge, hollowed_across, rounded_across, together,
+    too_short,
 };
 use crate::brep::{Declined, EdgeName, Scale, Surface};
 
@@ -85,7 +86,11 @@ impl Exact {
     /// Rounds that would meet only on a curved edge are not measured, and
     /// declined where they meet. The rounds are numbered, in the
     /// order the names come, where the steps' numbers ended; a full round
-    /// answers to both its edges' numbers. Declined `Distance`: a radius that
+    /// answers to both its edges' numbers. Where every edge meets two others
+    /// so, in one closed chain of cuts about one axis — the four long edges of
+    /// a square bar at half its side — the rounds close on themselves into
+    /// one cylinder with no seam, answering to every edge's number, as
+    /// [`Exact::closed_round`] cuts it (#790). Declined `Distance`: a radius that
     /// is no length, one whose round would stand off the faces it replaces by
     /// less than the kernel can set a cut back by — a larger radius stands
     /// further off, and on an edge bent nearly flat is what rounds it — and a
@@ -123,15 +128,15 @@ impl Exact {
             },
         )?;
         let made = |rank: usize| self.next + rank as u32;
-        let alone = names.iter().enumerate().all(|(rank, name)| {
-            let pair = pairs
-                .iter()
-                .find(|&&(earlier, later, _)| rank == earlier || rank == later);
-            match pair {
-                Some(&(earlier, later, _)) => cut.rounded_as(name, &[made(earlier), made(later)]),
-                None => cut.rounded_alone(name, made(rank)),
-            }
-        });
+        let alone = names
+            .iter()
+            .enumerate()
+            .all(|(rank, name)| match together(rank, &pairs)[..] {
+                [_] => cut.rounded_alone(name, made(rank)),
+                ref ranks => {
+                    cut.rounded_as(name, &ranks.iter().map(|&at| made(at)).collect::<Vec<_>>())
+                }
+            });
         if alone {
             Ok((cut, taken))
         } else {

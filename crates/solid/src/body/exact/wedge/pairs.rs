@@ -83,8 +83,7 @@ pub(super) fn bound(
 /// The two edges facing each other, the earlier first, whose set-backs at
 /// `taken` meet across the face they share, leaving none of it the kernel
 /// could keep, and which `together` lays as one, the face gone, each with
-/// the value it is laid at. Declined `Unsupported` where an edge would meet
-/// two others, every face round it gone.
+/// the value it is laid at.
 pub(super) fn meeting(
     wedges: &[Wedge],
     facing: &[(usize, usize, f64)],
@@ -109,6 +108,13 @@ pub(super) fn meeting(
             (laid && too_short(left, scale)).then_some((one, other, value))
         })
         .collect();
+    Ok(pairs)
+}
+
+/// Declined `Unsupported` where an edge of `pairs` would meet two others,
+/// every face round it gone, but where they close on themselves, as
+/// [`super::ring::closed`] reads them.
+pub(super) fn apart(pairs: &[Pair]) -> Result<(), Declined> {
     let ranks: BTreeSet<usize> = pairs
         .iter()
         .flat_map(|&(one, other, _)| [one, other])
@@ -116,7 +122,28 @@ pub(super) fn meeting(
     if ranks.len() < 2 * pairs.len() {
         return Err(Declined::Unsupported);
     }
-    Ok(pairs)
+    Ok(())
+}
+
+/// The ranks of the edges laid as one round with the edge of rank `rank`,
+/// itself among them, as `pairs` join them one to the next, ascending.
+pub(in crate::body::exact) fn together(rank: usize, pairs: &[Pair]) -> Vec<usize> {
+    let mut joined = BTreeSet::from([rank]);
+    loop {
+        let more: Vec<usize> = (pairs.iter())
+            .filter_map(
+                |&(one, other, _)| match (joined.contains(&one), joined.contains(&other)) {
+                    (true, false) => Some(other),
+                    (false, true) => Some(one),
+                    _ => None,
+                },
+            )
+            .collect();
+        if more.is_empty() {
+            return joined.into_iter().collect();
+        }
+        joined.extend(more);
+    }
 }
 
 /// Each edge of `edges` bounding the face a pair of `pairs` whose faces meet

@@ -285,9 +285,8 @@
 //!   the arithmetic puts them; the body exact, closed, uncrossed, holding
 //!   30·(290 − 80/√104 + 8), 8704.660638, which the booleans give too — the
 //!   nose's triangle cut away and the foot's joined on — and its triangles
-//!   enclosing that. The issue writes 40/√104, which gives 8822.33: the
-//!   triangle the nose gives up has two sides 4 long and the sine 10/√104
-//!   between them, 80/√104, and its own figure, 8704.6606, is that one
+//!   enclosing that: the triangle the nose gives up has two sides 4 long
+//!   and the sine 10/√104 between them, 80/√104
 //! - The leaning stair asked 3.999999: the same crease body in both orders,
 //!   taken within a hair of 4, no strip of tread kept —
 //!   `a_chamfer_on_the_nose_and_foot_of_a_tread_whose_front_leans_asked_a_hair_under_half_its_depth_lays_the_same_crease_whichever_is_named_first`.

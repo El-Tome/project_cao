@@ -19,12 +19,6 @@ pub fn detail_in(lang: &Catalogue, document: &PartDocument, operation: &Operatio
     unfolded(lang, document.variables(), operation, &number)
 }
 
-/// The same with no part to ask, a sketch named by its rank from one.
-#[cfg_attr(not(test), expect(dead_code))]
-pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) -> String {
-    unfolded(lang, variables, operation, &crate::wording::sketch::by_rank)
-}
-
 fn unfolded(
     lang: &Catalogue,
     variables: &Variables,

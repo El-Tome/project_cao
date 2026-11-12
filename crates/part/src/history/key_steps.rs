@@ -32,10 +32,13 @@ impl History {
             .get(place + 1..)?
             .iter()
             .filter_map(|step| step.operations().first().copied())
-            .find(|number| {
-                self.position_of(*number)
-                    .is_some_and(|at| at < self.applied)
-            })
+            .find(|number| self.in_effect(*number))
+    }
+
+    /// Whether the operation of that number is in effect: recorded, and not
+    /// undone.
+    pub(crate) fn in_effect(&self, number: u32) -> bool {
+        self.position_of(number).is_some_and(|at| at < self.applied)
     }
 
     /// The rank among the key steps in effect of the one that opened that

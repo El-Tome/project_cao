@@ -21,12 +21,21 @@ fn swept(axis: RevolutionAxis) -> Operation {
     }
 }
 
+/// A part of three sketches, numbered 1 to 3 by the part itself: what a line
+/// unfolded names a sketch by.
+fn a_part_of_three_sketches() -> PartDocument {
+    let mut document = PartDocument::new("part", "2026-11-12T09:00:00Z".parse().expect("a date"));
+    for _ in 0..3 {
+        document.apply(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+            on: None,
+        });
+    }
+    document
+}
+
 fn unfolded(operation: &Operation) -> String {
-    detail(
-        &Catalogue::french(),
-        &cao_part::Variables::default(),
-        operation,
-    )
+    detail_in(&Catalogue::french(), &a_part_of_three_sketches(), operation)
 }
 
 #[test]

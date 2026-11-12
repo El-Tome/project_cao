@@ -20,6 +20,39 @@ impl History {
         self.steps.insert(at, step);
     }
 
+    /// Lays the steps out as `old` lays out those they were written from: the
+    /// steps of each taken in the order they were made, `old`'s in effect
+    /// only. What compaction writes, step for step in the order things were
+    /// done, so keeps the order of the part. Left as they are when the two do
+    /// not answer step for step.
+    pub(crate) fn arranged_as(&mut self, old: &History) {
+        let openings = |history: &History| -> Vec<(u32, usize)> {
+            let mut made: Vec<(u32, usize)> = history
+                .steps
+                .iter()
+                .enumerate()
+                .filter_map(|(at, step)| Some((*step.operations().first()?, at)))
+                .filter(|(number, _)| history.in_effect(*number))
+                .collect();
+            made.sort_unstable();
+            made
+        };
+        let (was, now) = (openings(old), openings(self));
+        if was.len() != now.len() || now.len() != self.steps.len() {
+            return;
+        }
+        let mut places: Vec<(usize, usize)> = was
+            .iter()
+            .zip(&now)
+            .map(|((_, there), (_, here))| (*there, *here))
+            .collect();
+        places.sort_unstable();
+        self.steps = places
+            .into_iter()
+            .map(|(_, here)| self.steps[here].clone())
+            .collect();
+    }
+
     /// The numbers of the operations that opened the sketches, in the order
     /// they were made: a sketch's rank here is what every operation names it
     /// by.

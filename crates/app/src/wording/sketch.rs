@@ -10,12 +10,7 @@ use crate::lang::Catalogue;
 pub fn number(document: &PartDocument, sketch: usize) -> u32 {
     document
         .sketch_number(sketch)
-        .unwrap_or_else(|| by_rank(sketch))
-}
-
-/// A sketch's rank from one, what it goes by with no part to ask.
-pub fn by_rank(sketch: usize) -> u32 {
-    u32::try_from(sketch + 1).unwrap_or(u32::MAX)
+        .unwrap_or_else(|| u32::try_from(sketch + 1).unwrap_or(u32::MAX))
 }
 
 /// A sketch's name, the one its row, its line in the history and its pill go

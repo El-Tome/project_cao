@@ -26,11 +26,43 @@ impl PartState {
         if let Some(plane) = self.plane_in_the_part(self.sketch_being_made()) {
             return plane;
         }
-        if let Some(plane) = self.face_now(anchor) {
+        let found = FaceAnchor {
+            face: self.face_named_by(anchor.face, self.replaying),
+            ..*anchor
+        };
+        if let Some(plane) = self.face_now(&found) {
             return plane;
         }
         self.adrift.insert(self.sketch_being_made());
         recorded
+    }
+
+    /// The face of the part as it stands that the operation of number
+    /// `recorded_by` named `face`.
+    ///
+    /// A face's number is handed out as the steps of matter replay, each
+    /// numbering its own from where the one before it ended, so a step put in
+    /// before a step of matter moves every number that step gives. The face was
+    /// named against the steps made before the operation naming it, in the
+    /// order of the part: found again among those, it is the face standing at
+    /// the same place of the same step now. With no step put in, that is the
+    /// number as it was named.
+    fn face_named_by(&self, face: usize, recorded_by: u32) -> usize {
+        let raised = &self.replay.raised;
+        if raised.len() != self.made.len() {
+            return face;
+        }
+        let mut then = self.made.first().map_or(0, |range| range.start);
+        for ((number, _), now) in raised.iter().zip(&self.made) {
+            if *number >= recorded_by {
+                continue;
+            }
+            if face < then + now.len() {
+                return now.start + face.saturating_sub(then);
+            }
+            then += now.len();
+        }
+        face
     }
 
     /// The plane the anchored face offers as the part stands now.

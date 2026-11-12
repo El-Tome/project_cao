@@ -28,7 +28,12 @@
 //!   on (a face, an area) gets an alert, as today when an old sketch is edited.
 //!   Nothing is deleted on its own —
 //!   `the_steps_after_an_insertion_replay_on_top_of_it`,
-//!   `a_step_that_loses_its_face_to_an_insertion_is_flagged_and_kept`
+//!   `a_step_that_loses_its_face_to_an_insertion_is_flagged_and_kept`. An area
+//!   cannot be lost that way: a step's areas are its own sketch's, which no
+//!   step put in before it draws in
+//! - decided with the insertion: a later sketch whose face is still there stays
+//!   on that face, the faces made after the insertion numbered further on —
+//!   `a_sketch_on_a_face_made_after_an_insertion_stays_on_that_face`
 //! - Names: a sketch inserted between « Esquisse 2 » and « Esquisse 3 » takes
 //!   the next number, « Esquisse 4 ». The others are not renumbered — the
 //!   number, which the part keeps:
@@ -61,14 +66,23 @@
 //!   `a_dimension_and_an_alert_on_a_later_sketch_still_find_it_after_an_insertion`
 //! - Must not break: undo and redo across an insertion leave the part as it was
 //!   before it — `undoing_and_redoing_an_insertion_gives_back_the_part_as_it_was`
+//! - decided with the insertion: « Compacter l'historique » leaves a part with
+//!   an insertion as it was — its steps in the order of the part, read through
+//!   each the same, its sketches numbered as before —
+//!   `compacting_a_part_with_an_insertion_keeps_the_order_of_its_part`
+//! - decided with the insertion: a sketch compaction lays down again as it was
+//!   drawn, a corner rounded by a variable, is still the sketch that corner
+//!   was rounded on — `compacting_keeps_a_size_written_from_a_variable_on_its_own_sketch`
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
-use cao_part::history::StepKind;
-use cao_part::{ExtrusionMode, FileError, Files, Operation, PartDocument, PointRef};
-use cao_sketch::{Area, DimensionTarget, Element, SegmentId, WorkPlane};
+use cao_part::history::{FaceAnchor, StepKind};
+use cao_part::{
+    ExtrusionMode, FileError, Files, Operation, PartDocument, PointRef, VariableChange,
+};
+use cao_sketch::{Area, Corner, DimensionTarget, Element, SegmentId, WorkPlane};
 use chrono::Utc;
 use glam::{DVec2, DVec3};
 
@@ -714,4 +728,318 @@ fn undoing_and_redoing_an_insertion_gives_back_the_part_as_it_was() {
         &inserted,
         "the three actions of the insertion redone, the part",
     );
+}
+
+/// A square of side `side` about `centre`, a place of XY, drawn in a sketch
+/// in its own terms, then raised by `depth` — `ExtrusionMode::Cut` takes it
+/// away — as a step of its own opened after `key_step`, or at the end.
+fn a_square_raised(
+    document: &mut PartDocument,
+    sketch: usize,
+    (centre, side): (DVec2, f64),
+    depth: f64,
+    (mode, key_step): (ExtrusionMode, Option<usize>),
+) {
+    let plane = document.sketches()[sketch].plane;
+    let local = |place: DVec2| plane.to_local(place.extend(plane.origin.z));
+    let half = DVec2::splat(side / 2.0);
+    document.apply(Operation::AddRectangle {
+        sketch,
+        corner: PointRef::New(local(centre - half)),
+        opposite: PointRef::New(local(centre + half)),
+        construction: false,
+    });
+    let raised = Operation::Extrude {
+        sketch,
+        areas: document.areas_at(sketch, &[local(centre)]),
+        distance: depth.into(),
+        mode,
+    };
+    match key_step {
+        Some(key_step) => document.insert_after(key_step, raised),
+        None => document.apply(raised),
+    };
+}
+
+/// Opens a sketch on the plane `plane`, held by no face, as a step of its own
+/// opened after `key_step`, or at the end. Says which sketch it opened.
+fn open_a_sketch(document: &mut PartDocument, plane: WorkPlane, key_step: Option<usize>) -> usize {
+    let opened = Operation::CreateSketch { plane, on: None };
+    match key_step {
+        Some(key_step) => document.insert_after(key_step, opened),
+        None => document.apply(opened),
+    };
+    document.sketches().len() - 1
+}
+
+/// Opens a sketch on the face a ray coming down on `place` meets first, as a
+/// click there does: held by that face, laid on the plane it offers. Says
+/// which sketch it opened.
+fn open_a_sketch_on_the_face_over(document: &mut PartDocument, place: DVec2) -> usize {
+    let face = document
+        .body()
+        .ray_hit(place.extend(100.0), DVec3::NEG_Z)
+        .expect("a face under that place")
+        .face;
+    let offered = document.body().plane_of(face).expect("a flat face");
+    let up = DVec3::Y;
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::from_face(&offered.corners, offered.normal, up),
+        on: Some(FaceAnchor { face, up }),
+    });
+    document.sketches().len() - 1
+}
+
+fn at_height(height: f64) -> WorkPlane {
+    WorkPlane {
+        origin: DVec3::new(0.0, 0.0, height),
+        ..WorkPlane::XY
+    }
+}
+
+/// The issue's « To try it »: a block 10 by 10 raised 10, and a hole 2 by 2
+/// through its middle, cut 20 up from XY. Four key steps, 960 of matter.
+fn a_block_with_a_hole() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    let block = open_a_sketch(&mut document, WorkPlane::XY, None);
+    a_square_raised(
+        &mut document,
+        block,
+        (DVec2::splat(5.0), 10.0),
+        10.0,
+        (ExtrusionMode::Add, None),
+    );
+    let hole = open_a_sketch(&mut document, WorkPlane::XY, None);
+    a_square_raised(
+        &mut document,
+        hole,
+        (DVec2::splat(5.0), 2.0),
+        20.0,
+        (ExtrusionMode::Cut, None),
+    );
+    assert_volume(
+        document.body().volume(),
+        960.0,
+        "the fixture, a block of 1000 with a hole of 40 through it,",
+    );
+    document
+}
+
+#[test]
+fn the_steps_after_an_insertion_replay_on_top_of_it() {
+    let mut document = a_block_with_a_hole();
+
+    let boss = open_a_sketch(&mut document, at_height(10.0), Some(1));
+    a_square_raised(
+        &mut document,
+        boss,
+        (DVec2::splat(5.0), 6.0),
+        5.0,
+        (ExtrusionMode::Add, Some(2)),
+    );
+
+    assert_eq!(
+        kinds_of_the_steps(&document),
+        [
+            StepKind::Sketch,
+            StepKind::Extrusion,
+            StepKind::Sketch,
+            StepKind::Extrusion,
+            StepKind::Sketch,
+            StepKind::Extrusion,
+        ],
+        "a step was dropped, or the boss's two do not stand third and fourth",
+    );
+    assert_volume(
+        document.shown_through(&BTreeMap::new(), 3).body.volume(),
+        1180.0,
+        "read through the boss, the block and the boss 6 by 6 raised 5, the hole still to come,",
+    );
+    assert_volume(
+        document.body().volume(),
+        1120.0,
+        "the part, the hole cut through the block and through the boss on top of it,",
+    );
+    assert_eq!(
+        top_over(&document, DVec2::splat(5.0)),
+        None,
+        "the hole, replayed on top of the boss put in before it, does not go through it",
+    );
+    assert_top(
+        &document,
+        DVec2::splat(3.0),
+        15.0,
+        "beside the hole, the boss's top",
+    );
+}
+
+/// A block 10 by 10 raised 10 at x = 0, a second raised 5 at x = 40, then a
+/// sketch on the face over `on` and a square of side 4 raised 3 there.
+fn two_blocks_and_a_sketch_on_the_face_over(on: DVec2) -> (PartDocument, usize) {
+    let mut document = PartDocument::new("part", Utc::now());
+    for (centre, depth) in [(DVec2::splat(5.0), 10.0), (DVec2::new(45.0, 5.0), 5.0)] {
+        let sketch = open_a_sketch(&mut document, WorkPlane::XY, None);
+        a_square_raised(
+            &mut document,
+            sketch,
+            (centre, 10.0),
+            depth,
+            (ExtrusionMode::Add, None),
+        );
+    }
+    let on_the_face = open_a_sketch_on_the_face_over(&mut document, on);
+    a_square_raised(
+        &mut document,
+        on_the_face,
+        (on, 4.0),
+        3.0,
+        (ExtrusionMode::Add, None),
+    );
+    assert_volume(
+        document.body().volume(),
+        1548.0,
+        "the fixture, two blocks of 1000 and 500 and a square of 48 on one of them,",
+    );
+    assert!(
+        !document.is_adrift(on_the_face),
+        "the fixture wants the sketch on the face held there",
+    );
+    (document, on_the_face)
+}
+
+#[test]
+fn a_step_that_loses_its_face_to_an_insertion_is_flagged_and_kept() {
+    let (mut document, on_the_top) = two_blocks_and_a_sketch_on_the_face_over(DVec2::splat(5.0));
+    let before = kinds_of_the_steps(&document).len();
+
+    let cut = open_a_sketch(&mut document, WorkPlane::XY, Some(1));
+    a_square_raised(
+        &mut document,
+        cut,
+        (DVec2::splat(5.0), 20.0),
+        20.0,
+        (ExtrusionMode::Cut, Some(2)),
+    );
+
+    assert!(
+        document.is_adrift(on_the_top),
+        "the first block cut away whole by the steps put in after it, the sketch that stood \
+         on its top is not marked as having lost its face: it is laid on {:?}",
+        document.sketches()[on_the_top].plane,
+    );
+    assert_eq!(
+        (
+            kinds_of_the_steps(&document).len(),
+            document.sketches()[on_the_top].live_segments().count()
+        ),
+        (before + 2, 4),
+        "a step, or the square drawn on the sketch that lost its face, was deleted on its \
+         own, as (key steps, the square's sides)",
+    );
+}
+
+/// Where a sketch is laid: its origin and which way it faces.
+fn laid(document: &PartDocument, sketch: usize) -> (DVec3, DVec3) {
+    let plane = document.sketches()[sketch].plane;
+    (plane.origin, plane.normal())
+}
+
+#[test]
+fn a_sketch_on_a_face_made_after_an_insertion_stays_on_that_face() {
+    let (mut document, on_the_second) =
+        two_blocks_and_a_sketch_on_the_face_over(DVec2::new(45.0, 5.0));
+    let before = laid(&document, on_the_second);
+    assert_top(
+        &document,
+        DVec2::new(45.0, 5.0),
+        8.0,
+        "the fixture, the square of side 4 raised 3 on the second block's top,",
+    );
+
+    insert_a_block_after_the_second_sketch(&mut document);
+
+    let after = laid(&document, on_the_second);
+    assert!(
+        !document.is_adrift(on_the_second)
+            && after.0.distance(before.0) < HEIGHT
+            && after.1.distance(before.1) < HEIGHT,
+        "a block put in before the second block was raised moved the sketch on that block's \
+         top off it, from {before:?} to {after:?}, adrift: {}",
+        document.is_adrift(on_the_second),
+    );
+    assert_top(
+        &document,
+        DVec2::new(45.0, 5.0),
+        8.0,
+        "the square raised on the second block's top, once a block is put in before it,",
+    );
+    assert_volume(
+        document.body().volume(),
+        2148.0,
+        "the part, with the 10 by 20 raised 3 put in,",
+    );
+}
+
+#[test]
+fn compacting_a_part_with_an_insertion_keeps_the_order_of_its_part() {
+    let mut document = a_part_of_six_steps();
+    insert_a_block_after_the_second_sketch(&mut document);
+    let inserted = seen(&document);
+
+    document.compact_history();
+
+    assert_seen_alike(&seen(&document), &inserted, "the part compacted");
+}
+
+/// What each sketch has drawn, sketch by sketch: its traits, and the corners
+/// it has cut.
+fn drawings(document: &PartDocument) -> Vec<(usize, usize)> {
+    document
+        .sketches()
+        .iter()
+        .map(|sketch| {
+            (
+                sketch.live_segments().count(),
+                sketch.live_corner_cuts().count(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn compacting_keeps_a_size_written_from_a_variable_on_its_own_sketch() {
+    let mut document = a_part_of_six_steps();
+    let two = document.variables().read("2").expect("it reads");
+    document
+        .change_variable(VariableChange::Added {
+            name: "rounding".to_string(),
+            formula: two,
+        })
+        .expect("nothing to refuse");
+    let rounding = document.variables().read("rounding").expect("it reads");
+    document.apply(Operation::Fillet {
+        sketch: 2,
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
+        radius: rounding,
+        construction: false,
+    });
+    insert_a_block_after_the_second_sketch(&mut document);
+    let (drawn, inserted) = (drawings(&document), seen(&document));
+    assert_eq!(
+        drawn.iter().map(|(_, cut)| *cut).collect::<Vec<_>>(),
+        [0, 0, 1, 0],
+        "the fixture wants one corner of the third sketch rounded by `rounding`, and none \
+         of the sketch put in",
+    );
+
+    document.compact_history();
+
+    assert_eq!(
+        drawings(&document),
+        drawn,
+        "compacted, the third sketch, laid down again as it was drawn for its corner \
+         rounded by `rounding`, or the sketch put in, no longer holds what it held, as \
+         (traits, corners cut) sketch by sketch",
+    );
+    assert_seen_alike(&seen(&document), &inserted, "the part compacted");
 }

@@ -4,8 +4,10 @@
 //! on it. A cylinder's is raised along its axis, and hugs the prism's sides:
 //! a result carries the larger reach of its operands, and a solid standing
 //! out of the part's box would draw every later step coarser. A cone cannot
-//! be raised; its piece is turned about its axis, bounded either side by
-//! planes through the axis and outside by a cylinder about it.
+//! be raised: what stands outside a cylinder just outside it is cut as a
+//! cylinder's is, and only the stretch between the two is held by a piece
+//! turned about the axis, bounded either side by planes through the axis
+//! and outside by a cylinder about it (#807).
 
 use std::f64::consts::{PI, TAU};
 
@@ -156,58 +158,73 @@ fn less_the_disc(rim: &[DVec2], radius: f64) -> Option<Contour> {
     Some(Contour { corners, runs })
 }
 
-/// Where each long edge of the prism, running on `past`, leaves `cone`: the
-/// larger root, on the cone's own nappe, of the quadratic its distance from
-/// the axis squared less the meridian line's makes along the edge — the
-/// inside of a cone is convex, so an edge leaves it once. With that edge's
-/// end past it, and the clearance [`long_edges`] gives. Declined
-/// `Unsupported` where an edge misses the cone, or runs nearer the axis's
-/// way than the meridian line does, and where it leaves the cone outside the
-/// prism's two ends: a piece holding what stands past there would take a
-/// strip of the fill whole.
-fn left(prism: &Prism, cone: &Cone, past: DVec3) -> Result<(Vec<DVec3>, f64), Declined> {
-    let (edges, clear) = long_edges(prism, past);
-    let slope = cone.ruling.y / cone.ruling.x;
-    let mut held = Vec::new();
-    for [near, far] in edges {
-        let (from, run) = (near - cone.origin, far - near);
-        let (h, rise) = (from.dot(cone.axis), run.dot(cone.axis));
-        let (off, drift) = (from - cone.axis * h, run - cone.axis * rise);
-        let (radius, growth) = (cone.foot.y + (h - cone.foot.x) * slope, rise * slope);
+/// How far along each of `edges` it leaves the round about `axis` through
+/// `origin` whose radius at a height `h` along the axis is `radius(h)`,
+/// running straight: the larger root of the quadratic its distance from the
+/// axis squared less that radius squared makes along the edge — the inside
+/// of a cone or a cylinder is convex, so an edge leaves it once. None for an
+/// edge that misses it. Declined `Unsupported` where an edge runs nearer the
+/// axis's way than the round's meridian does, and where one leaves it
+/// outside the prism's two ends or where the radius is no length.
+fn leaving(
+    edges: &[[DVec3; 2]],
+    (origin, axis): (DVec3, DVec3),
+    radius: impl Fn(f64) -> f64,
+) -> Result<Vec<Option<f64>>, Declined> {
+    let mut leaving = Vec::new();
+    for &[near, far] in edges {
+        let (from, run) = (near - origin, far - near);
+        let (h, rise) = (from.dot(axis), run.dot(axis));
+        let (off, drift) = (from - axis * h, run - axis * rise);
+        let (at_near, growth) = (radius(h), radius(h + rise) - radius(h));
         let square = drift.length_squared() - growth * growth;
-        let half = off.dot(drift) - radius * growth;
-        let room = half * half - square * (off.length_squared() - radius * radius);
-        if !(square > 0.0 && room > 0.0) {
+        let half = off.dot(drift) - at_near * growth;
+        let room = half * half - square * (off.length_squared() - at_near * at_near);
+        if square <= 0.0 {
             return Err(Declined::Unsupported);
         }
-        let leaving = (room.sqrt() - half) / square;
-        if !(leaving > 0.0 && leaving < 1.0 && radius + growth * leaving > 0.0) {
+        if room <= 0.0 {
+            leaving.push(None);
+            continue;
+        }
+        let at = (room.sqrt() - half) / square;
+        if !(at > 0.0 && at < 1.0 && at_near + growth * at > 0.0) {
             return Err(Declined::Unsupported);
         }
-        held.extend([near + run * leaving, far]);
+        leaving.push(Some(at));
     }
-    Ok((held, clear))
+    Ok(leaving)
 }
 
 /// The piece of a ring turned about `cone`'s axis that holds what of the
 /// prism stands outside the cone — the side of its meridian line away from
-/// the axis — past where the prism's long edges leave it, as [`left`] reads
-/// it, and the clearance it gives round that. Bounded inside by the cone,
-/// outside by a cylinder round the points where the long edges leave it and
-/// their ends beyond, either side by a plane through the axis turned clear
-/// of them, and along the axis by planes clear of them. Declined
-/// `Unsupported` where the edge, running on `past` at `point`, runs into the
-/// cone rather than out of it, where those points spread round the axis
-/// over half a turn or more, and where the meridian line stands on or
-/// across the axis at either end of the piece; as [`left`] declines; a piece
-/// the kernel cannot lay or turn, as the turn says.
+/// the axis — past where the prism's long edges leave it, as [`leaving`]
+/// reads it, and the clearance [`long_edges`] gives round that, up to a
+/// cylinder about the axis standing clear outside the cone over that
+/// stretch; and what of the prism stands outside that cylinder, as
+/// [`outside_cylinder`] raises it, hugging the prism, so that the ring only
+/// holds the stretch from where the edges leave the cone to where they
+/// leave the cylinder, and neither stands out of the prism further than its
+/// clearance. An edge that misses the cone, buried in matter as the margin
+/// a slot's wall sinks into is, is left to the cylinder's cut, which takes
+/// it where its rectangle starts. The ring is bounded inside by the cone,
+/// outside by a cylinder round
+/// the points the edges leave the two at, either side by a plane through
+/// the axis turned clear of them, and along the axis by planes clear of
+/// them. Declined `Unsupported` where the edge, running on `past` at
+/// `point`, runs into the cone rather than out of it, where no edge leaves
+/// it, where one leaves the cylinder where the cone stands out past it,
+/// where those points spread round the axis over half a turn or more, and
+/// where the meridian line stands on or across the axis at either end of
+/// the piece; as [`leaving`] and [`outside_cylinder`] decline; a piece the
+/// kernel cannot lay or turn, as the turn says.
 pub(super) fn outside_cone(
     prism: &Prism,
     cone: &Cone,
     point: DVec3,
     past: DVec3,
     reach: f64,
-) -> Result<Exact, Declined> {
+) -> Result<Vec<Exact>, Declined> {
     let (origin, axis, foot, ruling) = (cone.origin, cone.axis, cone.foot, cone.ruling);
     let off_the_axis = |at: DVec3| {
         let from = at - origin;
@@ -217,7 +234,45 @@ pub(super) fn outside_cone(
     if (off_the_axis(point).normalize() * out.y + axis * out.x).dot(past) <= 0.0 {
         return Err(Declined::Unsupported);
     }
-    let (held, clear) = left(prism, cone, past)?;
+    let (edges, clear) = long_edges(prism, past);
+    let slope = ruling.y / ruling.x;
+    let on_the_cone = |h: f64| foot.y + (h - foot.x) * slope;
+    let along = |[near, far]: [DVec3; 2], at: f64| near + (far - near) * at;
+    let height = |at: DVec3| (at - origin).dot(axis);
+    let left = leaving(&edges, (origin, axis), on_the_cone)?;
+    let met: Vec<([DVec3; 2], f64)> = (edges.iter().zip(&left))
+        .filter_map(|(&edge, at)| at.map(|at| (edge, at)))
+        .collect();
+    if met.is_empty() {
+        return Err(Declined::Unsupported);
+    }
+    let exits: Vec<DVec3> = met.iter().map(|&(edge, at)| along(edge, at)).collect();
+    let (low, high) = (exits.iter())
+        .fold((f64::INFINITY, f64::NEG_INFINITY), |(low, high), &at| {
+            (low.min(height(at)), high.max(height(at)))
+        });
+    let snug = clear / 4.0;
+    let radius = on_the_cone(low).max(on_the_cone(high)) + snug;
+    let wall = Cylinder {
+        origin,
+        axis,
+        radius,
+        u: cone.u,
+        v: cone.v,
+    };
+    let outside = outside_cylinder(prism, &wall, past)?;
+    let edges: Vec<[DVec3; 2]> = met.iter().map(|&(edge, _)| edge).collect();
+    let mut held = exits;
+    for (&edge, at) in edges
+        .iter()
+        .zip(leaving(&edges, (origin, axis), |_| radius)?)
+    {
+        let at = along(edge, at.ok_or(Declined::Unsupported)?);
+        if on_the_cone(height(at)) >= radius {
+            return Err(Declined::Unsupported);
+        }
+        held.push(at);
+    }
     let towards = (past - axis * axis.dot(past)).normalize();
     let aside = axis.cross(towards);
     let (mut low, mut high, mut outer) = (f64::INFINITY, f64::NEG_INFINITY, 0.0_f64);
@@ -226,7 +281,7 @@ pub(super) fn outside_cone(
         let (flat, h) = (off_the_axis(at), (at - origin).dot(axis));
         let off = flat.length();
         let turn = flat.dot(aside).atan2(flat.dot(towards));
-        let spread = (clear / off).min(1.0).asin();
+        let spread = (snug / off).min(1.0).asin();
         first = first.min(turn - spread);
         last = last.max(turn + spread);
         low = low.min(h);
@@ -236,7 +291,7 @@ pub(super) fn outside_cone(
     if !(first.is_finite() && last - first < PI) {
         return Err(Declined::Unsupported);
     }
-    let ends = [low - clear, high + clear];
+    let ends = [low - snug, high + snug];
     let on_the_line = ends.map(|h| DVec2::new(h, foot.y + (h - foot.x) * ruling.y / ruling.x));
     if on_the_line
         .iter()
@@ -244,7 +299,7 @@ pub(super) fn outside_cone(
     {
         return Err(Declined::Unsupported);
     }
-    let outer = on_the_line.iter().fold(outer, |far, at| far.max(at.y)) + clear;
+    let outer = on_the_line.iter().fold(outer, |far, at| far.max(at.y)) + snug;
     let section = Contour::straight(vec![
         on_the_line[0],
         DVec2::new(ends[0], outer),
@@ -267,5 +322,6 @@ pub(super) fn outside_cone(
         on_the_axis: ON_THE_AXIS * outer,
     };
     let straight = Straight::of(&section, &[], frame, &turn, reach).ok_or(Declined::Unsupported)?;
-    Exact::turned(&straight, frame, &turn, straight.numbers(false))
+    let ring = Exact::turned(&straight, frame, &turn, straight.numbers(false))?;
+    Ok(vec![outside, ring])
 }

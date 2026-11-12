@@ -64,10 +64,12 @@ impl Exact {
             let face = end_face(on, end, wedge.faces).ok_or(Declined::Unsupported)?;
             let point = on.vertex(end).point;
             let beyond_the_end = match holding(held, point, eps) {
-                Some((end, number)) => end.beyond(prism, number)?,
+                Some((end, number)) => vec![end.beyond(prism, number)?],
                 None => past_the_end(on, face, point, past, prism)?,
             };
-            trimmed = trimmed.cut_by(&beyond_the_end)?;
+            for solid in &beyond_the_end {
+                trimmed = trimmed.cut_by(solid)?;
+            }
             end_faces.push(face);
         }
         let mut corners = Vec::new();
@@ -109,17 +111,19 @@ fn past_the_end(
     point: DVec3,
     past: DVec3,
     prism: &Prism,
-) -> Result<Exact, Declined> {
+) -> Result<Vec<Exact>, Declined> {
     let face = body.face(id);
     let surface = body.surface(face.surface);
     let normal = surface.normal(surface.parameters(point));
     let outward = if face.flipped { -normal } else { normal };
     match surface {
-        Surface::Plane(plane) if outward.dot(past) != 0.0 => {
-            beyond(prism, plane, outward * outward.dot(past).signum())
-        }
+        Surface::Plane(plane) if outward.dot(past) != 0.0 => Ok(vec![beyond(
+            prism,
+            plane,
+            outward * outward.dot(past).signum(),
+        )?]),
         Surface::Cylinder(cylinder) if normal.dot(past) > 0.0 => {
-            round::outside_cylinder(prism, cylinder, past)
+            Ok(vec![round::outside_cylinder(prism, cylinder, past)?])
         }
         Surface::Cone(cone) => round::outside_cone(prism, cone, point, past, body.scale().reach()),
         _ => Err(Declined::Unsupported),

@@ -14,7 +14,6 @@ use glam::DVec3;
 
 use super::chain::TANGENT;
 use super::corners::{self, Beside, Three};
-use super::slope::one_plane;
 use super::{MADE, Prism, Wedge, too_short};
 use crate::body::exact::Exact;
 use crate::brep::{self, Declined, EdgeId, FaceId, Scale};
@@ -33,10 +32,10 @@ pub(in crate::body::exact) enum Together {
     /// the prism this raises — a full round, a round bottom. A cut beside a
     /// fill is laid edge by edge.
     Raised(Raise),
-    /// A cut beside a fill whose flats, at the value their set-backs meet
-    /// at, lie in one plane: one slope, as [`Exact::sloped`] lays it. Two
-    /// whose faces meet the same way, or a cut and a fill whose flats would
-    /// meet at an angle, are laid edge by edge.
+    /// A cut beside a fill, as [`Exact::sloped`] lays them at the value
+    /// their set-backs meet at: one slope where their flats lie in one
+    /// plane, two flats meeting in a crease where they lie at an angle. Two
+    /// whose faces meet the same way are laid edge by edge.
     Sloped,
 }
 
@@ -103,10 +102,7 @@ pub(super) fn meeting(
             let value = bound(wedges, &[(one, other, across)], &set_back);
             let laid = match together {
                 Together::Raised(_) => first.inwards == second.inwards,
-                Together::Sloped => {
-                    let backs = [first, second].map(|wedge| value * set_back(wedge));
-                    first.inwards != second.inwards && one_plane(first, second, backs, scale.eps())
-                }
+                Together::Sloped => first.inwards != second.inwards,
             };
             (laid && too_short(left, scale)).then_some((one, other, value))
         })
@@ -160,27 +156,28 @@ pub(in crate::body::exact) fn together(rank: usize, pairs: &[Pair]) -> Vec<usize
 /// pair at a corner where no third edge of the list ends but the edge at
 /// their end, the three closed there, convex, `beside` holding the corners
 /// that are not — an upright at either end, one of a standing full round
-/// among them (#837) — and, of a pair not laid outwards, a round bottom or a
-/// slope, each edge bounding the face they meet across that meets both of the
-/// pair at a corner, whatever its own sense — whose cut or fill is laid in
-/// turn against the one prism they are taken off or filled in with and
-/// against its neighbours, by its rank, with the pair's value, the radius
-/// that prism is raised at, so that it meets theirs where they meet across
-/// the face even where the value taken stands a hair short of it. Of a pair
-/// not laid outwards, only an end edge meeting inwards is built: the floor's
-/// edge on a pocket's end wall, or the edge at the foot of a standing round
-/// bottom of two uprights at that end, its fill joined to theirs in a valley
-/// (#838). A list mixing senses there — a slope with the tread's end edge, a
-/// round bottom with a convex end edge such as an open slot's end, a
-/// standing round bottom with the rim above it — is let in here and refused
+/// among them (#837) — and, of a pair not laid outwards, a round bottom, a
+/// slope or a crease, each edge bounding the face they meet across that
+/// meets both of the pair at a corner, whatever its own sense — whose cut or
+/// fill is laid in turn against the one prism they are taken off or filled
+/// in with and against its neighbours, by its rank, with the pair's value,
+/// the radius that prism is raised at, so that it meets theirs where they
+/// meet across the face even where the value taken stands a hair short of
+/// it. Of a pair not laid outwards, only an end edge meeting inwards is
+/// built: the floor's edge on a pocket's end wall, or the edge at the foot of
+/// a standing round bottom of two uprights at that end, its fill joined to
+/// theirs in a valley (#838). A list mixing senses there — a slope or a
+/// crease with the tread's end edge, a round bottom with a convex end edge
+/// such as an open slot's end, a standing round bottom with the rim above
+/// it — is let in here and refused
 /// by the laying, as [`Exact::cut_along`] and [`Exact::sloped`] refuse it: a
 /// cut and a fill meeting there do not commute. Declined `Unsupported` where
 /// an edge of a pair meets another of `edges` at a corner any other way: a
 /// full round meeting an edge bounding its face at one of its edges alone,
 /// or an upright where a third edge of the list ends but the edge at their
 /// end (#837), a notched end with the upright at its bottom, a corner of
-/// mixed sense gone round that upright first (#914), a round bottom or a
-/// slope meeting any other edge — the uprights at a round bottom's end
+/// mixed sense gone round that upright first (#914), a round bottom, a slope
+/// or a crease meeting any other edge — the uprights at a round bottom's end
 /// (#919), the edges of a pointed or a notched one (#921).
 pub(super) fn at_their_ends(
     body: &brep::Body,
@@ -291,20 +288,20 @@ impl Exact {
         } else {
             self.cut_by(&Exact { next: 2, ..tool })?
         };
-        cut.paired(self, [first, second], number, mitred)
+        cut.paired(self, [first, second], [self.next, number], mitred)
     }
 
-    /// The body two edges of `before` were laid on as one, its face left
+    /// The body two edges of `before` were laid on as one, its faces left
     /// alone as [`Exact::cut_along`] reads it of both their wedges and of the
-    /// faces laid before it that `mitred` numbers, answering to the number
-    /// where the steps' numbers of `before` ended — the later
-    /// edge's — and to `number`, the earlier's, in place of the one past it.
-    /// Declined `Unsupported` where that reading fails.
+    /// faces laid before it that `mitred` numbers: what answered to the number
+    /// where the steps' numbers of `before` ended — the first wall laid —
+    /// answering to `numbers[0]` instead, and what answered to the one past it
+    /// to `numbers[1]`. Declined `Unsupported` where that reading fails.
     pub(super) fn paired(
         self,
         before: &Exact,
         wedges: [&Wedge; 2],
-        number: u32,
+        numbers: [u32; 2],
         mitred: &[u32],
     ) -> Result<Exact, Declined> {
         if !self.cut_along(&wedges, before, 2, mitred, &[], &[]) {
@@ -318,12 +315,15 @@ impl Exact {
             drawn,
             ..
         } = self;
-        let lent = before.next + 1;
-        let faces: Vec<FaceId> = brep
-            .face_ids()
-            .filter(|&face| brep.numbers(face).contains(&lent))
-            .collect();
-        brep.rename(&faces, lent, number);
+        let laid = [before.next, before.next + 1];
+        let faces = laid.map(|number| {
+            (brep.face_ids())
+                .filter(|&face| brep.numbers(face).contains(&number))
+                .collect::<Vec<FaceId>>()
+        });
+        for ((faces, from), to) in faces.iter().zip(laid).zip(numbers) {
+            brep.rename(faces, from, to);
+        }
         let renamed = Exact::of(brep, next, pieces, roots);
         if let Some(drawn) = drawn.into_inner() {
             let _ = renamed.drawn.set(drawn);

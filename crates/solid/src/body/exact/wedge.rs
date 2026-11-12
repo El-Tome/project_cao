@@ -96,8 +96,9 @@ impl Exact {
     /// given. Set-backs that would meet only on a curved edge are not measured:
     /// the laying declines them where they meet. The pairs whose set-backs meet
     /// across their face that `meeting` lays together, the earlier first, are each laid as one, the face they shared
-    /// gone — by the prism it raises, or as one slope at the value their
-    /// set-backs meet at, as [`Exact::sloped`] lays it; every other edge is
+    /// gone — by the prism it raises, or as one slope or two flats meeting in
+    /// a crease at the value their set-backs meet at, whichever is named
+    /// first, as [`Exact::sloped`] lays them; every other edge is
     /// laid alone. Two edges meeting at a convex corner are laid in turn as any
     /// two are, each prism carried past the corner along its edge's line, so
     /// that the later trims the earlier's face there: two flats or two rounds
@@ -245,7 +246,14 @@ impl Exact {
     ) -> Result<Exact, Declined> {
         let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
         let prism = tool(wedge, taken, self.brep.scale(), bounds)?;
-        let (outline, frame, travel) = &prism;
+        self.laid_over(flush, wedge, &prism)
+    }
+
+    /// The body with the edge of `wedge` cut off, or filled in, by the prism
+    /// raised from `prism`, its first wall numbered where the steps' numbers
+    /// ended, as [`Exact::cut_or_filled`] lays it.
+    fn laid_over(&self, flush: &Flush, wedge: &Wedge, prism: &Prism) -> Result<Exact, Declined> {
+        let (outline, frame, travel) = prism;
         let raised = Exact::raised(outline, &[], *frame, *travel)?;
         let tool = Exact {
             brep: raised.brep.renumbered_by(|number| match number {
@@ -255,7 +263,7 @@ impl Exact {
             }),
             ..raised
         };
-        self.laid_flush(flush, wedge, &prism, tool)
+        self.laid_flush(flush, wedge, prism, tool)
     }
 
     /// Whether the prism left its face alone on the body, numbered where the

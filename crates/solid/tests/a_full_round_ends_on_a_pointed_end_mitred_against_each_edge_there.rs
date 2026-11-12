@@ -105,17 +105,16 @@
 //!   and (33 − 3√2, 3, 10), in each of the 120 orders of the five —
 //!   `a_fillet_on_a_full_round_pointed_at_one_end_and_square_at_the_other_mitres_each_end_s_rounds_up_to_its_crown_whatever_the_order`
 //! - Decided on the way, after the review (2026-11-12): a lopsided point that
-//!   keeps the full round, its long edges 30 and 31 long, top (0,0), (30,0),
-//!   (98/3, 2), (31,6), (0,6): both point walls tangent to the circle of
-//!   radius 3 about (29, 3), so that every round reaches the one crown,
-//!   (29, 3, 10), the two point rounds meeting in the vertical plane through
-//!   the tip and the crown. Its value depends on the order, which is #895's:
-//!   the 12 orders naming the point's front edge before the top's front edge
-//!   take 3, the 12 others take 2 and keep the top. Read as: each of those
-//!   12 takes the value whole and lays the mitred body, every order taking it
-//!   whole one body, the first such order's; none is declined; the others'
-//!   value is #895's and not asserted —
-//!   `a_fillet_on_a_full_round_and_the_two_edges_of_a_lopsided_point_tangent_to_one_circle_mitres_them_up_to_the_crown_whatever_the_order`
+//!   would keep the full round, its long edges 30 and 31 long, top (0,0),
+//!   (30,0), (98/3, 2), (31,6), (0,6): both point walls tangent to the circle
+//!   of radius 3 about (29, 3), so that every round would reach the one crown,
+//!   (29, 3, 10). Its value depended on the order, #895's — the 12 orders
+//!   naming the point's front edge before the top's front edge took 3 and laid
+//!   the mitred body, the 12 others took 2 — until #901 took for three edges
+//!   in a row the least any takes alone: it takes 2 in every order now, the
+//!   top kept, short of the full round. Raising it to the value asked is
+//!   #894's. Pinned as it is, exact, closed and uncrossed —
+//!   `a_fillet_on_a_full_round_and_the_two_edges_of_a_lopsided_point_tangent_to_one_circle_stops_short_of_the_full_round_whatever_the_order`
 //! - Decided on the way, after the mutation run (2026-11-12): admitting an
 //!   edge at a full round's end holds only an edge of the top meeting both
 //!   edges of the pair, or one of them and another such edge meeting the
@@ -133,12 +132,13 @@
 //!   `a_fillet_on_a_full_round_and_one_edge_of_its_point_alone_stops_short_of_the_full_round_whatever_the_order`,
 //!   `a_fillet_on_a_full_round_one_edge_of_its_point_alone_and_its_square_far_end_s_edge_stops_short_of_the_full_round_whatever_the_order`
 //!
-//! The campaign is run by hand, out of the gate: every one of the 720 orders
-//! of the plate pointed at both ends, where the gate takes 48 of them, each
-//! held as the gate holds its own —
+//! The campaign is run by hand, out of the gate, compiled only under the
+//! `campaigns` feature: every one of the 720 orders of the plate pointed at
+//! both ends, where the gate takes 48 of them, each held as the gate holds its
+//! own —
 //!
-//! ```sh
-//! cargo test --release -p cao_solid \
+//! ```text
+//! cargo test --release -p cao_solid --features campaigns \
 //!     --test a_full_round_ends_on_a_pointed_end_mitred_against_each_edge_there -- --ignored
 //! ```
 //!
@@ -178,8 +178,9 @@
 //! `1224 + 72√2 + (66 − 12√2)·9π/4`, 1672.39. Pointed at one end and square
 //! at the other with its edge named: `1341 + 36√2 + (60 − 6√2)·9π/4`,
 //! 1756.05, #803's square end taking `πr³/2 − 4r³/3` off the pointed plate's.
-//! The lopsided point: the area 190, `ℓ(0) = 61 + 23/3` and `ℓ(r) = 58`,
-//! twice the crown's 29; `1362 + 261π/2`, 1771.98. Its tip is where the
+//! The lopsided point, laid at the value asked as #894 would lay it: the area
+//! 190, `ℓ(0) = 61 + 23/3` and `ℓ(r) = 58`, twice the crown's 29;
+//! `1362 + 261π/2`, 1771.98, which the orders that took 3 held before #901. Its tip is where the
 //! second tangents from (30, 0) and (31, 6) to the circle about (29, 3) meet:
 //! from (30, 0) the wall climbs at twice the angle whose tangent is 1/3, along
 //! (4, 3)/5, and from (31, 6) it falls at twice the angle whose tangent is
@@ -1449,14 +1450,11 @@ fn mitres_each_round_against_its_neighbours(
 
 /// What the fillet at [`RADIUS`] laid on plates' listed edges, order by
 /// order: the orders declined, those taking less than the value asked, those
-/// whose faces meet otherwise than the first order that took it whole, and
-/// the orders that took it whole and were held whole, as indices into the
-/// plate's listed edges.
+/// whose faces meet otherwise than the first order that took it whole.
 struct Laid {
     declined: Vec<String>,
     short: Vec<String>,
     laid_otherwise: Vec<String>,
-    whole: Vec<Vec<usize>>,
 }
 
 /// The fillet at [`RADIUS`] on each of `plates`' listed edges, in each order
@@ -1470,7 +1468,6 @@ fn laid_in_each_order(plates: &[Plate], orders: fn(usize) -> Vec<Vec<usize>>) ->
         declined: Vec::new(),
         short: Vec::new(),
         laid_otherwise: Vec::new(),
-        whole: Vec::new(),
     };
     for plate in plates {
         let count = plate.edges.len();
@@ -1512,7 +1509,6 @@ fn laid_in_each_order(plates: &[Plate], orders: fn(usize) -> Vec<Vec<usize>>) ->
                 }
             }
             mitres_each_round_against_its_neighbours(plate, &order, &filleted, &what);
-            laid.whole.push(order.clone());
             match &reference {
                 Some((_, reference)) => {
                     same_body_as(plate, &filleted.body, &reference.body, &what);
@@ -1987,13 +1983,6 @@ fn a_fillet_on_a_full_round_pointed_at_both_ends_mitres_each_point_round_up_to_i
 }
 
 #[test]
-#[ignore = "a campaign, run by hand: see the head of this file"]
-fn a_fillet_on_a_full_round_pointed_at_both_ends_mitres_each_point_round_up_to_its_end_s_crown_in_each_of_the_720_orders_of_its_six_edges()
- {
-    lays_one_mitred_body_in_each_order(&[plate_pointed_at_both_ends()], every_order);
-}
-
-#[test]
 fn a_fillet_on_a_full_round_pointed_at_one_end_and_square_at_the_other_mitres_each_end_s_rounds_up_to_its_crown_whatever_the_order()
  {
     let plate = Plate::raised(
@@ -2026,54 +2015,29 @@ fn a_fillet_on_a_full_round_pointed_at_one_end_and_square_at_the_other_mitres_ea
 }
 
 #[test]
-fn a_fillet_on_a_full_round_and_the_two_edges_of_a_lopsided_point_tangent_to_one_circle_mitres_them_up_to_the_crown_whatever_the_order()
+fn a_fillet_on_a_full_round_and_the_two_edges_of_a_lopsided_point_tangent_to_one_circle_stops_short_of_the_full_round_whatever_the_order()
  {
-    let plate = Plate::raised(
-        "the plate whose lopsided point's tip stands at (98/3, 2), its back 31 long",
-        vec![
+    let lopsided = raised(
+        Contour::straight(vec![
             DVec2::ZERO,
             DVec2::new(LENGTH, 0.0),
             DVec2::new(98.0 / 3.0, 2.0),
             DVec2::new(31.0, WIDTH),
             DVec2::new(0.0, WIDTH),
-        ],
-        &[
-            (0, "the top's front edge"),
-            (1, "the point's front edge"),
-            (2, "the point's back edge"),
-            (3, "the top's back edge"),
-        ],
-        [0, 3],
-        vec![DVec3::new(29.0, 3.0, 10.0)],
+        ]),
+        HEIGHT,
     );
-    the_shares_give(&plate, 1362.0 + 261.0 * PI / 2.0);
-    let laid = laid_in_each_order(std::slice::from_ref(&plate), every_order);
-    let [top_front, point_front] = [0, 1];
-    let point_front_first: Vec<Vec<usize>> = every_order(plate.edges.len())
-        .into_iter()
-        .filter(|order| {
-            let rank = |edge: usize| order.iter().position(|&named| named == edge);
-            rank(point_front) < rank(top_front)
-        })
-        .collect();
-    let not_whole: Vec<String> = point_front_first
-        .iter()
-        .filter(|order| !laid.whole.contains(order))
-        .map(|order| plate.called("fillet", order))
-        .collect();
-    assert!(
-        point_front_first.len() == 12
-            && not_whole.is_empty()
-            && laid.declined.is_empty()
-            && laid.laid_otherwise.is_empty(),
-        "the fillet at {RADIUS} on a full round and the two edges of a lopsided point both \
-         tangent to the circle about the crown lays the mitred body, one body, in each of the 12 \
-         orders naming the point's front edge before the top's front edge, the others' value \
-         being #895's; not taken whole, or not held:\n{}\ndeclined:\n{}\nits faces meeting \
-         otherwise than in the first order taking the value whole:\n{}",
-        not_whole.join("\n"),
-        laid.declined.join("\n"),
-        laid.laid_otherwise.join("\n")
+    stops_short_in_every_order(
+        &lopsided,
+        &[
+            ([TOP, FRONT], "the top's front edge"),
+            ([TOP, POINT_FRONT], "the point's front edge"),
+            ([TOP, POINT_BACK], "the point's back edge"),
+            ([TOP, BACK], "the top's back edge"),
+        ],
+        2.0,
+        "the full round's pair and the two edges of the lopsided point whose tip stands at \
+         (98/3, 2), both tangent to the circle of radius 3 about (29, 3), its back 31 long",
     );
 }
 
@@ -2186,4 +2150,16 @@ fn a_fillet_on_a_full_round_one_edge_of_its_point_alone_and_its_square_far_end_s
             plate.called
         ),
     );
+}
+
+#[cfg(feature = "campaigns")]
+mod campaign {
+    use super::*;
+
+    #[test]
+    #[ignore = "a campaign, run by hand: see the head of this file"]
+    fn a_fillet_on_a_full_round_pointed_at_both_ends_mitres_each_point_round_up_to_its_end_s_crown_in_each_of_the_720_orders_of_its_six_edges()
+     {
+        lays_one_mitred_body_in_each_order(&[plate_pointed_at_both_ends()], every_order);
+    }
 }

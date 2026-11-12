@@ -20,16 +20,16 @@ use crate::mesh::{Mesh, ray_triangle};
 /// are drawn this fine closed and uncrossed, each in a millisecond or two.
 pub(super) const DRAWN: f64 = 2e-4;
 
-/// How far `body` itself reaches from the origin, as [`Scale`] reads a reach,
-/// and never further than its scale's: what its triangles' tolerance is a
-/// share of. The scale of a body cut by a tool wider than itself carries the
-/// tool's reach, so that a later operation never decides finer than that
-/// cut did (#824); the tool is gone, and the part is drawn at its own size.
 /// How far the triangles of `body` may stand from its exact surfaces.
 pub(super) fn tolerance(body: &brep::Body) -> f64 {
     DRAWN * reach(body)
 }
 
+/// How far `body` itself reaches from the origin, as [`Scale`] reads a reach,
+/// and never further than its scale's: what its triangles' tolerance is a
+/// share of. The scale of a body cut by a tool wider than itself carries the
+/// tool's reach, so that a later operation never decides finer than that
+/// cut did (#824); the tool is gone, and the part is drawn at its own size.
 fn reach(body: &brep::Body) -> f64 {
     let scale = body.scale().reach();
     body.bounds().map_or(scale, |(low, high)| {

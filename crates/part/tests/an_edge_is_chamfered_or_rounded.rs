@@ -55,7 +55,13 @@
 //!   taken following the faces, by
 //!   `a_chamfer_or_a_fillet_is_replayed_on_the_block_its_height_variable_changes`;
 //!   its edge parted in two by a notch moved across it upstream, by
-//!   `an_edge_a_change_upstream_parts_in_two_makes_its_chamfer_or_fillet_a_broken_step_saying_it_is_lost`
+//!   `an_edge_a_change_upstream_parts_in_two_makes_its_chamfer_or_fillet_a_broken_step_saying_it_is_lost`;
+//!   found in review, only that step broken, a chamfer after it still on its
+//!   edge, held in `crates/part/tests/a_chamfer_moves_nothing_raised_or_laid_after_it.rs`
+//!   by `a_chamfer_declined_on_a_later_replay_leaves_the_next_chamfer_on_its_edge`,
+//!   and a step put in before it while the part is read earlier leaving it on
+//!   its edge, by
+//!   `a_step_put_in_before_a_chamfer_while_the_part_is_read_earlier_leaves_it_on_its_edge`
 //! - found when the step was first made: compacting the history keeps it, on
 //!   its edge and with both its values —
 //!   `a_history_compacted_keeps_its_chamfer_or_fillet`
@@ -73,8 +79,12 @@
 //! - Undo removes the step and redo puts it back —
 //!   `undo_takes_a_chamfer_or_a_fillet_off_and_redo_lays_it_again`
 //! - Face picking for a sketch, the hovered face and the section view behave
-//!   as before; every existing test still passes — no test: held by the
-//!   existing suite, which this branch leaves as it found it
+//!   as before; every existing test still passes — no test: here; held by the
+//!   existing suite, which this branch leaves as it found it, and, for a face
+//!   raised or laid after a chamfer, which the existing suite never reached,
+//!   in `crates/part/tests/a_chamfer_moves_nothing_raised_or_laid_after_it.rs`
+//!   by `a_sketch_on_a_face_raised_after_a_chamfer_opens_on_that_face` and
+//!   `a_sketch_on_a_chamfer_s_own_face_stays_on_it_after_another_extrusion`
 
 use std::cell::RefCell;
 use std::collections::HashMap;

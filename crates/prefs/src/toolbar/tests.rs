@@ -17,7 +17,7 @@
 //! - every command of today's ribbon is still there, at the same place in the
 //!   tree — no test: #732 regroups the default tree, and what it holds is held
 //!   by `the_default_sketch_tab_holds_its_five_groups_and_their_commands_in_order`
-//!   `the_default_extrusion_tab_holds_its_three_groups_and_their_commands_in_order`
+//!   `the_default_extrusion_tab_holds_its_four_groups_and_their_commands_in_order`
 //!   and `the_default_export_tab_holds_one_stl_split_and_the_step_export`
 //! - old settings are ignored — no test: no migration is written, and the
 //!   tests that old settings open on defaults, in `profiles/tests.rs`, stand
@@ -156,6 +156,7 @@ fn the_default_layout_sets_the_size_of_each_group() {
         ("modify", GroupSize::SmallThreeRows),
         ("edit", GroupSize::SmallTwoRows),
         ("extrusion", GroupSize::Large),
+        ("edges", GroupSize::Large),
         ("export", GroupSize::Large),
         ("sketch", GroupSize::Large),
     ] {
@@ -272,7 +273,7 @@ fn the_default_sketch_tab_holds_its_five_groups_and_their_commands_in_order() {
 }
 
 #[test]
-fn the_default_extrusion_tab_holds_its_three_groups_and_their_commands_in_order() {
+fn the_default_extrusion_tab_holds_its_four_groups_and_their_commands_in_order() {
     let layout = ToolbarLayout::default();
     let extrusion = tab(&layout, "extrusion");
 
@@ -281,6 +282,7 @@ fn the_default_extrusion_tab_holds_its_three_groups_and_their_commands_in_order(
         [
             ("matter", GroupSize::Large),
             ("shape", GroupSize::Large),
+            ("edges", GroupSize::Large),
             ("edit", GroupSize::SmallTwoRows),
         ],
     );
@@ -291,6 +293,8 @@ fn the_default_extrusion_tab_holds_its_three_groups_and_their_commands_in_order(
             "/matter/ExtrusionCut",
             "/shape/ExtrusionStraight",
             "/shape/ExtrusionRevolution",
+            "/edges/ToolChamfer",
+            "/edges/ToolFillet",
             "/edit/Undo",
             "/edit/Redo",
         ],

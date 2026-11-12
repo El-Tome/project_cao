@@ -8,8 +8,12 @@
 //! one by one, each in the turn that writes its test.
 //! - Outside a sketch, the part ribbon offers « Chanfrein » and « Congé »;
 //!   clicking one opens its panel. Inside a sketch they still act on corners,
-//!   unchanged — no test: not written yet, the ribbon and the panel are the
-//!   application's, driven through `crates/app/tests/driver/`
+//!   unchanged — no test: the application's, held in
+//!   `crates/app/tests/the_edge_panel.rs` by
+//!   `outside_a_sketch_the_part_tab_offers_chamfer_and_fillet_and_each_opens_its_edge_panel`
+//!   and, inside a sketch, by
+//!   `inside_a_sketch_the_chamfer_still_cuts_the_corner_clicked_next_and_opens_no_edge_panel`
+//!   beside `picking_a_tool.rs`'s fillet
 //! - With the panel open, hovering an edge of the part in the 3D view lights
 //!   it, and clicking it chooses it; clicking another edge replaces the
 //!   first — no test: the kernel's half, every edge handed out drawn under

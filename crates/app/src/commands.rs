@@ -1,4 +1,5 @@
 use cao_part::PartDocument;
+use cao_part::history::BlendShape;
 use cao_prefs::Command;
 use cao_sketch::Rule;
 
@@ -66,6 +67,7 @@ pub(crate) fn run(
         | Command::ExportStep => false,
         Command::NewSketch => {
             extrusion.close();
+            ribbon.blend.close();
             editor.start_choosing_plane(lang);
             false
         }
@@ -179,6 +181,16 @@ pub(crate) fn run(
         Command::ToolSplit => {
             tool(editor, Tool::Split);
             editor.message = Some(lang.t("sketch.click_a_crossing"));
+            false
+        }
+        Command::ToolChamfer | Command::ToolFillet if editor.active_sketch().is_none() => {
+            let shape = match command {
+                Command::ToolChamfer => BlendShape::Chamfer,
+                _ => BlendShape::Fillet,
+            };
+            extrusion.close();
+            ribbon.blend.offer(shape);
+            editor.message = wording::command::hint_on_the_part(lang, command);
             false
         }
         Command::ToolChamfer => {
@@ -318,10 +330,12 @@ pub(crate) fn run(
             false
         }
         Command::ExtrusionAdd => {
+            ribbon.blend.close();
             extrusion.arm(cao_part::ExtrusionMode::Add);
             false
         }
         Command::ExtrusionCut => {
+            ribbon.blend.close();
             extrusion.arm(cao_part::ExtrusionMode::Cut);
             false
         }

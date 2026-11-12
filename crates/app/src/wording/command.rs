@@ -160,6 +160,17 @@ pub fn hint(lang: &Catalogue, command: Command) -> String {
     }
 }
 
+/// What a command does outside a sketch, where it does something else than
+/// inside one: nothing for the others.
+pub fn hint_on_the_part(lang: &Catalogue, command: Command) -> Option<String> {
+    let key = match command {
+        Command::ToolChamfer => "command.hint.edge_chamfer",
+        Command::ToolFillet => "command.hint.edge_fillet",
+        _ => return None,
+    };
+    Some(lang.t(key))
+}
+
 /// The heading a run of the palette is listed under.
 ///
 /// The settings screen starts a new run where the family changes, so a family

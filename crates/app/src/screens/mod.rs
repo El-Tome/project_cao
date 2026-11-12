@@ -1,4 +1,6 @@
 pub mod annotations;
+pub mod blend;
+mod blend_row;
 mod blinking;
 pub mod explorer;
 pub mod extrusion;

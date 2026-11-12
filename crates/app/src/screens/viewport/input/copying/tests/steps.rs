@@ -17,7 +17,11 @@
 //!   whole application's keyboard reaches, in
 //!   `crates/app/tests/copying_in_a_panel.rs` by
 //!   `escape_on_a_step_of_the_circular_pattern_closes_its_panel_and_lays_nothing`,
-//!   under its own `Closes #738`
+//!   under its own `Closes #738`. Decided on the way: ↵ moves on from a step
+//!   still empty, as it did from a slot (`enter_moves_down_one_slot` in
+//!   `tests/panel.rs`), and on the last step with one left empty it lays
+//!   nothing and brings the first empty one back, marked, as Validate did —
+//!   `enter_on_the_last_step_with_a_step_left_empty_brings_that_step_back_marked`
 //! - The message pill follows the step
 //!   (« Réseau circulaire — étape 3 : nombre de copies »);
 //!   a test on the wording checks it —
@@ -25,7 +29,11 @@
 //! - « Horaire » applies the same pattern with the step of opposite sign;
 //!   « Anti-horaire », the default, gives exactly today's result. A test
 //!   compares the two —
-//!   `clockwise_lays_the_same_pattern_with_its_step_of_opposite_sign`
+//!   `clockwise_lays_the_same_pattern_with_its_step_of_opposite_sign`; a step
+//!   typed as a formula stays one, turned the other way —
+//!   `clockwise_lays_a_step_typed_as_a_formula_as_that_formula_negated`; and
+//!   the preview turns the way the pattern will be laid —
+//!   `the_preview_turns_clockwise_once_clockwise_is_chosen`
 //! - `ui/` gains the controls it lacks: the step dot (22 px, three states), the
 //!   chip and the number field with − / +. The controls already there
 //!   (`floating_panel`, `formula_field`, `primary_button`, `secondary_button`)
@@ -62,17 +70,21 @@
 //!   `crates/part/tests/a_circular_pattern_stops_at_a_full_turn.rs`; and the
 //!   pattern laid counter-clockwise, by the comparison of the fourth bullet
 
-use cao_part::{Formula, Operation};
+use cao_part::{Formula, Operation, Variables};
 use cao_prefs::Command;
-use cao_sketch::SegmentId;
+use cao_sketch::{Element, SegmentId};
 use glam::DVec2;
 
+use super::super::previewed;
 use super::bench::Bench;
-use crate::screens::sketch::{CopyPanel, CopySlot, CopyStep, Rotation, StepState};
+use crate::screens::sketch::{CopySlot, CopyStep, Rotation, StepState};
 
 const ON_THE_TRAIT_TO_COPY: DVec2 = DVec2::new(-10.0, 0.0);
 const THE_CENTRE: DVec2 = DVec2::new(2.0, -5.0);
 const TRAIT_TO_COPY: SegmentId = SegmentId(0);
+
+/// A copy is the original turned about a point: no solver, a few products.
+const TOLERANCE: f64 = 1e-9;
 
 /// A trait to copy, ten units tall, and an upright clear of it whose foot is
 /// the point to turn about.
@@ -165,21 +177,24 @@ fn a_step_skipped_while_still_empty_reads_to_come_rather_than_done() {
     );
 }
 
+/// What « Horaire » or « Anti-horaire » does in the panel.
+fn choose(bench: &mut Bench, rotation: Rotation) {
+    bench
+        .editor
+        .copy_panel_mut()
+        .expect("the panel is open while a copy tool is in hand")
+        .choose_rotation(rotation);
+}
+
 /// The circular pattern « Valider » lays: the trait held, the centre clicked,
-/// the number and the step it opens on, and the direction as `choose` leaves
-/// it.
-fn laid_by_the_panel(choose: impl FnOnce(&mut CopyPanel)) -> Operation {
+/// the number and the step it opens on, then whatever `set` does.
+fn laid_by_the_panel(set: impl FnOnce(&mut Bench)) -> Operation {
     let mut bench = a_trait_and_a_centre();
     bench.take(Command::ToolCircularPattern);
     bench.click(ON_THE_TRAIT_TO_COPY);
     bench.enter();
     bench.click(THE_CENTRE);
-    choose(
-        bench
-            .editor
-            .copy_panel_mut()
-            .expect("the panel is open while a copy tool is in hand"),
-    );
+    set(&mut bench);
     bench.click_the_slot(CopySlot::Validate);
     bench.enter();
     bench
@@ -195,9 +210,8 @@ fn clockwise_lays_the_same_pattern_with_its_step_of_opposite_sign() {
     let centre = bench.point_at(THE_CENTRE);
 
     let by_default = laid_by_the_panel(|_| {});
-    let clockwise = laid_by_the_panel(|panel| panel.choose_rotation(Rotation::Clockwise));
-    let counter_clockwise =
-        laid_by_the_panel(|panel| panel.choose_rotation(Rotation::CounterClockwise));
+    let clockwise = laid_by_the_panel(|bench| choose(bench, Rotation::Clockwise));
+    let counter_clockwise = laid_by_the_panel(|bench| choose(bench, Rotation::CounterClockwise));
 
     assert_eq!(
         by_default,
@@ -227,4 +241,166 @@ fn clockwise_lays_the_same_pattern_with_its_step_of_opposite_sign() {
         "clockwise lays the same copies of the same elements about the same \
          centre, its step turned the other way"
     );
+}
+
+#[test]
+fn clockwise_lays_a_step_typed_as_a_formula_as_that_formula_negated() {
+    let typed = |bench: &mut Bench| {
+        bench.type_value(0, "360 / 6");
+        bench.type_value(1, "6");
+    };
+    let written = |laid: &Operation| match laid {
+        Operation::CircularPattern { degrees, .. } => Variables::default().written(degrees),
+        other => panic!("a circular pattern is laid, not {other:?}"),
+    };
+
+    let counter_clockwise = laid_by_the_panel(typed);
+    let clockwise = laid_by_the_panel(|bench| {
+        typed(bench);
+        choose(bench, Rotation::Clockwise);
+    });
+
+    assert_eq!(written(&counter_clockwise), "360 / 6");
+    assert_eq!(
+        written(&clockwise),
+        "-(360 / 6)",
+        "the formula typed, turned the other way, rather than the number it \
+         comes to"
+    );
+}
+
+/// Where the one copy the preview shows stands: the middle of its trait.
+fn the_copy_previewed(bench: &Bench) -> DVec2 {
+    let shown = previewed(&bench.document.sketches()[0], &bench.editor, 1.0)
+        .expect("the panel holds what to copy, where, and its values");
+    let middles: Vec<DVec2> = shown
+        .laid
+        .iter()
+        .filter_map(|laid| match laid {
+            Element::Segment(side) => {
+                let side = shown.sketch.segments()[side.0];
+                Some((shown.sketch.point(side.start) + shown.sketch.point(side.end)) / 2.0)
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        middles.len(),
+        1,
+        "a count of two is the original and one copy"
+    );
+    middles[0]
+}
+
+#[test]
+fn the_preview_turns_clockwise_once_clockwise_is_chosen() {
+    let mut bench = a_trait_and_a_centre();
+    bench.take(Command::ToolCircularPattern);
+    bench.click(ON_THE_TRAIT_TO_COPY);
+    bench.enter();
+    bench.click(THE_CENTRE);
+    bench.type_value(1, "2");
+    let counter_clockwise = the_copy_previewed(&bench);
+
+    choose(&mut bench, Rotation::Clockwise);
+    let clockwise = the_copy_previewed(&bench);
+
+    assert!(
+        (counter_clockwise - DVec2::new(-3.0, -17.0)).length() < TOLERANCE,
+        "a quarter turn counter-clockwise about (2, -5) takes the trait's middle, \
+         at (-10, 0), to (-3, -17); the copy shown stands at {counter_clockwise}"
+    );
+    assert!(
+        (clockwise - DVec2::new(7.0, 7.0)).length() < TOLERANCE,
+        "a quarter turn clockwise takes it to (7, 7); the copy shown stands at \
+         {clockwise}"
+    );
+}
+
+#[test]
+fn enter_validates_the_current_step_and_moves_on_to_the_next() {
+    let mut bench = a_trait_and_a_centre();
+    bench.take(Command::ToolCircularPattern);
+    bench.click(ON_THE_TRAIT_TO_COPY);
+    let laid_before = bench.laid();
+
+    bench.enter();
+    assert_eq!(
+        bench.active(),
+        CopySlot::Target,
+        "the elements held, ↵ moves on to the centre"
+    );
+    bench.click(THE_CENTRE);
+    bench.click_the_slot(CopySlot::Target);
+    bench.enter();
+    assert_eq!(
+        bench.active(),
+        CopySlot::Value(0),
+        "the centre held, ↵ moves on to the number and the step"
+    );
+    bench.enter();
+    assert_eq!(
+        bench.active(),
+        CopySlot::Value(1),
+        "the number and the step are two fields of one step: ↵ on the first \
+         moves on to the second"
+    );
+    bench.enter();
+    assert_eq!(
+        bench.active(),
+        CopySlot::Rotation,
+        "the number and the step held, ↵ moves on to the direction"
+    );
+    assert_eq!(bench.laid(), laid_before, "moving on lays nothing");
+}
+
+#[test]
+fn enter_on_the_last_step_applies_the_pattern() {
+    let mut bench = a_trait_and_a_centre();
+    let elements = bench.a_trait_and_its_ends(TRAIT_TO_COPY);
+    let centre = bench.point_at(THE_CENTRE);
+    bench.take(Command::ToolCircularPattern);
+    bench.click(ON_THE_TRAIT_TO_COPY);
+    bench.enter();
+    bench.click(THE_CENTRE);
+    bench.click_the_slot(CopySlot::Rotation);
+    let laid_before = bench.laid();
+
+    bench.enter();
+
+    assert_eq!(
+        bench.laid(),
+        laid_before + 1,
+        "one ↵ on the direction lays the pattern, with no Validate to reach first"
+    );
+    assert_eq!(
+        bench.last_laid(),
+        Some(&Operation::CircularPattern {
+            sketch: 0,
+            elements,
+            centre,
+            degrees: Formula::Number(90.0),
+            count: Formula::Number(4.0),
+        })
+    );
+}
+
+#[test]
+fn enter_on_the_last_step_with_a_step_left_empty_brings_that_step_back_marked() {
+    let mut bench = a_trait_and_a_centre();
+    bench.take(Command::ToolCircularPattern);
+    bench.click(ON_THE_TRAIT_TO_COPY);
+    bench.enter();
+    bench.click_the_slot(CopySlot::Rotation);
+    let laid_before = bench.laid();
+
+    bench.enter();
+
+    assert_eq!(bench.laid(), laid_before, "nothing is laid with no centre");
+    assert_eq!(
+        bench.active(),
+        CopySlot::Target,
+        "the first step still empty is the one asked for again"
+    );
+    assert_eq!(bench.panel().marked(), Some(CopySlot::Target));
 }

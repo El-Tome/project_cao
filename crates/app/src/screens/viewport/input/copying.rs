@@ -90,14 +90,14 @@ pub(crate) fn gather_in_a_box(
     true
 }
 
-/// `Entrée` in the panel: the slot below becomes active, and on Validate the
-/// copy is laid — or, with a slot still empty, that slot is activated and
-/// marked.
+/// `Entrée` in the panel: the slot below becomes active, and on Validate or the
+/// circular pattern's direction the copy is laid — or, with a slot still
+/// empty, that slot is activated and marked.
 pub(crate) fn enter_in_the_panel(context: &mut SketchContext<'_>) -> bool {
     let Some(leaving) = context.editor.copy_panel().map(|panel| panel.active()) else {
         return false;
     };
-    if leaving == CopySlot::Validate {
+    if matches!(leaving, CopySlot::Rotation | CopySlot::Validate) {
         if refused_for_what_is_typed(context) {
             return false;
         }

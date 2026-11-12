@@ -302,7 +302,8 @@ fn each_copy_tool_has_the_values_it_needs_and_no_more() {
     let walked = |command: Command| {
         let mut bench = holding_the_trait_to_copy(command);
         let mut slots = vec![bench.active()];
-        while bench.active() != CopySlot::Validate && slots.len() < 8 {
+        let lays = |slot| matches!(slot, CopySlot::Validate | CopySlot::Rotation);
+        while !lays(bench.active()) && slots.len() < 8 {
             bench.enter();
             slots.push(bench.active());
         }
@@ -319,8 +320,9 @@ fn each_copy_tool_has_the_values_it_needs_and_no_more() {
             CopySlot::Target,
             CopySlot::Value(0),
             CopySlot::Value(1),
-            CopySlot::Validate
-        ]
+            CopySlot::Rotation
+        ],
+        "the circular pattern's last step is its direction, where ↵ lays (#738)"
     );
     assert_eq!(
         walked(Command::ToolRectangularPattern),

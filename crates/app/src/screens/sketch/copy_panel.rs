@@ -16,8 +16,8 @@ pub enum CopySlot {
     Target,
     /// The field of that rank among the tool's values.
     Value(usize),
-    /// The circular pattern's direction.
-    #[cfg_attr(not(test), expect(dead_code))]
+    /// The circular pattern's direction, its last step: ↵ there lays the copy
+    /// as on Validate.
     Rotation,
     Validate,
 }
@@ -259,6 +259,7 @@ impl CopyPanel {
             CopySlot::Elements => CopySlot::Target,
             CopySlot::Target if !self.values.is_empty() => CopySlot::Value(0),
             CopySlot::Value(rank) if rank + 1 < self.values.len() => CopySlot::Value(rank + 1),
+            CopySlot::Value(_) if self.steps.contains(&CopyStep::Rotation) => CopySlot::Rotation,
             _ => CopySlot::Validate,
         };
     }

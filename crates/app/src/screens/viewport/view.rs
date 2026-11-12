@@ -110,7 +110,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     // After every gesture of the frame, a sketch laid on the canvas included,
     // and before the part is drawn; the panel, drawn earlier, catches up on
     // the next frame.
-    if state.reading_moved() {
+    if state.keep_reading_up_with(sketch.document) {
         ui.ctx().request_repaint();
     }
     let drawn = seen(state, sketch.editor, sketch.document);

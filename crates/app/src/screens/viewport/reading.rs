@@ -8,11 +8,13 @@ use cao_part::{Outcome, PartDocument};
 use super::ViewportState;
 
 /// The box the part is read to, by its rank among the reader's boxes, none
-/// while it is read to its end; and whether a step put in has moved it since
-/// the canvas last looked.
+/// while it is read to its end; the boxes as the canvas last saw them, each
+/// by the number of the operation opening its step, which is what the point
+/// follows its box by; and whether a step put in has moved it since.
 #[derive(Default)]
 pub(super) struct Reading {
     pub(super) point: Option<usize>,
+    boxes: Vec<u32>,
     moved: bool,
 }
 
@@ -75,14 +77,44 @@ impl ViewportState {
         let outcome = document.insert_after(point, operation);
         if opens_a_box {
             self.reading.point = Some(point + 1);
+            self.reading.boxes = boxes_of(document);
             self.reading.moved = true;
         }
         outcome
     }
 
-    /// Whether a step put in has moved the reading point since this was last
-    /// asked: the panel, drawn before the gesture, has to catch up.
-    pub(crate) fn reading_moved(&mut self) -> bool {
-        std::mem::take(&mut self.reading.moved)
+    /// Follows the part as steps are taken back and brought back: the point
+    /// stays on its box whatever goes or comes before or after it, and goes to
+    /// the box before when its own goes — the part read whole when none is
+    /// left before it. Says whether the point moved since this was last asked,
+    /// a step put in included: the panel, drawn before, has to catch up.
+    pub(crate) fn keep_reading_up_with(&mut self, document: &PartDocument) -> bool {
+        let moved = std::mem::take(&mut self.reading.moved);
+        let boxes = boxes_of(document);
+        if boxes == self.reading.boxes {
+            return moved;
+        }
+        let before = std::mem::replace(&mut self.reading.boxes, boxes);
+        // A point set before the canvas first looked was set against the boxes
+        // the reader shows now, and has nothing to follow.
+        let Some(point) = self.reading.point.filter(|_| !before.is_empty()) else {
+            return moved;
+        };
+        let followed = before[..before.len().min(point + 1)]
+            .iter()
+            .rev()
+            .find_map(|number| self.reading.boxes.iter().position(|now| now == number));
+        self.reading.point = followed;
+        moved || followed != Some(point)
     }
+}
+
+/// The reader's boxes, in the order of the part, each by the number of the
+/// operation opening its step.
+fn boxes_of(document: &PartDocument) -> Vec<u32> {
+    let history = &document.history;
+    history
+        .key_steps()
+        .filter_map(|(_, opened_at)| history.number_at(opened_at))
+        .collect()
 }

@@ -24,6 +24,20 @@ impl History {
         self.key_steps().nth(key_step).map(|(at, _)| at)
     }
 
+    /// The number of the operation opening the first step in effect after the
+    /// one at `place` among the steps, a section as much as a key step: a step
+    /// undone and kept to be redone is never replayed, so it is never met.
+    pub(crate) fn opening_after(&self, place: usize) -> Option<u32> {
+        self.steps
+            .get(place + 1..)?
+            .iter()
+            .filter_map(|step| step.operations().first().copied())
+            .find(|number| {
+                self.position_of(*number)
+                    .is_some_and(|at| at < self.applied)
+            })
+    }
+
     /// The rank among the key steps in effect of the one that opened that
     /// sketch; nothing while it is undone.
     pub fn key_step_of_sketch(&self, sketch: usize) -> Option<usize> {

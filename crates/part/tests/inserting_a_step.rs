@@ -66,9 +66,9 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
-use cao_part::history::{Step, StepKind};
+use cao_part::history::StepKind;
 use cao_part::{ExtrusionMode, FileError, Files, Operation, PartDocument, PointRef};
-use cao_sketch::WorkPlane;
+use cao_sketch::{Area, DimensionTarget, Element, SegmentId, WorkPlane};
 use chrono::Utc;
 use glam::{DVec2, DVec3};
 
@@ -135,10 +135,11 @@ fn assert_top(document: &PartDocument, place: DVec2, expected: f64, what: &str) 
     );
 }
 
-#[test]
-fn a_sketch_and_its_extrusion_made_while_read_through_step_three_go_in_after_it() {
-    let mut document = a_part_of_six_steps();
-
+/// Read through step 3 of `a_part_of_six_steps`, its second sketch: a sketch
+/// put in on XZ, a 10 by 20 rectangle drawn in it at x = 120, and the
+/// extrusion of that rectangle by 3 put in after it — three actions, the last
+/// three in time. Says which sketch it put in.
+fn insert_a_block_after_the_second_sketch(document: &mut PartDocument) -> usize {
     document.insert_after(
         THE_THIRD_STEP,
         Operation::CreateSketch {
@@ -166,8 +167,27 @@ fn a_sketch_and_its_extrusion_made_while_read_through_step_three_go_in_after_it(
             mode: ExtrusionMode::Add,
         },
     );
+    inserted
+}
 
-    let kinds: Vec<StepKind> = document.history.steps().iter().map(Step::kind).collect();
+/// The kind of each key step in effect, in the order of the part: what the
+/// part is made of once an undo has taken some back, which the steps of the
+/// history, keeping what can be redone, still hold.
+fn kinds_of_the_steps(document: &PartDocument) -> Vec<StepKind> {
+    let history = &document.history;
+    history
+        .key_steps()
+        .map(|(at, _)| history.steps()[at].kind())
+        .collect()
+}
+
+#[test]
+fn a_sketch_and_its_extrusion_made_while_read_through_step_three_go_in_after_it() {
+    let mut document = a_part_of_six_steps();
+
+    insert_a_block_after_the_second_sketch(&mut document);
+
+    let kinds = kinds_of_the_steps(&document);
     assert_eq!(
         kinds,
         [
@@ -405,5 +425,293 @@ fn a_sketch_taken_back_then_redone_gets_its_own_number_back() {
         numbers_of_the_sketches(&document),
         [Some(1), Some(2), Some(4)],
         "redone, the sketch on YZ comes back under another number than the 4 it bore",
+    );
+}
+
+#[test]
+fn a_sketch_inserted_between_the_second_and_the_third_takes_the_next_number() {
+    let mut document = a_part_of_six_steps();
+
+    let inserted = insert_a_block_after_the_second_sketch(&mut document);
+
+    assert_eq!(
+        (
+            planes_of_the_sketches(&document),
+            numbers_of_the_sketches(&document)
+        ),
+        (
+            vec![WorkPlane::XY, WorkPlane::XY, WorkPlane::XY, WorkPlane::XZ],
+            vec![Some(1), Some(2), Some(3), Some(4)],
+        ),
+        "the sketch put in on XZ between the second and the third, sketch {inserted}, does \
+         not bear 4, the next number, or one of the three before it was renumbered",
+    );
+}
+
+/// What one operation that opens a step does, as a test tells them apart:
+/// the plane a sketch is laid on, the sketch an extrusion raises.
+fn opening(operation: &Operation) -> String {
+    match operation {
+        Operation::CreateSketch { plane, .. } if *plane == WorkPlane::XZ => {
+            "a sketch on XZ".to_string()
+        }
+        Operation::CreateSketch { .. } => "a sketch on XY".to_string(),
+        Operation::Extrude { sketch, .. } => format!("the extrusion of sketch {sketch}"),
+        other => format!("{other:?}"),
+    }
+}
+
+/// The operations that open a step, in the order the list keeps.
+fn openings_done(document: &PartDocument) -> Vec<String> {
+    document
+        .history
+        .operations()
+        .iter()
+        .filter(|operation| StepKind::opened_by(operation).is_some())
+        .map(opening)
+        .collect()
+}
+
+/// The operation that opens each step, in the order of the part.
+fn openings_of_the_part(document: &PartDocument) -> Vec<String> {
+    let history = &document.history;
+    history
+        .steps()
+        .iter()
+        .filter_map(|step| step.operations().first())
+        .filter_map(|number| history.position_of(*number))
+        .filter_map(|at| history.operations().get(at))
+        .map(opening)
+        .collect()
+}
+
+#[test]
+fn the_list_keeps_the_order_things_were_done_and_the_steps_the_order_of_the_part() {
+    let mut document = a_part_of_six_steps();
+
+    insert_a_block_after_the_second_sketch(&mut document);
+
+    let (xy, xz) = ("a sketch on XY", "a sketch on XZ");
+    let raising = |sketch: usize| format!("the extrusion of sketch {sketch}");
+    assert_eq!(
+        (openings_done(&document), openings_of_the_part(&document)),
+        (
+            vec![
+                xy.to_string(),
+                raising(0),
+                xy.to_string(),
+                raising(1),
+                xy.to_string(),
+                raising(2),
+                xz.to_string(),
+                raising(3),
+            ],
+            vec![
+                xy.to_string(),
+                raising(0),
+                xy.to_string(),
+                xz.to_string(),
+                raising(3),
+                raising(1),
+                xy.to_string(),
+                raising(2),
+            ],
+        ),
+        "the list does not keep the steps put in last, in the order they were done, or the \
+         steps do not hold them after the second sketch, in the order of the part, as (the \
+         list, the steps)",
+    );
+}
+
+#[test]
+fn undo_takes_back_the_last_step_made_even_one_inserted_in_the_middle() {
+    let mut document = a_part_of_six_steps();
+    insert_a_block_after_the_second_sketch(&mut document);
+
+    document.undo();
+
+    assert_eq!(
+        kinds_of_the_steps(&document),
+        [
+            StepKind::Sketch,
+            StepKind::Extrusion,
+            StepKind::Sketch,
+            StepKind::Sketch,
+            StepKind::Extrusion,
+            StepKind::Sketch,
+            StepKind::Extrusion,
+        ],
+        "undo did not take back the extrusion put in after the second sketch, the last \
+         thing done, and that one alone",
+    );
+    assert_volume(
+        document.body().volume(),
+        1700.0,
+        "undone once, the part — its three blocks, the 10 by 20 put in no longer raised —",
+    );
+    assert_top(
+        &document,
+        DVec2::new(85.0, 5.0),
+        2.0,
+        "undone once, the third block, the last step of the part, stays",
+    );
+}
+
+/// What the sketch of index 2 is sized and asks of the part: its first side
+/// typed 15, its third erased, so that the area its extrusion was raised from
+/// is no longer closed — the alert « aire perdue » the tree reads off
+/// `areas_standing`.
+fn a_dimension_and_a_lost_area_on_the_third_sketch(document: &mut PartDocument) {
+    document.apply(Operation::SetDimension {
+        sketch: 2,
+        target: DimensionTarget::Length(SegmentId(0)),
+        value: 15.0.into(),
+        placement: None,
+    });
+    document.apply(Operation::EraseMany {
+        sketch: 2,
+        elements: vec![Element::Segment(SegmentId(2))],
+        dimensions: Vec::new(),
+        constraints: Vec::new(),
+    });
+}
+
+/// The areas the extrusion of that sketch was raised from, as it recorded
+/// them.
+fn areas_raised_from(document: &PartDocument, sketch: usize) -> Vec<Area> {
+    document
+        .history
+        .operations()
+        .iter()
+        .find_map(|operation| match operation {
+            Operation::Extrude {
+                sketch: from,
+                areas,
+                ..
+            } if *from == sketch => Some(areas.clone()),
+            _ => None,
+        })
+        .expect("an extrusion of that sketch")
+}
+
+/// What the part says of the third sketch: the length of its first side, and
+/// how many of the areas its extrusion was raised from still stand.
+fn what_the_third_sketch_says(document: &PartDocument) -> (Option<f64>, usize) {
+    let measured = document.measured(2, DimensionTarget::Length(SegmentId(0)));
+    let standing = document
+        .areas_standing(2, &areas_raised_from(document, 2))
+        .len();
+    (measured, standing)
+}
+
+#[test]
+fn a_dimension_and_an_alert_on_a_later_sketch_still_find_it_after_an_insertion() {
+    let mut document = a_part_of_six_steps();
+    a_dimension_and_a_lost_area_on_the_third_sketch(&mut document);
+    let before = what_the_third_sketch_says(&document);
+    assert!(
+        before
+            .0
+            .is_some_and(|length| (length - 15.0).abs() < HEIGHT)
+            && before.1 == 0,
+        "the fixture wants the third sketch's first side 15 long and its extrusion's area \
+         lost, as (its length, areas standing): {before:?}",
+    );
+    assert_volume(
+        document.body().volume(),
+        1500.0,
+        "the fixture, its third block raised from nothing,",
+    );
+
+    let inserted = insert_a_block_after_the_second_sketch(&mut document);
+
+    let after = what_the_third_sketch_says(&document);
+    assert!(
+        after.0.is_some_and(|length| (length - 15.0).abs() < HEIGHT) && after.1 == 0,
+        "once a sketch is put in before it, the value on the third sketch, or the alert of \
+         its extrusion's lost area, finds another sketch, as (its length, areas standing): \
+         {after:?}",
+    );
+    assert_eq!(
+        document
+            .areas_standing(inserted, &areas_raised_from(&document, inserted))
+            .len(),
+        1,
+        "the sketch put in has its own area standing, and takes no alert of the third's",
+    );
+    assert_volume(
+        document.body().volume(),
+        2100.0,
+        "the part with the 10 by 20 put in, the third block still raised from nothing,",
+    );
+}
+
+/// The part as a test compares it before and after: the kinds of its steps
+/// in the order of the part, the plane and the number of each sketch, and
+/// what it holds read through each key step, then whole.
+struct Seen {
+    kinds: Vec<StepKind>,
+    planes: Vec<WorkPlane>,
+    numbers: Vec<Option<u32>>,
+    volumes: Vec<f64>,
+}
+
+fn seen(document: &PartDocument) -> Seen {
+    let all_opaque = BTreeMap::new();
+    let kinds = kinds_of_the_steps(document);
+    let mut volumes: Vec<f64> = (0..kinds.len())
+        .map(|key_step| document.shown_through(&all_opaque, key_step).body.volume())
+        .collect();
+    volumes.push(document.body().volume());
+    Seen {
+        kinds,
+        planes: planes_of_the_sketches(document),
+        numbers: numbers_of_the_sketches(document),
+        volumes,
+    }
+}
+
+fn assert_seen_alike(now: &Seen, then: &Seen, what: &str) {
+    assert_eq!(
+        (&now.kinds, &now.planes, &now.numbers),
+        (&then.kinds, &then.planes, &then.numbers),
+        "{what}: its steps, or its sketches' planes and numbers, are not as they were",
+    );
+    assert_eq!(
+        now.volumes.len(),
+        then.volumes.len(),
+        "{what}: it is read through another count of key steps",
+    );
+    for (key_step, (volume, was)) in now.volumes.iter().zip(&then.volumes).enumerate() {
+        assert_volume(
+            *volume,
+            *was,
+            &format!("{what}, read through key step {key_step},"),
+        );
+    }
+}
+
+#[test]
+fn undoing_and_redoing_an_insertion_gives_back_the_part_as_it_was() {
+    let mut document = a_part_of_six_steps();
+    let before = seen(&document);
+    insert_a_block_after_the_second_sketch(&mut document);
+    let inserted = seen(&document);
+
+    for _ in 0..3 {
+        document.undo();
+    }
+    assert_seen_alike(
+        &seen(&document),
+        &before,
+        "the three actions of the insertion undone, the part",
+    );
+    for _ in 0..3 {
+        document.redo();
+    }
+    assert_seen_alike(
+        &seen(&document),
+        &inserted,
+        "the three actions of the insertion redone, the part",
     );
 }

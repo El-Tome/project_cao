@@ -613,3 +613,244 @@ fn the_row_scrolls_to_the_box_read_to() {
             .join("\n"),
     );
 }
+
+/// The counter « n / total » the reader shows, as (n, total).
+fn the_counter(app: &driver::App) -> Option<(usize, usize)> {
+    texts(app).iter().find_map(|text| {
+        let (played, total) = text.split_once(" / ")?;
+        Some((played.parse().ok()?, total.parse().ok()?))
+    })
+}
+
+/// Where the reader stands, as its counter and the name of the step read to,
+/// off the line under the row while that line says the rest is hidden.
+fn where_it_is_read_to(app: &driver::App) -> (Option<String>, Option<String>) {
+    let counter = the_counter(app).map(|(played, total)| format!("{played} / {total}"));
+    let name = texts(app)
+        .iter()
+        .find_map(|text| text.strip_suffix(" · la suite est masquée"))
+        .map(str::to_string);
+    (counter, name)
+}
+
+fn read_to(counter: &str, name: &str) -> (Option<String>, Option<String>) {
+    (Some(counter.to_string()), Some(name.to_string()))
+}
+
+/// « Annuler » until the reader counts `boxes` boxes: a step put in is its
+/// opening and what was drawn in it, taken back one at a time.
+fn take_back_a_box(app: &mut driver::App, boxes: usize) {
+    for _ in 0..5 {
+        if the_counter(app).is_some_and(|(_, total)| total == boxes) {
+            return;
+        }
+        driver::click(app, "Annuler");
+    }
+    panic!(
+        "five « Annuler » did not bring the reader to {boxes} boxes: {:?}",
+        the_counter(app),
+    );
+}
+
+/// « Rétablir » until nothing is left to redo.
+fn bring_back_all(app: &mut driver::App) {
+    for _ in 0..5 {
+        if !driver::is_enabled(app, "Rétablir") {
+            return;
+        }
+        driver::click(app, "Rétablir");
+    }
+}
+
+#[test]
+fn undoing_an_insertion_moves_the_reading_point_only_when_its_box_goes() {
+    let mut app = a_block_and_sketches("undoing_an_insertion_moves_the_reading_point", 3);
+    let mut read = Vec::new();
+
+    driver::click_the_button(&mut app, "Étape 4");
+    add_a_sketch(&mut app);
+    driver::click_the_button(&mut app, "Étape 3");
+    read.push((
+        "read to « Esquisse 2 », « Esquisse 5 » put in two boxes after it",
+        where_it_is_read_to(&app),
+    ));
+    take_back_a_box(&mut app, 5);
+    read.push((
+        "« Esquisse 5 », after the box read to, taken back",
+        where_it_is_read_to(&app),
+    ));
+    bring_back_all(&mut app);
+    read.push(("« Esquisse 5 » brought back", where_it_is_read_to(&app)));
+
+    driver::click_the_button(&mut app, "Étape 2");
+    add_a_sketch(&mut app);
+    read.push((
+        "« Esquisse 6 » put in after « Extrusion 1 »",
+        where_it_is_read_to(&app),
+    ));
+    take_back_a_box(&mut app, 6);
+    read.push((
+        "« Esquisse 6 », the box read to, taken back",
+        where_it_is_read_to(&app),
+    ));
+    bring_back_all(&mut app);
+    read.push(("« Esquisse 6 » brought back", where_it_is_read_to(&app)));
+
+    driver::click_the_button(&mut app, "Étape 5");
+    read.push((
+        "read to « Esquisse 3 », « Esquisse 6 » before it",
+        where_it_is_read_to(&app),
+    ));
+    take_back_a_box(&mut app, 6);
+    read.push((
+        "« Esquisse 6 », before the box read to, taken back",
+        where_it_is_read_to(&app),
+    ));
+    bring_back_all(&mut app);
+    read.push(("« Esquisse 6 » brought back", where_it_is_read_to(&app)));
+
+    assert_eq!(
+        read,
+        [
+            (
+                "read to « Esquisse 2 », « Esquisse 5 » put in two boxes after it",
+                read_to("3 / 6", "Esquisse 2"),
+            ),
+            (
+                "« Esquisse 5 », after the box read to, taken back",
+                read_to("3 / 5", "Esquisse 2"),
+            ),
+            (
+                "« Esquisse 5 » brought back",
+                read_to("3 / 6", "Esquisse 2")
+            ),
+            (
+                "« Esquisse 6 » put in after « Extrusion 1 »",
+                read_to("3 / 7", "Esquisse 6"),
+            ),
+            (
+                "« Esquisse 6 », the box read to, taken back",
+                read_to("2 / 6", "Extrusion 1"),
+            ),
+            (
+                "« Esquisse 6 » brought back",
+                read_to("2 / 7", "Extrusion 1")
+            ),
+            (
+                "read to « Esquisse 3 », « Esquisse 6 » before it",
+                read_to("5 / 7", "Esquisse 3"),
+            ),
+            (
+                "« Esquisse 6 », before the box read to, taken back",
+                read_to("4 / 6", "Esquisse 3"),
+            ),
+            (
+                "« Esquisse 6 » brought back",
+                read_to("5 / 7", "Esquisse 3")
+            ),
+        ],
+        "the reading point does not follow its box through undo and redo — still when a box \
+         after it goes, onto the box before when its own goes, on the same box when one \
+         before it goes or comes back — as (what was done, (counter, the step read to))",
+    );
+}
+
+/// Every text on screen, where it stands, and whether it is a button.
+fn texts_placed(app: &driver::App) -> Vec<(egui::Rect, String, bool)> {
+    app.get_all_by(|_| true)
+        .filter_map(|node| {
+            let read = node.accesskit_node();
+            let text = read.label().or_else(|| read.value())?;
+            let button = read.role() == egui::accesskit::Role::Button;
+            Some((node.rect(), text, button))
+        })
+        .collect()
+}
+
+/// The name the line under the reader's row gives the step read to, the rest
+/// hidden or not: the one text, no button and off the title bar's row, that
+/// starts with the name of a step. No sketch is open while it is read.
+fn the_reader_s_line(app: &driver::App) -> Option<String> {
+    let title_bar = driver::the_row(app, "Accueil").map(|home| home.rect());
+    texts_placed(app)
+        .into_iter()
+        .filter(|(at, _, button)| {
+            !button && !title_bar.is_some_and(|row| row.y_range().contains(at.center().y))
+        })
+        .map(|(_, text, _)| text)
+        .find(|text| text.starts_with("Esquisse ") || text.starts_with("Extrusion "))
+        .map(|line| line.trim_end_matches(" · la suite est masquée").to_string())
+}
+
+/// The name of each of the reader's boxes, in the row's order, each read off
+/// the line under the row once it is clicked.
+fn the_reader_s_names(app: &mut driver::App) -> Vec<Option<String>> {
+    let boxes = the_counter(app).map_or(0, |(_, total)| total);
+    (1..=boxes)
+        .map(|rank| {
+            driver::click_the_button(app, &format!("Étape {rank}"));
+            the_reader_s_line(app)
+        })
+        .collect()
+}
+
+/// The names of the history's lines that open a key step, in the order of the
+/// lines; the history unfolded to read them, then folded again.
+fn the_history_s_key_steps(app: &mut driver::App) -> Vec<String> {
+    click_the_history_s_header(app);
+    let lines = driver::steps(app);
+    click_the_history_s_header(app);
+    lines
+        .iter()
+        .filter_map(|line| line.split_once(". "))
+        .map(|(_, name)| name.to_string())
+        .filter(|name| name.starts_with("Esquisse ") || name.starts_with("Extrusion "))
+        .collect()
+}
+
+#[test]
+fn the_history_lists_the_order_done_and_the_reader_the_order_of_the_part() {
+    let mut app = a_block_with_a_hole("the_history_lists_the_order_done");
+    driver::click_the_button(&mut app, "Étape 3");
+    driver::bring_into_the_ribbon(&mut app, "Nouvelle esquisse");
+    driver::start_a_sketch(&mut app);
+    extrude_a_rectangle(&mut app, BESIDE_THE_BLOCK, "3", "Ajout de matière");
+    finish_after_extruding(&mut app);
+
+    let history = the_history_s_key_steps(&mut app);
+    let reader = the_reader_s_names(&mut app);
+
+    let all = |names: &[&str]| {
+        names
+            .iter()
+            .map(|name| name.to_string())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        (history, reader),
+        (
+            all(&[
+                "Esquisse 1",
+                "Extrusion 1",
+                "Esquisse 2",
+                "Extrusion 2",
+                "Esquisse 3",
+                "Extrusion 3",
+            ]),
+            all(&[
+                "Esquisse 1",
+                "Extrusion 1",
+                "Esquisse 2",
+                "Esquisse 3",
+                "Extrusion 3",
+                "Extrusion 2",
+            ])
+            .into_iter()
+            .map(Some)
+            .collect(),
+        ),
+        "a sketch and its extrusion put in after « Esquisse 2 », before the hole: the history \
+         does not list them last, in the order they were done, or the reader does not show \
+         them before the hole, in the order of the part, as (the history, the reader)",
+    );
+}

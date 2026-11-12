@@ -114,13 +114,13 @@ fn not_opaque(states: &BTreeMap<u32, VolumeState>) -> BTreeMap<u32, VolumeState>
         .collect()
 }
 
-/// The number of the operation opening the step of the design that follows
-/// the one the `key_step`th key step in effect opens; nothing when no key
-/// step in effect comes after it, the part then being read whole.
+/// The number of the operation opening the step of the design in effect that
+/// follows the one the `key_step`th key step in effect opens; nothing when no
+/// key step in effect comes after it, the part then being read whole.
 fn where_reading_stops(history: &History, key_step: usize) -> Option<u32> {
     let read = history.place_of_key_step(key_step)?;
     history.place_of_key_step(key_step + 1)?;
-    history.steps().get(read + 1)?.operations().first().copied()
+    history.opening_after(read)
 }
 
 impl PartState {

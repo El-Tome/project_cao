@@ -324,6 +324,10 @@
 //!   exactly the points the kernel draws it through, and a name the part no
 //!   longer finds lights nothing —
 //!   `the_edge_under_the_hand_is_drawn_through_the_points_the_kernel_draws_it_through`
+//! - found on rendered frames: the edge chosen stays drawn once the hand has
+//!   left it for « Appliquer », and nothing is drawn of it once the panel
+//!   holds none —
+//!   `the_edge_chosen_is_drawn_through_its_points_with_the_hand_elsewhere`
 
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef, VolumeState};
 use cao_prefs::config::ViewportConfig;
@@ -3923,4 +3927,57 @@ fn the_edge_under_the_hand_is_drawn_through_the_points_the_kernel_draws_it_throu
         nowhere, plain,
         "a name the part does not find lit something"
     );
+}
+
+#[test]
+fn the_edge_chosen_is_drawn_through_its_points_with_the_hand_elsewhere() {
+    let mut document = a_block();
+    let edge = document
+        .body()
+        .drawn_edges()
+        .into_iter()
+        .find(|edge| {
+            edge.points
+                .iter()
+                .all(|point| point.y.abs() < 1e-9 && (point.z - 4.0).abs() < 1e-9)
+        })
+        .expect("the edge between the top and the front");
+    let through: BTreeSet<[[u32; 3]; 2]> = edge
+        .points
+        .windows(2)
+        .map(|pair| {
+            let mut ends = [pair[0], pair[1]].map(|end| end.as_vec3().to_array().map(f32::to_bits));
+            ends.sort();
+            ends
+        })
+        .collect();
+    let plain = every_segment_of(&a_frame_of(
+        &ViewportState::default(),
+        &mut document,
+        &mut SketchEditor::default(),
+    ));
+
+    let mut state = ViewportState::default();
+    state.edge_chosen = Some(edge.name.clone());
+    assert_eq!(state.edge_under_the_hand, None, "the hand is elsewhere");
+    let chosen = every_segment_of(&a_frame_of(
+        &state,
+        &mut document,
+        &mut SketchEditor::default(),
+    ));
+    let added: BTreeSet<_> = chosen.difference(&plain).copied().collect();
+
+    assert_eq!(
+        added, through,
+        "with the hand elsewhere, what the frame adds is not the edge chosen, segment for \
+         segment",
+    );
+
+    state.edge_chosen = None;
+    let none = every_segment_of(&a_frame_of(
+        &state,
+        &mut document,
+        &mut SketchEditor::default(),
+    ));
+    assert_eq!(none, plain, "no edge chosen, and something is drawn of one");
 }

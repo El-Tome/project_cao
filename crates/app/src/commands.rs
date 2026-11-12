@@ -190,9 +190,10 @@ pub(crate) fn run(
                 Command::ToolChamfer => BlendShape::Chamfer,
                 _ => BlendShape::Fillet,
             };
-            extrusion.close();
+            if let Some(sketch) = extrusion.sketch {
+                extrusion.offer(sketch);
+            }
             blend.offer(shape);
-            editor.message = wording::command::hint_on_the_part(lang, command);
             false
         }
         Command::ToolChamfer => {

@@ -73,6 +73,13 @@
 //!   chamfers nothing behind it —
 //!   `modifier_on_an_extrusion_s_alert_closes_the_edge_panel_and_the_chord_chamfers_nothing`,
 //!   `a_sketch_reopened_from_the_tree_closes_the_edge_panel_and_the_chord_chamfers_nothing`
+//! - found on rendered frames: the Extrusion tab is left as it was once the
+//!   edge panel is cancelled or applied — no « Extruder l'esquisse » row, both
+//!   matter tools offered — and the edge's hint is gone from the top bar —
+//!   `the_extrusion_tab_is_left_as_it_was_once_the_edge_panel_is_cancelled_or_applied`
+//! - found on rendered frames: the reason a chamfer was declined moves
+//!   neither « Appliquer » nor « Annuler »; it is said after them —
+//!   `a_decline_said_in_the_panel_moves_neither_of_its_buttons`
 
 mod driver;
 
@@ -1012,5 +1019,107 @@ fn a_sketch_reopened_from_the_tree_closes_the_edge_panel_and_the_chord_chamfers_
         0,
         "the apply chord, in the sketch reopened, chamfered: {:?}",
         driver::steps(&app),
+    );
+}
+
+const THE_EDGE_S_HINT: &str = "Cliquer une arête de la pièce, puis taper la distance";
+
+fn the_extrusion_tab_reads_as_before_any_edge_panel(app: &driver::App, when: &str) {
+    assert!(
+        !driver::shows_or_says(app, "Extruder l'esquisse"),
+        "{when}: the Extrusion tab offers to extrude a sketch it did not offer before, \
+         showing {:?}",
+        driver::on_screen(app),
+    );
+    for tool in ["Ajout de matière", "Enlèvement de matière"] {
+        assert!(
+            is_enabled_in_the_ribbon(app, tool),
+            "{when}: « {tool} » is greyed, where it was offered before",
+        );
+    }
+}
+
+#[test]
+fn the_extrusion_tab_is_left_as_it_was_once_the_edge_panel_is_cancelled_or_applied() {
+    for closed_by in ["Annuler", "Appliquer"] {
+        let test = format!(
+            "the_extrusion_tab_is_left_as_it_was_{}",
+            closed_by.to_lowercase()
+        );
+        let mut app = driver::a_block(&test);
+        let block = Block::of(&test);
+        driver::click_exactly(&mut app, "Extrusion");
+        the_extrusion_tab_reads_as_before_any_edge_panel(
+            &app,
+            "the fixture, before any edge panel",
+        );
+
+        driver::click_exactly(&mut app, "Chanfrein");
+        assert!(
+            driver::shows_or_says(&app, THE_EDGE_S_HINT),
+            "the fixture expects the edge's hint while the panel is open: {:?}",
+            driver::on_screen(&app),
+        );
+        if closed_by == "Appliquer" {
+            driver::click_at_world_point(&mut app, middle(block.near_top()));
+        }
+        driver::click_the_button(&mut app, closed_by);
+
+        let when = format!("the edge panel closed by « {closed_by} »");
+        assert!(
+            !driver::reads(&app, THE_CHAMFER_S_VALUE),
+            "{when}: the panel is still open"
+        );
+        the_extrusion_tab_reads_as_before_any_edge_panel(&app, &when);
+        assert!(
+            !driver::shows_or_says(&app, THE_EDGE_S_HINT),
+            "{when}: the top bar still asks for an edge",
+        );
+    }
+}
+
+fn the_panel_s_button(app: &driver::App, label: &str) -> egui::Rect {
+    app.query_all_by_label(label)
+        .find(|node| node.accesskit_node().role() == egui::accesskit::Role::Button)
+        .unwrap_or_else(|| panic!("the panel has no button « {label} »"))
+        .rect()
+}
+
+#[test]
+fn a_decline_said_in_the_panel_moves_neither_of_its_buttons() {
+    let test = "a_decline_moves_neither_button";
+    let mut app = a_disc(test);
+    let disc = the_part(test, "Disque");
+    let mut rims = disc.body().drawn_edges();
+    rims.sort_by(|a, b| a.points[0].x.total_cmp(&b.points[0].x));
+    let [far, near] = [&rims[0], &rims[1]];
+    let on_the_near_rim = furthest_on_screen_from(&app, near, the_middle_on_screen(&app, far));
+    driver::click_exactly(&mut app, "Extrusion");
+    driver::click_exactly(&mut app, "Chanfrein");
+    driver::click_at_world_point(&mut app, on_the_near_rim);
+    let before = ["Appliquer", "Annuler"].map(|label| the_panel_s_button(&app, label));
+
+    driver::click_the_button(&mut app, "Appliquer");
+
+    let said = driver::where_it_reads(&app, NOT_YET_A_CHAMFER).unwrap_or_else(|| {
+        panic!(
+            "the fixture expects the decline said in the panel: {:?}",
+            driver::on_screen(&app)
+        )
+    });
+    let after = ["Appliquer", "Annuler"].map(|label| the_panel_s_button(&app, label));
+    for (label, (before, after)) in ["Appliquer", "Annuler"]
+        .iter()
+        .zip(before.iter().zip(&after))
+    {
+        assert!(
+            before.min.distance(after.min) < 0.5,
+            "« {label} » stood at {before:?} and stands at {after:?} once the decline is said",
+        );
+    }
+    let cancel = after[1];
+    assert!(
+        said.left() >= cancel.right() || said.top() >= cancel.bottom(),
+        "the decline is said at {said:?}, before « Annuler » at {cancel:?}",
     );
 }

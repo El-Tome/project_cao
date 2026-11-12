@@ -6,7 +6,7 @@ use crate::lang::Catalogue;
 use crate::screens::blend::BlendState;
 use crate::screens::variables::{NAMING, offered};
 use crate::ui::formula_field::formula_field;
-use crate::wording::outcome;
+use crate::wording::{command, outcome};
 
 /// The size an edge is chamfered or rounded by, shown while the edge panel is
 /// open, in the place the extrusion's values take.
@@ -34,12 +34,6 @@ pub(super) fn blend_row(
             &offers,
             NAMING,
         );
-        if let Some(reason) = blend.declined {
-            ui.colored_label(
-                ui.visuals().error_fg_color,
-                outcome::blend_declined(lang, shape, reason),
-            );
-        }
         ui.separator();
         ui.add_enabled_ui(blend.is_ready(document.variables()), |ui| {
             if ui.button(lang.t("extrusion.apply")).clicked() {
@@ -48,6 +42,23 @@ pub(super) fn blend_row(
         });
         if ui.button(lang.t("extrusion.cancel")).clicked() {
             blend.close();
+            return;
+        }
+        match (blend.declined, &blend.edge) {
+            (Some(reason), _) => {
+                ui.colored_label(
+                    ui.visuals().error_fg_color,
+                    outcome::blend_declined(lang, shape, reason),
+                );
+            }
+            (None, None) => {
+                let tool = match shape {
+                    BlendShape::Chamfer => Command::ToolChamfer,
+                    BlendShape::Fillet => Command::ToolFillet,
+                };
+                ui.weak(command::hint_on_the_part(lang, tool).unwrap_or_default());
+            }
+            (None, Some(_)) => {}
         }
     });
 }

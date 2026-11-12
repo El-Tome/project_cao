@@ -132,6 +132,56 @@
 //!   what lets a round bottom meet the end edge's fill lets in nothing else,
 //!   #822's rule —
 //!   `a_fillet_and_a_chamfer_on_the_round_bottom_the_floor_edge_at_its_end_and_both_uprights_there_stay_declined_as_unsupported_whatever_the_order`
+//! - Decided on the way, after the review (2026-11-12): what the guard now
+//!   lets through but the laying refuses. A cut and a fill meeting where a
+//!   slope or a round bottom ends do not commute — the one laid against the
+//!   other takes or gives back what the other just gave or took — and the
+//!   lists where they do pass `at_their_ends` and are refused by a later
+//!   laying check, `cut_along` or `sloped`, alone. Each stays declined
+//!   `Unsupported` in every order, its parts laid alone, so that whoever
+//!   loosens a laying check sees it go red, #822's rule. #791's stair, its
+//!   slope — the tread's nose and foot chamfered at 5, meeting across it —
+//!   with the tread's convex edge on the stair's right side; the same stair
+//!   between two walls, the tread's edge on the right wall concave, which
+//!   declines too; the slot 6 wide open at x = 30, its round bottom filleted
+//!   at 3 with the floor's convex edge on the block's right face; and the
+//!   pocket's standing round bottom, its right end's two uprights filleted at
+//!   3, with the convex rim edge on top of that wall —
+//!   `a_cut_and_a_fill_that_meet_where_a_slope_or_a_round_bottom_ends_are_declined_as_unsupported_whatever_the_order`
+//! - Decided on the way, after the review (2026-11-12): an end at a slant. A
+//!   pocket 6 wide whose outline is (5, 2), (25, 2), (27, 8), (5, 8), its
+//!   round bottom and its slanted end's floor edge filleted at 3: built in
+//!   every order, one body, the volume the arithmetic gives, which the
+//!   booleans give too —
+//!   `a_fillet_on_a_pocket_s_round_bottom_and_the_floor_edge_of_its_slanted_end_meets_that_edge_s_fill_in_a_valley_whatever_the_order`.
+//!   Read as: in each of the six orders, the value taken whole; the body
+//!   exact, closed, uncrossed, holding `5622 − 189π/2 − 12√10 + 9√10π/2`,
+//!   5331.8778, and its triangles enclosing that within the drawing's
+//!   tolerance; the floor gone, the round bottom one face answering to both
+//!   its edges' ranks, on its half cylinder and never past the valley, the end
+//!   edge's fill on its quarter cylinder about the line 3 in from the slanted
+//!   wall and over the floor and never short of it, each met first from its
+//!   axis; the two meeting on the two upright planes through the crossing of
+//!   their axes, (26 − √10, 5, 17), that halve the angles between them, from
+//!   (25, 2, 17) through (26 − √10, 5, 14) to (27, 8, 17), by two edges, at one
+//!   vertex at each of the three points, sharing no point off the planes; the
+//!   slanted wall flat, facing back square to itself, kept above z = 17 and
+//!   meeting the fill along that line; each face meeting the faces it bounds
+//!   by one edge each; and every order laying the body the listed order lays
+//! - Decided on the way, after the review (2026-11-12): a slot open at its
+//!   right end, cut as the pocket is but out through the block's right face
+//!   at x = 30, its round bottom and its closed left end's floor edge filleted
+//!   at 3: built as the pocket builds it, the left end's fill meeting the
+//!   round bottom in a valley, the round bottom running out to the block's
+//!   right face —
+//!   `a_fillet_on_a_slot_s_round_bottom_and_the_floor_edge_at_its_closed_end_meets_that_edge_s_fill_in_a_valley_whatever_the_order`.
+//!   Read as the first criterion, mirrored to the left end: in each of the six
+//!   orders, the body holding `5514 − 99π`, which the booleans give too; the
+//!   left fill a quarter cylinder about x = 8, z = 17, meeting the round
+//!   bottom on 8 − x = ±(y − 5) from (5, 2, 17) through (8, 5, 14) to
+//!   (5, 8, 17); the left wall flat from z = 17 up; the front and the back
+//!   walls kept from z = 17 up to the top, out to the block's right face; and
+//!   the round bottom meeting that face, where the slot opens, by one edge
 //!
 //! The volume is arithmetic. The block holds 6000, and a pocket `w` wide and 6
 //! deep takes `120w` of it: `narrow_pocket` holds 5280. Each fill alone adds
@@ -176,6 +226,38 @@
 //! standing round bottom's prism, raised from under the floor up to the
 //! block's top, then to the floor edge's fill prism.
 //!
+//! The slot open at its right end is 25 long, from x = 5 to the block's right
+//! face, and takes 900: it holds 5100. Its round bottom adds its section along
+//! the 25, its left end's floor edge along the 6, and the two share at the two
+//! corners at x = 5 what the right end's share at x = 25 in the pocket:
+//! `5100 + 50r²(1 − π/4) + 6r²(1 − π/4) − 2r³(5/3 − π/2)`, `5514 − 99π`,
+//! 5202.98. The booleans give it with the round bottom's prism raised up to
+//! that face, past which lies air.
+//!
+//! The pocket whose right end stands at a slant, from (25, 2) to (27, 8), has
+//! the area `(20 + 22)/2 · 6`, 126, and holds 5244. Its round bottom, trimmed
+//! flush on the slanted wall, adds its section along the pocket's length at
+//! each point of it, `20 + (y − 2)/3`; the section lies evenly either side of
+//! y = 5, so the round bottom adds its section along 21, `378(1 − π/4)`. The
+//! slanted end's floor edge is `2√10` long, between faces square to each
+//! other, the floor and the slanted wall; its fill, trimmed flush on the front
+//! and the back walls, runs the same `2√10` along every line through its
+//! section, each line rising 6 across the pocket at 3 in `√10`:
+//! `2√10 · r²(1 − π/4)`. At each of the two corners where the end edge meets
+//! the front's and the back's floor edges, the fills of both share the square
+//! corner's `r³(5/3 − π/2)` stretched by one over the sine of the angle the two
+//! walls make, a unit off one by a unit off the other covering `1/sin α` of
+//! the floor: both angles, 108.4° and 71.6°, have the sine `3/√10`. The body
+//! holds `5244 + 378(1 − π/4) + 18√10(1 − π/4) − 2r³(5/3 − π/2)·√10/3`, that is
+//! `5622 − 189π/2 − 12√10 + 9√10π/2`, 5331.8778, which the reviewer's probe
+//! measured. The two cylinders, of one radius, their axes crossing at
+//! (26 − √10, 5, 17), meet on the two upright planes through that crossing
+//! that halve the angles between the axes: there the distance out past the
+//! crossing square to the slanted wall equals the distance across from the
+//! middle line. The booleans give it too, the end edge's fill prism raised
+//! along the slanted end from the matter past the back wall to the matter past
+//! the front one.
+//!
 //! The lists `main` builds are held to the same arithmetic. At 6 wide,
 //! chamfered at 3: the pair 5460; the pair and the right end's floor edge,
 //! `5460 + 27 − 2·9`, 5469; the pair and both ends' floor edges 5478; the right
@@ -218,8 +300,9 @@ const CLEAR_OF_THE_VALLEY: f64 = 0.1;
 /// arithmetic comes.
 const AS_MEASURED: f64 = 5e-5;
 
-/// The number a raised block's top answers to.
+/// The numbers a raised block's top and right face answer to.
 const TOP: usize = 1;
+const BLOCK_RIGHT: usize = 3;
 
 /// The numbers the pocket's faces answer to: its floor six, its walls, front,
 /// right, back and left, eight to eleven, the tool's top, above the block,
@@ -307,38 +390,51 @@ fn profile(outline: Contour) -> Profile<'static> {
     }
 }
 
-/// The block 30 by 10 by 20 with a pocket `width` wide cut into the middle of
-/// its top, from x = 5 to x = 25 and from y = 2, its floor at z = 14, as
-/// `cao_part` cuts a step: the tool's faces numbered past the block's, its
-/// floor six, its top, above the block, seven and gone, its walls eight to
-/// eleven.
+/// The tool an outline raises from `base` by `height`, for `part` to number
+/// its faces after its own, as `cao_part` raises a step: its floor first, then
+/// its top, then its walls, one for each run of the outline.
+fn raised_on(part: &Body, outline: Contour, base: f64, height: f64) -> Body {
+    part.tool_raised(
+        &profile(outline),
+        Frame {
+            origin: DVec3::Z * base,
+            ..ground()
+        },
+        DVec3::Z * height,
+    )
+    .expect("the tool raises")
+}
+
+/// The part joined to the block between `from` and `to`, seen from above,
+/// standing on the ground `height` high.
+fn joined_to(part: &Body, [from, to]: [DVec2; 2], height: f64) -> Body {
+    part.union(&raised_on(part, Contour::rectangle(from, to), 0.0, height))
+        .expect("the join is built")
+}
+
+/// The block 30 by 10 by 20 with `outline` cut into its top down to a floor
+/// at z = 14, as `cao_part` cuts a step: the tool's faces numbered past the
+/// block's, its floor six, its top, above the block, seven and gone, its walls
+/// from eight, one for each run of the outline.
+fn cut_into_the_block(outline: Contour) -> Body {
+    let block = joined_to(
+        &Body::default(),
+        [DVec2::ZERO, DVec2::new(LENGTH, BREADTH)],
+        HEIGHT,
+    );
+    block
+        .difference(&raised_on(&block, outline, FLOOR_AT, DEPTH + 1.0))
+        .expect("the cut is made")
+}
+
+/// The block with a pocket `width` wide cut into the middle of its top, from
+/// x = 5 to x = 25 and from y = 2: its walls, front, right, back and left,
+/// eight to eleven.
 fn pocket(width: f64) -> Body {
-    let part = Body::default();
-    let block = part
-        .union(
-            &part
-                .tool_raised(
-                    &profile(Contour::rectangle(DVec2::ZERO, DVec2::new(LENGTH, BREADTH))),
-                    ground(),
-                    DVec3::Z * HEIGHT,
-                )
-                .expect("the block raises"),
-        )
-        .expect("the block is built");
-    let tool = block
-        .tool_raised(
-            &profile(Contour::rectangle(
-                DVec2::new(LEFT_WALL_AT, FRONT_WALL_AT),
-                DVec2::new(RIGHT_WALL_AT, FRONT_WALL_AT + width),
-            )),
-            Frame {
-                origin: DVec3::Z * FLOOR_AT,
-                ..ground()
-            },
-            DVec3::Z * (DEPTH + 1.0),
-        )
-        .expect("the tool raises");
-    block.difference(&tool).expect("the pocket is cut")
+    cut_into_the_block(Contour::rectangle(
+        DVec2::new(LEFT_WALL_AT, FRONT_WALL_AT),
+        DVec2::new(RIGHT_WALL_AT, FRONT_WALL_AT + width),
+    ))
 }
 
 /// The pocket [`WIDTH`] wide and as deep: its floor's front and back edges
@@ -346,6 +442,90 @@ fn pocket(width: f64) -> Body {
 /// [`RADIUS`] meet in one round bottom.
 fn narrow_pocket() -> Body {
     pocket(WIDTH)
+}
+
+/// A slot [`WIDTH`] wide cut as [`narrow_pocket`] is but running out through
+/// the block's right face: its tool reaches a unit past it, its right wall
+/// outside the block and gone. Its left end is closed by its left wall, and
+/// the round bottom along its floor meets the block's right face, where the
+/// slot opens.
+fn open_slot() -> Body {
+    cut_into_the_block(Contour::rectangle(
+        DVec2::new(LEFT_WALL_AT, FRONT_WALL_AT),
+        DVec2::new(LENGTH + 1.0, FRONT_WALL_AT + WIDTH),
+    ))
+}
+
+/// A pocket [`WIDTH`] wide whose right end stands at a slant seen from above,
+/// from (25, 2) on the front wall to (27, 8) on the back, its corners there
+/// 108.4° and 71.6°: its walls, front, slanted end, back and left, eight to
+/// eleven.
+fn slanted_pocket() -> Body {
+    cut_into_the_block(Contour::straight(vec![
+        DVec2::new(LEFT_WALL_AT, FRONT_WALL_AT),
+        DVec2::new(RIGHT_WALL_AT, FRONT_WALL_AT),
+        slanted_end_at_the_back(),
+        DVec2::new(LEFT_WALL_AT, FRONT_WALL_AT + WIDTH),
+    ]))
+}
+
+/// Where the slanted end of [`slanted_pocket`] meets its back wall, seen
+/// from above: 2 further along X than where it meets the front wall.
+fn slanted_end_at_the_back() -> DVec2 {
+    DVec2::new(RIGHT_WALL_AT + 2.0, FRONT_WALL_AT + WIDTH)
+}
+
+/// #791's stair: a block 30 long from y = 10 to 20 and 20 high, and in front
+/// of it a block from y = 0 to 10, as long and 10 high, joined to it. The
+/// lower block's top, seven, is the tread: its nose, along the lower block's
+/// front, eight, meets outwards, and its foot, against the riser, the taller
+/// block's front, two, meets inwards. The two blocks' right sides merge into
+/// one face, and the tread's edge on it meets outwards.
+fn stair() -> Body {
+    let taller = joined_to(
+        &Body::default(),
+        [DVec2::new(0.0, 10.0), DVec2::new(LENGTH, 20.0)],
+        HEIGHT,
+    );
+    joined_to(&taller, [DVec2::ZERO, DVec2::new(LENGTH, 10.0)], 10.0)
+}
+
+/// The stair between two walls 5 thick, standing as deep and as high as the
+/// stair against its right and its left sides: the tread's edge on the right
+/// wall, whose face against the stair is seventeen, meets inwards.
+fn stair_between_two_walls() -> Body {
+    let walled = joined_to(
+        &stair(),
+        [DVec2::new(LENGTH, 0.0), DVec2::new(LENGTH + 5.0, 20.0)],
+        HEIGHT,
+    );
+    joined_to(
+        &walled,
+        [DVec2::new(-5.0, 0.0), DVec2::new(0.0, 20.0)],
+        HEIGHT,
+    )
+}
+
+/// The name of the one edge between a face answering to `one` and a face
+/// answering to `other`, whatever else either answers to: an edge on a face
+/// merged from several.
+fn edge_touching(body: &Body, one: usize, other: usize) -> EdgeName {
+    let [one, other] = [one as u32, other as u32];
+    let named: Vec<EdgeName> = body
+        .edge_names()
+        .into_iter()
+        .filter(|name| {
+            let [first, second] = &name.between;
+            (first.contains(&one) && second.contains(&other))
+                || (first.contains(&other) && second.contains(&one))
+        })
+        .collect();
+    assert_eq!(
+        named.len(),
+        1,
+        "one edge between a face answering to {one} and one answering to {other}: {named:?}"
+    );
+    named[0].clone()
 }
 
 /// The name of the one edge between the faces numbered `first` and `second`,
@@ -603,18 +783,89 @@ impl Hollow {
     }
 }
 
-/// The round bottom of [`narrow_pocket`], whole: two hollow quarter rounds
-/// about the line [`RADIUS`] over the middle of the floor, all along the
-/// pocket, from facing the front wall's way to the floor's, and from the
-/// floor's to the back wall's.
-fn round_bottom() -> [Hollow; 2] {
+/// The round bottom of a pocket or a slot [`WIDTH`] wide, whole: two hollow
+/// quarter rounds about the line [`RADIUS`] over the middle of the floor, from
+/// the left wall `length` along X, from facing the front wall's way to the
+/// floor's, and from the floor's to the back wall's.
+fn round_bottom_along(length: f64) -> [Hollow; 2] {
     [[DVec3::Y, DVec3::Z], [DVec3::Z, -DVec3::Y]].map(|facing| Hollow {
         start: DVec3::new(LEFT_WALL_AT, FRONT_WALL_AT + RADIUS, FLOOR_AT + RADIUS),
         along: DVec3::X,
-        length: POCKET_LENGTH,
+        length,
         radius: RADIUS,
         facing,
     })
+}
+
+/// A pocket or a slot [`WIDTH`] wide cut into the block, the round bottom
+/// along its floor running from the left wall to `reaches_to` along X: what
+/// it is called, and the face its round bottom meets at its right end where
+/// that end's floor edge is not named — the pocket's right wall, or the
+/// block's right face where the slot opens.
+struct Pocketed {
+    part: Body,
+    called: &'static str,
+    reaches_to: f64,
+    right_face: usize,
+}
+
+impl Pocketed {
+    /// [`narrow_pocket`], closed at both ends.
+    fn narrow() -> Pocketed {
+        Pocketed {
+            part: narrow_pocket(),
+            called: "the pocket 6 wide",
+            reaches_to: RIGHT_WALL_AT,
+            right_face: POCKET_RIGHT,
+        }
+    }
+
+    /// [`open_slot`], closed at its left end only.
+    fn open_slot() -> Pocketed {
+        Pocketed {
+            part: open_slot(),
+            called: "the slot 6 wide open at its right end",
+            reaches_to: LENGTH,
+            right_face: BLOCK_RIGHT,
+        }
+    }
+
+    /// Whether a wall closes the end `end`.
+    fn closed_at(&self, end: End) -> bool {
+        end == End::Left || self.right_face == POCKET_RIGHT
+    }
+
+    /// The face at the end `end`: its wall, or where the slot opens, the
+    /// block's right face.
+    fn face_at(&self, end: End) -> usize {
+        match end {
+            End::Right => self.right_face,
+            End::Left => POCKET_LEFT,
+        }
+    }
+
+    /// The round bottom along its floor, whole.
+    fn round_bottom(&self) -> [Hollow; 2] {
+        round_bottom_along(self.reaches_to - LEFT_WALL_AT)
+    }
+
+    /// The prism the round bottom adds, raised along X from the matter past
+    /// the left wall into the matter past the right one, or, where the slot
+    /// opens, up to the block's right face.
+    fn round_bottom_tool(&self) -> Body {
+        let to = if self.closed_at(End::Right) {
+            RIGHT_WALL_AT + RADIUS
+        } else {
+            LENGTH
+        };
+        round_bottom_tool(&self.part, to)
+    }
+
+    /// What it holds once the edges `listed` are cut at [`RADIUS`], as
+    /// [`kept_along`] reckons it.
+    fn kept(&self, cut: Cut, listed: &[[usize; 2]]) -> f64 {
+        kept_along(cut, WIDTH, self.reaches_to - LEFT_WALL_AT, listed)
+    }
 }
 
 /// Holds that every ray aimed from the round's axis out to it, over a grid
@@ -791,12 +1042,12 @@ impl End {
     }
 }
 
-/// The prism the round bottom adds on [`narrow_pocket`], raised along the
-/// whole pocket and past both its ends into the matter: what lies under the
-/// half round about the line [`RADIUS`] over the middle of the floor, out a
-/// unit into the matter past the front and back walls and down under the
-/// floor.
-fn round_bottom_tool(part: &Body) -> Body {
+/// The prism the round bottom adds on a pocket or a slot [`WIDTH`] wide,
+/// raised along X from the matter past its left wall up to `to`: what lies
+/// under the half round about the line [`RADIUS`] over the middle of the
+/// floor, out a unit into the matter past the front and back walls and down
+/// under the floor.
+fn round_bottom_tool(part: &Body, to: f64) -> Body {
     let r = RADIUS;
     let [near, far] = [FRONT_WALL_AT, FRONT_WALL_AT + WIDTH];
     let [round_top, below] = [FLOOR_AT + r, FLOOR_AT - r];
@@ -820,19 +1071,20 @@ fn round_bottom_tool(part: &Body) -> Body {
             u: DVec3::Y,
             v: DVec3::Z,
         },
-        DVec3::X * (POCKET_LENGTH + 2.0 * r),
+        DVec3::X * (to - LEFT_WALL_AT + r),
     )
     .expect("the tool raises")
 }
 
-/// What [`narrow_pocket`] holds once the round bottom and the fills of the
+/// What a pocket or a slot holds once the round bottom and the fills of the
 /// floor edges at `ends` are laid at [`RADIUS`], computed apart from the
-/// step: the pocket joined to the round bottom's prism, then to each end
-/// edge's, by the booleans.
-fn valley_by_booleans(part: &Body, ends: &[End]) -> f64 {
-    let filled = part
-        .union(&round_bottom_tool(part))
-        .expect("the round bottom's prism joins the pocket");
+/// step: the part joined to the round bottom's prism, then to each end edge's,
+/// by the booleans.
+fn valley_by_booleans(pocketed: &Pocketed, ends: &[End]) -> f64 {
+    let filled = pocketed
+        .part
+        .union(&pocketed.round_bottom_tool())
+        .expect("the round bottom's prism joins the part");
     ends.iter()
         .fold(filled, |body, end| {
             body.union(&end.tool(&body))
@@ -890,15 +1142,15 @@ impl Cut {
         }
     }
 
-    /// The cut at [`RADIUS`] on the edges `names` finds on `part`.
-    fn laid_on(self, part: &Body, names: &[EdgeName]) -> Result<Laid, Declined> {
+    /// The cut at `value` on the edges `names` finds on `part`.
+    fn laid_on(self, part: &Body, names: &[EdgeName], value: f64) -> Result<Laid, Declined> {
         match self {
-            Cut::Fillet => part.fillet_edges(names, RADIUS).map(|laid| Laid {
+            Cut::Fillet => part.fillet_edges(names, value).map(|laid| Laid {
                 asked: laid.asked,
                 taken: laid.taken,
                 body: laid.body,
             }),
-            Cut::Chamfer => part.chamfer_edges(names, RADIUS).map(|laid| Laid {
+            Cut::Chamfer => part.chamfer_edges(names, value).map(|laid| Laid {
                 asked: laid.asked,
                 taken: laid.taken,
                 body: laid.body,
@@ -918,12 +1170,21 @@ fn same_edge([one, other]: [usize; 2], edge: [usize; 2]) -> bool {
 /// added whole along it, and at each of the pocket's four bottom corners what
 /// the fills of the named edges there hold more than once counted once.
 fn kept(cut: Cut, width: f64, listed: &[[usize; 2]]) -> f64 {
+    kept_along(cut, width, POCKET_LENGTH, listed)
+}
+
+/// What a pocket or a slot `width` wide and `length` long holds once the
+/// edges `listed` are cut at [`RADIUS`], as [`kept`] reckons it: the floor's
+/// front and back edges `length` long; a slot's open end, where no wall
+/// stands, has no edge on its wall to name.
+fn kept_along(cut: Cut, width: f64, length: f64, listed: &[[usize; 2]]) -> f64 {
     let value = RADIUS;
+    let long = length;
     let ends = [POCKET_RIGHT, POCKET_LEFT];
     let sides = [POCKET_FRONT, POCKET_BACK];
     let length = |&[one, other]: &[usize; 2]| match (one == POCKET_FLOOR, ends.contains(&other)) {
         (true, true) => width,
-        (true, false) => POCKET_LENGTH,
+        (true, false) => long,
         (false, _) => DEPTH,
     };
     let mut held_twice = 0.0;
@@ -937,7 +1198,7 @@ fn kept(cut: Cut, width: f64, listed: &[[usize; 2]]) -> f64 {
             held_twice += cut.held_twice(named, value);
         }
     }
-    LENGTH * BREADTH * HEIGHT - POCKET_LENGTH * width * DEPTH
+    LENGTH * BREADTH * HEIGHT - long * width * DEPTH
         + cut.section(value) * listed.iter().map(length).sum::<f64>()
         - held_twice
 }
@@ -1038,6 +1299,7 @@ fn met_otherwise(start: usize, order: &[usize], body: &Body, reference: &Body) -
 /// face read by the edge it was laid on.
 fn filleted_in_every_order(
     part: &Body,
+    on: &str,
     listed: &[([usize; 2], &str)],
     holds: impl Fn(&[usize], &Laid, &str),
 ) {
@@ -1049,7 +1311,7 @@ fn filleted_in_every_order(
     let called = |order: &[usize]| {
         let called: Vec<&str> = order.iter().map(|&edge| listed[edge].1).collect();
         format!(
-            "the fillet at {RADIUS} on {}, on the pocket {WIDTH} wide",
+            "the fillet at {RADIUS} on {}, on {on}",
             called.join(", then ")
         )
     };
@@ -1057,7 +1319,7 @@ fn filleted_in_every_order(
         .into_iter()
         .map(|order| {
             let names: Vec<EdgeName> = order.iter().map(|&edge| named[edge].clone()).collect();
-            let laid = Cut::Fillet.laid_on(part, &names);
+            let laid = Cut::Fillet.laid_on(part, &names, RADIUS);
             (order, laid)
         })
         .collect();
@@ -1106,11 +1368,12 @@ fn filleted_in_every_order(
 /// on its own cylinder and on its own side of the valley, met there from its
 /// axis, both drawn up to the valley's three points and sharing no point off
 /// its planes, one vertex at each; each named end's wall kept above its fill,
-/// an end not named keeping what stands above the round bottom's half circle;
-/// the front and the back kept above the round bottom, their uprights at
-/// both ends sharp; and every face meeting the faces it bounds, one edge each.
+/// a wall at an end not named keeping what stands above the round bottom's
+/// half circle; the front and the back kept above the round bottom, their
+/// uprights at both ends sharp; and every face meeting the faces it bounds,
+/// one edge each.
 fn meets_each_end_s_fill_in_a_valley(
-    part: &Body,
+    pocketed: &Pocketed,
     ends: &[End],
     order: &[usize],
     filleted: &Laid,
@@ -1118,6 +1381,7 @@ fn meets_each_end_s_fill_in_a_valley(
     what: &str,
 ) {
     let r = RADIUS;
+    let part = &pocketed.part;
     let start = part.faces_end();
     let count = order.len();
     taken_as_asked(filleted.asked, filleted.taken, RADIUS, what);
@@ -1126,7 +1390,7 @@ fn meets_each_end_s_fill_in_a_valley(
     let fills: Vec<usize> = (0..ends.len())
         .map(|at| ranks_of(start, order, &[PAIR.len() + at])[0])
         .collect();
-    let [front_half, back_half] = round_bottom();
+    let [front_half, back_half] = pocketed.round_bottom();
     let area = front_half.area()
         + back_half.area()
         + ends.iter().map(|end| end.fill().area()).sum::<f64>();
@@ -1289,7 +1553,7 @@ fn meets_each_end_s_fill_in_a_valley(
 
     for end in [End::Right, End::Left]
         .into_iter()
-        .filter(|end| !ends.contains(end))
+        .filter(|end| !ends.contains(end) && pocketed.closed_at(*end))
     {
         let wall = end.wall_at();
         let half_circle_center = DVec3::new(wall, FRONT_WALL_AT + r, FLOOR_AT + r);
@@ -1325,23 +1589,23 @@ fn meets_each_end_s_fill_in_a_valley(
             wall,
             &[
                 DVec3::new(LEFT_WALL_AT, across, FLOOR_AT + r),
-                DVec3::new(RIGHT_WALL_AT, across, FLOOR_AT + r),
-                DVec3::new(RIGHT_WALL_AT, across, HEIGHT),
+                DVec3::new(pocketed.reaches_to, across, FLOOR_AT + r),
+                DVec3::new(pocketed.reaches_to, across, HEIGHT),
                 DVec3::new(LEFT_WALL_AT, across, HEIGHT),
             ],
             &format!("{what}: {which}, kept from where the round bottom leaves it up to the top"),
         );
         assert_eq!(
             sides_met_by(body, &[wall]),
-            sides_answering(&[&[TOP], &[POCKET_RIGHT], &[POCKET_LEFT], &bottom]),
-            "{what}: {which} meets the top, the two end walls along its uprights and the round \
-             bottom, by one edge each, and no end edge's fill"
+            sides_answering(&[&[TOP], &[pocketed.right_face], &[POCKET_LEFT], &bottom]),
+            "{what}: {which} meets the top, the faces at both ends along its uprights and the \
+             round bottom, by one edge each, and no end edge's fill"
         );
         for end in [End::Right, End::Left] {
             assert_eq!(
-                edges_between(body, wall, end.wall()).len(),
+                edges_between(body, wall, pocketed.face_at(end)).len(),
                 1,
-                "{what}: the upright where {which} meets the wall at the {end:?} end is one sharp \
+                "{what}: the upright where {which} meets the face at the {end:?} end is one sharp \
                  edge, from the top down to where the round bottom leaves the walls"
             );
         }
@@ -1351,7 +1615,7 @@ fn meets_each_end_s_fill_in_a_valley(
     for end in [End::Right, End::Left] {
         match ends.iter().position(|named| *named == end) {
             Some(at) => met_by_bottom.extend([vec![fills[at]], vec![fills[at]]]),
-            None => met_by_bottom.push(vec![end.wall()]),
+            None => met_by_bottom.push(vec![pocketed.face_at(end)]),
         }
     }
     let met_by_bottom: Vec<&[usize]> = met_by_bottom.iter().map(Vec::as_slice).collect();
@@ -1359,7 +1623,7 @@ fn meets_each_end_s_fill_in_a_valley(
         sides_met_by(body, &bottom),
         sides_answering(&met_by_bottom),
         "{what}: the round bottom meets the front and the back walls along its sides, and at each \
-         end the wall there, or the end edge's fill along the two curves of the valley, by one \
+         end the face there, or the end edge's fill along the two curves of the valley, by one \
          edge each"
     );
     assert_eq!(
@@ -1369,39 +1633,50 @@ fn meets_each_end_s_fill_in_a_valley(
     );
 }
 
-/// Holds, for the floor edges at `ends`, that the fillet at [`RADIUS`] on
-/// the round bottom's pair and those edges is laid in every order as
-/// [`meets_each_end_s_fill_in_a_valley`] holds it, after the arithmetic has
-/// been held to give the volume the module's documentation writes, and the
-/// booleans to give what the arithmetic does.
-fn meets_each_end_s_fill_in_a_valley_whatever_the_order(ends: &[End], volume: f64, written: &str) {
-    let part = narrow_pocket();
+/// Holds, for the floor edges at `ends` of `pocketed`, that the fillet at
+/// [`RADIUS`] on the round bottom's pair and those edges is laid in every
+/// order as [`meets_each_end_s_fill_in_a_valley`] holds it, after the
+/// arithmetic has been held to give the volume the module's documentation
+/// writes, and the booleans to give what the arithmetic does.
+fn meets_each_end_s_fill_in_a_valley_whatever_the_order(
+    pocketed: &Pocketed,
+    ends: &[End],
+    volume: f64,
+    written: &str,
+) {
     let listed: Listed = PAIR
         .iter()
         .copied()
         .chain(ends.iter().map(|end| end.edge()))
         .collect();
     let edges: Vec<[usize; 2]> = listed.iter().map(|&(edge, _)| edge).collect();
-    let promised = kept(Cut::Fillet, WIDTH, &edges);
+    let promised = pocketed.kept(Cut::Fillet, &edges);
     assert!(
         (promised - volume).abs() <= EXACT * volume,
         "the arithmetic gives {promised}, where the documentation writes {written}"
     );
-    let by_booleans = valley_by_booleans(&part, ends);
+    let by_booleans = valley_by_booleans(pocketed, ends);
     assert!(
         (by_booleans - promised).abs() <= EXACT * promised,
         "the round bottom's prism and the fill prisms of the floor edges at {ends:?}, joined to \
-         the pocket by the booleans, leave {by_booleans}, where arithmetic promises {promised}"
+         {} by the booleans, leave {by_booleans}, where arithmetic promises {promised}",
+        pocketed.called
     );
-    filleted_in_every_order(&part, &listed, |order, filleted, what| {
-        meets_each_end_s_fill_in_a_valley(&part, ends, order, filleted, promised, what);
-    });
+    filleted_in_every_order(
+        &pocketed.part,
+        pocketed.called,
+        &listed,
+        |order, filleted, what| {
+            meets_each_end_s_fill_in_a_valley(pocketed, ends, order, filleted, promised, what);
+        },
+    );
 }
 
 #[test]
 fn a_fillet_on_a_pocket_s_round_bottom_and_the_floor_edge_at_its_end_meets_that_edge_s_fill_in_a_valley_whatever_the_order()
  {
     meets_each_end_s_fill_in_a_valley_whatever_the_order(
+        &Pocketed::narrow(),
         &[End::Right],
         5604.0 - 153.0 * PI / 2.0,
         "5604 − 153π/2",
@@ -1412,9 +1687,21 @@ fn a_fillet_on_a_pocket_s_round_bottom_and_the_floor_edge_at_its_end_meets_that_
 fn a_fillet_on_a_pocket_s_round_bottom_and_the_floor_edges_at_both_its_ends_meets_each_end_s_fill_in_a_valley_whatever_the_order()
  {
     meets_each_end_s_fill_in_a_valley_whatever_the_order(
+        &Pocketed::narrow(),
         &[End::Right, End::Left],
         5568.0 - 63.0 * PI,
         "5568 − 63π",
+    );
+}
+
+#[test]
+fn a_fillet_on_a_slot_s_round_bottom_and_the_floor_edge_at_its_closed_end_meets_that_edge_s_fill_in_a_valley_whatever_the_order()
+ {
+    meets_each_end_s_fill_in_a_valley_whatever_the_order(
+        &Pocketed::open_slot(),
+        &[End::Left],
+        5514.0 - 99.0 * PI,
+        "5514 − 99π",
     );
 }
 
@@ -1474,7 +1761,7 @@ fn the_lists_main_builds_on_a_pocket_6_or_6_5_wide_keep_their_bodies_in_every_or
         for order in every_order(named.len()) {
             let names: Vec<EdgeName> = order.iter().map(|&edge| named[edge].clone()).collect();
             let what = format!("{list}, named in the order {order:?}");
-            let laid = match cut.laid_on(&part, &names) {
+            let laid = match cut.laid_on(&part, &names, RADIUS) {
                 Ok(laid) => laid,
                 Err(declined) => {
                     not_kept.push(format!("{what}: declined, {declined:?}"));
@@ -1876,11 +2163,16 @@ fn a_fillet_on_the_floor_edge_and_both_uprights_at_a_pocket_s_end_meets_their_st
         "the standing round bottom's prism and the floor edge's fill prism, joined to the pocket \
          by the booleans, leave {by_booleans}, where arithmetic promises {promised}"
     );
-    filleted_in_every_order(&part, &listed, |order, filleted, what| {
-        meets_the_standing_round_bottom_in_a_valley_at_its_foot(
-            &part, order, filleted, promised, what,
-        );
-    });
+    filleted_in_every_order(
+        &part,
+        "the pocket 6 wide",
+        &listed,
+        |order, filleted, what| {
+            meets_the_standing_round_bottom_in_a_valley_at_its_foot(
+                &part, order, filleted, promised, what,
+            );
+        },
+    );
 }
 
 #[test]
@@ -1903,7 +2195,7 @@ fn a_fillet_and_a_chamfer_on_the_round_bottom_the_floor_edge_at_its_end_and_both
                 cut.called(),
                 called.join(", then ")
             );
-            match cut.laid_on(&part, &names) {
+            match cut.laid_on(&part, &names, RADIUS) {
                 Err(Declined::Unsupported) => {}
                 Err(declined) => not_declined.push(format!("{what}: declined, {declined:?}")),
                 Ok(_) => not_declined.push(format!("{what}: a body")),
@@ -1915,6 +2207,407 @@ fn a_fillet_and_a_chamfer_on_the_round_bottom_the_floor_edge_at_its_end_and_both
         "the round bottom, the floor edge at its end and both uprights there, two round bottoms \
          meeting, are #919's: each cut is a broken step and its reason, Unsupported, whatever the \
          order; not so:\n{}",
+        not_declined.join("\n")
+    );
+}
+
+/// The way out of [`slanted_pocket`] through its slanted end, square to it,
+/// seen from above.
+fn slant_outward() -> DVec3 {
+    DVec3::new(3.0, -1.0, 0.0) / 10f64.sqrt()
+}
+
+/// The way the slanted end runs, from the front wall to the back.
+fn slant_along() -> DVec3 {
+    DVec3::new(1.0, 3.0, 0.0) / 10f64.sqrt()
+}
+
+/// The point of the axis of the slanted end edge's fill level with `y`
+/// across the pocket: [`RADIUS`] in from the slanted wall, which stands
+/// `√10` further along X at that level, and over the floor.
+fn slanted_axis_at(y: f64) -> DVec3 {
+    DVec3::new(
+        RIGHT_WALL_AT + (y - FRONT_WALL_AT) / 3.0 - 10f64.sqrt(),
+        y,
+        FLOOR_AT + RADIUS,
+    )
+}
+
+/// The slanted end edge's fill, its axis from level with `from` across the
+/// pocket to level with `to`, from facing the floor's way to facing the
+/// slanted wall's.
+fn slanted_fill(from: f64, to: f64) -> Hollow {
+    Hollow {
+        start: slanted_axis_at(from),
+        along: slant_along(),
+        length: (to - from) / slant_along().y,
+        radius: RADIUS,
+        facing: [DVec3::Z, -slant_outward()],
+    }
+}
+
+/// Where the slanted end edge's fill's axis crosses the round bottom's,
+/// over the middle of the floor.
+fn slanted_crossing() -> DVec3 {
+    slanted_axis_at(FRONT_WALL_AT + RADIUS)
+}
+
+/// How far a point stands past the valley at the slanted end, on the side of
+/// that end edge's fill: how far it stands out past the crossing of the two
+/// axes square to the slanted wall, less how far across from the pocket's
+/// middle line. Nought on the two upright planes through the crossing that
+/// halve the angles between the two axes, where the two cylinders meet.
+fn past_the_slanted_valley(point: DVec3) -> f64 {
+    let crossing = slanted_crossing();
+    (point - crossing).dot(slant_outward()) - (point.y - crossing.y).abs()
+}
+
+/// The valley's three points at the slanted end: where the round bottom
+/// leaves the front wall there, where both fills touch the floor's plane,
+/// and where the round bottom leaves the back wall.
+fn slanted_valley() -> [DVec3; 3] {
+    let top = FLOOR_AT + RADIUS;
+    [
+        DVec3::new(RIGHT_WALL_AT, FRONT_WALL_AT, top),
+        slanted_crossing() - DVec3::Z * RADIUS,
+        slanted_end_at_the_back().extend(top),
+    ]
+}
+
+/// The prism the slanted end edge's fill adds on [`slanted_pocket`], raised
+/// along the slanted end from the matter past the back wall to the matter
+/// past the front wall: what lies under the quarter round, from its axis out
+/// a unit past the slanted wall and down under the floor.
+fn slanted_end_tool(part: &Body) -> Body {
+    let r = RADIUS;
+    let [from, to] = [1.5, FRONT_WALL_AT + WIDTH + 1.0];
+    let corners = vec![
+        DVec2::new(0.0, FLOOR_AT - r),
+        DVec2::new(r + 1.0, FLOOR_AT - r),
+        DVec2::new(r + 1.0, FLOOR_AT + r),
+        DVec2::new(r, FLOOR_AT + r),
+        DVec2::new(0.0, FLOOR_AT),
+    ];
+    let mut runs = vec![Run::Straight; corners.len()];
+    runs[3] = Run::Round {
+        center: DVec2::new(0.0, FLOOR_AT + r),
+        turn: -PI / 2.0,
+    };
+    let start = slanted_axis_at(to);
+    part.tool_raised(
+        &profile(Contour { corners, runs }),
+        Frame {
+            origin: DVec3::new(start.x, start.y, 0.0),
+            u: slant_outward(),
+            v: DVec3::Z,
+        },
+        -slant_along() * ((to - from) / slant_along().y),
+    )
+    .expect("the tool raises")
+}
+
+/// What [`slanted_pocket`] holds once the round bottom and the slanted end's
+/// floor edge are filleted at [`RADIUS`], as the module's documentation
+/// derives it: the pocket; the round bottom's section along its mean length,
+/// 21, where the pocket's middle line meets the slanted wall; the end edge's
+/// section along its `2√10`, trimmed flush on the front and back walls; less,
+/// at each of the two corners the end edge makes with them, the square
+/// corner's share stretched by one over the sine of their angle, `3/√10` at
+/// both.
+fn kept_with_the_slanted_end() -> f64 {
+    let r = RADIUS;
+    let strip = r * r * (1.0 - PI / 4.0);
+    let sine = 3.0 / 10f64.sqrt();
+    let area = (POCKET_LENGTH + slanted_end_at_the_back().x - LEFT_WALL_AT) / 2.0 * WIDTH;
+    let mean_length = RIGHT_WALL_AT + RADIUS / 3.0 - LEFT_WALL_AT;
+    let end_length = 2.0 * 10f64.sqrt();
+    LENGTH * BREADTH * HEIGHT - area * DEPTH + 2.0 * strip * mean_length + strip * end_length
+        - 2.0 * r.powi(3) * (5.0 / 3.0 - PI / 2.0) / sine
+}
+
+#[test]
+fn a_fillet_on_a_pocket_s_round_bottom_and_the_floor_edge_of_its_slanted_end_meets_that_edge_s_fill_in_a_valley_whatever_the_order()
+ {
+    let r = RADIUS;
+    let part = slanted_pocket();
+    let slanted_end = POCKET_RIGHT;
+    let listed = pair_and(&[(FLOOR_RIGHT, "the floor's edge on the slanted end")]);
+    let promised = kept_with_the_slanted_end();
+    let root = 10f64.sqrt();
+    let written = 5622.0 - 94.5 * PI - 12.0 * root + 4.5 * root * PI;
+    assert!(
+        (promised - written).abs() <= EXACT * written,
+        "the arithmetic gives {promised}, where the documentation writes \
+         5622 − 189π/2 − 12√10 + 9√10π/2"
+    );
+    let by_booleans = part
+        .union(&round_bottom_tool(&part, RIGHT_WALL_AT + r))
+        .expect("the round bottom's prism joins the pocket")
+        .union(&slanted_end_tool(&part))
+        .expect("the slanted end edge's fill prism joins the body")
+        .volume();
+    assert!(
+        (by_booleans - promised).abs() <= EXACT * promised,
+        "the round bottom's prism and the slanted end edge's fill prism, joined to the pocket by \
+         the booleans, leave {by_booleans}, where arithmetic promises {promised}"
+    );
+
+    let start = part.faces_end();
+    let [front_half, back_half] = round_bottom_along(slanted_end_at_the_back().x - LEFT_WALL_AT);
+    let fill = slanted_fill(FRONT_WALL_AT - 1.0, FRONT_WALL_AT + WIDTH + 1.0);
+    let across = slanted_fill(FRONT_WALL_AT, FRONT_WALL_AT + WIDTH);
+    let area = front_half.area() + back_half.area() + across.area();
+    filleted_in_every_order(
+        &part,
+        "the pocket 6 wide whose right end is slanted",
+        &listed,
+        |order, filleted, what| {
+            taken_as_asked(filleted.asked, filleted.taken, RADIUS, what);
+            let body = &filleted.body;
+            let bottom = ranks_of(start, order, &[0, 1]);
+            let end = ranks_of(start, order, &[2])[0];
+            sound_drawn_within(body, promised, DRAWN * reach_of(&part) * area, what);
+            assert!(
+                !body.has_face(POCKET_FLOOR),
+                "{what}: the pocket's floor is gone, wholly under the round bottom"
+            );
+            let mut kept_and_laid = numbers(&part);
+            kept_and_laid.remove(&POCKET_FLOOR);
+            kept_and_laid.extend(start..start + order.len());
+            assert_eq!(
+                numbers(body),
+                kept_and_laid,
+                "{what}: every face of the pocketed block but the pocket's floor, the round \
+                 bottom answering to {bottom:?}, the slanted end edge's fill to {end}, and no \
+                 face laid at a corner"
+            );
+            one_curved_face_answers_to(body, &bottom, &format!("{what}: the round bottom"));
+            assert!(
+                !body.is_flat(end) && body.plane_of(end).is_none(),
+                "{what}: the slanted end edge's fill, face {end}, is curved"
+            );
+
+            let bottom_drawn: Vec<DVec3> = body.triangles_of(bottom[0]).flatten().collect();
+            for &point in &bottom_drawn {
+                assert!(
+                    front_half.holds(point) || back_half.holds(point),
+                    "{what}: the round bottom is drawn through {point}, off its half cylinder of \
+                     {r} about the line {r} over the middle of the floor"
+                );
+                assert!(
+                    past_the_slanted_valley(point) <= PLACE,
+                    "{what}: the round bottom is drawn through {point}, past the valley where the \
+                     slanted end edge's fill meets it"
+                );
+            }
+            for half in [&front_half, &back_half] {
+                met_from_its_axis_where(
+                    body,
+                    bottom[0],
+                    half,
+                    |aim| past_the_slanted_valley(aim) < -CLEAR_OF_THE_VALLEY,
+                    &format!("{what}: the round bottom, short of the valley"),
+                );
+            }
+            let end_drawn: Vec<DVec3> = body.triangles_of(end).flatten().collect();
+            assert!(
+                !end_drawn.is_empty(),
+                "{what}: the slanted end edge's fill is drawn"
+            );
+            for &point in &end_drawn {
+                assert!(
+                    fill.holds(point),
+                    "{what}: the slanted end edge's fill is drawn through {point}, off its quarter \
+                     cylinder of {r} about the line {r} in from the slanted wall and over the floor"
+                );
+                assert!(
+                    past_the_slanted_valley(point) >= -PLACE,
+                    "{what}: the slanted end edge's fill is drawn through {point}, short of the \
+                     valley where the round bottom meets it"
+                );
+            }
+            met_from_its_axis_where(
+                body,
+                end,
+                &across,
+                |aim| past_the_slanted_valley(aim) > CLEAR_OF_THE_VALLEY,
+                &format!("{what}: the slanted end edge's fill, past the valley"),
+            );
+
+            let [front_top, deepest, back_top] = slanted_valley();
+            for point in [front_top, deepest, back_top] {
+                for (drawn, of) in [
+                    (&bottom_drawn, "the round bottom"),
+                    (&end_drawn, "the slanted end edge's fill"),
+                ] {
+                    assert!(
+                        drawn_through(drawn, point),
+                        "{what}: {of} is drawn up to {point}, where a curve of the valley ends"
+                    );
+                }
+            }
+            for &point in bottom_drawn
+                .iter()
+                .filter(|&&point| drawn_through(&end_drawn, point))
+            {
+                assert!(
+                    past_the_slanted_valley(point).abs() < PLACE,
+                    "{what}: the round bottom and the slanted end edge's fill meet at {point}, off \
+                     the two planes of the valley"
+                );
+            }
+            for (faces, at) in [
+                (
+                    vec![&[POCKET_FRONT][..], &[slanted_end], &bottom, &[end]],
+                    front_top,
+                ),
+                (vec![&bottom[..], &[end]], deepest),
+                (
+                    vec![&[POCKET_BACK][..], &[slanted_end], &bottom, &[end]],
+                    back_top,
+                ),
+            ] {
+                assert_eq!(
+                    vertices_among(body, &faces),
+                    1,
+                    "{what}: the faces {faces:?} meet at one vertex, {at}, an end of a curve of \
+                     the valley"
+                );
+            }
+            assert_eq!(
+                sides_met_by(body, &[end]),
+                sides_answering(&[&[slanted_end], &bottom, &bottom]),
+                "{what}: the slanted end edge's fill meets its wall along its top and the round \
+                 bottom along the two curves of the valley, and no other face"
+            );
+            assert_eq!(
+                sides_met_by(body, &bottom),
+                sides_answering(&[
+                    &[POCKET_FRONT],
+                    &[POCKET_BACK],
+                    &[POCKET_LEFT],
+                    &[end],
+                    &[end]
+                ]),
+                "{what}: the round bottom meets the front and the back walls along its sides, the \
+                 left wall along its half circle, and the slanted end edge's fill along the two \
+                 curves of the valley, by one edge each"
+            );
+            faces_toward(
+                body,
+                slanted_end,
+                -slant_outward(),
+                &format!("{what}: the slanted wall"),
+            );
+            corners_are(
+                body,
+                slanted_end,
+                &[
+                    front_top,
+                    back_top,
+                    DVec3::new(back_top.x, back_top.y, HEIGHT),
+                    DVec3::new(front_top.x, front_top.y, HEIGHT),
+                ],
+                &format!(
+                    "{what}: the slanted wall, kept from where its edge's fill leaves it up to the \
+                     top"
+                ),
+            );
+            assert_eq!(
+                sides_met_by(body, &[slanted_end]),
+                sides_answering(&[&[TOP], &[POCKET_FRONT], &[POCKET_BACK], &[end]]),
+                "{what}: the slanted wall meets the top, the front and the back along its \
+                 uprights, left sharp, and its edge's fill, by one edge each"
+            );
+        },
+    );
+}
+
+/// A list the step refuses: what it is called, the part, the cut and its
+/// value, the edges of its slope or its round bottom, and the edge at their
+/// end.
+type Refused<'a> = (&'a str, &'a Body, Cut, f64, Vec<EdgeName>, Vec<EdgeName>);
+
+#[test]
+fn a_cut_and_a_fill_that_meet_where_a_slope_or_a_round_bottom_ends_are_declined_as_unsupported_whatever_the_order()
+ {
+    let stair = stair();
+    let walled = stair_between_two_walls();
+    let slot = open_slot();
+    let pocket = narrow_pocket();
+    let named = |part: &Body, edges: &[[usize; 2]]| -> Vec<EdgeName> {
+        edges
+            .iter()
+            .map(|&[one, other]| edge_touching(part, one, other))
+            .collect()
+    };
+    let [tread, nose, riser] = [7, 8, 2];
+    let slope = [[tread, nose], [riser, tread]];
+    let cases: Vec<Refused> = vec![
+        (
+            "the stair's slope, its tread's nose and foot chamfered at 5, with the tread's convex \
+             edge on the stair's right side",
+            &stair,
+            Cut::Chamfer,
+            5.0,
+            named(&stair, &slope),
+            named(&stair, &[[tread, BLOCK_RIGHT]]),
+        ),
+        (
+            "the slope of the stair between two walls, with the tread's concave edge on the right \
+             wall",
+            &walled,
+            Cut::Chamfer,
+            5.0,
+            named(&walled, &slope),
+            named(&walled, &[[tread, 17]]),
+        ),
+        (
+            "the round bottom of the slot open at its right end, filleted at 3, with the floor's \
+             convex edge on the block's right face",
+            &slot,
+            Cut::Fillet,
+            RADIUS,
+            named(&slot, &[FLOOR_FRONT, FLOOR_BACK]),
+            named(&slot, &[[POCKET_FLOOR, BLOCK_RIGHT]]),
+        ),
+        (
+            "the standing round bottom of the pocket's two uprights at its right end, filleted at \
+             3, with the convex rim edge on top of that wall",
+            &pocket,
+            Cut::Fillet,
+            RADIUS,
+            named(&pocket, &[FRONT_RIGHT, BACK_RIGHT]),
+            named(&pocket, &[[TOP, POCKET_RIGHT]]),
+        ),
+    ];
+
+    let mut not_declined = Vec::new();
+    for (called, part, cut, value, pair, others) in &cases {
+        for (alone, which) in [(pair, "the pair"), (others, "the edge at its end")] {
+            if let Err(declined) = cut.laid_on(part, alone, *value) {
+                panic!("{called}: {which} alone is laid; declined, {declined:?}");
+            }
+        }
+        let list: Vec<EdgeName> = pair.iter().chain(others).cloned().collect();
+        for order in every_order(list.len()) {
+            let names: Vec<EdgeName> = order.iter().map(|&edge| list[edge].clone()).collect();
+            let what = format!(
+                "{called}, the {} named in the order {order:?}",
+                cut.called()
+            );
+            match cut.laid_on(part, &names, *value) {
+                Err(Declined::Unsupported) => {}
+                Err(declined) => not_declined.push(format!("{what}: declined, {declined:?}")),
+                Ok(_) => not_declined.push(format!("{what}: a body")),
+            }
+        }
+    }
+    assert!(
+        not_declined.is_empty(),
+        "a cut and a fill meeting where a slope or a round bottom ends do not commute, each laid \
+         against the other: each list is a broken step and its reason, Unsupported, whatever the \
+         order, its parts laid alone; not so:\n{}",
         not_declined.join("\n")
     );
 }

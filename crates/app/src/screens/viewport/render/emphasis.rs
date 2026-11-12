@@ -45,32 +45,13 @@ pub(super) fn mark(
     };
     let held = context.editor.is_selected(what) || context.editor.hovered == Some(what);
     let only_shown = matches!(what, Selection::Element(element) if laid.contains(&element));
-    if let Some(turned) = turned_about(context, what, only_shown, width) {
-        return turned;
+    // The circular pattern's copies are drawn in its amber. What its panel
+    // holds is lit as any held element is: amber on the yellow of a free
+    // drawing barely stands out.
+    if only_shown && dashes_its_copies(context) {
+        return (amber(), width);
     }
     drawn_as(theme, picked, held, only_shown, color, width)
-}
-
-/// The circular pattern draws in its amber what its panel holds, lit, and the
-/// copies it offers.
-fn turned_about(
-    context: &SketchContext<'_>,
-    what: Selection,
-    only_shown: bool,
-    width: f32,
-) -> Option<([f32; 4], f32)> {
-    let Selection::Element(element) = what else {
-        return None;
-    };
-    let panel = context
-        .editor
-        .copy_panel()
-        .filter(|_| dashes_its_copies(context))?;
-    match (only_shown, panel.elements().contains(&element)) {
-        (true, _) => Some((amber(), width)),
-        (false, true) => Some((amber(), width * LIT_WIDER)),
-        (false, false) => None,
-    }
 }
 
 /// Whether a point stands at a corner the chamfer or the fillet is holding.

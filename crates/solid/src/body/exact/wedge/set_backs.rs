@@ -16,6 +16,7 @@ use std::f64::consts::{PI, TAU};
 use glam::DVec3;
 
 use super::chain::TANGENT;
+use super::corners::Beside;
 use super::extent::{Ranked, Within, runs, span};
 use super::{Wedge, corners};
 use crate::brep::{self, Circle, Curve, EdgeId};
@@ -43,6 +44,7 @@ pub(super) fn bound(
     body: &brep::Body,
     edges: &[EdgeId],
     wedges: &[Wedge],
+    beside: &[Beside],
     set_back: impl Fn(&Wedge) -> f64,
 ) -> f64 {
     let eps = body.scale().eps();
@@ -55,9 +57,10 @@ pub(super) fn bound(
             (into / per, into.dot(wedge.point) / per, per)
         };
         let held = || -> Vec<Within> {
+            let later = one.0.max(other.0);
             [one, other]
                 .into_iter()
-                .flat_map(|ranked| runs(body, (edges, wedges), ranked, &set_back))
+                .flat_map(|ranked| runs(body, (edges, wedges), beside, ranked, later, &set_back))
                 .map(|(within, _)| within)
                 .collect()
         };

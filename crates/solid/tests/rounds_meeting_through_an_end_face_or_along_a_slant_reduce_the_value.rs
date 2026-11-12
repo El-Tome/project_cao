@@ -244,22 +244,25 @@
 //!
 //! - The step takes one value, or declines, whatever the order, where an
 //!   outer wall of three edges in a row overhangs —
-//!   `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_whose_outer_edge_alone_reaches_past_the_middle_one_or_whose_outer_wall_overhangs_take_one_value_in_every_order`.
-//!   Read as decided when the issue was taken: one value in every order,
-//!   never a wrong body — the larger of the values the orders give where
-//!   every order can build it soundly, else the smaller, or the same decline
-//!   in every order. Beyond the issue's wording, the edges need not
-//!   overhang: a hexagon whose third side turns a twelfth of a turn from the
-//!   second, which alone sets back along the top past the second's far end,
-//!   took one value where the second was named before it and its own alone
-//!   where named after, upright walls too. Rows tried: that hexagon 12 tall,
-//!   its third wall leaning in 40 degrees, asked 5; with its third side 30
-//!   long, upright and leaning in 20 degrees, asked 6; and the regular
-//!   hexagon 10 tall, its front wall leaning in 50 degrees, asked 8, past
-//!   where two chamfers' flats laid whole would meet in a line leaving
+//!   `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_whose_outer_edge_alone_reaches_past_the_middle_one_or_whose_outer_wall_overhangs_take_in_every_order_the_least_any_of_the_three_takes_alone`.
+//!   Read as decided when the issue was taken, and narrowed once a reading
+//!   that lifted the cap split orders that had agreed: one value whatever
+//!   the order — each edge's own limit applies whatever its rank, so every
+//!   order takes the least any of the three takes alone; never a wrong body.
+//!   Beyond the issue's wording, the edges need not overhang: a hexagon
+//!   whose third side turns a twelfth of a turn from the second, which alone
+//!   sets back along the top past the second's far end, took one value
+//!   where the second was named before it and its own alone where named
+//!   after, upright walls too. Rows tried: that hexagon 12 tall, its third
+//!   wall leaning in 40 degrees, asked 5 and 6; its first wall leaning in 40
+//!   degrees, 12 and 20 tall, asked 6, where reading the third edge's cap as
+//!   if the second were laid split orders that had agreed; with its third
+//!   side 30 long, upright and leaning in 20 degrees, asked 6; and the
+//!   regular hexagon 10 tall, its front wall leaning in 50 degrees, asked 8,
+//!   past where two chamfers' flats laid whole would meet in a line leaving
 //!   through the leaning wall before the middle one; chamfer and fillet, in
-//!   all six orders: the same value and matter in each, or the same
-//!   decline, and where built a sound body, the same body in each. And at
+//!   all six orders: the least value any of the three takes alone, the same
+//!   matter, a sound body, the same body in each. And at
 //!   the tie where the second wall closes at the depth the third edge alone
 //!   is bounded by — that hexagon's first wall leaning in 60 degrees, a
 //!   chamfer asked 6, the third edge alone declining —
@@ -3081,9 +3084,23 @@ struct Row {
 /// declined.
 type Outcome = Result<(f64, Body), Declined>;
 
+/// What each order a step's edges are named in gives, by that order.
+type InEveryOrder = Vec<([usize; 3], Outcome)>;
+
+/// The step of a chamfer, or a fillet if `fillet`, on one edge or several of
+/// `part`, at `asked`.
+fn step_on(part: &Body, names: &[EdgeName], asked: f64, fillet: bool) -> Outcome {
+    if fillet {
+        (part.fillet_edges(names, asked)).map(|done| (done.taken, done.body))
+    } else {
+        (part.chamfer_edges(names, asked)).map(|done| (done.taken, done.body))
+    }
+}
+
 /// What each order of [`ORDERS_OF_THREE`] gives for a chamfer, or a fillet if
-/// `fillet`, on the three top edges of `row`; and the part they are laid on.
-fn stepped_in_every_order(row: &Row, fillet: bool) -> (Body, Vec<([usize; 3], Outcome)>) {
+/// `fillet`, on the three top edges of `row`; the part they are laid on, and
+/// the three edges by their rank in the row.
+fn stepped_in_every_order(row: &Row, fillet: bool) -> (Body, [EdgeName; 3], InEveryOrder) {
     let raised = prism_of(&row.corners, row.height);
     let mut walls = IN_A_ROW;
     let part = match row.leaning {
@@ -3105,26 +3122,33 @@ fn stepped_in_every_order(row: &Row, fillet: bool) -> (Body, Vec<([usize; 3], Ou
     let outcomes = (ORDERS_OF_THREE.iter())
         .map(|&order| {
             let names: Vec<EdgeName> = order.iter().map(|&rank| edges[rank].clone()).collect();
-            let laid = if fillet {
-                (part.fillet_edges(&names, row.asked)).map(|done| (done.taken, done.body))
-            } else {
-                (part.chamfer_edges(&names, row.asked)).map(|done| (done.taken, done.body))
-            };
-            (order, laid)
+            (order, step_on(&part, &names, row.asked, fillet))
         })
         .collect();
-    (part, outcomes)
+    (part, edges, outcomes)
 }
 
 /// Says, for the chamfer or the fillet on `row`, whether every order gave one
 /// outcome — the same value and the same matter, within [`PLACE`] and
 /// [`EXACT`], or the same decline — listing what each order gave where they
-/// do not; and where they do and the step is built, holds each body sound
-/// and all of them one body.
-fn one_outcome_in_every_order(row: &Row, fillet: bool) -> Option<String> {
+/// do not, or where `at_the_least_alone` and they did not all build at the
+/// least value any of the three edges takes alone; and where they agree and
+/// the step is built, holds each body sound and all of them one body.
+fn one_outcome_in_every_order(row: &Row, fillet: bool, at_the_least_alone: bool) -> Option<String> {
     let kind = if fillet { "fillet" } else { "chamfer" };
     let called = format!("the {kind} of {} on {}", row.asked, row.called);
-    let (part, outcomes) = stepped_in_every_order(row, fillet);
+    let (part, edges, outcomes) = stepped_in_every_order(row, fillet);
+    let told = |outcomes: &[([usize; 3], Outcome)]| -> String {
+        (outcomes.iter())
+            .map(|(order, laid)| match laid {
+                Ok((taken, body)) => {
+                    format!("  named {order:?}, took {taken}, holding {}", body.volume())
+                }
+                Err(declined) => format!("  named {order:?}, declined {declined:?}"),
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
     let agree = |one: &Outcome, other: &Outcome| match (one, other) {
         (Ok((one, body)), Ok((other, theirs))) => {
             (one - other).abs() <= PLACE
@@ -3134,15 +3158,29 @@ fn one_outcome_in_every_order(row: &Row, fillet: bool) -> Option<String> {
         _ => false,
     };
     if !(outcomes.iter()).all(|(_, laid)| agree(laid, &outcomes[0].1)) {
-        let told: Vec<String> = (outcomes.iter())
-            .map(|(order, laid)| match laid {
-                Ok((taken, body)) => {
-                    format!("  named {order:?}, took {taken}, holding {}", body.volume())
+        return Some(format!("{called}:\n{}", told(&outcomes)));
+    }
+    if at_the_least_alone {
+        let mut least = f64::INFINITY;
+        for edge in &edges {
+            match step_on(&part, std::slice::from_ref(edge), row.asked, fillet) {
+                Ok((taken, _)) => least = least.min(taken),
+                Err(declined) => {
+                    return Some(format!("{called}: {edge:?} alone declined, {declined:?}"));
                 }
-                Err(declined) => format!("  named {order:?}, declined {declined:?}"),
-            })
-            .collect();
-        return Some(format!("{called}:\n{}", told.join("\n")));
+            }
+        }
+        let at_least = |(_, laid): &([usize; 3], Outcome)| {
+            laid.as_ref()
+                .is_ok_and(|(taken, _)| (taken - least).abs() <= PLACE)
+        };
+        if !outcomes.iter().all(at_least) {
+            return Some(format!(
+                "{called}: every order builds at {least}, the least any of the three takes \
+                 alone, each edge's own limit holding whatever its rank:\n{}",
+                told(&outcomes)
+            ));
+        }
     }
     let mut laid_in_every_order: Vec<(String, Body, [usize; 3])> = Vec::new();
     for (order, laid) in outcomes {
@@ -3167,7 +3205,7 @@ fn one_outcome_in_every_order(row: &Row, fillet: bool) -> Option<String> {
 }
 
 #[test]
-fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_whose_outer_edge_alone_reaches_past_the_middle_one_or_whose_outer_wall_overhangs_take_one_value_in_every_order()
+fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_whose_outer_edge_alone_reaches_past_the_middle_one_or_whose_outer_wall_overhangs_take_in_every_order_the_least_any_of_the_three_takes_alone()
  {
     let rows = [
         Row {
@@ -3205,14 +3243,39 @@ fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_whose_outer_edge_alone_rea
             leaning: Some((0, 50.0)),
             asked: 8.0,
         },
+        Row {
+            called: "three top edges in a row of a hexagon whose third side turns a twelfth \
+                     of a turn, 12 tall, its first wall leaning in 40 degrees",
+            corners: uneven_hexagon(10.0, 20.0),
+            height: 12.0,
+            leaning: Some((0, 40.0)),
+            asked: 6.0,
+        },
+        Row {
+            called: "three top edges in a row of a hexagon whose third side turns a twelfth \
+                     of a turn, 20 tall, its first wall leaning in 40 degrees",
+            corners: uneven_hexagon(10.0, 20.0),
+            height: 20.0,
+            leaning: Some((0, 40.0)),
+            asked: 6.0,
+        },
+        Row {
+            called: "three top edges in a row of a hexagon whose third side turns a twelfth \
+                     of a turn, 12 tall, that side's wall leaning in 40 degrees",
+            corners: uneven_hexagon(10.0, 20.0),
+            height: 12.0,
+            leaning: Some((2, 40.0)),
+            asked: 6.0,
+        },
     ];
     let wrong: Vec<String> = (rows.iter())
-        .flat_map(|row| [true, false].map(|fillet| one_outcome_in_every_order(row, fillet)))
+        .flat_map(|row| [true, false].map(|fillet| one_outcome_in_every_order(row, fillet, true)))
         .flatten()
         .collect();
     assert!(
         wrong.is_empty(),
-        "one value, or one decline, whatever the order the three edges are named in:\n{}",
+        "one value whatever the order the three edges are named in, the least any of them \
+         takes alone:\n{}",
         wrong.join("\n")
     );
 }
@@ -3228,7 +3291,7 @@ fn a_chamfer_on_three_top_edges_in_a_row_whose_first_wall_leans_in_60_degrees_ta
         leaning: Some((0, 60.0)),
         asked: 6.0,
     };
-    let wrong = one_outcome_in_every_order(&row, false);
+    let wrong = one_outcome_in_every_order(&row, false, false);
     assert!(
         wrong.is_none(),
         "one value, or one decline, whatever the order the three edges are named in:\n{}",

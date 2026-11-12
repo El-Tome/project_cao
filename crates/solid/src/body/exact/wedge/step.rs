@@ -13,7 +13,7 @@ use super::corners::{self, Beside, Three};
 use super::extent::runs;
 use super::flush::{self, Flush, Held};
 use super::reach::reach_within;
-use super::{Meeting, Prism, Together, Wedge, closing, pairs, set_backs};
+use super::{Meeting, Met, Prism, Together, Wedge, closing, pairs, set_backs};
 use crate::body::exact::Exact;
 use crate::brep::{self, Declined, EdgeId, EdgeName, Scale};
 
@@ -36,8 +36,10 @@ pub(super) struct Step {
 
 impl Exact {
     /// The step the names make on this body, each edge's reach read only
-    /// where its blend runs once every edge is laid, whatever the order, as
-    /// [`runs`] holds it for the kind's `set_back`, with [`reach_within`].
+    /// where its blend runs laid before any other edge of the list, whatever
+    /// its rank, as [`runs`] holds it for the kind's `set_back`, with
+    /// [`reach_within`]: the least any edge takes alone bounds the step in
+    /// every order (#877).
     /// Declined `Lost` where a name no longer finds its edge, and
     /// `Unsupported` where an edge is not a wedge, two names find one edge,
     /// or the corners are declined as [`corners::admit`] and
@@ -56,7 +58,14 @@ impl Exact {
         let three = corners::of_three(&self.brep, &edges)?;
         let mut wedges: Vec<Wedge> = found.into_iter().map(|(_, wedge)| wedge).collect();
         let reached = |rank: usize, side: usize| {
-            let ends = runs(&self.brep, (&edges, &wedges), (rank, side), &kind.set_back);
+            let ends = runs(
+                &self.brep,
+                (&edges, &wedges),
+                &beside,
+                (rank, side),
+                0,
+                &kind.set_back,
+            );
             let wedge = &wedges[rank];
             let from = (wedge.into[side], wedge.point);
             reach_within(&self.brep, wedge.faces[side], from, &ends)
@@ -109,7 +118,13 @@ impl Step {
         let set_back = kind.set_back;
         alone
             .min(pairs::bound(&self.wedges, &self.facing, set_back))
-            .min(set_backs::bound(body, &self.edges, &self.wedges, set_back))
+            .min(set_backs::bound(
+                body,
+                &self.edges,
+                &self.wedges,
+                &self.beside,
+                set_back,
+            ))
     }
 }
 
@@ -179,11 +194,12 @@ impl Exact {
                         .map(|earlier| start + earlier as u32)
                         .collect();
                     let open = flush::open(&self.brep, rank, &given, &beside);
-                    let met = (
-                        &mitred[..],
-                        &open[..],
-                        &completing(rank, &given, &crossing)[..],
-                    );
+                    let completed = completing(rank, &given, &crossing);
+                    let met = Met {
+                        mitred: &mitred,
+                        open: &open,
+                        completed: &completed,
+                    };
                     let value = ends.get(&rank).copied().unwrap_or(taken);
                     if mitred.is_empty() {
                         cut.laid(&names[rank], value, &tool, met, &held)?

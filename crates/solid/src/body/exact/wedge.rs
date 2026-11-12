@@ -227,14 +227,14 @@ impl Exact {
         wedge: &Wedge,
         taken: f64,
         tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
-        (mitred, open, completed): Met,
+        met: Met,
     ) -> Result<Exact, Declined> {
         let cut = self.cut_or_filled(flush, wedge, taken, tool)?;
         let along: Vec<&Wedge> = [wedge]
             .into_iter()
-            .chain(completed.iter().copied())
+            .chain(met.completed.iter().copied())
             .collect();
-        if cut.cut_along(&along, self, 1, mitred, open) {
+        if cut.cut_along(&along, self, 1, met.mitred, met.open) {
             Ok(cut)
         } else {
             Err(Declined::Unsupported)
@@ -343,12 +343,19 @@ pub(super) fn too_short(length: f64, scale: Scale) -> bool {
     length.is_nan() || length < SHORTEST * Scale::HAIR * scale.eps()
 }
 
-/// What an edge a step lays meets: the numbers of the faces laid before it
-/// at a corner it shares, which its own face meets in a mitre; where it
-/// stops at a corner an edge laid after it completes, as [`flush::open`]
-/// reads them; and the wedges of the listed edges laid after it whose walls
-/// its cut may reach, or take whole, since their own cuts take that away.
-type Met<'a> = (&'a [u32], &'a [Stop], &'a [&'a Wedge]);
+/// What an edge a step lays meets.
+#[derive(Clone, Copy)]
+struct Met<'a> {
+    /// The numbers of the faces laid before it at a corner it shares, which
+    /// its own face meets in a mitre.
+    mitred: &'a [u32],
+    /// Where it stops at a corner an edge laid after it completes, as
+    /// [`flush::open`] reads them.
+    open: &'a [Stop],
+    /// The wedges of the listed edges laid after it whose walls its cut may
+    /// reach, or take whole, since their own cuts take that away.
+    completed: &'a [&'a Wedge],
+}
 
 /// The number a raise gives the wall of its profile's first run.
 const MADE: u32 = 2;

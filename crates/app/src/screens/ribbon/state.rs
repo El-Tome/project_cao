@@ -21,6 +21,12 @@ use super::icons;
 pub struct Ribbon {
     /// Which top-level group is open, by rank.
     pub tab: usize,
+    /// The tab shown before the sketch being edited was entered.
+    tab_before_sketch: Option<usize>,
+    /// The rank of the sketch's tab in the layout last drawn, if it has one.
+    pub(super) sketch_tab: Option<usize>,
+    /// The sketch open when the ribbon last followed the editor.
+    sketch_seen: Option<usize>,
     /// The tree of what the part is made of, open by default.
     pub part_tree_open: bool,
     /// Whether the run of operations that made the part stands unfolded at
@@ -47,6 +53,9 @@ impl Ribbon {
     pub fn new() -> Self {
         Self {
             tab: 0,
+            tab_before_sketch: None,
+            sketch_tab: None,
+            sketch_seen: None,
             part_tree_open: true,
             history_unfolded: false,
             variables_open: false,
@@ -77,6 +86,40 @@ impl Ribbon {
             .copied()
             .filter(|used| entries.contains(used))
             .or_else(|| entries.first().copied())
+    }
+
+    /// Entering a sketch turns to its tools. The tab it came from is kept
+    /// from the first sketch entered, whichever is reopened after it.
+    pub fn enter_sketch(&mut self) {
+        self.tab_before_sketch.get_or_insert(self.tab);
+        if let Some(tab) = self.sketch_tab {
+            self.tab = tab;
+        }
+    }
+
+    pub fn leave_sketch(&mut self) {
+        if let Some(tab) = self.tab_before_sketch.take() {
+            self.tab = tab;
+        }
+    }
+
+    /// Once a frame, after every way into a sketch. A plane being chosen is
+    /// on the way to a new sketch, so the tab from before the first is kept.
+    pub fn follow(&mut self, open: Option<usize>, choosing_a_plane: bool) {
+        if !choosing_a_plane {
+            self.follow_the_canvas(self.sketch_seen, open);
+        }
+        self.sketch_seen = open;
+    }
+
+    /// A sketch left any other way than « Terminer » leaves no tab to go
+    /// back to.
+    pub fn follow_the_canvas(&mut self, before: Option<usize>, after: Option<usize>) {
+        match after {
+            None => self.tab_before_sketch = None,
+            Some(_) if after != before => self.enter_sketch(),
+            Some(_) => {}
+        }
     }
 
     pub(super) fn used_from_menu(&mut self, group: &str, command: Command) {

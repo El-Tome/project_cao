@@ -74,7 +74,7 @@ pub(crate) fn run(
         Command::FinishSketch => {
             if let Some(index) = editor.active_sketch() {
                 extrusion.offer(index);
-                ribbon.tab = 1;
+                ribbon.leave_sketch();
             }
             editor.close();
             false

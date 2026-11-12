@@ -807,3 +807,98 @@ fn the_shape_of_a_reopened_step_is_not_offered_for_change() {
          reopened on the block's extrusion",
     );
 }
+
+/// A ribbon showing this tab, whose sketch group stands first, as `show`
+/// notes it.
+fn a_ribbon_on(tab: usize) -> Ribbon {
+    let mut ribbon = Ribbon::new();
+    ribbon.sketch_tab = Some(0);
+    ribbon.tab = tab;
+    ribbon
+}
+
+#[test]
+fn entering_a_second_sketch_keeps_the_tab_saved_by_the_first() {
+    let mut ribbon = a_ribbon_on(2);
+    ribbon.follow(Some(0), false);
+    ribbon.tab = 1;
+    ribbon.follow(Some(1), false);
+
+    ribbon.leave_sketch();
+
+    assert_eq!(ribbon.tab, 2);
+}
+
+#[test]
+fn finishing_with_no_sketch_entered_leaves_the_tab_shown() {
+    let mut ribbon = a_ribbon_on(1);
+
+    ribbon.leave_sketch();
+
+    assert_eq!(ribbon.tab, 1);
+}
+
+#[test]
+fn no_sketch_open_forgets_the_saved_tab_and_leaves_the_tab_shown() {
+    let mut ribbon = a_ribbon_on(2);
+    ribbon.follow(Some(0), false);
+    ribbon.tab = 1;
+
+    ribbon.follow(None, false);
+    let shown = ribbon.tab;
+    ribbon.leave_sketch();
+
+    assert_eq!((shown, ribbon.tab), (1, 1));
+}
+
+#[test]
+fn finishing_brings_the_saved_tab_back_once() {
+    let mut ribbon = a_ribbon_on(2);
+    ribbon.follow(Some(0), false);
+
+    ribbon.leave_sketch();
+    let brought_back = ribbon.tab;
+    ribbon.tab = 1;
+    ribbon.leave_sketch();
+
+    assert_eq!((brought_back, ribbon.tab), (2, 1));
+}
+
+#[test]
+fn entering_a_sketch_turns_to_the_sketch_group_wherever_it_stands() {
+    let mut ribbon = a_ribbon_on(2);
+    ribbon.sketch_tab = Some(1);
+
+    ribbon.follow(Some(0), false);
+
+    assert_eq!(ribbon.tab, 1);
+}
+
+#[test]
+fn entering_a_sketch_with_no_sketch_group_leaves_the_tab_shown() {
+    let mut ribbon = a_ribbon_on(2);
+    ribbon.sketch_tab = None;
+
+    ribbon.follow(Some(0), false);
+
+    assert_eq!(ribbon.tab, 2);
+}
+
+#[test]
+fn a_plane_being_chosen_forgets_nothing_and_the_next_sketch_keeps_the_first_s_tab() {
+    let mut ribbon = a_ribbon_on(2);
+    ribbon.follow(Some(0), false);
+    ribbon.tab = 1;
+
+    ribbon.follow(None, true);
+    let saved_through_the_choice = ribbon.tab;
+    ribbon.follow(Some(1), false);
+    let entered = ribbon.tab;
+    ribbon.leave_sketch();
+
+    assert_eq!(
+        (saved_through_the_choice, entered, ribbon.tab),
+        (1, 0, 2),
+        "(the tab while a plane is chosen, once the new sketch is entered, once it is finished)",
+    );
+}

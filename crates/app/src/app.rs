@@ -254,6 +254,7 @@ impl CaoApp {
             screens::viewport::show(ui, viewport, &mut context)
         });
         changed |= view.inner.changed;
+        ribbon.follow(editor.active_sketch(), editor.is_choosing_plane());
         let copy_panel_let_go_at = view.inner.copy_panel_let_go_at;
 
         let finish_on = settings.shortcuts.chord_for(Command::FinishSketch);

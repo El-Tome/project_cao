@@ -118,6 +118,47 @@ fn escape_hands_what_the_panel_held_to_the_selection_tool() {
     );
 }
 
+/// Whether a panel titled with this tool's name stands on screen.
+fn a_panel_is_open(app: &driver::App, tool: &str) -> bool {
+    app.query_all_by_role(egui::accesskit::Role::Label)
+        .any(|node| node.accesskit_node().value().as_deref() == Some(tool))
+}
+
+#[test]
+fn escape_on_a_step_of_the_circular_pattern_closes_its_panel_and_lays_nothing() {
+    let mut app = a_trait_drawn(
+        "escape_on_a_step_of_the_circular_pattern",
+        cao_prefs::Settings::default(),
+    );
+    driver::open_the_history(&mut app);
+    let history = driver::steps(&app);
+    driver::click(&mut app, "Réseau circulaire");
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
+    driver::press(&mut app, egui::Key::Enter);
+    driver::click_at_sketch_point(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
+    driver::press(&mut app, egui::Key::Enter);
+    driver::press(&mut app, egui::Key::Enter);
+    assert!(
+        driver::says(&app, "étape 4 : sens de rotation"),
+        "every step filled, the panel waits on its last, the direction: {:?}",
+        driver::said(&app)
+    );
+
+    driver::press(&mut app, egui::Key::Escape);
+
+    assert!(
+        !a_panel_is_open(&app, "Réseau circulaire"),
+        "the panel is closed: {:?}",
+        driver::on_screen(&app)
+    );
+    assert_eq!(
+        driver::steps(&app),
+        history,
+        "nothing is laid, though every step was filled"
+    );
+    assert!(driver::a_sketch_is_open(&app), "the sketch stays open");
+}
+
 #[test]
 fn enter_in_a_field_of_another_panel_leaves_the_copy_panel_alone() {
     let mut app = a_trait_drawn(
@@ -288,6 +329,35 @@ fn a_panel_let_go_somewhere_is_saved_there() {
     assert!(
         (saved - now).length() <= 40.0,
         "what is saved is where the panel now stands: {saved:?}, its title at {now:?}"
+    );
+}
+
+#[test]
+fn the_circular_pattern_s_panel_follows_its_title_and_reopens_where_it_was_let_go() {
+    let mut app = a_trait_drawn(
+        "the_circular_pattern_s_panel_follows_its_title",
+        cao_prefs::Settings::default(),
+    );
+    driver::click(&mut app, "Réseau circulaire");
+    let title = title_of_the_panel(&app, "Réseau circulaire");
+    let moved = egui::vec2(150.0, 80.0);
+
+    driver::drag_and_drop(&mut app, title.center(), title.center() + moved);
+
+    let let_go_at = title_of_the_panel(&app, "Réseau circulaire").min;
+    assert!(
+        (let_go_at - (title.min + moved)).length() <= 2.0,
+        "the panel follows its title to {:?}, and stands at {let_go_at:?}",
+        title.min + moved
+    );
+    driver::press(&mut app, egui::Key::Escape);
+    assert!(!a_panel_is_open(&app, "Réseau circulaire"));
+    driver::click(&mut app, "Réseau circulaire");
+    let reopened = title_of_the_panel(&app, "Réseau circulaire").min;
+    assert!(
+        (reopened - let_go_at).length() <= 1.0,
+        "the panel opens again where it was let go, {let_go_at:?}, and stands at \
+         {reopened:?}"
     );
 }
 

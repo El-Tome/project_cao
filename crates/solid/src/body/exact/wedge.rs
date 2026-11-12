@@ -123,7 +123,8 @@ impl Exact {
     /// and meet in a valley, the third edge left sharp one value short. A
     /// corner three of the edges meet at, all convex or all concave, is closed
     /// once all are laid, as `meeting` closes it by the way they meet, read
-    /// where each two's set-backs cross on the face they share, as
+    /// where each two's set-backs cross on the face they share at the value
+    /// they are laid at — a pair's, where one of them is laid as one — as
     /// [`Exact::closed`] closes it, its face numbered past the edges'. A corner
     /// three of them meet at, two of one sense and the odd one of the other —
     /// two feet and the upright above them, two top edges and the upright

@@ -28,8 +28,9 @@ const PAST: f64 = 0.125;
 
 /// The body with the corner cut off flat through the crossings by the prism
 /// [`across`] raises, the prism's floor the face it lays, a flat of `flats`
-/// it takes whole gone. Declined `Unsupported` where the cut left anything
-/// but that face, every corner of it a corner of one of the three `flats`, as
+/// it takes whole gone where its edge runs to another corner the step closes.
+/// Declined `Unsupported` where the cut left anything but that face, every
+/// corner of it a corner of one of the three `flats`, as
 /// [`Exact::cut_along`] reads it.
 pub(in crate::body::exact) fn cut_across(
     body: &Exact,
@@ -39,8 +40,9 @@ pub(in crate::body::exact) fn cut_across(
     let (outline, frame, travel) = across(corner.crossings, corner.at);
     let tool = Exact::raised(&outline, &[], frame, travel)?;
     let cut = body.cut_by(&Exact { next: 1, ..tool })?;
-    let taken: Vec<u32> = (flats.into_iter())
-        .filter(|&flat| !cut.has_face(flat as usize))
+    let taken: Vec<u32> = (0..3)
+        .filter(|&at| corner.between[at] && !cut.has_face(flats[at] as usize))
+        .map(|at| flats[at])
         .collect();
     if cut.cut_along(&[], body, 1, &flats, &[], &taken) {
         Ok(cut)

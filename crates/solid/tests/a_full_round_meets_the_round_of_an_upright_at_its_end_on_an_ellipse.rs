@@ -363,6 +363,87 @@
 //!   `a_full_round_ends_on_a_pointed_end_mitred_against_each_edge_there.rs`,
 //!   `a_fillet_on_a_full_round_its_square_end_s_edge_and_the_upright_at_one_corner_of_that_end_is_declined_as_unsupported_whatever_the_order`
 //!   goes, the list it declined built by the second criterion's test
+//! - Decided on the way, after slice 2's review (2026-11-12): a hair over
+//!   twice the value. On a block 6 + 10⁻⁷ and 6 + 10⁻⁶ wide, asked 3, the
+//!   pair's set-backs stop a strip of top a hair wide short of meeting and are
+//!   laid as one full round at its own radius, half the width, as #803 lays
+//!   its hair. The tongue, and the pair, the end edge and the front upright,
+//!   are each built in every order, one body, the step reporting 3 asked and
+//!   taking 3 or the full round's radius; every round laid at the full round's
+//!   radius, the corners closed at it, so that the body is the one the block 6
+//!   wide gives, at that radius and that width: the volume of the arithmetic
+//!   below at `r = W/2`, closed, uncrossed, its triangles enclosing it. Held at
+//!   `W/2` rather than at 3: the two volumes are `3·10⁻⁹` of the body apart at
+//!   10⁻⁷, three times the exact kernel's tolerance, and ten times that at
+//!   10⁻⁶ —
+//!   `a_fillet_on_the_tongue_or_on_its_pair_end_edge_and_front_upright_a_hair_wider_than_twice_the_value_lays_every_round_at_the_full_round_s_radius_whatever_the_order`
+//! - Decided on the way, after slice 2's review (2026-11-12): what the guard
+//!   letting the tongue in lets in beside it is held to the shape the distance
+//!   to the named walls gives — built exact in every order tried, one body,
+//!   the value taken whole, closed, uncrossed, its triangles enclosing the
+//!   volume arithmetic gives, which the booleans give too; the faces gone and
+//!   every rank and patch answering to a face; the lying full round on its
+//!   half cylinder, each standing full round on its own, and each tip's
+//!   quarter ball one face answering to its end edge's rank and its two
+//!   corners' patches, on its sphere past both planes through its centre. The
+//!   tongue at the block's left end, its tip about (3, 3, 7) —
+//!   `a_fillet_on_the_tongue_at_the_block_s_left_end_rounds_its_tip_into_a_quarter_of_a_ball_whatever_the_order`
+//! - Likewise a tongue at both ends: the pair, both end edges and the four
+//!   uprights, eight edges, both tips quarter balls, about (27, 3, 7) and
+//!   (3, 3, 7). In the gate, 24 of the 40320 orders: every order of four
+//!   blocks — each edge of the pair, the end's three and the left end's
+//!   three, each end's in its listed order — so that each end's edges are
+//!   named before the other end's in twelve and after them in twelve —
+//!   `a_fillet_on_a_tongue_at_both_ends_of_the_block_rounds_each_tip_into_a_quarter_of_a_ball_whichever_end_s_edges_are_named_first`;
+//!   and in a campaign run by hand, those 24 and 240 more: every order of the
+//!   five edges at either end — the pair and that end's three — each edge at
+//!   the end named at once before its fellow at the left end, the uprights
+//!   paired front with front and back with back, then front with back and
+//!   back with front; those 240 took some two and a half minutes in the
+//!   gate's unoptimised build, which is why they left it —
+//!   `a_fillet_on_a_tongue_at_both_ends_of_the_block_rounds_each_tip_into_a_quarter_of_a_ball_in_each_of_264_orders_of_its_eight_edges`
+//! - Set aside to #910, after slice 2's review (2026-11-12): the tongue of an
+//!   end slanted seen from above, the plate's top (0, 0), (30, 0), (31, 6),
+//!   (0, 6). The point 3 from its top, front, back and end is
+//!   `(30.5 − √37/2, 3, 7)`, the same for both corners, so the shape the
+//!   distance to the named walls gives has the two uprights' rounds on one
+//!   standing half cylinder about the vertical through `(30.5 − √37/2, 3)`,
+//!   tangent to the end along one line, the end gone, and the tip one quarter
+//!   of a ball about that point, touching the end at one point; its volume,
+//!   which the booleans give too, is reckoned below, #910's. No pair forms:
+//!   the uprights stand √37 apart. The step is declined in every order today,
+//!   `Undrawn`, the body the kernel builds not drawn; held declined, whatever
+//!   the reason, and never laid as a body, so that a change building a wrong
+//!   one is seen —
+//!   `a_fillet_on_the_tongue_of_an_end_slanted_seen_from_above_is_declined_and_never_laid_as_a_body_whatever_the_order`
+//! - Likewise the pair, that slanted end's edge and one upright there, the
+//!   front one at the corner where the end turns by `atan 6` from the front,
+//!   or the back one where the back turns by `π − atan 6` from the end: the
+//!   upright's corner closed by the piece of sphere about
+//!   `(30.5 − √37/2, 3, 7)` spanning that turn, the other corner mitred as
+//!   #803 mitres it, on the vertical plane through the centre and that corner;
+//!   the end kept below the end edge's round, the top gone, the piece the patch
+//!   after every edge's —
+//!   `a_fillet_on_a_full_round_the_slanted_end_s_edge_and_one_upright_there_closes_that_corner_with_a_piece_of_sphere_and_mitres_the_other_whatever_the_order`
+//! - Decided on the way, after slice 2's review (2026-11-12): a post 6 by 6
+//!   and 10 high, chamfered at 3 on its four top edges and its four uprights,
+//!   is declined `Unsupported`, as `main` declines it. Each top corner's
+//!   triangle reaches the top's middle, (3, 3, 10), the four top flats vanish
+//!   into the four triangles, and the walls into the uprights' flats; the last
+//!   triangle's apex is a corner of no surviving flat. Held in 72 of the 40320
+//!   orders: every order of the four top edges, the uprights named after them;
+//!   every order of the top edges, each followed at once by the upright at its
+//!   end; and every order of the uprights, the top edges after them —
+//!   `a_chamfer_on_the_four_top_edges_and_the_four_uprights_of_a_post_6_by_6_is_declined_as_unsupported_in_each_order_tried`
+//!
+//! The campaign is run by hand, out of the gate, compiled only under the
+//! `campaigns` feature: the tongue at both ends in 264 orders, where the gate
+//! takes 24 of them, each held as the gate holds its own —
+//!
+//! ```text
+//! cargo test --release -p cao_solid --features campaigns \
+//!     --test a_full_round_meets_the_round_of_an_upright_at_its_end_on_an_ellipse -- --ignored
+//! ```
 //!
 //! The tongue's volume is the arithmetic above, its five edges' rounds each
 //! taken whole, the top's front and back edges 30 long, the end edge 6 and
@@ -399,6 +480,45 @@
 //! The chamfered block is convex, the meet of the half-spaces under its
 //! faces, so the booleans give it by cutting from the block the slab beyond
 //! each of the five flats' planes and each of the two triangles'.
+//!
+//! A hair over, the block `W = 6 + δ` wide and every round at `r = W/2`, the
+//! tongue's arithmetic holds as on the block 6 wide, the end edge `W` long:
+//! `LWH − (2L + W + 2H)r²(1 − π/4) + 2r³(2 − 7π/12)`, and the pair, the end
+//! edge and one upright `LWH − (2L + W + H)r²(1 − π/4) + r³(2 − 7π/12)
+//! + r³(5/3 − π/2)`. Reckoned at 3 rather than at `W/2`, the first moves by
+//! some 100 for each unit of the radius, `5·10⁻⁶` at δ = 10⁻⁷.
+//!
+//! A tongue at the left end is the tongue at the end mirrored, `1134 + 162π`.
+//! A tongue at both ends takes its eight edges' rounds whole, 112 long, and
+//! gives back `r³(2 − 7π/12)` at each of the four top corners:
+//! `LWH − 112r²(1 − π/4) + 4r³(2 − 7π/12)`, `1008 + 189π`, 1601.76 — the full
+//! round's section along the 24 between the tips, and at each end the
+//! standing half disc up 7 and the quarter ball. The booleans give both as the
+//! tongue's: every round's prism cut whole, the uprights' at the left end each
+//! raised on its own, then at each tip the cell past its two planes taken away
+//! and the quarter ball given back.
+//!
+//! On the slanted end, the centre stands at `x_c = 30.5 − √37/2`, one radius
+//! in from the end line `6(x − 30) = y`. The tongue, #910's, is read as on the
+//! square end: the full round's section `6·7 + πr²/2` along `x_c`, the
+//! standing half disc up 7, the quarter ball:
+//! `7(6x_c + 9π/2) + 9πx_c/2 + 9π`, `1281 − 21√37 + 711π/4 − 9√37π/4`,
+//! 1668.68. With one upright, its corner turning by `β`, its set-back along
+//! each wall `t = r·tan(β/2)`, the other corner's half turn's tangent
+//! `k = tan((π − β)/2)`: under z = 7, the plate's 183 less the upright's corner,
+//! `rt − r²β/2`; over it, the full round's half disc along `x_c`, the piece of
+//! sphere `r³β/3`, and past the centre toward the mitred corner the end edge's
+//! round and the full round over two wedges, each between a tangent line and
+//! the mitre, `∫ k·u·√(r² − u²) du = kr³/3`:
+//! `(H − r)(183 − rt + r²β/2) + πr²x_c/2 + r³β/3 + 2kr³/3`. The front upright,
+//! `β = atan 6`, gives `1294.5 − 15√37/2 + 81·atan 6/2 + 549π/4 − 9√37π/4`,
+//! 1694.00; the back one, `β = π − atan 6`,
+//! `1267.5 − 15√37/2 − 81·atan 6/2 + 711π/4 − 9√37π/4`, 1680.37. On the square
+//! end, `β = π/2`, `k = 1`, the same reckoning gives `1215 + 567π/4` again.
+//! The booleans give each as #699's do: the three rounds' prisms cut whole,
+//! then the cell on the upright's corner's side of the planes through the
+//! centre square to its three edges taken away, and the ball's sector over it,
+//! `r³β/3`, given back.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::f64::consts::{PI, SQRT_2};
@@ -1119,23 +1239,23 @@ impl Cut {
         }
     }
 
-    /// What one edge's cut alone takes away for each unit of its length,
-    /// between two faces square to each other: the strip between them and the
-    /// round, `r²(1 − π/4)`, or the triangle `d²/2`.
-    fn section(self) -> f64 {
-        let r = RADIUS;
+    /// What one edge's cut at `value` alone takes away for each unit of its
+    /// length, between two faces square to each other: the strip between them
+    /// and the round, `r²(1 − π/4)`, or the triangle `d²/2`.
+    fn section(self, value: f64) -> f64 {
+        let r = value;
         match self {
             Cut::Fillet => r * r * (1.0 - PI / 4.0),
             Cut::Chamfer => r * r / 2.0,
         }
     }
 
-    /// What the cuts of `count` named edges meeting at a square corner take
-    /// more than once there, given back: nothing for one; for two, mitred,
-    /// `r³(5/3 − π/2)` or `d³/3`; for three, closed by a piece of sphere or a
-    /// triangle, `r³(2 − 7π/12)` or `2d³/3`.
-    fn given_back(self, count: usize) -> f64 {
-        let cube = RADIUS.powi(3);
+    /// What the cuts at `value` of `count` named edges meeting at a square
+    /// corner take more than once there, given back: nothing for one; for two,
+    /// mitred, `r³(5/3 − π/2)` or `d³/3`; for three, closed by a piece of
+    /// sphere or a triangle, `r³(2 − 7π/12)` or `2d³/3`.
+    fn given_back(self, count: usize, value: f64) -> f64 {
+        let cube = value.powi(3);
         match (self, count) {
             (_, 0 | 1) => 0.0,
             (Cut::Fillet, 2) => cube * (5.0 / 3.0 - PI / 2.0),
@@ -1169,6 +1289,12 @@ impl Cut {
 /// edge is written as the constants above write it: the top or the floor
 /// first, then the front or the back, then the end or the left end.
 fn kept(cut: Cut, width: f64, listed: &[[usize; 2]]) -> f64 {
+    kept_at(cut, width, RADIUS, listed)
+}
+
+/// What the block `width` wide keeps once the edges `listed` are cut at
+/// `value`, as [`kept`] reckons it at [`RADIUS`].
+fn kept_at(cut: Cut, width: f64, value: f64, listed: &[[usize; 2]]) -> f64 {
     let ends = [END, LEFT];
     let sides = [FRONT, BACK];
     let levels = [TOP, FLOOR];
@@ -1186,11 +1312,12 @@ fn kept(cut: Cut, width: f64, listed: &[[usize; 2]]) -> f64 {
             for level in levels {
                 let corner = [[level, side], [level, end], [side, end]];
                 let named = corner.iter().filter(|edge| listed.contains(edge)).count();
-                given_back += cut.given_back(named);
+                given_back += cut.given_back(named, value);
             }
         }
     }
-    LENGTH * width * HEIGHT - cut.section() * listed.iter().map(length).sum::<f64>() + given_back
+    LENGTH * width * HEIGHT - cut.section(value) * listed.iter().map(length).sum::<f64>()
+        + given_back
 }
 
 /// What the full round and the round of an upright at a convex corner of
@@ -1276,18 +1403,26 @@ fn full_round_tool_along(part: &Body, along: [f64; 2]) -> Body {
 /// beyond the half cylinder about the vertical [`RADIUS`] in from the end and
 /// under the middle of the top.
 fn standing_full_round_tool(part: &Body) -> Body {
+    standing_full_round_tool_about(part, LENGTH - RADIUS)
+}
+
+/// The prism a standing full round about the vertical through `(axis, 3)`
+/// takes away, raised whole up past the floor and the top: all that stands
+/// past `x = axis`, over the front and the back and out past the block's
+/// far end, beyond the half cylinder of [`RADIUS`] about that vertical.
+fn standing_full_round_tool_about(part: &Body, axis: f64) -> Body {
     let far = RADIUS + 2.0;
     let corners = vec![
-        DVec2::new(LENGTH - RADIUS, 0.0),
-        DVec2::new(LENGTH - RADIUS, -far),
+        DVec2::new(axis, 0.0),
+        DVec2::new(axis, -far),
         DVec2::new(LENGTH + far, -far),
         DVec2::new(LENGTH + far, WIDTH + far),
-        DVec2::new(LENGTH - RADIUS, WIDTH + far),
-        DVec2::new(LENGTH - RADIUS, WIDTH),
+        DVec2::new(axis, WIDTH + far),
+        DVec2::new(axis, WIDTH),
     ];
     let mut runs = vec![Run::Straight; corners.len()];
     runs[5] = Run::Round {
-        center: crossing().truncate(),
+        center: DVec2::new(axis, RADIUS),
         turn: -PI,
     };
     raised_up_the_block(part, Contour { corners, runs })
@@ -1467,17 +1602,33 @@ fn filleted_in_every_order(
 }
 
 /// Holds that `cut` at [`RADIUS`] on `listed`'s edges of `part`, called `on`,
-/// in every order the list can name them, is laid, each order's body held by
-/// `holds` — given the order, the step's answer and what it is called — and
-/// each the body the listed order lays, its faces meeting alike, each laid
-/// face read by the edge it was laid on and each patch by the corner of
-/// `corners` it closes.
+/// in every order the list can name them, is laid as [`laid_in_orders`] holds
+/// it.
 fn laid_in_every_order(
     cut: Cut,
     part: &Body,
     on: &str,
     listed: &[([usize; 2], &str)],
     corners: &[[usize; 3]],
+    holds: impl Fn(&[usize], &Laid, &str),
+) {
+    let orders = every_order(listed.len());
+    laid_in_orders(cut, part, on, listed, corners, orders, holds);
+}
+
+/// Holds that `cut` at [`RADIUS`] on `listed`'s edges of `part`, called `on`,
+/// in each of `orders`, which hold the listed order, is laid, each order's
+/// body held by `holds` — given the order, the step's answer and what it is
+/// called — and each the body the listed order lays, its faces meeting alike,
+/// each laid face read by the edge it was laid on and each patch by the corner
+/// of `corners` it closes.
+fn laid_in_orders(
+    cut: Cut,
+    part: &Body,
+    on: &str,
+    listed: &[([usize; 2], &str)],
+    corners: &[[usize; 3]],
+    orders: Vec<Vec<usize>>,
     holds: impl Fn(&[usize], &Laid, &str),
 ) {
     let start = part.faces_end();
@@ -1493,7 +1644,7 @@ fn laid_in_every_order(
             called.join(", then ")
         )
     };
-    let laid: Vec<(Vec<usize>, Result<Laid, Declined>)> = every_order(named.len())
+    let laid: Vec<(Vec<usize>, Result<Laid, Declined>)> = orders
         .into_iter()
         .map(|order| {
             let names: Vec<EdgeName> = order.iter().map(|&edge| named[edge].clone()).collect();
@@ -3819,4 +3970,742 @@ fn a_chamfer_on_a_full_round_the_edge_across_its_end_and_both_uprights_there_clo
         &TONGUE_CORNERS,
         |order, laid, what| closes_the_end_edge_s_flat_to_a_ridge(&part, order, laid, what),
     );
+}
+
+#[test]
+fn a_fillet_on_the_tongue_or_on_its_pair_end_edge_and_front_upright_a_hair_wider_than_twice_the_value_lays_every_round_at_the_full_round_s_radius_whatever_the_order()
+ {
+    let tongue = [
+        PAIR[0],
+        PAIR[1],
+        END_EDGE,
+        Upright::Front.edge(),
+        Upright::Back.edge(),
+    ];
+    let one_upright = [PAIR[0], PAIR[1], END_EDGE, Upright::Front.edge()];
+    let lists: [(Listed, Vec<[usize; 3]>); 2] = [
+        (tongue.to_vec(), TONGUE_CORNERS.to_vec()),
+        (one_upright.to_vec(), vec![[0, 2, 3]]),
+    ];
+    for hair in [1e-7, 1e-6] {
+        let width = WIDTH + hair;
+        let full_round = width / 2.0;
+        let part = block(width);
+        let reach = reach_of(&part);
+        let on = format!("the block {hair} wider than {WIDTH}");
+        for (listed, corners) in &lists {
+            let edges: Vec<[usize; 2]> = listed.iter().map(|&(edge, _)| edge).collect();
+            let promised = kept_at(Cut::Fillet, width, full_round, &edges);
+            let rounds = PI / 2.0 * full_round * reach * listed.len() as f64;
+            laid_in_every_order(Cut::Fillet, &part, &on, listed, corners, |_, laid, what| {
+                assert!(
+                    (laid.asked - RADIUS).abs() < PLACE
+                        && (laid.taken - RADIUS).abs() <= hair / 2.0 + PLACE,
+                    "{what}: asked {} and took {}, where {RADIUS} or the full round's radius, \
+                     {full_round}, a hair over it, fits",
+                    laid.asked,
+                    laid.taken
+                );
+                sound_drawn_within(&laid.body, promised, DRAWN * reach * rounds, what);
+            });
+        }
+    }
+}
+
+/// The top's edge across the block's left end, at x = 0, and what it is
+/// called.
+const LEFT_EDGE: ([usize; 2], &str) = ([TOP, LEFT], "the top's edge across the left end");
+
+/// The prism the round of the top's edge along the end wall from `from` to
+/// `to`, seen from above, takes away, raised whole along it past both its
+/// ends: drawn in the section square to the wall's line, `u` out of the wall
+/// and `v` down, whose outline arrives at the wall's top corner along the top
+/// and leaves it up the wall, as [`end_edge_tool`] draws it.
+fn end_edge_tool_along(part: &Body, [from, to]: [DVec2; 2]) -> Body {
+    let along = (to - from).normalize();
+    let out = DVec2::new(along.y, -along.x);
+    let past = RADIUS + 2.0;
+    part.tool_raised(
+        &profile(outside_the_round_at(
+            DVec2::new(0.0, -HEIGHT),
+            DVec2::X,
+            DVec2::Y,
+        )),
+        Frame {
+            origin: (from - along * past).extend(0.0),
+            u: out.extend(0.0),
+            v: -DVec3::Z,
+        },
+        along.extend(0.0) * (from.distance(to) + 2.0 * past),
+    )
+    .expect("the tool raises")
+}
+
+/// The prism the round of the top's edge across the left end takes away.
+fn left_edge_tool(part: &Body) -> Body {
+    end_edge_tool_along(part, [DVec2::new(0.0, WIDTH), DVec2::ZERO])
+}
+
+/// A corner, or two, closed by a piece of sphere of [`RADIUS`], as the
+/// booleans reckon it: its centre; the ways pointing away from it across each
+/// plane through the centre that bounds the cell the piece fills, each square
+/// to an edge meeting there; and the solid angle the piece spans.
+struct Sphered {
+    centre: DVec3,
+    away: Vec<DVec3>,
+    spread: f64,
+}
+
+/// What `part` keeps once the prisms `tools` take, each raised whole, are cut
+/// away by the booleans, and at each of `pieces` the cell past its planes
+/// taken away and the ball's sector over it given back, a third of the radius
+/// cubed times its solid angle, as #699 reckons a corner's piece of sphere.
+fn sphered_by_booleans(part: &Body, tools: &[&Tool], pieces: &[Sphered]) -> f64 {
+    let rounded = tools.iter().fold(part.clone(), |left, tool| {
+        left.difference(&tool(&left))
+            .expect("a round's prism cuts the part")
+    });
+    pieces.iter().fold(rounded.volume(), |kept, piece| {
+        let cell = piece.away.iter().fold(rounded.clone(), |left, &away| {
+            left.difference(&beyond(&left, piece.centre, away, 100.0))
+                .expect("a plane through the centre cuts the part")
+        });
+        kept - cell.volume() + RADIUS.powi(3) * piece.spread / 3.0
+    })
+}
+
+/// Holds that every face of `part` but those numbered `gone` is kept, that
+/// every number from where the part's numbers end up to `laid_end` answers to
+/// some face — each edge's rank and each corner's patch — and that the next
+/// step numbers its faces from `laid_end`.
+fn numbered_with(part: &Body, body: &Body, gone: &[usize], laid_end: usize, what: &str) {
+    for &face in gone {
+        assert!(!body.has_face(face), "{what}: face {face} is gone");
+    }
+    let mut expected = numbers(part);
+    expected.retain(|face| !gone.contains(face));
+    expected.extend(part.faces_end()..laid_end);
+    assert_eq!(
+        numbers(body),
+        expected,
+        "{what}: the part's faces but {gone:?}, and a face for every rank and patch up to \
+         {laid_end}"
+    );
+    assert_eq!(
+        body.faces_end(),
+        laid_end,
+        "{what}: the next step numbers its faces from {laid_end}"
+    );
+}
+
+/// Holds that the numbers `numbers` answer to one curved face, drawn on the
+/// sphere of [`RADIUS`] about `centre` only, on the side of it each of `ways`
+/// points to.
+fn drawn_on_the_sphere(body: &Body, numbers: &[usize], centre: DVec3, ways: &[DVec3], what: &str) {
+    let which = format!("{what}: the piece of sphere answering to {numbers:?}");
+    one_curved_face_answers_to(body, numbers, &which);
+    for point in body.triangles_of(numbers[0]).flatten() {
+        assert!(
+            on_the_circle_toward(point, centre, RADIUS, ways),
+            "{which} is drawn through {point}, off the sphere of {RADIUS} about {centre} on the \
+             side of {ways:?}"
+        );
+    }
+}
+
+/// Holds that the numbers `numbers` answer to one curved face, drawn on the
+/// vertical cylinder of [`RADIUS`] about `axis` only, on the side of it `way`
+/// points to, from the floor up to the tip, one radius under the top.
+fn drawn_on_the_standing_cylinder(
+    body: &Body,
+    numbers: &[usize],
+    axis: DVec2,
+    way: DVec3,
+    what: &str,
+) {
+    let which = format!("{what}: the standing full round answering to {numbers:?}");
+    one_curved_face_answers_to(body, numbers, &which);
+    for point in body.triangles_of(numbers[0]).flatten() {
+        let off = point.truncate() - axis;
+        assert!(
+            (off.length() - RADIUS).abs() < PLACE
+                && off.extend(0.0).dot(way) >= -PLACE
+                && (-PLACE..=HEIGHT - RADIUS + PLACE).contains(&point.z),
+            "{which} is drawn through {point}, off the half cylinder of {RADIUS} about the \
+             vertical through {axis} on the side of {way}, from the floor up to the tip"
+        );
+    }
+}
+
+/// Holds that the numbers `numbers` answer to one curved face, drawn on the
+/// half cylinder of [`RADIUS`] about the line [`RADIUS`] under the middle of
+/// the top only, between `x = from` and `x = to`.
+fn drawn_on_the_lying_full_round(body: &Body, numbers: &[usize], [from, to]: [f64; 2], what: &str) {
+    let which = format!("{what}: the lying full round answering to {numbers:?}");
+    one_curved_face_answers_to(body, numbers, &which);
+    let halves = [-DVec3::Y, DVec3::Y].map(|side| Round {
+        length: to,
+        ..lying_half(side)
+    });
+    for point in body.triangles_of(numbers[0]).flatten() {
+        assert!(
+            halves.iter().any(|half| half.holds(point))
+                && (from - PLACE..=to + PLACE).contains(&point.x),
+            "{which} is drawn through {point}, off its half cylinder, or outside x = {from} to \
+             x = {to}"
+        );
+    }
+}
+
+/// A tongue's tip, as the pins hold it: the edges of the list across the
+/// end and up its two uprights, by their places in the list; the corners of
+/// the list whose patches its quarter ball answers to, by their places among
+/// the corners; the ball's centre; and the way along the block toward the tip.
+struct Tip {
+    end_edge: usize,
+    uprights: [usize; 2],
+    corners: [usize; 2],
+    centre: DVec3,
+    toward: DVec3,
+}
+
+/// A part whose tongues a fillet at [`RADIUS`] rounds, as the pins hold it:
+/// the part; the corners of the list, each as its three edges' places in it;
+/// the tips; the faces of the part that go; how far along the part the lying
+/// full round runs; and the volume arithmetic promises.
+struct Tongues<'a> {
+    part: &'a Body,
+    corners: &'a [[usize; 3]],
+    tips: &'a [Tip],
+    gone: &'a [usize],
+    lying_along: [f64; 2],
+    promised: f64,
+}
+
+impl Tongues<'_> {
+    /// Holds that the fillet on the list, the full round's pair first, named
+    /// in `order` and laid as `laid`, takes the value whole and rounds each
+    /// tip into a quarter of a ball, as the tongue's criterion lays it: the
+    /// body exact, closed, uncrossed, holding the volume promised and its
+    /// triangles enclosing it; the faces `gone` gone and every rank and patch
+    /// answering to a face; the lying full round on its half cylinder; each
+    /// tip's standing full round on its own, on the tip's side; and each tip's
+    /// quarter ball one face answering to its end edge's rank and to its two
+    /// corners' patches, on its sphere past both planes through its centre.
+    fn holds(&self, order: &[usize], laid: &Laid, what: &str) {
+        taken_as_asked(laid.asked, laid.taken, RADIUS, what);
+        let body = &laid.body;
+        let reach = reach_of(self.part);
+        let rounds = PI / 2.0 * RADIUS * reach * order.len() as f64;
+        sound_drawn_within(body, self.promised, DRAWN * reach * rounds, what);
+        let start = self.part.faces_end();
+        let patched = patches(start, order, self.corners);
+        numbered_with(
+            self.part,
+            body,
+            self.gone,
+            start + order.len() + patched.len(),
+            what,
+        );
+        drawn_on_the_lying_full_round(
+            body,
+            &ranks_of(start, order, &[0, 1]),
+            self.lying_along,
+            what,
+        );
+        for tip in self.tips {
+            drawn_on_the_standing_cylinder(
+                body,
+                &ranks_of(start, order, &tip.uprights),
+                tip.centre.truncate(),
+                tip.toward,
+                what,
+            );
+            let mut ball = ranks_of(start, order, &[tip.end_edge]);
+            ball.extend(tip.corners.iter().map(|&corner| patched[corner]));
+            ball.sort();
+            drawn_on_the_sphere(body, &ball, tip.centre, &[tip.toward, DVec3::Z], what);
+        }
+    }
+}
+
+/// Holds that the booleans leave what arithmetic promises.
+fn the_booleans_give(by_booleans: f64, promised: f64, what: &str) {
+    assert!(
+        (by_booleans - promised).abs() <= EXACT * promised,
+        "{what}: the booleans leave {by_booleans}, where arithmetic promises {promised}"
+    );
+}
+
+#[test]
+fn a_fillet_on_the_tongue_at_the_block_s_left_end_rounds_its_tip_into_a_quarter_of_a_ball_whatever_the_order()
+ {
+    let part = block(WIDTH);
+    let listed = [PAIR[0], PAIR[1], LEFT_EDGE, FRONT_LEFT_EDGE, BACK_LEFT_EDGE];
+    let edges = listed.map(|(edge, _)| edge);
+    the_arithmetic_gives(&edges, 1134.0 + 162.0 * PI, "1134 + 162π");
+    let promised = kept(Cut::Fillet, WIDTH, &edges);
+    let centre = DVec3::new(RADIUS, RADIUS, HEIGHT - RADIUS);
+    let tools: [&Tool; 4] = [
+        &full_round_tool,
+        &front_left_tool,
+        &back_left_tool,
+        &left_edge_tool,
+    ];
+    let tip = Sphered {
+        centre,
+        away: vec![DVec3::X, -DVec3::Z],
+        spread: PI,
+    };
+    the_booleans_give(
+        sphered_by_booleans(&part, &tools, &[tip]),
+        promised,
+        "the tongue at the left end",
+    );
+    let tongues = Tongues {
+        part: &part,
+        corners: &TONGUE_CORNERS,
+        tips: &[Tip {
+            end_edge: 2,
+            uprights: [3, 4],
+            corners: [0, 1],
+            centre,
+            toward: -DVec3::X,
+        }],
+        gone: &[TOP, LEFT],
+        lying_along: [RADIUS, LENGTH],
+        promised,
+    };
+    laid_in_every_order(
+        Cut::Fillet,
+        &part,
+        ON_THE_BLOCK,
+        &listed,
+        &TONGUE_CORNERS,
+        |order, laid, what| tongues.holds(order, laid, what),
+    );
+}
+
+/// The tongue at both ends of the block, its eight edges listed as the
+/// pair, then the edge across the end and the uprights at its front and back
+/// corners, then the same three at the left end.
+fn both_tongues() -> [([usize; 2], &'static str); 8] {
+    [
+        PAIR[0],
+        PAIR[1],
+        END_EDGE,
+        Upright::Front.edge(),
+        Upright::Back.edge(),
+        LEFT_EDGE,
+        FRONT_LEFT_EDGE,
+        BACK_LEFT_EDGE,
+    ]
+}
+
+/// The corners of [`both_tongues`], each as its three edges' places in the
+/// list: the end's front and back, then the left end's front and back.
+const BOTH_TONGUES_CORNERS: [[usize; 3]; 4] = [[0, 2, 3], [1, 2, 4], [0, 5, 6], [1, 5, 7]];
+
+/// The orders the gate tries [`both_tongues`] in: every order of four blocks
+/// — each edge of the pair, the end's three edges and the left end's three,
+/// each end's in its listed order — so that each end's edges are named before
+/// the other end's in twelve orders and after them in twelve, and the pair's
+/// edges before, between and after both ends'.
+fn both_tongues_by_blocks() -> Vec<Vec<usize>> {
+    let blocks: [&[usize]; 4] = [&[0], &[1], &[2, 3, 4], &[5, 6, 7]];
+    every_order(blocks.len())
+        .into_iter()
+        .map(|order| {
+            order
+                .into_iter()
+                .flat_map(|block| blocks[block].to_vec())
+                .collect()
+        })
+        .collect()
+}
+
+/// Holds that the fillet at [`RADIUS`] on [`both_tongues`], in each of
+/// `orders`, rounds each tip into a quarter of a ball, as [`Tongues::holds`]
+/// holds it, after the arithmetic has been held to give `1008 + 189π` and the
+/// booleans to give what the arithmetic does.
+fn both_tips_rounded_in(orders: Vec<Vec<usize>>) {
+    let part = block(WIDTH);
+    let listed = both_tongues();
+    let edges = listed.map(|(edge, _)| edge);
+    the_arithmetic_gives(&edges, 1008.0 + 189.0 * PI, "1008 + 189π");
+    let promised = kept(Cut::Fillet, WIDTH, &edges);
+    let [at_the_end, at_the_left_end] =
+        [LENGTH - RADIUS, RADIUS].map(|x| DVec3::new(x, RADIUS, HEIGHT - RADIUS));
+    let tools: [&Tool; 6] = [
+        &full_round_tool,
+        &standing_full_round_tool,
+        &front_left_tool,
+        &back_left_tool,
+        &end_edge_tool,
+        &left_edge_tool,
+    ];
+    let pieces = [
+        Sphered {
+            centre: at_the_end,
+            away: vec![-DVec3::X, -DVec3::Z],
+            spread: PI,
+        },
+        Sphered {
+            centre: at_the_left_end,
+            away: vec![DVec3::X, -DVec3::Z],
+            spread: PI,
+        },
+    ];
+    the_booleans_give(
+        sphered_by_booleans(&part, &tools, &pieces),
+        promised,
+        "a tongue at both ends",
+    );
+    let tongues = Tongues {
+        part: &part,
+        corners: &BOTH_TONGUES_CORNERS,
+        tips: &[
+            Tip {
+                end_edge: 2,
+                uprights: [3, 4],
+                corners: [0, 1],
+                centre: at_the_end,
+                toward: DVec3::X,
+            },
+            Tip {
+                end_edge: 5,
+                uprights: [6, 7],
+                corners: [2, 3],
+                centre: at_the_left_end,
+                toward: -DVec3::X,
+            },
+        ],
+        gone: &[TOP, END, LEFT],
+        lying_along: [RADIUS, LENGTH - RADIUS],
+        promised,
+    };
+    laid_in_orders(
+        Cut::Fillet,
+        &part,
+        ON_THE_BLOCK,
+        &listed,
+        &BOTH_TONGUES_CORNERS,
+        orders,
+        |order, laid, what| tongues.holds(order, laid, what),
+    );
+}
+
+#[test]
+fn a_fillet_on_a_tongue_at_both_ends_of_the_block_rounds_each_tip_into_a_quarter_of_a_ball_whichever_end_s_edges_are_named_first()
+ {
+    both_tips_rounded_in(both_tongues_by_blocks());
+}
+
+/// The end slanted seen from above, from its corner on the front to its
+/// corner on the back: the plate's top runs (0, 0), (30, 0), (31, 6), (0, 6),
+/// its faces numbered as the block's, the end three.
+const SLANTED_END: [DVec2; 2] = [DVec2::new(LENGTH, 0.0), DVec2::new(LENGTH + 1.0, WIDTH)];
+
+/// The plate whose end is [`SLANTED_END`], [`HEIGHT`] high: 183 seen from
+/// above.
+fn slanted_plate() -> Body {
+    plate(vec![
+        DVec2::ZERO,
+        SLANTED_END[0],
+        SLANTED_END[1],
+        DVec2::new(0.0, WIDTH),
+    ])
+}
+
+/// The point [`RADIUS`] from the slanted plate's top, front, back and end:
+/// `(30.5 − √37/2, 3, 7)`, the end wall leaning by `1/6` along X for each
+/// unit along Y.
+fn slanted_centre() -> DVec3 {
+    DVec3::new(LENGTH + 0.5 - 37f64.sqrt() / 2.0, RADIUS, HEIGHT - RADIUS)
+}
+
+/// The way along the slanted end, from its front corner to its back one.
+fn along_the_slanted_end() -> DVec3 {
+    (SLANTED_END[1] - SLANTED_END[0]).normalize().extend(0.0)
+}
+
+/// The angle the slanted end turns from the front by, at its front corner:
+/// `atan 6`; at its back corner the back turns from it by `π − atan 6`.
+fn slanted_turn() -> f64 {
+    6f64.atan()
+}
+
+#[test]
+fn a_fillet_on_the_tongue_of_an_end_slanted_seen_from_above_is_declined_and_never_laid_as_a_body_whatever_the_order()
+ {
+    let r = RADIUS;
+    let part = slanted_plate();
+    let centre = slanted_centre();
+    let listed = [
+        PAIR[0],
+        PAIR[1],
+        END_EDGE,
+        Upright::Front.edge(),
+        Upright::Back.edge(),
+    ];
+    let promised = (HEIGHT - r) * (WIDTH * centre.x + PI * r * r / 2.0)
+        + PI * r * r / 2.0 * centre.x
+        + PI * r.powi(3) / 3.0;
+    let root = 37f64.sqrt();
+    the_leaning_arithmetic_gives(
+        promised,
+        1281.0 - 21.0 * root + 711.0 * PI / 4.0 - 9.0 * root * PI / 4.0,
+        "1281 − 21√37 + 711π/4 − 9√37π/4",
+    );
+    let full_round = |left: &Body| full_round_tool_along(left, [0.0, SLANTED_END[1].x]);
+    let standing = move |left: &Body| standing_full_round_tool_about(left, centre.x);
+    let across = |left: &Body| end_edge_tool_along(left, SLANTED_END);
+    let tools: [&Tool; 3] = [&full_round, &standing, &across];
+    the_booleans_give(
+        sphered_by_booleans(
+            &part,
+            &tools,
+            &[Sphered {
+                centre,
+                away: vec![-DVec3::X, -DVec3::Z],
+                spread: PI,
+            }],
+        ),
+        promised,
+        "the tongue of the slanted end, as #910 would build it",
+    );
+    let named: Vec<EdgeName> = listed
+        .iter()
+        .map(|&([one, other], _)| edge_between(&part, one, other))
+        .collect();
+    let laid: Vec<String> = every_order(named.len())
+        .into_iter()
+        .filter_map(|order| {
+            let names: Vec<EdgeName> = order.iter().map(|&edge| named[edge].clone()).collect();
+            part.fillet_edges(&names, RADIUS).ok().map(|filleted| {
+                format!(
+                    "named in the order {order:?}: a body of {}, taken {}",
+                    filleted.body.volume(),
+                    filleted.taken
+                )
+            })
+        })
+        .collect();
+    assert!(
+        laid.is_empty(),
+        "the fillet at {RADIUS} on the tongue of the end from (30, 0) to (31, 6) is a broken \
+         step and its reason in every order, until #910 builds it; laid:\n{}",
+        laid.join("\n")
+    );
+}
+
+/// What the slanted plate keeps once its pair, its end edge and the upright
+/// at the corner where the end turns by `turn` are filleted at [`RADIUS`], as
+/// the module's documentation derives it: under the tip's plane z = 7, the
+/// plate less the upright's corner; over it, the full round's half disc along
+/// it up to the centre, then the piece of sphere over the upright's corner,
+/// and the end edge's round and the full round, each over a wedge between the
+/// end's tangent line and the mitre to the other corner, `r³·k/3` each, `k`
+/// the tangent of half that corner's turn.
+fn slanted_end_and_one_upright_kept(turn: f64) -> f64 {
+    let r = RADIUS;
+    let set_back = r * (turn / 2.0).tan();
+    let other = ((PI - turn) / 2.0).tan();
+    let area = (LENGTH + SLANTED_END[1].x) / 2.0 * WIDTH;
+    (HEIGHT - r) * (area - (r * set_back - r * r * turn / 2.0))
+        + PI * r * r / 2.0 * slanted_centre().x
+        + r.powi(3) * turn / 3.0
+        + 2.0 * r.powi(3) * other / 3.0
+}
+
+#[test]
+fn a_fillet_on_a_full_round_the_slanted_end_s_edge_and_one_upright_there_closes_that_corner_with_a_piece_of_sphere_and_mitres_the_other_whatever_the_order()
+ {
+    let part = slanted_plate();
+    let centre = slanted_centre();
+    let along = along_the_slanted_end();
+    let root = 37f64.sqrt();
+    let turn = slanted_turn();
+    let cases = [
+        (
+            Upright::Front,
+            turn,
+            1294.5 - 7.5 * root + 40.5 * turn + 549.0 * PI / 4.0 - 9.0 * root * PI / 4.0,
+            "1294.5 − 15√37/2 + 81·atan 6/2 + 549π/4 − 9√37π/4",
+            SLANTED_END[0],
+            [DVec2::X, along.truncate()],
+            along,
+        ),
+        (
+            Upright::Back,
+            PI - turn,
+            1267.5 - 7.5 * root - 40.5 * turn + 711.0 * PI / 4.0 - 9.0 * root * PI / 4.0,
+            "1267.5 − 15√37/2 − 81·atan 6/2 + 711π/4 − 9√37π/4",
+            SLANTED_END[1],
+            [along.truncate(), -DVec2::X],
+            -along,
+        ),
+    ];
+    for (upright, at_the_corner, written, formula, corner, [arriving, leaving], away) in cases {
+        let promised = slanted_end_and_one_upright_kept(at_the_corner);
+        the_leaning_arithmetic_gives(promised, written, formula);
+        let full_round = |left: &Body| full_round_tool_along(left, [0.0, SLANTED_END[1].x]);
+        let across = |left: &Body| end_edge_tool_along(left, SLANTED_END);
+        let round = move |left: &Body| upright_tool_at(left, corner, arriving, leaving);
+        let tools: [&Tool; 3] = [&full_round, &across, &round];
+        the_booleans_give(
+            sphered_by_booleans(
+                &part,
+                &tools,
+                &[Sphered {
+                    centre,
+                    away: vec![-DVec3::X, -DVec3::Z, away],
+                    spread: at_the_corner,
+                }],
+            ),
+            promised,
+            &format!("the pair, the slanted end's edge and {}", upright.edge().1),
+        );
+        let listed = [PAIR[0], PAIR[1], END_EDGE, upright.edge()];
+        let pair_edge_on_its_wall = if upright == Upright::Front { 0 } else { 1 };
+        let reach = reach_of(&part);
+        let rounds = PI / 2.0 * RADIUS * reach * listed.len() as f64;
+        laid_in_every_order(
+            Cut::Fillet,
+            &part,
+            "the plate whose end runs from (30, 0) to (31, 6)",
+            &listed,
+            &[[pair_edge_on_its_wall, 2, 3]],
+            |order, laid, what| {
+                taken_as_asked(laid.asked, laid.taken, RADIUS, what);
+                let body = &laid.body;
+                sound_drawn_within(body, promised, DRAWN * reach * rounds, what);
+                let start = part.faces_end();
+                let piece = start + order.len();
+                numbered_with(&part, body, &[TOP], piece + 1, what);
+                drawn_on_the_lying_full_round(
+                    body,
+                    &ranks_of(start, order, &[0, 1]),
+                    [0.0, SLANTED_END[1].x],
+                    what,
+                );
+                for (number, which) in [
+                    (ranks_of(start, order, &[2])[0], "the end edge's round"),
+                    (ranks_of(start, order, &[3])[0], "the upright's round"),
+                ] {
+                    assert!(
+                        !body.is_flat(number) && body.plane_of(number).is_none(),
+                        "{what}: {which}, face {number}, is curved, and offers no plane to draw \
+                         on"
+                    );
+                }
+                drawn_on_the_sphere(body, &[piece], centre, &[DVec3::X, -away, DVec3::Z], what);
+            },
+        );
+    }
+}
+
+/// The orders the post's eight edges are tried in, listed as its four top
+/// edges anticlockwise from the front's, then its four uprights
+/// anticlockwise from the front's right one, the end of the top's front
+/// edge: every order of the top edges, the uprights named after them in their
+/// listed order; every order of the top edges, each followed at once by the
+/// upright at its end; and every order of the uprights, the top edges named
+/// after them in theirs. All 40320 orders take far longer than the gate
+/// allows; these hold every order of either four, and the two kinds named
+/// apart and interleaved.
+fn the_post_s_orders() -> Vec<Vec<usize>> {
+    let mut orders: Vec<Vec<usize>> = Vec::new();
+    for four in every_order(4) {
+        orders.push(four.iter().copied().chain(4..8).collect());
+        orders.push(four.iter().flat_map(|&edge| [edge, edge + 4]).collect());
+        orders.push(four.iter().map(|&edge| edge + 4).chain(0..4).collect());
+    }
+    orders
+}
+
+#[test]
+fn a_chamfer_on_the_four_top_edges_and_the_four_uprights_of_a_post_6_by_6_is_declined_as_unsupported_in_each_order_tried()
+ {
+    let post = plate(vec![
+        DVec2::ZERO,
+        DVec2::new(WIDTH, 0.0),
+        DVec2::new(WIDTH, WIDTH),
+        DVec2::new(0.0, WIDTH),
+    ]);
+    let [front, right, back, left] = [2, 3, 4, 5];
+    let listed = [
+        [TOP, front],
+        [TOP, right],
+        [TOP, back],
+        [TOP, left],
+        [front, right],
+        [right, back],
+        [back, left],
+        [left, front],
+    ];
+    let named: Vec<EdgeName> = listed
+        .iter()
+        .map(|&[one, other]| edge_between(&post, one, other))
+        .collect();
+    let not_declined: Vec<String> = the_post_s_orders()
+        .into_iter()
+        .filter_map(|order| {
+            let names: Vec<EdgeName> = order.iter().map(|&edge| named[edge].clone()).collect();
+            let faces: Vec<[usize; 2]> = order.iter().map(|&edge| listed[edge]).collect();
+            match post.chamfer_edges(&names, RADIUS) {
+                Err(Declined::Unsupported) => None,
+                Ok(chamfered) => Some(format!(
+                    "the chamfer on {faces:?}: a body of {}",
+                    chamfered.body.volume()
+                )),
+                Err(declined) => Some(format!("the chamfer on {faces:?}: declined, {declined:?}")),
+            }
+        })
+        .collect();
+    assert!(
+        not_declined.is_empty(),
+        "the chamfer at {RADIUS} on the four top edges and the four uprights of a post {WIDTH} by \
+         {WIDTH} is a broken step and its reason, `Unsupported`, in each order tried; not \
+         so:\n{}",
+        not_declined.join("\n")
+    );
+}
+
+#[cfg(feature = "campaigns")]
+mod campaign {
+    use super::*;
+
+    /// The orders the campaign tries [`both_tongues`] in: the gate's, then
+    /// every order of five slots — each edge of the pair, the two edges across
+    /// the ends, the two uprights at the front, the two at the back — each
+    /// edge at the end named at once before its fellow at the left end, the
+    /// uprights paired front with front and back with back, then front with
+    /// back and back with front. Each end's five edges are named in every
+    /// order they can be, twice.
+    fn both_tongues_paired() -> Vec<Vec<usize>> {
+        let pairings = [[[2, 5], [3, 6], [4, 7]], [[2, 5], [3, 7], [4, 6]]];
+        let paired = pairings.into_iter().flat_map(|[across, fronts, backs]| {
+            every_order(5).into_iter().map(move |places| {
+                places
+                    .into_iter()
+                    .flat_map(|place| match place {
+                        0 => vec![0],
+                        1 => vec![1],
+                        2 => across.to_vec(),
+                        3 => fronts.to_vec(),
+                        _ => backs.to_vec(),
+                    })
+                    .collect()
+            })
+        });
+        both_tongues_by_blocks().into_iter().chain(paired).collect()
+    }
+
+    #[test]
+    #[ignore = "a campaign, run by hand: see the head of this file"]
+    fn a_fillet_on_a_tongue_at_both_ends_of_the_block_rounds_each_tip_into_a_quarter_of_a_ball_in_each_of_264_orders_of_its_eight_edges()
+     {
+        both_tips_rounded_in(both_tongues_paired());
+    }
 }

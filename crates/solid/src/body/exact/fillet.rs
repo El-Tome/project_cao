@@ -167,8 +167,8 @@ impl Exact {
         self.rounded_as(name, &[made])
     }
 
-    /// Whether the round closed to nothing between two corners one radius
-    /// apart (#837): the face answering to `made` answers past `closing` too,
+    /// Whether the round closed to nothing between two corners whose centres
+    /// are one (#837): the face answering to `made` answers past `closing` too,
     /// where the pieces closing the step's corners are numbered, to the one
     /// piece of sphere closing both, and to nothing else, as
     /// [`Exact::rounded_as`] reads it of all those numbers.

@@ -13,11 +13,11 @@
 //! corner between them filled up to the three planes, and the three quarter
 //! discs that leaves, facing the centre, replaced by the piece of sphere
 //! facing it, the matter outside the ball. Two corners at the ends of one
-//! edge, one radius from each other's faces — the edge across a tongue's tip
-//! as wide as two radii, whose round closes to nothing between them (#837) —
-//! close on one sphere: the later corner's cut takes that round whole, and
-//! its piece takes in the earlier corner's, one face answering to the
-//! round's number and both corners'.
+//! edge whose centres are one — the edge across a tongue's tip as wide as
+//! two radii, whose round closes to nothing between them (#837) — close on
+//! one sphere: the later corner's cut takes that round whole, and its piece
+//! takes in the earlier corner's, one face answering to the round's number
+//! and both corners'.
 
 use glam::DVec3;
 
@@ -36,8 +36,9 @@ use crate::brep::{self, Coedge, Curve, Declined, Face, FaceId, Sphere, Surface, 
 /// towards the rounds by three arcs about it — one more for the piece an
 /// earlier corner laid on the same sphere beside them — or the piece of
 /// sphere left anything but its face, its every corner a corner of one of
-/// the three `rounds`, as [`Exact::cut_along`] reads it; `Undrawn` where the
-/// piece cannot be cut into triangles.
+/// the `rounds` still standing, as [`Exact::cut_along`] reads it, or took
+/// whole a round whose edge runs to no other corner the step closes;
+/// `Undrawn` where the piece cannot be cut into triangles.
 pub(in crate::body::exact) fn rounded_across(
     body: &Exact,
     corner: &Corner,
@@ -77,7 +78,8 @@ pub(in crate::body::exact) fn hollowed_across(
 /// piece of sphere about it their arcs bound, `flipped` to face its centre
 /// where the matter lies outside the ball, as [`rounded_across`] lays it:
 /// answering to the earlier piece's numbers and to those of the `rounds` the
-/// cut took whole, and read about the edge of such a round where there is
+/// cut took whole, between this corner and another the step closes, and read
+/// about the edge of such a round where there is
 /// one, so that no pole stands inside an arc the piece meets another round
 /// along, which then stays one edge.
 fn sphered(
@@ -99,9 +101,8 @@ fn sphered(
     let lap = bounding(&laid.brep, &walls, centre, radius, eps)
         .filter(|lap| lap.len() == 3 + before.len())
         .ok_or(Declined::Unsupported)?;
-    let gone: Vec<usize> = (0..3)
-        .filter(|&at| !laid.has_face(rounds[at] as usize))
-        .collect();
+    let (gone, kept): (Vec<usize>, Vec<usize>) =
+        (0..3).partition(|&at| corner.between[at] && !laid.has_face(rounds[at] as usize));
     let about = gone
         .first()
         .map_or(axis(corner.along), |&at| corner.along[at]);
@@ -124,7 +125,8 @@ fn sphered(
     };
     let brep = laid.brep.replaced(&walls, Surface::Sphere(sphere), face)?;
     let closed = laid.patched(brep, laid.next)?;
-    if closed.cut_along(&[], body, 1, &rounds, &[], &[]) {
+    let mitred: Vec<u32> = kept.iter().map(|&at| rounds[at]).collect();
+    if closed.cut_along(&[], body, 1, &mitred, &[], &[]) {
         Ok(closed)
     } else {
         Err(Declined::Unsupported)
@@ -215,8 +217,8 @@ fn bounding(
 
 /// The faces a corner closed before laid on the sphere of `radius` about
 /// `centre` beside `walls`, an edge of each one of theirs: the other end of
-/// an edge whose round, between two corners one radius apart, closes to
-/// nothing, so that the two pieces are one.
+/// an edge whose round, between two corners whose centres are one, closes
+/// to nothing, so that the two pieces are one.
 fn laid_before(
     body: &brep::Body,
     walls: &[FaceId],

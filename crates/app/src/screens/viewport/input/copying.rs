@@ -258,8 +258,9 @@ fn around(
         context.editor.message = Some(context.lang.t("sketch.pattern_needs_its_values"));
         return None;
     };
+    let rotation = context.editor.copy_panel()?.rotation();
     let live = &context.editor.live;
-    let degrees = as_typed(live.typed_as_written(0), degrees);
+    let degrees = rotation.step_written(as_typed(live.typed_as_written(0), degrees));
     let Some(count) = count_as_typed(live.typed_as_written(1), count) else {
         context.editor.message = Some(crate::wording::formula::not_a_count(context.lang));
         return None;

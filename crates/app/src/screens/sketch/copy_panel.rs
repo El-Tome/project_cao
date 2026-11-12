@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use cao_part::Formula;
 use cao_sketch::{ChosenAxis, Element, PointId, Selection, Sketch, ToolState};
 use glam::DVec2;
 
@@ -39,6 +40,36 @@ pub enum StepState {
     ToCome,
 }
 
+/// Which way round the circular pattern turns. Counter-clockwise is the way a
+/// positive step turns, and the way a pattern turned before it had a
+/// direction.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Rotation {
+    #[default]
+    CounterClockwise,
+    #[cfg_attr(not(test), expect(dead_code))]
+    Clockwise,
+}
+
+impl Rotation {
+    /// The step the pattern turns by, from the one typed: as it is
+    /// counter-clockwise, the other way round clockwise.
+    pub(crate) fn step(self, typed: f64) -> f64 {
+        match self {
+            Self::CounterClockwise => typed,
+            Self::Clockwise => -typed,
+        }
+    }
+
+    /// The same step as it is written down, a formula staying a formula.
+    pub(crate) fn step_written(self, typed: Formula) -> Formula {
+        match self {
+            Self::CounterClockwise => typed,
+            Self::Clockwise => typed.negated(),
+        }
+    }
+}
+
 /// What one of a tool's values is: the view names it and gives it its unit.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CopyValue {
@@ -64,6 +95,7 @@ pub struct CopyPanel {
     target: Option<CopyTarget>,
     values: &'static [CopyValue],
     steps: &'static [CopyStep],
+    rotation: Rotation,
     /// The box being pulled across the drawing while Elements is active.
     pub(crate) band: Option<(DVec2, DVec2)>,
 }
@@ -161,6 +193,15 @@ impl CopyPanel {
 
     pub fn value_kinds(&self) -> &'static [CopyValue] {
         self.values
+    }
+
+    pub fn rotation(&self) -> Rotation {
+        self.rotation
+    }
+
+    #[cfg_attr(not(test), expect(dead_code))]
+    pub fn choose_rotation(&mut self, rotation: Rotation) {
+        self.rotation = rotation;
     }
 
     /// Takes or lets go of one element, a trait with its two ends. An end a

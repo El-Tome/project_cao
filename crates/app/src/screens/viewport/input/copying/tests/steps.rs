@@ -62,14 +62,17 @@
 //!   `crates/part/tests/a_circular_pattern_stops_at_a_full_turn.rs`; and the
 //!   pattern laid counter-clockwise, by the comparison of the fourth bullet
 
+use cao_part::{Formula, Operation};
 use cao_prefs::Command;
+use cao_sketch::SegmentId;
 use glam::DVec2;
 
 use super::bench::Bench;
-use crate::screens::sketch::{CopySlot, CopyStep, StepState};
+use crate::screens::sketch::{CopyPanel, CopySlot, CopyStep, Rotation, StepState};
 
 const ON_THE_TRAIT_TO_COPY: DVec2 = DVec2::new(-10.0, 0.0);
 const THE_CENTRE: DVec2 = DVec2::new(2.0, -5.0);
+const TRAIT_TO_COPY: SegmentId = SegmentId(0);
 
 /// A trait to copy, ten units tall, and an upright clear of it whose foot is
 /// the point to turn about.
@@ -159,5 +162,69 @@ fn a_step_skipped_while_still_empty_reads_to_come_rather_than_done() {
         ],
         "nothing is held yet: a check on the elements would tell the user they \
          were picked"
+    );
+}
+
+/// The circular pattern « Valider » lays: the trait held, the centre clicked,
+/// the number and the step it opens on, and the direction as `choose` leaves
+/// it.
+fn laid_by_the_panel(choose: impl FnOnce(&mut CopyPanel)) -> Operation {
+    let mut bench = a_trait_and_a_centre();
+    bench.take(Command::ToolCircularPattern);
+    bench.click(ON_THE_TRAIT_TO_COPY);
+    bench.enter();
+    bench.click(THE_CENTRE);
+    choose(
+        bench
+            .editor
+            .copy_panel_mut()
+            .expect("the panel is open while a copy tool is in hand"),
+    );
+    bench.click_the_slot(CopySlot::Validate);
+    bench.enter();
+    bench
+        .last_laid()
+        .cloned()
+        .expect("« Valider » with every step filled lays the pattern")
+}
+
+#[test]
+fn clockwise_lays_the_same_pattern_with_its_step_of_opposite_sign() {
+    let bench = a_trait_and_a_centre();
+    let elements = bench.a_trait_and_its_ends(TRAIT_TO_COPY);
+    let centre = bench.point_at(THE_CENTRE);
+
+    let by_default = laid_by_the_panel(|_| {});
+    let clockwise = laid_by_the_panel(|panel| panel.choose_rotation(Rotation::Clockwise));
+    let counter_clockwise =
+        laid_by_the_panel(|panel| panel.choose_rotation(Rotation::CounterClockwise));
+
+    assert_eq!(
+        by_default,
+        Operation::CircularPattern {
+            sketch: 0,
+            elements: elements.clone(),
+            centre,
+            degrees: Formula::Number(90.0),
+            count: Formula::Number(4.0),
+        },
+        "with no direction chosen, the pattern laid is exactly the one laid before \
+         the panel had a direction"
+    );
+    assert_eq!(
+        counter_clockwise, by_default,
+        "counter-clockwise is the default"
+    );
+    assert_eq!(
+        clockwise,
+        Operation::CircularPattern {
+            sketch: 0,
+            elements,
+            centre,
+            degrees: Formula::Number(-90.0),
+            count: Formula::Number(4.0),
+        },
+        "clockwise lays the same copies of the same elements about the same \
+         centre, its step turned the other way"
     );
 }

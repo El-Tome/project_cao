@@ -2,6 +2,7 @@ use cao_part::PartDocument;
 use cao_prefs::{Command, Edge, Item, Settings, ToolbarLayout};
 
 use crate::lang::Catalogue;
+use crate::screens::blend::BlendState;
 use crate::screens::blend_row::blend_row;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::extrusion_row::extrusion_row;
@@ -32,6 +33,7 @@ pub struct Drawn<'a> {
     pub document: &'a PartDocument,
     pub editor: &'a SketchEditor,
     pub extrusion: &'a mut ExtrusionState,
+    pub blend: &'a mut BlendState,
 }
 
 impl Drawn<'_> {
@@ -195,8 +197,8 @@ impl Ribbon {
         });
 
         let read = &self.sketches_read;
-        match self.blend.is_active() {
-            true => blend_row(ui, drawn.document, &mut self.blend, lang),
+        match drawn.blend.is_active() {
+            true => blend_row(ui, drawn.document, drawn.blend, lang),
             false => extrusion_row(ui, drawn.document, drawn.extrusion, read, &mut asked, lang),
         }
         let state = drawn.context(settings, lang, self.section_on);

@@ -418,6 +418,7 @@ fn a_copy_s_preview_shows_with_the_pointer_off_the_drawing() {
         &mut context,
         &mut crate::screens::ribbon::Ribbon::default(),
         &mut crate::screens::viewport::ViewportState::default(),
+        &mut crate::screens::blend::BlendState::default(),
     );
     let (snap, pixel) = (0.5, 0.05);
     copy(&mut context, 0, DVec2::new(6.0, 5.0), snap, pixel);

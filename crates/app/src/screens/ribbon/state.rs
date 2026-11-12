@@ -1,5 +1,4 @@
 use crate::lang::Catalogue;
-use crate::screens::blend::BlendState;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{SketchEditor, Tool};
 use crate::ui::icon::Icon;
@@ -49,8 +48,6 @@ pub struct Ribbon {
     pub sketches_read: Vec<usize>,
     /// The command last picked from each menu, by group, for the session.
     last_used: HashMap<String, Command>,
-    /// The panel an edge of the part is chamfered or rounded from.
-    pub blend: BlendState,
     /// How wide what a floating bar holds came out last frame.
     pub(super) floating_width: f32,
 }
@@ -70,7 +67,6 @@ impl Ribbon {
             section_on: false,
             sketches_read: Vec::new(),
             last_used: HashMap::new(),
-            blend: BlendState::default(),
             floating_width: 0.0,
         }
     }

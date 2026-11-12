@@ -16,7 +16,10 @@ use crate::shortcuts::shortcuts_pressed;
 use crate::{MSAA_SAMPLES, adapters::files::DiskFiles, autosave::Autosave, wording};
 use crate::{commands, export};
 pub mod on_screen;
+mod put_away;
 mod settings_window;
+
+pub use crate::screens::viewport::EDGE_REACH;
 
 pub struct CaoApp {
     screen: Screen,
@@ -124,6 +127,7 @@ impl CaoApp {
             viewport: ViewportState::default(),
             editor: SketchEditor::default(),
             extrusion: ExtrusionState::default(),
+            blend: Default::default(),
             ribbon: Ribbon::new(),
             variables: screens::variables::VariablesPanel::default(),
             title_bar: Default::default(),
@@ -173,6 +177,7 @@ impl CaoApp {
             viewport,
             editor,
             extrusion,
+            blend,
             ribbon,
             variables,
             title_bar,
@@ -198,6 +203,7 @@ impl CaoApp {
             document: doc,
             editor,
             extrusion,
+            blend,
         };
         ribbon.section_on = viewport.section().is_some();
         ribbon.sketches_read = viewport.sketches_read(doc);
@@ -237,7 +243,9 @@ impl CaoApp {
                         crate::adapters::save_dialog::stl_destination,
                         &mut self.error,
                     ),
-                    None => changed |= commands::run(command, &mut worked_on, ribbon, viewport),
+                    None => {
+                        changed |= commands::run(command, &mut worked_on, ribbon, viewport, blend)
+                    }
                 },
             }
         }
@@ -252,7 +260,7 @@ impl CaoApp {
                 extrusion,
                 lang,
             };
-            screens::viewport::show(ui, viewport, &mut context)
+            screens::viewport::show(ui, viewport, &mut context, blend)
         });
         changed |= view.inner.changed;
         ribbon.follow(editor.active_sketch(), editor.is_choosing_plane());
@@ -282,7 +290,7 @@ impl CaoApp {
             .or(from_the_bar)
             .or(from_the_cube);
         if let Some(asked) = over_the_view {
-            changed |= commands::run(asked, &mut worked_on, ribbon, viewport);
+            changed |= commands::run(asked, &mut worked_on, ribbon, viewport, blend);
         }
 
         if changed {
@@ -317,43 +325,6 @@ impl CaoApp {
         if back_to_menu {
             self.put_the_part_away();
             self.screen = Screen::StartMenu;
-        }
-    }
-
-    /// Writes the part down with a picture of itself and the geometry it is
-    /// showing, on the way out of it.
-    ///
-    /// Here rather than in the autosave because the autosave runs at the end of
-    /// every gesture, and a render with a readback at every gesture is the cost
-    /// the picture exists to avoid. Once a part is closed is enough for both:
-    /// nothing looks at the picture until a panel lists the folder, and nothing
-    /// reads the geometry back until the part is opened again.
-    fn put_the_part_away(&mut self) {
-        let Screen::PartOpened(part) = &mut self.screen else {
-            return;
-        };
-
-        let taken = self
-            .painter
-            .as_mut()
-            .and_then(|painter| painter.take(&part.doc));
-        // A part only looked at and closed again comes out of the renderer
-        // exactly as it went in, and writing it would move its hour for
-        // nothing.
-        if let Some(picture) = taken
-            && part.doc.picture() != Some(&picture)
-        {
-            part.doc.set_picture(picture);
-            part.autosave.touched();
-            self.explorer.went_stale();
-        }
-
-        let lang = self.remembered.lang();
-        if let Some(message) = part
-            .autosave
-            .put_away_if_due(&DiskFiles, &part.doc, &part.path, lang)
-        {
-            self.error = Some(message);
         }
     }
 }

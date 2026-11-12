@@ -19,6 +19,7 @@ mod curves;
 mod cuts;
 mod dimensions;
 mod drawing;
+mod edges;
 mod ellipse;
 mod emphasis;
 mod extrusion;
@@ -188,6 +189,7 @@ pub(crate) fn frame_of(
     body::push_matter(&mut solids, &mut surfaces, state, drawn);
     let veiled_matter = matter_from..surfaces.len();
     body::push_marked(&mut surfaces, state, context.document);
+    edges::push_edge_under_the_hand(&mut lines, state, context.document.body());
     section_panel::push_section_plane(&mut surfaces, &mut lines, state, scale, context);
 
     let mut cube_triangles = Vec::new();

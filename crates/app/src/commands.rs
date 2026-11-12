@@ -4,6 +4,7 @@ use cao_prefs::Command;
 use cao_sketch::Rule;
 
 use crate::screens::SketchContext;
+use crate::screens::blend::BlendState;
 use crate::screens::extrusion::apply_extrusion_with;
 use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
@@ -30,6 +31,7 @@ pub(crate) fn run(
     part: &mut SketchContext<'_>,
     ribbon: &mut Ribbon,
     viewport: &mut ViewportState,
+    blend: &mut BlendState,
 ) -> bool {
     use crate::screens::extrusion::Shape;
     use crate::screens::sketch::{
@@ -67,7 +69,7 @@ pub(crate) fn run(
         | Command::ExportStep => false,
         Command::NewSketch => {
             extrusion.close();
-            ribbon.blend.close();
+            blend.close();
             editor.start_choosing_plane(lang);
             false
         }
@@ -189,7 +191,7 @@ pub(crate) fn run(
                 _ => BlendShape::Fillet,
             };
             extrusion.close();
-            ribbon.blend.offer(shape);
+            blend.offer(shape);
             editor.message = wording::command::hint_on_the_part(lang, command);
             false
         }
@@ -330,12 +332,12 @@ pub(crate) fn run(
             false
         }
         Command::ExtrusionAdd => {
-            ribbon.blend.close();
+            blend.close();
             extrusion.arm(cao_part::ExtrusionMode::Add);
             false
         }
         Command::ExtrusionCut => {
-            ribbon.blend.close();
+            blend.close();
             extrusion.arm(cao_part::ExtrusionMode::Cut);
             false
         }

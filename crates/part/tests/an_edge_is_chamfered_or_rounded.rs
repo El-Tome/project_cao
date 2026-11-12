@@ -19,8 +19,12 @@
 //!   first — no test: the kernel's half, every edge handed out drawn under
 //!   its name, is held in `crates/solid/tests/an_edge_is_drawn_where_its_name_finds_it.rs`
 //!   by `every_edge_of_a_block_is_drawn_once_under_its_name_from_corner_to_corner`
-//!   and the three tests beside it; the viewport's hover and click are not
-//!   written yet
+//!   and the three tests beside it; the hover, the click and the light, in
+//!   `crates/app/tests/the_edge_panel.rs` by
+//!   `with_the_panel_open_the_edge_under_the_hand_is_lit_and_a_click_chooses_it_and_another_replaces_it`
+//!   and the four tests after it, and in
+//!   `crates/app/src/screens/viewport/render/tests.rs` by
+//!   `the_edge_under_the_hand_is_drawn_through_the_points_the_kernel_draws_it_through`
 //! - An edge chosen, a value typed and « Appliquer » pressed, the part is
 //!   chamfered or rounded on that edge and one new line appears in the
 //!   history — the part's half, one new step of its own kind taking off what

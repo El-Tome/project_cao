@@ -37,6 +37,8 @@ pub struct OpenPart {
     pub viewport: ViewportState,
     pub editor: SketchEditor,
     pub extrusion: ExtrusionState,
+    /// The panel an edge of the part is chamfered or rounded from.
+    pub blend: blend::BlendState,
     pub ribbon: Ribbon,
     pub variables: variables::VariablesPanel,
     /// The error the title bar's pill holds over the message, if one does, and

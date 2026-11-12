@@ -67,10 +67,12 @@ use dragging::{Gesture, drag_point, letting_go};
 
 mod areas;
 mod cut_changes;
+mod edges;
 pub(crate) use areas::pick_areas;
 pub(crate) use cut_changes::{
     chamfer_to_swap, open_cut_values, swap_held_chamfer, switch_held_cuts,
 };
+pub(crate) use edges::pick_an_edge;
 
 mod selecting;
 use selecting::{aim_from, band_select, erase_what_is_held, lights_nothing, pick};

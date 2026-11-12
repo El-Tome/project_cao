@@ -315,6 +315,15 @@
 //!   whatever its eye; an eye switched by hand on a sketch read still wins
 //!   over that default; and the part read to its end is drawn as before —
 //!   `a_part_read_to_a_step_draws_the_sketches_read_as_then_and_none_after_it`
+//!
+//! Closes #920 — the whole transcription is in
+//! `crates/part/tests/an_edge_is_chamfered_or_rounded.rs`; this bullet is the
+//! light a frame draws on the edge under the hand.
+//! - With the panel open, hovering an edge of the part in the 3D view lights
+//!   it — the edge the view holds as under the hand is drawn as lines through
+//!   exactly the points the kernel draws it through, and a name the part no
+//!   longer finds lights nothing —
+//!   `the_edge_under_the_hand_is_drawn_through_the_points_the_kernel_draws_it_through`
 
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef, VolumeState};
 use cao_prefs::config::ViewportConfig;
@@ -323,7 +332,7 @@ use cao_render::{CubeFace, CubeZone, MatterInFront};
 use cao_sketch::{Element, WorkPlane};
 use chrono::Utc;
 use glam::{DVec2, DVec3, Vec3};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use super::*;
 use crate::lang::Catalogue;
@@ -3831,5 +3840,87 @@ fn a_part_read_to_a_step_draws_the_sketches_read_as_then_and_none_after_it() {
         "read to the first sketch, its eye put out by hand does not keep it out, or the \
          second sketch, lit by hand but past the reading point, is drawn, as (the block's \
          sketch drawn, the second sketch drawn)",
+    );
+}
+
+/// Every segment a list of lines draws, each as its two ends, read bit for bit
+/// and in either order.
+fn segments_drawn(lines: &[cao_render::Vertex]) -> BTreeSet<[[u32; 3]; 2]> {
+    lines
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|[a, b]| {
+            let mut ends = [a, b].map(|end| end.position.map(f32::to_bits));
+            ends.sort();
+            ends
+        })
+        .collect()
+}
+
+fn every_segment_of(frame: &SceneFrame) -> BTreeSet<[[u32; 3]; 2]> {
+    let mut drawn = segments_drawn(&frame.scene_lines);
+    drawn.extend(segments_drawn(&frame.scene_world_lines));
+    drawn
+}
+
+#[test]
+fn the_edge_under_the_hand_is_drawn_through_the_points_the_kernel_draws_it_through() {
+    let mut document = a_block();
+    let edge = document
+        .body()
+        .drawn_edges()
+        .into_iter()
+        .find(|edge| {
+            edge.points
+                .iter()
+                .all(|point| point.y.abs() < 1e-9 && (point.z - 4.0).abs() < 1e-9)
+        })
+        .expect("the edge between the top and the front");
+    let through: BTreeSet<[[u32; 3]; 2]> = edge
+        .points
+        .windows(2)
+        .map(|pair| {
+            let mut ends = [pair[0], pair[1]].map(|end| end.as_vec3().to_array().map(f32::to_bits));
+            ends.sort();
+            ends
+        })
+        .collect();
+    let plain = every_segment_of(&a_frame_of(
+        &ViewportState::default(),
+        &mut document,
+        &mut SketchEditor::default(),
+    ));
+
+    let mut state = ViewportState::default();
+    state.edge_under_the_hand = Some(edge.name.clone());
+    let lit = every_segment_of(&a_frame_of(
+        &state,
+        &mut document,
+        &mut SketchEditor::default(),
+    ));
+    let added: BTreeSet<_> = lit.difference(&plain).copied().collect();
+
+    assert!(
+        !added.is_empty(),
+        "the edge under the hand is drawn no differently"
+    );
+    assert_eq!(
+        added, through,
+        "what the light adds is not the edge, segment for segment, through the points the kernel \
+         draws it through",
+    );
+
+    let mut lost = edge.name.clone();
+    lost.between = [vec![90], vec![91]];
+    state.edge_under_the_hand = Some(lost);
+    let nowhere = every_segment_of(&a_frame_of(
+        &state,
+        &mut document,
+        &mut SketchEditor::default(),
+    ));
+    assert_eq!(
+        nowhere, plain,
+        "a name the part does not find lit something"
     );
 }

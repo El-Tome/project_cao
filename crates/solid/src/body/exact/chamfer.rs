@@ -28,12 +28,15 @@ impl Exact {
     /// turned or leaning by a hair — are one slope, answering to both edges'
     /// numbers, and at an angle — the tread's front leaning — two flats
     /// meeting in a crease, each answering to its own edge's number, the face
-    /// they shared gone either way, whichever edge is named first, as
-    /// [`Exact::sloped`] lays them. Where matter lies past an end of an edge
-    /// cut off, behind the one flat face it runs into there — the inner corner
-    /// of an L, a pocket's rim, the foot of a block standing on another — its
-    /// flat stops flush on that face, which grows by the flat's end and keeps
-    /// its number, as [`Exact::laid_flush`] stops it. Two edges meeting at a
+    /// they shared gone either way, whichever edge is named first, and a
+    /// chain of them — a flight's noses and feet, each tread as deep as each
+    /// riser is high — one slope across it, answering to every edge's number,
+    /// in every order, as [`Exact::sloped`] lays them. Where matter lies past
+    /// an end of an edge cut off, behind the one flat face it runs into there
+    /// — the inner corner of an L, a pocket's rim, the foot of a block
+    /// standing on another — its flat stops flush on that face, which grows
+    /// by the flat's end and keeps its number, as [`Exact::laid_flush`] stops
+    /// it. Two edges meeting at a
     /// convex corner are mitred there, from where their flats cross on the
     /// face they share down to the corner's third edge, left sharp. Two cut
     /// off where they meet beside a concave edge left sharp — the L's two top edges
@@ -87,10 +90,10 @@ impl Exact {
     /// one running on tangentially into the next edge of a face, one edge named
     /// twice, two edges meeting at any other corner where an edge meets inwards
     /// — a cut and a fill —, more than three edges meeting at a corner, an edge
-    /// whose flat would be one slope, or meet in a crease, with two others',
-    /// or one of a slope or a crease meeting another edge of the list at a
-    /// corner, a face so nearly flush with the chamfer's plane that the prism
-    /// cannot stand off it, and a cut
+    /// of a chain holding a crease — a leaning flight's (#926) — or whose
+    /// flats stand a hair off one plane (#929), or one of a slope or a crease
+    /// meeting another edge of the list at a corner, a face so nearly flush
+    /// with the chamfer's plane that the prism cannot stand off it, and a cut
     /// that, carried along the edge's line, takes matter beyond the faces it
     /// meets there — past an end where the face the edge runs into is curved,
     /// or is not one face — seen as a face of the prism but its chamfer left on

@@ -131,7 +131,8 @@ impl Step {
 impl Exact {
     /// The body with the edges of `step`, which `names` found on it, laid in
     /// turn at `taken`, as [`Exact::cut_off`] lays them — with the pairs laid
-    /// as one — each set back the kind's `set_back` of the value, by the
+    /// as one, and each chain of them at the turn of its last edge, as
+    /// [`pairs::together`] joins it — each set back the kind's `set_back` of the value, by the
     /// prisms its `tool` raises, its `meeting` laying the pairs together and
     /// closing the corners three meet at, the faces numbered from where the
     /// steps' numbers ended by the edges' ranks, the closings' past them in
@@ -167,7 +168,7 @@ impl Exact {
         if let Some(ring) = ring::closed(&self.brep, &edges, &wedges, &pairs) {
             return Ok((self.closed_round(&ring, &wedges)?, taken, pairs));
         }
-        pairs::apart(&pairs)?;
+        pairs::apart(&pairs, meeting.together)?;
         let ends = pairs::at_their_ends(&self.brep, &edges, &wedges, &pairs, &three, &beside)?;
         let laid_at = |rank: usize| {
             (pairs.iter())
@@ -183,14 +184,14 @@ impl Exact {
         let start = self.next;
         let mut cut = self.clone();
         for rank in 0..names.len() {
-            if pairs.iter().any(|&(earlier, _, _)| earlier == rank) {
+            let joined = pairs::together(rank, &pairs);
+            if joined.last() != Some(&rank) {
                 continue;
             }
             cut.next = start + rank as u32;
             let partner = pairs.iter().find(|&&(_, later, _)| later == rank);
-            let own = [partner.map_or(rank, |&(earlier, _, _)| earlier), rank];
             let mitred: Vec<u32> = (0..rank)
-                .filter(|before| !own.contains(before))
+                .filter(|before| !joined.contains(before))
                 .filter(|&before| match partner {
                     Some(_) => ends.contains_key(&before),
                     None => corners::meet(&self.brep, [edges[before], edges[rank]]),
@@ -203,12 +204,14 @@ impl Exact {
                     let number = start + earlier as u32;
                     cut.laid_together(&self.brep, pair, number, raise, &mitred)?
                 }
-                (Some(&(earlier, _, value)), Together::Sloped) => cut.sloped(
-                    [&names[earlier], &names[rank]],
-                    start + earlier as u32,
-                    value,
-                    &tool,
-                )?,
+                (Some(_), Together::Sloped) => {
+                    let value = (pairs.iter())
+                        .filter(|&&(one, _, _)| joined.contains(&one))
+                        .fold(f64::INFINITY, |least, &(_, _, value)| least.min(value));
+                    let chain: Vec<&EdgeName> = joined.iter().map(|&at| &names[at]).collect();
+                    let numbers: Vec<u32> = joined.iter().map(|&at| start + at as u32).collect();
+                    cut.sloped(&chain, &numbers, value, &tool)?
+                }
                 (None, _) => {
                     let open = flush::open(&self.brep, rank, &given, &beside);
                     let completed = completing(rank, &given, &crossing);

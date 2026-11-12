@@ -5,7 +5,10 @@
 //! Where their flats lie at an angle the kernel tells from none — a riser
 //! turned or leaning by a hair among them — they are one slope, the fill
 //! raised on the cut's plane and cut back to the riser's; where it tells it
-//! — a stair whose front leans — two flats meeting in a crease.
+//! — a stair whose front leans — two flats meeting in a crease. A chain of
+//! them, each fill between two cuts — a flight's noses and feet, each tread
+//! as deep as each riser is high — is one slope across it, every fill raised
+//! on the first cut's plane (#813).
 
 use glam::{DVec2, DVec3};
 
@@ -84,71 +87,118 @@ impl Wedge {
 }
 
 impl Exact {
-    /// The body with the edges `earlier` and `later` find, one cut off and
-    /// the other filled in, where their set-backs meet at `value`: the cut
-    /// first, whichever the names give first, by the prism `tool` raises over
-    /// it — its prism runs on a margin past its set-back, which would lie
-    /// flush on, or cut into, a fill laid before it — its flat numbered where
-    /// the steps' numbers ended, then the fill on what the cut left, its flat
-    /// numbered past it, each flat then numbered by its own edge's rank, as
-    /// [`Exact::paired`] numbers them. Where the two flats lie at an angle
-    /// the kernel tells from none, within [`TANGENT`] — each facing the way
-    /// between the ways its edge's two faces face — they are one slope: the
-    /// fill raised on the cut's plane, as [`Wedge::filled_on`] raises it, its
-    /// run going on behind the face the two do not share by as far as their
-    /// edges part across the part, and the shortest set-back the kernel
-    /// keeps, [`SHORTEST`] hairs, then cut back to that face's own plane, as
-    /// [`behind`] cuts it — so that it ends on that face whichever way it
-    /// strays from the cut's edge, and never stands past it, over the face
-    /// beyond, where the slope takes it whole. Anywhere else the fill is laid
-    /// by the prism `tool` raises, and the two flats meet in a crease.
-    /// Declined as [`Exact::cut_off`] says, and `Unsupported` where the
-    /// kernel left the slope in two faces, or the crease's fill something
-    /// else than its one face, as [`Exact::cut_along`] reads it.
+    /// The body with the edges `names` find — cut off where their faces meet
+    /// outwards and filled in where they meet inwards, each two facing each
+    /// other across a face they share in a chain, their set-backs meeting
+    /// there at `value` — the cuts first, then the fills on what the cuts
+    /// left, each in the order of the numbers its faces answer to, whatever
+    /// order the names give, so that the body is one whatever it is — a
+    /// cut's prism runs on a margin past its set-back, which would lie flush
+    /// on, or cut into, a fill laid before it — each cut by the prism `tool`
+    /// raises over it, the flats numbered from where the steps' numbers
+    /// ended in the order they are laid, then each by its own edge's number
+    /// in `numbers`, as [`Exact::paired`] numbers them. Where every flat lies
+    /// at an angle the kernel tells from none to the first cut's, within
+    /// [`TANGENT`] — each facing the way between the ways its edge's two
+    /// faces face — they are one slope, every fill raised on that cut's
+    /// plane, as [`Exact::filled_on_slope`] lays it. Two flats at an angle
+    /// the kernel tells meet in a crease, the fill laid by the prism `tool`
+    /// raises. Declined as [`Exact::cut_off`] says, and `Unsupported` before
+    /// anything is laid where a chain of more than two holds a crease — a
+    /// flight whose front leans, until #926 — where the kernel left the
+    /// slope in more faces than one — a chain a hair off one plane, a
+    /// flight's riser turned or tipped by a hair, until #929 — or where the
+    /// crease's fill left something else than its one face, as
+    /// [`Exact::cut_along`] reads it.
     pub(super) fn sloped(
         &self,
-        [earlier, later]: [&EdgeName; 2],
-        number: u32,
+        names: &[&EdgeName],
+        numbers: &[u32],
         value: f64,
         tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
     ) -> Result<Exact, Declined> {
-        let (first_edge, first) = self.wedge(earlier, Wedge::read)?;
-        let (second_edge, second) = self.wedge(later, Wedge::read)?;
-        let (edge, outward, inward, name, numbers) = if first.inwards {
-            (second_edge, &second, &first, earlier, [self.next, number])
-        } else {
-            (first_edge, &first, &second, later, [number, self.next])
-        };
-        let cut = self.cut_or_filled(&Flush::at(&self.brep, edge), outward, value, tool)?;
-        let (edge, wedge) = cut.wedge(name, Wedge::read)?;
-        let flush = Flush::at(&cut.brep, edge);
-        let [cut_facing, fill_facing] = [outward, inward].map(|wedge| wedge.square().1);
-        if cut_facing.cross(fill_facing).length() > TANGENT {
-            let filled = cut.cut_or_filled(&flush, &wedge, value, tool)?;
-            if !filled.cut_along(&[&wedge], &cut, 1, &[], &[], &[]) {
-                return Err(Declined::Unsupported);
-            }
-            return filled.paired(self, [&first, &second], numbers, &[]);
+        let read = (names.iter())
+            .map(|name| Ok(self.wedge(name, Wedge::read)?.1))
+            .collect::<Result<Vec<Wedge>, Declined>>()?;
+        let (mut cuts, mut fills): (Vec<usize>, Vec<usize>) =
+            (0..names.len()).partition(|&rank| !read[rank].inwards);
+        for laying in [&mut cuts, &mut fills] {
+            laying.sort_by_key(|&rank| read[rank].numbers.clone());
         }
-        let made = self.next as usize;
-        let slope = (cut.named(made))
-            .find_map(|face| plane_of(&cut.brep, face))
-            .ok_or(Declined::Unsupported)?;
-        let shared = (inward.faces.iter())
-            .position(|face| outward.faces.contains(face))
-            .ok_or(Declined::Unsupported)?;
-        let riser = plane_of(&self.brep, inward.faces[1 - shared]).ok_or(Declined::Unsupported)?;
-        let scale = cut.brep.scale();
-        let bounds = cut.brep.bounds().ok_or(Declined::Unsupported)?;
-        let part = outward.along.cross(inward.along).length() * farthest(bounds, inward.point);
-        let past = part + SHORTEST * Scale::HAIR * scale.eps();
-        let prism = inward.filled_on(outward.along, &slope, (shared, past), scale, bounds);
-        let behind = behind(&prism, &riser, -inward.outward[1 - shared])?;
-        let tool = raised_over(&prism)?.cut_by(&behind)?;
-        let filled = cut.laid_flush(&flush, &wedge, &prism, tool)?;
-        if !filled.named(made).eq(filled.named(made + 1)) {
+        let first = &read[*cuts.first().ok_or(Declined::Unsupported)?];
+        let facing = first.square().1;
+        let crease = (read.iter()).any(|wedge| wedge.square().1.cross(facing).length() > TANGENT);
+        if crease && names.len() > 2 {
             return Err(Declined::Unsupported);
         }
-        filled.paired(self, [&first, &second], numbers, &[])
+        let mut laid = self.clone();
+        for &rank in &cuts {
+            let (edge, wedge) = laid.wedge(names[rank], Wedge::read)?;
+            let cut = laid.cut_or_filled(&Flush::at(&laid.brep, edge), &wedge, value, tool)?;
+            laid = cut;
+        }
+        let made = self.next as usize;
+        let slope = (laid.named(made))
+            .find_map(|face| plane_of(&laid.brep, face))
+            .ok_or(Declined::Unsupported)?;
+        let cut_faces: Vec<FaceId> = cuts.iter().flat_map(|&rank| read[rank].faces).collect();
+        for &rank in &fills {
+            let (edge, wedge) = laid.wedge(names[rank], Wedge::read)?;
+            let flush = Flush::at(&laid.brep, edge);
+            let filled = if crease {
+                let filled = laid.cut_or_filled(&flush, &wedge, value, tool)?;
+                if !filled.cut_along(&[&wedge], &laid, 1, &[], &[], &[]) {
+                    return Err(Declined::Unsupported);
+                }
+                filled
+            } else {
+                let on = (&flush, &wedge);
+                laid.filled_on_slope(self, on, (&read[rank], &cut_faces), (first, &slope))?
+            };
+            laid = filled;
+        }
+        let one = (1..names.len()).all(|more| laid.named(made).eq(laid.named(made + more)));
+        if !crease && !one {
+            return Err(Declined::Unsupported);
+        }
+        let order: Vec<usize> = cuts.iter().chain(&fills).copied().collect();
+        let wedges: Vec<&Wedge> = order.iter().map(|&rank| &read[rank]).collect();
+        let numbers: Vec<u32> = order.iter().map(|&rank| numbers[rank]).collect();
+        laid.paired(self, &wedges, &numbers, &[])
+    }
+
+    /// The body with the edge `flush` reads, `wedge` on this body and
+    /// `inward` on `given`, the body as given, filled in on `slope`, the
+    /// plane of the flat `cut` laid beside it: raised on that plane, as
+    /// [`Wedge::filled_on`] raises it, from the face of `inward` among
+    /// `cut_faces`, those of the cuts it is laid with, its run going on
+    /// behind its other face by as far as its edge and the cut's part across
+    /// the part, and the shortest set-back the kernel keeps, [`SHORTEST`]
+    /// hairs, then cut back to that face's own plane, as [`behind`] cuts it —
+    /// so that it ends on that face whichever way it strays from the cut's
+    /// edge, and never stands past it, over the face beyond, where the slope
+    /// takes it whole. Declined `Unsupported` where neither face of `inward`
+    /// is a cut's, or the other is not flat; otherwise as the trim and the
+    /// join decline.
+    fn filled_on_slope(
+        &self,
+        given: &Exact,
+        (flush, wedge): (&Flush, &Wedge),
+        (inward, cut_faces): (&Wedge, &[FaceId]),
+        (cut, slope): (&Wedge, &Plane),
+    ) -> Result<Exact, Declined> {
+        let shared = (inward.faces.iter())
+            .position(|face| cut_faces.contains(face))
+            .ok_or(Declined::Unsupported)?;
+        let other = inward.faces[1 - shared];
+        let riser = plane_of(&given.brep, other).ok_or(Declined::Unsupported)?;
+        let scale = self.brep.scale();
+        let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
+        let part = cut.along.cross(inward.along).length() * farthest(bounds, inward.point);
+        let past = part + SHORTEST * Scale::HAIR * scale.eps();
+        let prism = inward.filled_on(cut.along, slope, (shared, past), scale, bounds);
+        let behind = behind(&prism, &riser, -inward.outward[1 - shared])?;
+        let tool = raised_over(&prism)?.cut_by(&behind)?;
+        self.laid_flush(flush, wedge, &prism, tool)
     }
 }

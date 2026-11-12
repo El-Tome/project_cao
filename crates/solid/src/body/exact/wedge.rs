@@ -98,7 +98,8 @@ impl Exact {
     /// across their face that `meeting` lays together, the earlier first, are each laid as one, the face they shared
     /// gone — by the prism it raises, or as one slope or two flats meeting in
     /// a crease at the value their set-backs meet at, whichever is named
-    /// first, as [`Exact::sloped`] lays them; every other edge is
+    /// first, and a chain of cuts beside fills — a flight's noses and feet —
+    /// as one slope across it, as [`Exact::sloped`] lays them; every other edge is
     /// laid alone. Two edges meeting at a convex corner are laid in turn as any
     /// two are, each prism carried past the corner along its edge's line, so
     /// that the later trims the earlier's face there: two flats or two rounds
@@ -147,7 +148,7 @@ impl Exact {
     /// outwards — nor two of one sense beside an edge of the other left out of
     /// the list, nor two concave beside a third concave, nor three of mixed
     /// sense, more than three edges meeting at a corner, or three where
-    /// another edge ends too, where `meeting` lays two together an edge
+    /// another edge ends too, where `meeting` raises two together an edge
     /// meeting two others but in a closed chain, cut down to one cylinder as
     /// [`Exact::closed_round`] cuts it, or one of two laid together that meets another
     /// edge of the list at a corner any other way — a notch's two edges among

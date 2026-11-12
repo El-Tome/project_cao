@@ -104,9 +104,12 @@ impl Exact {
 /// then runs on into — what [`round::outside_cylinder`] raises or
 /// [`round::outside_cone`] turns; on a cylinder the edge runs into, its
 /// matter inside — a pillar (#908) — the box [`beyond`] raises past the
-/// plane through the axis square to the edge's run, where each long edge
-/// that meets the cylinder stands midway through it, the fill's end then
-/// buried in the pillar and short of its far side. Declined `Unsupported`
+/// plane through the axis square to the edge's run off the axis, where
+/// each long edge that meets the cylinder stands midway through it, the
+/// fill's end then buried in the pillar and short of its far side —
+/// [`round::outside_cylinder`] would start its cut where the first edge
+/// leaves the pillar, on that far side, and leave a corner on its foot
+/// where the fill crosses it there. Declined `Unsupported`
 /// on a plane along the edge, a cylinder the edge runs into with its matter
 /// outside, a cone the edge runs into, or another surface; otherwise as
 /// those declines.

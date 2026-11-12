@@ -110,8 +110,9 @@
 //! The mutants of #807's trim no criterion's test reaches, one line each.
 //! `leaving`'s growth of the radius along an edge: killed by the rib up a
 //! steep ramp. `past_the_end`'s cylinder guard turned `true`: killed by the
-//! pillar decline, which #908 has since turned round. `outside_cone`'s `height` from `at + origin`:
-//! equivalent, `Cone::through` keeps `origin · axis` nought.
+//! pillar decline, which #908 has since turned round. `outside_cone`'s
+//! `height` from `at + origin`: equivalent, `Cone::through` keeps
+//! `origin · axis` nought.
 //! `past_the_end`'s plane guard turned `true`: equivalent, #835's argument.
 //! `leaving`'s `at > 0`, `at < 1` and radius `> 0` admitting equality:
 //! unkilled, only an exit exactly at a prism end or the apex, and the prism
@@ -138,6 +139,18 @@
 //!   above in this file, left as they were, and running them is the answer.
 //!   A round the edge runs into whose matter lies outside it stays declined
 //!   by them too: the slot's front running into its round end
+//!
+//! The mutants of #908's arm in `past_the_end` the upright pillar lets live,
+//! one line each. `towards`'s `-` turned `+`: killed by the leaning pillar,
+//! `a_chamfer_and_a_fillet_at_the_foot_of_a_wall_running_into_a_leaning_pillar_are_trimmed_flush_on_it`;
+//! an upright pillar's axis is square to the edge's run, and the two agree.
+//! The guard turned `true`, and its `&&` turned `||`: equivalent, they let
+//! in a round the edge runs into with its matter outside, a slot's end or a
+//! bore, whose fill the axis plane leaves standing in the air and
+//! `cut_along`'s stray check declines `Unsupported` all the same. Its `<`
+//! turned `<=`: equivalent, it lets in only an edge tangent to the round,
+//! the flipped tangent slot or a wall tangent to a pillar, #698's chain,
+//! declined further on.
 
 mod step_reader;
 
@@ -5016,11 +5029,8 @@ fn a_chamfer_and_a_fillet_at_the_foot_of_a_rib_up_a_steep_ramp_are_trimmed_flush
 const WALL_FRONT: usize = 8;
 
 /// The plate of [`plate`], 4 thick, with a wall on its top from x = 5 to its
-/// end at 25, from y = 12 to 14, 8 high, and a round pillar of 3 about the
-/// upright line through the wall's end, (25, 13), 10 high: the foot of the
-/// wall's front runs into the pillar, whose matter lies inside its
-/// cylinder.
-fn wall_into_a_pillar() -> Body {
+/// end at 25, from y = 12 to 14, 8 high.
+fn wall_on_the_plate() -> Body {
     let plate = plate(PLATE);
     let on_the_top = Frame {
         origin: DVec3::Z * PLATE,
@@ -5036,9 +5046,12 @@ fn wall_into_a_pillar() -> Body {
             DVec3::Z * 8.0,
         )
         .expect("the wall raises");
-    let walled = plate.union(&wall).expect("the wall is joined");
-    let centre = DVec2::new(25.0, 13.0);
-    let disc = Contour {
+    plate.union(&wall).expect("the wall is joined")
+}
+
+/// A pillar's section: a disc of 3 about `centre`, in two half rounds.
+fn disc_about(centre: DVec2) -> Contour {
+    Contour {
         corners: vec![centre + DVec2::X * 3.0, centre - DVec2::X * 3.0],
         runs: vec![
             Run::Round {
@@ -5050,9 +5063,24 @@ fn wall_into_a_pillar() -> Body {
                 turn: PI,
             },
         ],
+    }
+}
+
+/// The [`wall_on_the_plate`] and a round pillar of 3 about the upright line
+/// through the wall's end, (25, 13), 10 high: the foot of the wall's front
+/// runs into the pillar, whose matter lies inside its cylinder.
+fn wall_into_a_pillar() -> Body {
+    let walled = wall_on_the_plate();
+    let on_the_top = Frame {
+        origin: DVec3::Z * PLATE,
+        ..ground()
     };
     let pillar = walled
-        .tool_raised(&profile(disc), on_the_top, DVec3::Z * 10.0)
+        .tool_raised(
+            &profile(disc_about(DVec2::new(25.0, 13.0))),
+            on_the_top,
+            DVec3::Z * 10.0,
+        )
         .expect("the pillar raises");
     walled.union(&pillar).expect("the pillar is joined")
 }
@@ -5100,15 +5128,18 @@ fn along_the_wall(out: f64) -> f64 {
 }
 
 /// The matter a chamfer of `value` at the foot of the wall's front holds,
-/// in closed form: over its section, `value − out` high, the length
-/// [`along_the_wall`] gives, 20 less the root of 9 − t² at t = 1 + out from
-/// the pillar's axis. With a = 1 + `value`, ∫₁ᵃ (a − t) √(9 − t²) dt is
-/// a [F] − [G], F the area under the circle and G = −(9 − t²)^{3/2} / 3.
-fn chamfer_into_the_pillar(value: f64) -> f64 {
+/// in closed form, the pillar leaning `lean` toward the wall's run: over its
+/// section, `value − out` high, the length [`along_the_wall_under`] gives,
+/// 20 less the root of 9 − t² at t = 1 + out from the pillar's axis over the
+/// cosine of the lean, and its tangent times the height `up`. With
+/// a = 1 + `value`, ∫₁ᵃ (a − t) √(9 − t²) dt is a [F] − [G], F the area
+/// under the circle and G = −(9 − t²)^{3/2} / 3; `up` sums to `value`³ / 6.
+fn chamfer_into_the_pillar(value: f64, lean: f64) -> f64 {
     let under = |t: f64| (t * (9.0 - t * t).sqrt() + 9.0 * (t / 3.0).asin()) / 2.0;
     let moment = |t: f64| -(9.0 - t * t).powf(1.5) / 3.0;
     let a = 1.0 + value;
-    10.0 * value * value - (a * (under(a) - under(1.0)) - (moment(a) - moment(1.0)))
+    let root = a * (under(a) - under(1.0)) - (moment(a) - moment(1.0));
+    10.0 * value * value - root / lean.cos() + lean.tan() * value.powi(3) / 6.0
 }
 
 fn side(face: usize) -> Vec<u32> {
@@ -5141,10 +5172,6 @@ fn the_wall_runs_into_a_pillar(part: &Body) {
     );
 }
 
-/// A round the edge runs into, its matter inside its cylinder, trims the
-/// fill flush as a round the edge runs out of does: the pillar stays one
-/// face, on its cylinder, cut back over the fill, and nothing of the fill
-/// stands inside it.
 #[test]
 fn a_chamfer_and_a_fillet_at_the_foot_of_a_wall_running_into_a_round_pillar_are_trimmed_flush_on_the_pillar()
  {
@@ -5172,7 +5199,7 @@ fn a_chamfer_and_a_fillet_at_the_foot_of_a_wall_running_into_a_round_pillar_are_
             Fill::Fillet => fillet_height(value, out),
         };
         let (matter, laid_area) = match fill {
-            Fill::Chamfer => (chamfer_into_the_pillar(value), 0.0),
+            Fill::Chamfer => (chamfer_into_the_pillar(value, 0.0), 0.0),
             Fill::Fillet => (
                 fill_matter(value, height, |out, _| along_the_wall(out)),
                 PI / 2.0 * value * along_the_wall(0.0),
@@ -5288,6 +5315,170 @@ fn a_chamfer_and_a_fillet_at_the_foot_of_a_wall_running_into_a_round_pillar_are_
                  the pillar, whose radius is {}",
                 off_the_pillar_s_axis(corner),
                 PILLAR.1
+            );
+        }
+    }
+}
+
+/// How far the [`wall_into_a_leaning_pillar`]'s pillar leans from upright,
+/// toward the wall's run: some 17 degrees.
+const LEAN: f64 = 0.3;
+
+/// The direction the [`wall_into_a_leaning_pillar`]'s pillar stands along.
+fn leaning() -> DVec3 {
+    DVec3::new(LEAN.sin(), 0.0, LEAN.cos())
+}
+
+/// Where the leaning pillar's axis crosses the plate's top: under the
+/// wall's end, as the upright pillar's does.
+const LEAN_FOOT: DVec3 = DVec3::new(25.0, 13.0, PLATE);
+
+/// The [`wall_on_the_plate`] and a round pillar of 3 leaning [`LEAN`] toward
+/// the wall's run, its axis through (25, 13) on the plate's top, raised 14
+/// along it from 3 under the top: its floor inside the plate, its top cap
+/// over the wall's, and the wall's end inside it. The foot of the wall's
+/// front runs into the pillar, its matter inside its cylinder, and the
+/// cylinder's axis is not square to the edge: the plane through the axis
+/// the fill is cut at is square to the edge's run off the axis, not to the
+/// run itself. The cylinder's origin, the point of its axis nearest the
+/// world's, lies some eleven along it under the plate.
+fn wall_into_a_leaning_pillar() -> Body {
+    let walled = wall_on_the_plate();
+    let (lean_sin, lean_cos) = LEAN.sin_cos();
+    let frame = Frame {
+        origin: LEAN_FOOT - leaning() * 3.0,
+        u: DVec3::new(lean_cos, 0.0, -lean_sin),
+        v: DVec3::Y,
+    };
+    let pillar = walled
+        .tool_raised(&profile(disc_about(DVec2::ZERO)), frame, leaning() * 14.0)
+        .expect("the leaning pillar raises");
+    walled.union(&pillar).expect("the leaning pillar is joined")
+}
+
+/// The matter the [`wall_into_a_leaning_pillar`] holds: the plate's
+/// 40 × 30 × 4; the pillar's above the plate's top, which crosses its axis
+/// where the cap stands 11 along it, π 9 × 11; and the wall's 20 × 2 raised
+/// 8 less what of it the pillar holds. At `up` over the plate the pillar's
+/// section is an ellipse about x = 25 + `up` tan, 3 / cos across along X,
+/// and between y = 12 and 14 it holds of the wall, short of x = 25, the
+/// disc's segment over the cosine less 2 `up` tan.
+fn leaning_pillar_volume() -> f64 {
+    let in_the_pillar = 8.0f64.sqrt() + 9.0 * (1.0f64 / 3.0).asin();
+    let held = (8.0 * in_the_pillar - 64.0 * LEAN.sin()) / LEAN.cos();
+    4800.0 + PI * 9.0 * 11.0 + 320.0 - held
+}
+
+/// How far a point stands from the leaning pillar's axis.
+fn off_the_leaning_axis(point: DVec3) -> f64 {
+    let from = point - LEAN_FOOT;
+    (from - leaning() * from.dot(leaning())).length()
+}
+
+/// How long a fill at the foot of the wall's front runs, `out` from it and
+/// `up` over the plate, the pillar leaning `lean`: from the wall's left end
+/// to where the pillar's cylinder stands there, its axis `up` tan along X,
+/// and the disc's root over the cosine short of that.
+fn along_the_wall_under(lean: f64, out: f64, up: f64) -> f64 {
+    let root = (9.0 - (1.0 + out).powi(2)).sqrt();
+    20.0 + (lean.sin() * up - root) / lean.cos()
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_at_the_foot_of_a_wall_running_into_a_leaning_pillar_are_trimmed_flush_on_it()
+ {
+    let value = 1.0;
+    let part = wall_into_a_leaning_pillar();
+    let before = "the wall running into a leaning pillar, before any step";
+    let round_area = 2.0 * PI * 3.0 * 14.0;
+    sound_drawn_within(
+        &part,
+        leaning_pillar_volume(),
+        drawn_within(&part, round_area),
+        before,
+    );
+    for corner in part.triangles_of(PILLAR_ROUND).flatten() {
+        assert!(
+            (off_the_leaning_axis(corner) - 3.0).abs() < PLACE,
+            "{before}: the pillar is drawn through {corner}, {} from its leaning axis",
+            off_the_leaning_axis(corner)
+        );
+    }
+    one_edge_of(
+        &part,
+        [side(TOP), side(WALL_FRONT)],
+        [vec![side(WALL_LEFT)], vec![PILLAR_SIDE.to_vec()]],
+        &format!("{before}: the foot of the wall's front"),
+    );
+    let foot = edge_between(&part, TOP, WALL_FRONT);
+
+    for fill in [Fill::Chamfer, Fill::Fillet] {
+        let what = format!("the {fill:?} at the foot of a wall running into a leaning pillar");
+        let laid = match fill {
+            Fill::Chamfer => part
+                .chamfer(&foot, value)
+                .map(|chamfered| (chamfered.body, chamfered.asked, chamfered.taken)),
+            Fill::Fillet => part
+                .fillet(&foot, value)
+                .map(|filleted| (filleted.body, filleted.asked, filleted.taken)),
+        };
+        let (body, asked, taken) =
+            laid.unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        taken_whole(asked, taken, value, &what);
+        let height = |out: f64| match fill {
+            Fill::Chamfer => chamfer_height(value, out),
+            Fill::Fillet => fillet_height(value, out),
+        };
+        let (matter, laid_area) = match fill {
+            Fill::Chamfer => (chamfer_into_the_pillar(value, LEAN), 0.0),
+            Fill::Fillet => (
+                fill_matter(value, height, |out, up| along_the_wall_under(LEAN, out, up)),
+                PI / 2.0 * value * along_the_wall_under(LEAN, 0.0, value),
+            ),
+        };
+        sound_drawn_within(
+            &body,
+            leaning_pillar_volume() + matter,
+            drawn_within(&part, round_area + value * value + laid_area),
+            &what,
+        );
+        let made = match fill {
+            Fill::Chamfer => one_flat_face_more(&part, &body, &what),
+            Fill::Fillet => one_round_more(&part, &body, &what),
+        };
+        numbered_after_the_steps_last(&part, &body, made, &what);
+        let mut sides = vec![
+            side(TOP),
+            side(WALL_FRONT),
+            side(WALL_LEFT),
+            PILLAR_SIDE.to_vec(),
+        ];
+        sides.sort();
+        assert_eq!(
+            sides_met(&body, made),
+            sides,
+            "{what}: the fill meets the plate's top and the wall's front along its sides, and \
+             the wall's left end and the pillar at its ends, by one edge each"
+        );
+        no_corner_of(
+            &body,
+            vec![side(TOP), PILLAR_SIDE.to_vec()],
+            &format!("{what}: the pillar's foot, where the fill's side crosses its line"),
+        );
+        for corner in body.triangles_of(PILLAR_ROUND).flatten() {
+            assert!(
+                (off_the_leaning_axis(corner) - 3.0).abs() < PLACE,
+                "{what}: the pillar is drawn through {corner}, {} from its leaning axis",
+                off_the_leaning_axis(corner)
+            );
+        }
+        for corner in body.triangles_of(made).flatten() {
+            assert!(
+                off_the_leaning_axis(corner) >= 3.0 - PLACE,
+                "{what}: the fill is drawn through {corner}, {} from the pillar's leaning axis: \
+                 inside the pillar, whose radius is 3",
+                off_the_leaning_axis(corner)
             );
         }
     }

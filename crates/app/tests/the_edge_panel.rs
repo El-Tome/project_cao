@@ -27,6 +27,15 @@
 //!   surprise — by `an_edge_behind_the_part_is_neither_lit_nor_taken_through_the_face_in_front_of_it`;
 //!   and with the panel closed nothing of the kind, by
 //!   `with_the_panel_closed_no_edge_is_lit_and_a_click_chooses_none`
+//! - An edge chosen, a value typed and « Appliquer » pressed, the part is
+//!   chamfered or rounded on that edge and one new line appears in the
+//!   history — the panel closed, the part's volume the block's less what the
+//!   arithmetic takes off that edge, one line more, read as it reads —
+//!   `an_edge_chosen_a_value_typed_and_apply_pressed_chamfers_or_rounds_it_and_adds_one_line`
+//! - When the kernel reduced the value, that history line reads both values,
+//!   as « 5 mm demandé, 2 mm appliqué »; otherwise only the value —
+//!   `a_value_the_faces_cannot_give_reads_both_values_on_its_history_line`,
+//!   the value alone by the test before it
 
 mod driver;
 
@@ -152,6 +161,15 @@ impl Block {
         Self { low, high }
     }
 
+    fn volume(&self) -> f64 {
+        let size = self.high - self.low;
+        size.x * size.y * size.z
+    }
+
+    fn length_of(edge: [DVec3; 2]) -> f64 {
+        edge[0].distance(edge[1])
+    }
+
     /// The top of the face towards +X, seen.
     fn near_top(&self) -> [DVec3; 2] {
         let (low, high) = (self.low, self.high);
@@ -213,10 +231,15 @@ fn hover_at_world_point(app: &mut driver::App, point: DVec3) {
 
 /// The block, the Extrusion tab open and « Chanfrein » clicked in it.
 fn chamfering(test: &str) -> (driver::App, Block) {
+    opened_on(test, "Chanfrein")
+}
+
+/// The block, the Extrusion tab open and `tool` clicked in it.
+fn opened_on(test: &str, tool: &str) -> (driver::App, Block) {
     let mut app = driver::a_block(test);
     let block = Block::of(test);
     driver::click_exactly(&mut app, "Extrusion");
-    driver::click_exactly(&mut app, "Chanfrein");
+    driver::click_exactly(&mut app, tool);
     assert!(
         !driver::is_enabled(&app, "Appliquer"),
         "« Appliquer » offered before any edge is chosen",
@@ -376,4 +399,99 @@ fn with_the_panel_closed_no_edge_is_lit_and_a_click_chooses_none() {
         "a click before the panel opened chose an edge"
     );
     assert!(!driver::is_enabled(&app, "Appliquer"));
+}
+
+/// The part as the application last wrote it, its volume.
+fn the_part_s_volume(test: &str) -> f64 {
+    let path = driver::the_part_s_file(test, "Bloc");
+    cao_part::PartDocument::load(&cao_app::adapters::files::DiskFiles, &path)
+        .unwrap_or_else(|err| panic!("the part at {path:?} does not open: {err:?}"))
+        .body()
+        .volume()
+}
+
+/// What a chamfer or a fillet of `size` takes off a square edge `length` long.
+fn taken_off(tool: &str, size: f64, length: f64) -> f64 {
+    match tool {
+        "Chanfrein" => size * size * length / 2.0,
+        _ => (1.0 - std::f64::consts::PI / 4.0) * size * size * length,
+    }
+}
+
+/// The near top chosen, `size` typed beside `value` and « Appliquer »
+/// pressed, the history open: the lines it held before.
+fn applied_on_the_near_top(
+    app: &mut driver::App,
+    block: &Block,
+    value: &str,
+    size: &str,
+) -> Vec<String> {
+    driver::open_the_history(app);
+    let before = driver::steps(app);
+    driver::click_at_world_point(app, middle(block.near_top()));
+    driver::type_beside(app, value, size);
+    driver::click(app, "Appliquer");
+    before
+}
+
+#[test]
+fn an_edge_chosen_a_value_typed_and_apply_pressed_chamfers_or_rounds_it_and_adds_one_line() {
+    for (tool, value, line) in [
+        ("Chanfrein", THE_CHAMFER_S_VALUE, "Arête chanfreinée"),
+        ("Congé", THE_FILLET_S_VALUE, "Arête arrondie"),
+    ] {
+        let test = format!("an_edge_is_applied_{}", tool.to_lowercase());
+        let (mut app, block) = opened_on(&test, tool);
+
+        let before = applied_on_the_near_top(&mut app, &block, value, "2");
+
+        assert!(
+            !driver::reads(&app, value),
+            "« {tool} » applied left its panel open, showing {:?}",
+            driver::on_screen(&app),
+        );
+        let after = driver::steps(&app);
+        let added = format!("{}. {line}", before.len() + 1);
+        assert_eq!(
+            after.len(),
+            before.len() + 1,
+            "« {tool} » applied added {} lines: {after:?}",
+            after.len() - before.len(),
+        );
+        assert_eq!(after.last(), Some(&added), "« {tool} » applied");
+        assert_eq!(
+            driver::detail_of(&app, &added).as_deref(),
+            Some("2 mm"),
+            "« {tool} » of 2, which the faces give",
+        );
+        let expected = block.volume() - taken_off(tool, 2.0, Block::length_of(block.near_top()));
+        let made = the_part_s_volume(&test);
+        assert!(
+            (made - expected).abs() <= 1e-6 * expected,
+            "« {tool} » of 2 on the near top leaves {made}, where the arithmetic gives {expected}",
+        );
+    }
+}
+
+#[test]
+fn a_value_the_faces_cannot_give_reads_both_values_on_its_history_line() {
+    let test = "a_value_the_faces_cannot_give_reads_both";
+    let (mut app, block) = chamfering(test);
+    let depth = block.high.x - block.low.x;
+
+    let before = applied_on_the_near_top(&mut app, &block, THE_CHAMFER_S_VALUE, "50");
+
+    let added = format!("{}. Arête chanfreinée", before.len() + 1);
+    assert_eq!(
+        driver::detail_of(&app, &added).as_deref(),
+        Some("50 mm demandé, 10 mm appliqué"),
+        "a chamfer of 50 on an edge whose top is {depth} deep",
+    );
+    let expected =
+        block.volume() - taken_off("Chanfrein", depth, Block::length_of(block.near_top()));
+    let made = the_part_s_volume(test);
+    assert!(
+        (made - expected).abs() <= 1e-6 * expected,
+        "a chamfer of 50 reduced to {depth} leaves {made}, where the arithmetic gives {expected}",
+    );
 }

@@ -62,6 +62,21 @@
 //!   `an_undone_sketch_s_line_offers_no_sketch_to_reopen`
 //! - found in review: a revolution reads « Révolution N » and its mode and
 //!   turn — `a_revolution_reads_its_rank_and_how_far_it_turned`
+//!
+//! Closes #920 — the whole transcription is in
+//! `crates/part/tests/an_edge_is_chamfered_or_rounded.rs`; these bullets are
+//! what the history's line says of the step.
+//! - An edge chosen, a value typed and « Appliquer » pressed, the part is
+//!   chamfered or rounded on that edge and one new line appears in the
+//!   history — the line, « Arête chanfreinée » or « Arête arrondie » under
+//!   the next number —
+//!   `a_chamfered_or_rounded_edge_reads_its_size_or_both_values_when_the_kernel_reduced_it`
+//! - When the kernel reduced the value, that history line reads both values,
+//!   as « 5 mm demandé, 2 mm appliqué »; otherwise only the value — read in
+//!   the line's detail, which is where every other line says its size —
+//!   `a_chamfered_or_rounded_edge_reads_its_size_or_both_values_when_the_kernel_reduced_it`
+
+use cao_part::history::BlendShape;
 
 use super::*;
 use crate::screens::part_tree::state::History;
@@ -349,4 +364,60 @@ fn a_revolution_reads_its_rank_and_how_far_it_turned() {
         read(&history).last().copied(),
         Some((4, "Révolution 1", "ajout de matière · 360°")),
     );
+}
+
+/// The block of screen 06, 120 along X, 80 along Y and 10 high, its edge
+/// between the top and the front chamfered or rounded by `size`.
+fn the_block_of_screen_06_with_its_top_front_edge(shape: BlendShape, size: f64) -> PartDocument {
+    let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(120.0, 80.0)),
+        construction: false,
+    });
+    raise(&mut document, 0, 10.0, ExtrusionMode::Add);
+    let edge = document
+        .body()
+        .drawn_edges()
+        .into_iter()
+        .find(|edge| {
+            edge.points
+                .iter()
+                .all(|point| point.y.abs() < 1e-9 && (point.z - 10.0).abs() < 1e-9)
+        })
+        .expect("the edge between the top and the front")
+        .name;
+    document.apply(Operation::Blend {
+        edge,
+        shape,
+        size: size.into(),
+    });
+    document
+}
+
+#[test]
+fn a_chamfered_or_rounded_edge_reads_its_size_or_both_values_when_the_kernel_reduced_it() {
+    for (shape, name) in [
+        (BlendShape::Chamfer, "Arête chanfreinée"),
+        (BlendShape::Fillet, "Arête arrondie"),
+    ] {
+        let fits = the_block_of_screen_06_with_its_top_front_edge(shape, 2.0);
+        assert_eq!(
+            read(&History::of(&fits, &french()))[3..],
+            [(4, name, "2 mm")],
+            "{shape:?} of 2 on an edge whose front is 10 high",
+        );
+
+        let reduced = the_block_of_screen_06_with_its_top_front_edge(shape, 50.0);
+        assert_eq!(
+            read(&History::of(&reduced, &french()))[3..],
+            [(4, name, "50 mm demandé, 10 mm appliqué")],
+            "{shape:?} of 50 on an edge whose front is 10 high",
+        );
+    }
 }

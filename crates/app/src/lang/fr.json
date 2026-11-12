@@ -112,6 +112,8 @@
   "part_tree.history.compact_confirm_ok": "Compacter",
   "part_tree.history.compact_confirm_cancel": "Annuler",
   "part_tree.history.raised": "{mode} · {reach} mm",
+  "part_tree.history.blend_size": "{size} mm",
+  "part_tree.history.blend_reduced": "{asked} mm demandé, {taken} mm appliqué",
   "part_tree.history.swept": "{mode} · {reach}°",
   "part_tree.history.rectangle": "{width} × {height} mm",
   "part_tree.history.circle": "Ø {diameter} mm",

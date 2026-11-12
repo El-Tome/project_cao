@@ -1,5 +1,6 @@
 use cao_part::PartDocument;
 use cao_part::history::BlendShape;
+use cao_prefs::Command;
 
 use crate::lang::Catalogue;
 use crate::screens::blend::BlendState;
@@ -12,6 +13,7 @@ pub(super) fn blend_row(
     ui: &mut egui::Ui,
     document: &PartDocument,
     blend: &mut BlendState,
+    asked: &mut Vec<Command>,
     lang: &Catalogue,
 ) {
     let Some(shape) = blend.shape else {
@@ -33,7 +35,9 @@ pub(super) fn blend_row(
         );
         ui.separator();
         ui.add_enabled_ui(blend.is_ready(document.variables()), |ui| {
-            let _ = ui.button(lang.t("extrusion.apply"));
+            if ui.button(lang.t("extrusion.apply")).clicked() {
+                asked.push(Command::ExtrusionApply);
+            }
         });
         if ui.button(lang.t("extrusion.cancel")).clicked() {
             blend.close();

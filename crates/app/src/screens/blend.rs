@@ -1,8 +1,8 @@
 //! The panel an edge of the part is chamfered or rounded from: which of the
 //! two, the edge chosen, and the size typed.
 
-use cao_part::history::BlendShape;
-use cao_part::{Formula, Variables};
+use cao_part::history::{BlendShape, Operation};
+use cao_part::{Formula, Outcome, PartDocument, Variables};
 use cao_solid::EdgeName;
 
 /// What the edge panel remembers between frames. Closed while `shape` is
@@ -46,4 +46,23 @@ impl BlendState {
     pub fn is_ready(&self, variables: &Variables) -> bool {
         self.edge.is_some() && self.size(variables).is_some()
     }
+}
+
+/// Chamfers or rounds the chosen edge and closes the panel. An edge the kernel
+/// declines records nothing and leaves the panel open. True when the part
+/// changed.
+pub fn apply_blend(document: &mut PartDocument, blend: &mut BlendState) -> bool {
+    let (Some(shape), Some(edge), Some((size, _))) = (
+        blend.shape,
+        blend.edge.clone(),
+        blend.size(document.variables()),
+    ) else {
+        return false;
+    };
+    if let Some(Outcome::BlendDeclined(_)) = document.apply(Operation::Blend { edge, shape, size })
+    {
+        return false;
+    }
+    blend.close();
+    true
 }

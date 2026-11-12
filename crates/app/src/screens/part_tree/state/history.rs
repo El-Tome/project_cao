@@ -9,7 +9,7 @@
 
 use cao_part::feature::Feature;
 use cao_part::history::{Operation, PointRef};
-use cao_part::{PartDocument, Variables};
+use cao_part::{Formula, PartDocument, Variables};
 
 use super::numbered;
 use super::volumes::{mode_key, volume_name};
@@ -74,6 +74,10 @@ impl History {
                     let name = volume_name(lang, operation, volumes).unwrap_or_default();
                     (name, matter(lang, variables, operation))
                 }
+                Operation::Blend { size, .. } => {
+                    let name = wording::history::label(lang, variables, operation);
+                    (name, blended(lang, document, step, size))
+                }
                 _ => drawn(lang, document, operation),
             };
             let ends = Feature::line_ends(&document.history, step);
@@ -129,6 +133,31 @@ fn matter(lang: &Catalogue, variables: &Variables, operation: &Operation) -> Str
         key,
         &[("mode", &lang.t(mode_key(*mode))), ("reach", &reach)],
     )
+}
+
+/// « 2 mm » for an edge chamfered or rounded as asked; both values when the
+/// faces along it gave less.
+fn blended(lang: &Catalogue, document: &PartDocument, step: usize, size: &Formula) -> String {
+    let reduced = document
+        .history
+        .number_at(step)
+        .and_then(|number| document.reduced_at(number));
+    match reduced {
+        Some(reduced) => lang.t_with(
+            "part_tree.history.blend_reduced",
+            &[
+                ("asked", &dimension::short(reduced.asked)),
+                ("taken", &dimension::short(reduced.taken)),
+            ],
+        ),
+        None => lang.t_with(
+            "part_tree.history.blend_size",
+            &[(
+                "size",
+                &formula::sized(lang, document.variables(), size, dimension::short),
+            )],
+        ),
+    }
 }
 
 /// The name and the detail of an action inside a sketch: its size, for a

@@ -4,7 +4,7 @@ use cao_prefs::Command;
 use cao_sketch::Rule;
 
 use crate::screens::SketchContext;
-use crate::screens::blend::BlendState;
+use crate::screens::blend::{BlendState, apply_blend};
 use crate::screens::extrusion::apply_extrusion_with;
 use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
@@ -354,6 +354,7 @@ pub(crate) fn run(
             ribbon.tab = 0;
             false
         }
+        Command::ExtrusionApply if blend.is_active() => apply_blend(doc, blend),
         Command::ExtrusionApply => {
             let record = |doc: &mut PartDocument, operation| {
                 viewport.record_where_read(doc, operation);

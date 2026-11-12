@@ -30,14 +30,23 @@
 //!   history — the part's half, one new step of its own kind taking off what
 //!   the arithmetic gives on the edge named, by
 //!   `a_chamfer_or_a_fillet_on_an_edge_of_the_part_takes_off_what_the_arithmetic_gives_as_one_new_step`;
-//!   the panel and the history's line are still to be written
+//!   the panel, the volume and the one line added, held in
+//!   `crates/app/tests/the_edge_panel.rs` by
+//!   `an_edge_chosen_a_value_typed_and_apply_pressed_chamfers_or_rounds_it_and_adds_one_line`;
+//!   what the line is named, in
+//!   `crates/app/src/screens/part_tree/state/tests/history.rs` by
+//!   `a_chamfered_or_rounded_edge_reads_its_size_or_both_values_when_the_kernel_reduced_it`
 //! - When the kernel reduced the value, that history line reads both values,
 //!   as « 5 mm demandé, 2 mm appliqué »; otherwise only the value — the part's
 //!   half, both values kept when the faces give less and nothing reduced when
 //!   they give enough, by
 //!   `a_value_the_faces_cannot_give_is_reduced_and_the_part_keeps_both` and
 //!   `a_chamfer_or_a_fillet_on_an_edge_of_the_part_takes_off_what_the_arithmetic_gives_as_one_new_step`;
-//!   the line's wording is still to be written
+//!   the line's detail, « 2 mm » or « 50 mm demandé, 10 mm appliqué », in
+//!   `crates/app/src/screens/part_tree/state/tests/history.rs` by
+//!   `a_chamfered_or_rounded_edge_reads_its_size_or_both_values_when_the_kernel_reduced_it`,
+//!   and on screen in `crates/app/tests/the_edge_panel.rs` by
+//!   `a_value_the_faces_cannot_give_reads_both_values_on_its_history_line`
 //! - The step is written in the part file and replays on reopening, and when
 //!   a size changes upstream. An edge it no longer finds makes it a broken
 //!   step carrying its reason — written and opened again, by the design alone

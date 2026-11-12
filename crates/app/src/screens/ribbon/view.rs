@@ -198,7 +198,7 @@ impl Ribbon {
 
         let read = &self.sketches_read;
         match drawn.blend.is_active() {
-            true => blend_row(ui, drawn.document, drawn.blend, lang),
+            true => blend_row(ui, drawn.document, drawn.blend, &mut asked, lang),
             false => extrusion_row(ui, drawn.document, drawn.extrusion, read, &mut asked, lang),
         }
         let state = drawn.context(settings, lang, self.section_on);

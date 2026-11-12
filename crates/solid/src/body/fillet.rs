@@ -58,22 +58,25 @@ impl Body {
     /// corner, and so are the two edges of a pointed end, or of a notch beside
     /// its concave upright, each bounding that face and meeting one of the full
     /// round's edges and the other, mitred against both their neighbours, the
-    /// three mitres meeting at the crown; and any upright meeting one of the
-    /// full round's edges at a convex corner where no third edge of the list
-    /// ends — at either end of the part, under a full round along the top or
-    /// over one along the floor, the two uprights at one end a standing full
-    /// round themselves — is rounded at that radius and mitred against it on
-    /// one ellipse, from where the full round leaves the face the two share to
-    /// where the upright's round leaves its other face, the crown at a square
+    /// three mitres meeting at the crown — a point's tip, its upright named
+    /// too, closed by a piece of sphere about the crown's axis, the two point
+    /// edges' rounds meeting it in place of each other; and any upright
+    /// meeting one of the full round's edges at a convex corner where no
+    /// third edge of the list ends — at either end of the part, under a full
+    /// round along the top or over one along the floor, the two uprights at
+    /// one end a standing full round themselves — is rounded at that radius
+    /// and mitred against it on one ellipse, from where the full round leaves
+    /// the face the two share to where the upright's round leaves its other
+    /// face, the crown at a square
     /// end; named with the edge at the full round's end, the three are closed
     /// at their corner by a piece of sphere, and the tip of a tongue as wide
     /// as two radii, its end edge and both uprights named, is one quarter of a
     /// ball, the end edge's round closing to nothing between the two corners
     /// and the ball answering to its number and both corners'. An edge of a
-    /// full round meeting any other edge of the list at a corner, those two
-    /// where the upright at the tip is named too, an upright where a third
-    /// edge of the list ends but the edge at its end (#837), or one of a round
-    /// bottom meeting any, is declined `Unsupported`. Rounds
+    /// full round meeting any other edge of the list at a corner, a notch's
+    /// two where its concave upright is named too (#914), an upright where a
+    /// third edge of the list ends but the edge at its end (#837), or one of
+    /// a round bottom meeting any, is declined `Unsupported`. Rounds
     /// that would meet only on a curved edge are not measured, and declined
     /// `Unsupported` where they meet. The first edge declined declines the
     /// step.

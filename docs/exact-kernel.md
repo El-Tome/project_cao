@@ -1256,7 +1256,9 @@ The decisions, in the order taken, once per operation:
    touch, the lines and the corners are all decided on the moved operand.
    It is not made where it would part a surface it carries from one of the
    first operand's it was one with or touched — a slot's side flush with
-   the body's, the body's wall a hair across from its cap — nor where it
+   the body's, the body's wall a hair across from its cap, a wall at the
+   node of the curve it meets another wall, not parallel to it, along or at the one
+   point the two share — nor where it
    would move the curve two perpendicular cylinders meet along, nor where
    it would lay a surface it carries on one of the second operand's own it
    leaves behind, which that operand built apart — a rounded rectangle a
@@ -1599,7 +1601,13 @@ The decisions, in the order taken, once per operation:
     which cuts a conic, and leans of 1e-5 degrees, in #552's warning band.
     The line two walls touch along is no such edge either: a pin
     touching a disc, the band decisions lay that line, and a block's face a
-    hair from it moved onto it was refused (90016363).
+    hair from it moved onto it was refused (90016363). Nor is a plane moved
+    where a wall it carries would part from one of the first's at the node
+    their curve crosses itself at, as decision 8 keeps it: a point edge's
+    round, its plane square to the point's wall a rounding off the full
+    round's edge along the front, was carried down off the node its axis
+    crossed the full round's at, and the line where it touches the top
+    crossed the full round twice, microns either side of the crown (#837).
 
 Everything else is derived. A vertex lies on a curve when the curve's
 support is among the surfaces the vertex lies on and it stands within `EPS`
@@ -2628,7 +2636,7 @@ pointed cone's flank waits on #711.
   floor round a hole touching the pocket's wall inside is bounded by both.
   Not two walls crossing or all but one: a union keeps both circles on its
   caps all round. A place two rays put at one vertex is taken once. Two
-  perpendicular walls decided to touch at a point, side by side, leave no
+  walls not parallel decided to touch at a point, side by side, leave no
   curve and no vertex, and may overlap there by up to `EPS`; the point
   stands on a step of both grids, and each wall's ruling through it would
   pass through the other's triangles. Where both hold a face there, the

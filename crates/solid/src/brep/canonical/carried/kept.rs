@@ -23,8 +23,14 @@ use crate::brep::topology::Body;
 /// would meet along a curve the kernel does not build, and a bore of a
 /// pocket's radius moved onto it took its cone off the wall it widens onto
 /// (5361127255); a sphere or a torus is kept beside its axis the same way
-/// (#576). The surface itself goes where its move was decided: one
-/// with the first's wall, about its axis, or onto a touch. And whether every
+/// (#576). Two walls, not parallel, touching at a point — the node of the
+/// curve they meet along, or the one point they share — touch there still:
+/// a round's plane moved onto a full round's edge a rounding off carried
+/// the round's wall off the node its axis crossed the full round's at, and
+/// the line where the round touches the top crossed the full round twice,
+/// microns either side of the node (#837). The surface itself goes where
+/// its move was decided: one with the first's wall, about its axis, or onto
+/// a touch. And whether every
 /// surface carried stays apart from those of its own operand left behind,
 /// which that operand built apart: a rounded rectangle a hair taller than its
 /// two corners, its top moved down onto a face, would take its upper corners'
@@ -57,6 +63,7 @@ pub(super) fn kept(
                         true
                     }
                     Relation::Conic(_) | Relation::Ruling { .. } | Relation::Unsupported => false,
+                    found @ Relation::Meet(_) if !found.points().is_empty() => true,
                     Relation::Rims(_) | Relation::Meridians { .. } => true,
                     Relation::Apart
                     | Relation::Line(_)

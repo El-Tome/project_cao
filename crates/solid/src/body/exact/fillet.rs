@@ -39,7 +39,9 @@ impl Exact {
     /// corner by a piece of sphere, as below — and at the tip of a tongue as
     /// wide as two radii, the end edge's round closing to nothing between the
     /// two corners, by one quarter of a ball answering to its number and both
-    /// corners'. Where
+    /// corners'; the two edges of a pointed end, rounded at that radius too,
+    /// with the upright at its tip closed there by a piece of sphere about the
+    /// crown's axis, which the full round touches at the crown alone. Where
     /// matter lies past an end of an edge rounded off, behind the one flat face
     /// it runs into there — the inner corner of an L, a pocket's rim, the foot
     /// of a block standing on another — its round stops flush on that face,
@@ -112,8 +114,8 @@ impl Exact {
     /// an edge meets inwards, an edge whose set-backs meet those of two others
     /// — rounds closing on themselves, #790 — an edge of a full round meeting
     /// another edge of the list at a corner but the edge at its end, the two
-    /// of a pointed or a V-notched end or an upright, those two meeting where
-    /// the upright at the tip is named too and an upright where a third edge
+    /// of a pointed or a V-notched end or an upright, a notch's two where the
+    /// upright at its bottom is named too and an upright where a third edge
     /// of the list ends but the edge at its end, one of a round bottom meeting
     /// any, and a cut that left anything but its round —
     /// a face of the prism, the round in two

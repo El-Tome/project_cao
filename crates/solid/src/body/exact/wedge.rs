@@ -106,11 +106,11 @@ impl Exact {
     /// [`Exact::laid_as`] lays it, so that the matter of every edge's prism
     /// goes whatever the order — and an edge bounding the face two cuts laid
     /// together meet across, meeting both at a corner, or one and an edge of a
-    /// pointed end with it that meets the other, and an upright meeting one of
-    /// them at a convex corner where no third edge of the list ends but the
-    /// edge at their end, meets their one prism the same way, at their value,
-    /// as [`pairs::at_their_ends`] reads it, the two read on the body as
-    /// given.
+    /// pointed end with it that meets the other, the upright at the point's
+    /// tip with them, and an upright meeting one of them at a convex corner
+    /// where no third edge of the list ends but the edge at their end, meets
+    /// their one prism the same way, at their value, as
+    /// [`pairs::at_their_ends`] reads it, the two read on the body as given.
     /// Two edges of one sense meeting at a
     /// corner beside an edge of the other sense left out of the list, as
     /// [`corners::admit`] admits it — two cuts beside a concave edge, two fills
@@ -147,10 +147,10 @@ impl Exact {
     /// another edge ends too, where `meeting` lays two together an edge
     /// meeting two others but in a closed chain, cut down to one cylinder as
     /// [`Exact::closed_round`] cuts it, or one of two laid together that meets another
-    /// edge of the list at a corner any other way — a pointed end's two edges
-    /// among them where a third ends at the tip, an upright where a third edge
-    /// of the list ends but the edge at their end — a cut or a fill that left
-    /// something else than its one face, as
+    /// edge of the list at a corner any other way — a notch's two edges among
+    /// them where a third ends at its bottom, meeting inwards, an upright
+    /// where a third edge of the list ends but the edge at their end — a cut
+    /// or a fill that left something else than its one face, as
     /// [`Exact::cut_along`] reads it, a face of an overlap no edge covered, and
     /// a corner gone round its odd edge as [`Exact::round_the_odd`] declines
     /// it, are declined `Unsupported`; a prism the tool cannot raise, as the

@@ -135,7 +135,12 @@ impl Exact {
     /// prisms its `tool` raises, its `meeting` laying the pairs together and
     /// closing the corners three meet at, the faces numbered from where the
     /// steps' numbers ended by the edges' ranks, the closings' past them in
-    /// the order of the step's corners. Declined as [`Exact::cut_off`] says.
+    /// the order of the step's corners. Each edge meets in a mitre the faces
+    /// laid before it on edges it shares a corner with, and a pair those of
+    /// the edges [`pairs::at_their_ends`] lays against it: every edge it
+    /// shares a corner with, and the upright at a point's tip, whose round
+    /// the pair's meets on an ellipse until a point edge laid after both cuts
+    /// between them. Declined as [`Exact::cut_off`] says.
     pub(super) fn in_turn(
         &self,
         names: &[EdgeName],
@@ -186,9 +191,9 @@ impl Exact {
             let own = [partner.map_or(rank, |&(earlier, _, _)| earlier), rank];
             let mitred: Vec<u32> = (0..rank)
                 .filter(|before| !own.contains(before))
-                .filter(|&before| {
-                    own.iter()
-                        .any(|&laid| corners::meet(&self.brep, [edges[before], edges[laid]]))
+                .filter(|&before| match partner {
+                    Some(_) => ends.contains_key(&before),
+                    None => corners::meet(&self.brep, [edges[before], edges[rank]]),
                 })
                 .map(|before| start + before as u32)
                 .collect();

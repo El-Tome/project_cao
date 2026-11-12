@@ -34,7 +34,7 @@ use crate::brep::{self, Declined, EdgeId, EdgeName, FaceId, Scale, VertexId};
 use crate::profile::{Contour, Frame};
 
 pub(super) use closing::Closing;
-use flush::{Flush, Held, Stop};
+use flush::{Flush, Stop};
 pub(super) use odd::Around;
 use overlap::OVERLAPS;
 pub(super) use pairs::Together;
@@ -194,33 +194,13 @@ impl Exact {
         Ok((edge, read(&self.brep, edge)?))
     }
 
-    /// The body with the edge a name finds cut off, or filled in, by the
-    /// prism `tool` raises over its wedge for `taken`, its wall numbered
-    /// where the steps' numbers ended, declined as [`Exact::cut_off`] says.
-    /// The wedge is read again on the body the edges before it were laid on,
-    /// as [`Wedge::read`] reads it: whether the edge is on a tangent chain was
-    /// read on the body as given. It meets the others as [`Met`] says; an end
-    /// standing at one of `held` is held on its plane, as
-    /// [`Exact::laid_flush`] holds it.
-    fn laid(
-        &self,
-        name: &EdgeName,
-        taken: f64,
-        tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
-        met: Met,
-        held: &[Held],
-    ) -> Result<Exact, Declined> {
-        let (edge, wedge) = self.wedge(name, Wedge::read)?;
-        let flush = Flush::at(&self.brep, edge).holding(held);
-        self.laid_as(&flush, &wedge, taken, tool, met)
-    }
-
-    /// The body with the edge of `wedge` cut off, or filled in, as
-    /// [`Exact::laid`] lays it, its ends read where `flush` says `wedge` was
-    /// read: on this body, or on the body as given where an earlier edge of
-    /// the step was laid at a corner it shares, its prism then cut from, or
-    /// joined to, what the earlier edges left — the matter of every edge's
-    /// prism goes or comes whatever the order.
+    /// The body with the edge of `wedge` cut off, or filled in, by the prism
+    /// `tool` raises over it for `taken`, its wall numbered where the steps'
+    /// numbers ended, declined as [`Exact::cut_off`] says: its ends read where
+    /// `flush` says, on the body as given, its prism then cut from, or joined
+    /// to, what the earlier edges left — the matter of every edge's prism goes
+    /// or comes whatever the order, and an edge whose ends an earlier one moved
+    /// is laid all the same (#899). It meets the others as [`Met`] says.
     fn laid_as(
         &self,
         flush: &Flush,

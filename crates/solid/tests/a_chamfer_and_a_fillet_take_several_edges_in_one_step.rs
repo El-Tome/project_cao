@@ -204,7 +204,24 @@
 //!   `a_fillet_on_the_four_long_edges_of_a_square_bar_asked_half_its_side_or_more_takes_half_in_one_closed_cylinder_in_every_order`;
 //!   and the same on a bar standing askew, away from the origin, so that its
 //!   axis is found from the bar rather than from the frame it is drawn on —
-//!   `a_fillet_on_the_four_long_edges_of_a_square_bar_standing_askew_away_from_the_origin_takes_half_in_one_closed_cylinder_about_its_own_axis`
+//!   `a_fillet_on_the_four_long_edges_of_a_square_bar_standing_askew_away_from_the_origin_takes_half_in_one_closed_cylinder_about_its_own_axis`;
+//!   and, beyond the issue's wording, any prism whose long faces all stand
+//!   tangent to one circle closes the same way, at that circle's radius, in
+//!   every order: a regular triangle, a rhombus of 60 degrees, a regular
+//!   hexagon of six edges, and the square bar with one end cut at 20 degrees,
+//!   that end an ellipse and the matter the circle's area times the length
+//!   along the axis —
+//!   `a_fillet_on_the_three_long_edges_of_a_regular_triangular_prism_asked_its_inradius_or_more_takes_it_in_one_closed_cylinder`,
+//!   `a_fillet_on_the_four_long_edges_of_a_60_degree_rhombic_prism_asked_its_inradius_or_more_takes_it_in_one_closed_cylinder`,
+//!   `a_fillet_on_the_six_long_edges_of_a_regular_hexagonal_bar_asked_its_inradius_or_more_takes_it_in_one_closed_cylinder`,
+//!   `a_fillet_on_the_four_long_edges_of_a_square_bar_with_one_end_cut_at_20_degrees_takes_half_in_one_closed_cylinder_its_slanted_end_an_ellipse`;
+//!   where an end is not the rounds' alone, the step is still declined
+//!   `Unsupported` from half the side, in every order, and less lays four
+//!   rounds, as before #790 — a post standing on a plate, a bar with a boss
+//!   on one end, and a tube bored through —
+//!   `a_fillet_on_the_four_upright_edges_of_a_square_post_standing_on_a_plate_asked_half_its_side_or_more_is_declined_as_unsupported_and_less_lays_four_rounds`,
+//!   `a_fillet_on_the_four_long_edges_of_a_square_bar_with_a_boss_on_one_end_asked_half_its_side_or_more_is_declined_as_unsupported_and_less_lays_four_rounds`,
+//!   `a_fillet_on_the_four_long_edges_of_a_square_tube_asked_half_its_side_or_more_is_declined_as_unsupported_and_less_lays_four_rounds`
 //! - The value is reduced to that half side as #698 reduces it, rather than
 //!   the step being declined — the two tests above, which ask more than half
 //!   and hold that half is taken and the asked value reported —
@@ -2157,37 +2174,45 @@ fn a_fillet_on_a_meeting_pair_named_apart_in_the_list_lays_one_full_round_answer
 /// every long face at half of it.
 const BAR: f64 = 10.0;
 
-/// A square bar [`BAR`] on a side and [`LENGTH`] long, as the closed round is
-/// held on it: the part, the names of its four long edges, the point its
-/// axis starts from on its first end and the way it runs, two ways square to
-/// it and to each other along its sides, its four long faces, and its two
-/// ends, the first then the second, each with the way it faces.
-struct SquareBar {
+/// A prism whose long edges' rounds close on themselves, as the closed round
+/// is held on it: the part, the names of its long edges, the radius of the
+/// circle its long faces stand tangent to, the point its axis starts from on
+/// its first end, the way it runs and how far to the second end, how far
+/// past either end the cylinder reaches where an end is slanted, two ways
+/// square to the axis and to each other, its long faces, and its two ends,
+/// the first then the second, each with the way it faces.
+struct ClosingPrism {
     part: Body,
     edges: Vec<EdgeName>,
+    radius: f64,
     start: DVec3,
     along: DVec3,
+    length: f64,
+    overhang: f64,
     across: [DVec3; 2],
-    long_faces: [usize; 4],
+    sides: Vec<usize>,
     ends: [(usize, DVec3); 2],
 }
 
 /// The bar lying on the ground from the origin along X: a block
 /// [`LENGTH`] long, [`BAR`] across and [`BAR`] high, its left wall its first
 /// end.
-fn lying_bar() -> SquareBar {
+fn lying_bar() -> ClosingPrism {
     let part = block([LENGTH, BAR, BAR]);
     let edges = long_edges_of(BAR, BAR)
         .iter()
         .map(|edge| edge.name(&part))
         .collect();
-    SquareBar {
+    ClosingPrism {
         part,
         edges,
+        radius: BAR / 2.0,
         start: DVec3::new(0.0, BAR / 2.0, BAR / 2.0),
         along: DVec3::X,
+        length: LENGTH,
+        overhang: 0.0,
         across: [DVec3::Y, DVec3::Z],
-        long_faces: [FLOOR, TOP, FRONT, BACK],
+        sides: vec![FLOOR, TOP, FRONT, BACK],
         ends: [(LEFT, -DVec3::X), (RIGHT, DVec3::X)],
     }
 }
@@ -2196,7 +2221,7 @@ fn lying_bar() -> SquareBar {
 /// stands away from the origin: its floor, numbered nought, its first end,
 /// its top the second, and its walls two to five, each long edge between
 /// two walls that follow each other.
-fn askew_bar() -> SquareBar {
+fn askew_bar() -> ClosingPrism {
     let frame = Frame {
         origin: DVec3::new(7.0, -3.0, 4.0),
         u: DVec3::new(2.0, 1.0, 2.0) / 3.0,
@@ -2215,14 +2240,108 @@ fn askew_bar() -> SquareBar {
         .iter()
         .map(|&[first, second]| edge_between(&part, first, second))
         .collect();
-    SquareBar {
+    ClosingPrism {
         part,
         edges,
+        radius: BAR / 2.0,
         start: frame.at(DVec2::splat(BAR / 2.0)),
         along,
+        length: LENGTH,
+        overhang: 0.0,
         across: [frame.u, frame.v],
-        long_faces: [2, 3, 4, 5],
+        sides: vec![2, 3, 4, 5],
         ends: [(0, -along), (1, along)],
+    }
+}
+
+/// A prism raised [`LENGTH`] from the ground on the outline through
+/// `corners`, counter-clockwise, whose sides all stand tangent to the circle
+/// of `radius` about `centre`: its floor its first end, its top its second,
+/// and each long edge between two walls that follow each other.
+fn upright_prism(corners: Vec<DVec2>, centre: DVec2, radius: f64) -> ClosingPrism {
+    let count = corners.len();
+    let part = raised_with(&Body::default(), Contour::straight(corners), LENGTH);
+    let sides: Vec<usize> = (2..2 + count).collect();
+    let edges = (0..count)
+        .map(|at| edge_between(&part, sides[at], sides[(at + 1) % count]))
+        .collect();
+    ClosingPrism {
+        part,
+        edges,
+        radius,
+        start: centre.extend(0.0),
+        along: DVec3::Z,
+        length: LENGTH,
+        overhang: 0.0,
+        across: [DVec3::X, DVec3::Y],
+        sides,
+        ends: [(FLOOR, -DVec3::Z), (TOP, DVec3::Z)],
+    }
+}
+
+/// The corners of a regular polygon of `count` sides `side` long about
+/// `centre`, counter-clockwise from the one at angle `first`, and the radius
+/// of the circle its sides stand tangent to.
+fn regular(count: usize, side: f64, centre: DVec2, first: f64) -> (Vec<DVec2>, f64) {
+    let turn = 2.0 * PI / count as f64;
+    let reach = side / 2.0 / (turn / 2.0).sin();
+    let corners = (0..count)
+        .map(|at| centre + DVec2::from_angle(first + turn * at as f64) * reach)
+        .collect();
+    (corners, side / 2.0 / (turn / 2.0).tan())
+}
+
+/// How far the slanted end of the bar of
+/// [`a_fillet_on_the_four_long_edges_of_a_square_bar_with_one_end_cut_at_20_degrees_takes_half_in_one_closed_cylinder_its_slanted_end_an_ellipse`]
+/// leans off square to its axis.
+const SLANT: f64 = 20.0 * PI / 180.0;
+
+/// The lying bar with its right end cut away by a plane leaning [`SLANT`]
+/// about Y, through its axis [`BAR`] short of the right wall, so that no
+/// part of that wall is left: the slanted face is its second end.
+fn slanted_bar() -> ClosingPrism {
+    let square = lying_bar();
+    let half = BAR / 2.0;
+    let facing = DVec3::new(SLANT.cos(), 0.0, SLANT.sin());
+    let frame = Frame {
+        origin: DVec3::new(LENGTH - half, half, half),
+        u: DVec3::Y,
+        v: facing.cross(DVec3::Y),
+    };
+    let slab = square
+        .part
+        .tool_raised(
+            &profile(Contour::rectangle(
+                DVec2::splat(-2.0 * BAR),
+                DVec2::splat(2.0 * BAR),
+            )),
+            frame,
+            facing * BAR,
+        )
+        .expect("the slab raises");
+    let part = square
+        .part
+        .difference(&slab)
+        .expect("the slanted cut is built");
+    let slanted: Vec<usize> = faces_made(&square.part, &part)
+        .into_iter()
+        .filter(|&face| {
+            part.plane_of(face)
+                .is_some_and(|plane| plane.normal.distance(facing) < PLACE)
+        })
+        .collect();
+    assert_eq!(slanted.len(), 1, "one slanted end: {slanted:?}");
+    let edges = long_edges_of(BAR, BAR)
+        .iter()
+        .map(|edge| edge.name(&part))
+        .collect();
+    ClosingPrism {
+        part,
+        edges,
+        length: LENGTH - half,
+        overhang: half * SLANT.tan(),
+        ends: [(LEFT, -DVec3::X), (slanted[0], facing)],
+        ..square
     }
 }
 
@@ -2243,103 +2362,112 @@ fn every_order<T: Clone>(items: &[T]) -> Vec<Vec<T>> {
         .collect()
 }
 
-/// Holds that a fillet on the bar's four long edges, named in the order
-/// `order`, asked `asked`, took half the bar's side and closed its four
-/// rounds into one cylinder about the bar's axis, its two ends discs.
-fn closes_into_one_cylinder(bar: &SquareBar, order: &[usize], asked: f64, what: &str) {
-    let half = BAR / 2.0;
-    let names: Vec<EdgeName> = order.iter().map(|&at| bar.edges[at].clone()).collect();
-    let filleted = bar
+/// Holds that a fillet on the prism's long edges, named in the order
+/// `order`, asked `asked`, took the radius of the circle its sides stand
+/// tangent to and closed its rounds into one cylinder about its axis, each
+/// end a flat face bounded by one curve on that cylinder.
+fn closes_into_one_cylinder(prism: &ClosingPrism, order: &[usize], asked: f64, what: &str) {
+    let radius = prism.radius;
+    let names: Vec<EdgeName> = order.iter().map(|&at| prism.edges[at].clone()).collect();
+    let filleted = prism
         .part
         .fillet_edges(&names, asked)
         .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
 
-    reduced(filleted.asked, filleted.taken, [asked, half], what);
+    reduced(filleted.asked, filleted.taken, [asked, radius], what);
     let body = &filleted.body;
-    let laid: Vec<usize> = (bar.part.faces_end()..bar.part.faces_end() + 4).collect();
-    let mut ends_and_laid: BTreeSet<usize> = bar.ends.iter().map(|&(end, _)| end).collect();
+    let first = prism.part.faces_end();
+    let laid: Vec<usize> = (first..first + prism.edges.len()).collect();
+    let mut ends_and_laid: BTreeSet<usize> = prism.ends.iter().map(|&(end, _)| end).collect();
     ends_and_laid.extend(laid.iter().copied());
     assert_eq!(
         numbers(body),
         ends_and_laid,
-        "{what}: the four long faces {:?} gone, the bar's two ends and the cylinder answering \
-         to {laid:?} left",
-        bar.long_faces
+        "{what}: the long faces {:?} gone, the two ends and the cylinder answering to {laid:?} \
+         left",
+        prism.sides
     );
     assert_eq!(
         body.faces_end(),
-        laid[3] + 1,
-        "{what}: the next step numbers its faces past all four the cylinder answers to"
+        first + laid.len(),
+        "{what}: the next step numbers its faces past every number the cylinder answers to"
     );
     one_curved_face_answers_to(body, &laid, what);
-    let [first, second] = bar.across;
-    let quarters = [
-        [first, second],
-        [second, -first],
-        [-first, -second],
-        [-second, first],
-    ]
-    .map(|facing| Round {
-        start: bar.start,
-        along: bar.along,
-        length: LENGTH,
-        radius: half,
-        facing,
-    });
-    is_made_of(
-        body,
-        laid[0],
-        &quarters.each_ref(),
-        &format!(
-            "{what}: the closed round, a cylinder of {half} about the line from {} along {}",
-            bar.start, bar.along
-        ),
+    let quarters = |start: DVec3, length: f64| {
+        let [one, other] = prism.across;
+        [[one, other], [other, -one], [-one, -other], [-other, one]].map(|facing| Round {
+            start,
+            along: prism.along,
+            length,
+            radius,
+            facing,
+        })
+    };
+    let overhang = prism.along * prism.overhang;
+    let reaching = quarters(prism.start - overhang, prism.length + 2.0 * prism.overhang);
+    let between_the_ends = quarters(prism.start + overhang, prism.length - 2.0 * prism.overhang);
+    let cylinder = format!(
+        "{what}: the closed round, a cylinder of {radius} about the line from {} along {}",
+        prism.start, prism.along
     );
-    for (end, (face, facing)) in bar.ends.iter().copied().enumerate() {
-        let centre = bar.start + bar.along * LENGTH * end as f64;
-        is_a_disc(
+    drawn_on(body, laid[0], &reaching.each_ref(), PLACE, &cylinder);
+    for round in &between_the_ends {
+        met_from_outside(body, laid[0], round, PLACE, &cylinder);
+    }
+    for (end, (face, facing)) in prism.ends.iter().copied().enumerate() {
+        is_an_end(
             body,
             face,
-            [centre, facing],
-            half,
+            [
+                prism.start + prism.along * prism.length * end as f64,
+                facing,
+            ],
+            prism,
             &laid,
             &format!("{what}: the end numbered {face}"),
         );
     }
     sound_drawn_within(
         body,
-        PI * half * half * LENGTH,
-        DRAWN * reach_of(&bar.part) * 2.0 * PI * half * LENGTH,
+        PI * radius * radius * prism.length,
+        DRAWN * reach_of(&prism.part) * 2.0 * PI * radius * (prism.length + prism.overhang),
         what,
     );
 }
 
-/// Holds that the face numbered `face` is a disc of `radius` about `centre`,
-/// facing `facing`: flat, every corner on its rim, its triangles covering
-/// it within the drawing's tolerance, and one edge only, shared with the
-/// face answering to the numbers `rim`.
-fn is_a_disc(
+/// Holds that the face numbered `face` is an end of the closed round: flat
+/// on the plane through `centre` facing `facing`, every corner on the
+/// cylinder of the prism's radius about its axis, its triangles covering
+/// what the cylinder cuts from the plane — a disc where the end is square
+/// to the axis, an ellipse where it leans — and one edge only, shared with
+/// the cylinder answering to the numbers `rim`.
+fn is_an_end(
     body: &Body,
     face: usize,
     [centre, facing]: [DVec3; 2],
-    radius: f64,
+    prism: &ClosingPrism,
     rim: &[usize],
     what: &str,
 ) {
+    let radius = prism.radius;
     let plane = body
         .plane_of(face)
         .unwrap_or_else(|| panic!("{what}: flat, a plane to draw on"));
     assert!(
         plane.normal.distance(facing) < PLACE,
-        "{what}: faces {}, where the bar's end faces {facing}",
+        "{what}: faces {}, where the end faces {facing}",
         plane.normal
     );
     assert!(!plane.corners.is_empty(), "{what}: has a rim");
     for corner in &plane.corners {
         let off = *corner - centre;
+        let from_the_axis = off - prism.along * off.dot(prism.along);
         assert!(
-            off.dot(facing).abs() < PLACE && (off.length() - radius).abs() < PLACE,
-            "{what}: a corner at {corner}, off the circle of {radius} about {centre}"
+            off.dot(facing).abs() < PLACE && (from_the_axis.length() - radius).abs() < PLACE,
+            "{what}: a corner at {corner}, off the cylinder of {radius} about the line from {} \
+             along {}",
+            prism.start,
+            prism.along
         );
     }
     let mut met: Vec<u32> = rim.iter().map(|&number| number as u32).collect();
@@ -2347,56 +2475,222 @@ fn is_a_disc(
     assert_eq!(
         sides_met(body, face),
         vec![met],
-        "{what}: one edge, a circle shared with the cylinder and nothing else"
+        "{what}: one edge, shared with the cylinder and nothing else"
     );
     let area: f64 = body
         .triangles_of(face)
         .map(|[a, b, c]| (b - a).cross(c - a).length() / 2.0)
         .sum();
-    let disc = PI * radius * radius;
+    let cut = PI * radius * radius / facing.dot(prism.along).abs();
     assert!(
-        (area - disc).abs() <= DRAWN * reach_of(body) * 2.0 * PI * radius,
-        "{what}: its triangles cover {area}, where the disc is {disc}"
+        (area - cut).abs()
+            <= DRAWN * reach_of(body) * 2.0 * PI * radius / facing.dot(prism.along).abs(),
+        "{what}: its triangles cover {area}, where the cylinder cuts {cut} from its plane"
     );
+}
+
+/// Holds that a fillet on the prism's long edges closes into one cylinder,
+/// as [`closes_into_one_cylinder`] holds it, asked the radius its sides
+/// stand tangent to and asked more, named in each order of `orders`.
+fn closes_in_each_order(prism: &ClosingPrism, orders: &[Vec<usize>], shape: &str) {
+    for asked in [prism.radius, MORE_THAN_HALF] {
+        for order in orders {
+            closes_into_one_cylinder(
+                prism,
+                order,
+                asked,
+                &format!(
+                    "the fillet on the long edges of {shape}, named in the order {order:?}, \
+                     asked {asked}"
+                ),
+            );
+        }
+    }
 }
 
 #[test]
 fn a_fillet_on_the_four_long_edges_of_a_square_bar_asked_half_its_side_or_more_takes_half_in_one_closed_cylinder_in_every_order()
  {
-    let bar = lying_bar();
-    for asked in [BAR / 2.0, MORE_THAN_HALF] {
-        for order in every_order(&[0, 1, 2, 3]) {
-            closes_into_one_cylinder(
-                &bar,
-                &order,
-                asked,
-                &format!(
-                    "the fillet on the four long edges of a bar {BAR} square lying along X, \
-                     named in the order {order:?}, asked {asked}"
-                ),
-            );
-        }
-    }
+    closes_in_each_order(
+        &lying_bar(),
+        &every_order(&[0, 1, 2, 3]),
+        &format!("a bar {BAR} square lying along X"),
+    );
 }
 
 #[test]
 fn a_fillet_on_the_four_long_edges_of_a_square_bar_standing_askew_away_from_the_origin_takes_half_in_one_closed_cylinder_about_its_own_axis()
  {
     let bar = askew_bar();
+    let shape = format!("a bar {BAR} square standing askew from {}", bar.start);
+    closes_in_each_order(&bar, &every_order(&[0, 1, 2, 3]), &shape);
+}
+
+#[test]
+fn a_fillet_on_the_three_long_edges_of_a_regular_triangular_prism_asked_its_inradius_or_more_takes_it_in_one_closed_cylinder()
+ {
+    let (corners, inradius) = regular(3, 12.0, DVec2::new(3.0, 4.0), -PI / 2.0);
+    assert!(
+        (inradius - 2.0 * 3.0_f64.sqrt()).abs() < PLACE && inradius < MORE_THAN_HALF,
+        "a triangle 12 on a side stands tangent to a circle of 2√3, which 8 is more than"
+    );
+    closes_in_each_order(
+        &upright_prism(corners, DVec2::new(3.0, 4.0), inradius),
+        &every_order(&[0, 1, 2]),
+        "a regular triangular prism 12 on a side",
+    );
+}
+
+#[test]
+fn a_fillet_on_the_four_long_edges_of_a_60_degree_rhombic_prism_asked_its_inradius_or_more_takes_it_in_one_closed_cylinder()
+ {
+    let side = 10.0;
+    let slant = DVec2::from_angle(PI / 3.0) * side;
+    let corners = vec![DVec2::ZERO, DVec2::X * side, DVec2::X * side + slant, slant];
+    let inradius = side * (PI / 3.0).sin() / 2.0;
+    closes_in_each_order(
+        &upright_prism(corners, (DVec2::X * side + slant) / 2.0, inradius),
+        &every_order(&[0, 1, 2, 3]),
+        "a prism on a rhombus 10 on a side, its corners at 60 and 120 degrees",
+    );
+}
+
+#[test]
+fn a_fillet_on_the_six_long_edges_of_a_regular_hexagonal_bar_asked_its_inradius_or_more_takes_it_in_one_closed_cylinder()
+ {
+    let centre = DVec2::new(-4.0, 9.0);
+    let (corners, inradius) = regular(6, 6.0, centre, 0.3);
+    assert!(
+        (inradius - 3.0 * 3.0_f64.sqrt()).abs() < PLACE && inradius < MORE_THAN_HALF,
+        "a hexagon 6 on a side stands tangent to a circle of 3√3, which 8 is more than"
+    );
+    closes_in_each_order(
+        &upright_prism(corners, centre, inradius),
+        &every_order(&[0, 1, 2, 3, 4, 5]),
+        "a regular hexagonal bar 6 on a side",
+    );
+}
+
+#[test]
+fn a_fillet_on_the_four_long_edges_of_a_square_bar_with_one_end_cut_at_20_degrees_takes_half_in_one_closed_cylinder_its_slanted_end_an_ellipse()
+ {
+    closes_in_each_order(
+        &slanted_bar(),
+        &every_order(&[0, 1, 2, 3]),
+        &format!("a bar {BAR} square lying along X, its right end cut at 20 degrees"),
+    );
+}
+
+/// Holds that a fillet on the four edges `edges` of `part`, each `length`
+/// long, is declined `Unsupported` asked half the side [`BAR`] or more, in
+/// every order, and asked less lays four rounds, each taking from the part
+/// what a round of that value takes along a straight edge between square
+/// faces.
+fn declined_from_half_and_laid_below(part: &Body, edges: &[EdgeName], length: f64, what: &str) {
     for asked in [BAR / 2.0, MORE_THAN_HALF] {
         for order in every_order(&[0, 1, 2, 3]) {
-            closes_into_one_cylinder(
-                &bar,
-                &order,
-                asked,
-                &format!(
-                    "the fillet on the four long edges of a bar {BAR} square standing askew \
-                     from {}, named in the order {order:?}, asked {asked}",
-                    bar.start
-                ),
+            let names: Vec<EdgeName> = order.iter().map(|&at| edges[at].clone()).collect();
+            assert_eq!(
+                part.fillet_edges(&names, asked).err(),
+                Some(Declined::Unsupported),
+                "{what}, named in the order {order:?}, asked {asked}: declined, the rounds would \
+                 close on an end that is not theirs alone"
             );
         }
     }
+    let value = 4.0;
+    let filleted = part
+        .fillet_edges(edges, value)
+        .unwrap_or_else(|declined| panic!("{what}, asked {value}: declined, {declined:?}"));
+    let what = format!("{what}, asked {value}");
+    taken_as_asked(filleted.asked, filleted.taken, value, &what);
+    let body = &filleted.body;
+    assert_eq!(
+        faces_made(part, body).len(),
+        4,
+        "{what}: four rounds, one for each edge"
+    );
+    sound_drawn_within(
+        body,
+        part.volume() - 4.0 * length * value * value * (1.0 - PI / 4.0),
+        DRAWN * reach_of(part) * 4.0 * PI / 2.0 * value * length,
+        &what,
+    );
+}
+
+#[test]
+fn a_fillet_on_the_four_upright_edges_of_a_square_post_standing_on_a_plate_asked_half_its_side_or_more_is_declined_as_unsupported_and_less_lays_four_rounds()
+ {
+    let plate = block([LENGTH, LENGTH, 4.0]);
+    let part = joined_to(&plate, [DVec2::splat(10.0), DVec2::splat(10.0 + BAR)], 24.0);
+    let walls: Vec<usize> = (plate.faces_end() + 2..plate.faces_end() + 6).collect();
+    let edges: Vec<EdgeName> = (0..4)
+        .map(|at| edge_between(&part, walls[at], walls[(at + 1) % 4]))
+        .collect();
+    declined_from_half_and_laid_below(
+        &part,
+        &edges,
+        20.0,
+        &format!("the fillet on the upright edges of a post {BAR} square standing on a plate"),
+    );
+}
+
+#[test]
+fn a_fillet_on_the_four_long_edges_of_a_square_bar_with_a_boss_on_one_end_asked_half_its_side_or_more_is_declined_as_unsupported_and_less_lays_four_rounds()
+ {
+    let bar = block([LENGTH, BAR, BAR]);
+    let end = Frame {
+        origin: DVec3::X * LENGTH,
+        u: DVec3::Y,
+        v: DVec3::Z,
+    };
+    let boss = bar
+        .tool_raised(
+            &profile(Contour::rectangle(DVec2::splat(4.0), DVec2::splat(6.0))),
+            end,
+            DVec3::X * 5.0,
+        )
+        .expect("the boss raises");
+    let part = bar.union(&boss).expect("the boss is joined");
+    let edges: Vec<EdgeName> = long_edges_of(BAR, BAR)
+        .iter()
+        .map(|edge| edge.name(&part))
+        .collect();
+    declined_from_half_and_laid_below(
+        &part,
+        &edges,
+        LENGTH,
+        &format!("the fillet on the long edges of a bar {BAR} square with a boss on its right end"),
+    );
+}
+
+#[test]
+fn a_fillet_on_the_four_long_edges_of_a_square_tube_asked_half_its_side_or_more_is_declined_as_unsupported_and_less_lays_four_rounds()
+ {
+    let bar = block([LENGTH, BAR, BAR]);
+    let behind_the_left_end = Frame {
+        origin: -DVec3::X,
+        u: DVec3::Y,
+        v: DVec3::Z,
+    };
+    let bore = bar
+        .tool_raised(
+            &profile(Contour::circle(DVec2::splat(BAR / 2.0), 1.5)),
+            behind_the_left_end,
+            DVec3::X * (LENGTH + 2.0),
+        )
+        .expect("the bore raises");
+    let part = bar.difference(&bore).expect("the bore is cut");
+    let edges: Vec<EdgeName> = long_edges_of(BAR, BAR)
+        .iter()
+        .map(|edge| edge.name(&part))
+        .collect();
+    declined_from_half_and_laid_below(
+        &part,
+        &edges,
+        LENGTH,
+        &format!("the fillet on the long edges of a tube {BAR} square, bored through"),
+    );
 }
 
 #[test]

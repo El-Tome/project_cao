@@ -11,9 +11,7 @@
 use glam::DVec3;
 
 use super::Wedge;
-use super::corners::Beside;
 use super::end::end_face;
-use super::flush::stops;
 use crate::brep::{self, EdgeId, Surface};
 
 /// A half-space, `normal · p ≤ offset`: one side of where a set-back ends.
@@ -62,20 +60,17 @@ fn narrowed([low, high]: [f64; 2], past: [f64; 2], eps: f64) -> Option<[f64; 2]>
 }
 
 /// Where the set-back of the listed edge `ranked` runs on its face on that
-/// side once the edge of rank `later` is laid, as the half-spaces that hold
-/// it, each on the side the middle of the edge stands on, beyond `eps` of
-/// it. At an end one other edge of the list meets, sharing that face, where
-/// that edge's set-back crosses its own at every value, the plane through the
-/// corner the two mitre on: where the other is laid before that one, or
-/// where the two meet beside an edge of the other sense, as `beside` holds
-/// them, and the edge stops flush there, as [`stops`] reads it — whichever
-/// is laid later then takes their overlap and carries this one on past the
-/// face it stops on into the mitre, in any order. At any other end, the
-/// plane of the flat face it ends on there, which trims its blend until an
-/// edge laid later mitres it, back from that plane at a convex corner — and
-/// where several edges of the list meet it there, at a corner whose three
-/// edges are named, which every laying cuts back within that plane or mitres
-/// short of it. At an end where it is one of the two edges of one sense at a
+/// side once every edge of the list is laid, whatever the order (#877), as
+/// the half-spaces that hold it, each on the side the middle of the edge
+/// stands on, beyond `eps` of it. At an end one other edge of the list
+/// meets, sharing that face, where that edge's set-back crosses its own at
+/// every value, the plane through the corner the two mitre on: laid before
+/// it, the other carries it into the mitre; laid after, it takes back what
+/// this one carried past it. At any other end, the plane of the flat face it
+/// ends on there, back from that plane at a convex corner — and where
+/// several edges of the list meet it there, at a corner whose three edges
+/// are named, which every laying cuts back within that plane or mitres short
+/// of it. At an end where it is one of the two edges of one sense at a
 /// corner of mixed sense, which go round the odd edge once it is laid (#829),
 /// the plane through the corner square to the edge, past which their blends
 /// never run: they mitre past it with the edge where the odd edge's face
@@ -86,14 +81,11 @@ fn narrowed([low, high]: [f64; 2], past: [f64; 2], eps: f64) -> Option<[f64; 2]>
 pub(super) fn runs(
     body: &brep::Body,
     (edges, wedges): (&[EdgeId], &[Wedge]),
-    beside: &[Beside],
     (rank, side): Ranked,
-    later: usize,
     set_back: &impl Fn(&Wedge) -> f64,
 ) -> Vec<End> {
     let wedge = &wedges[rank];
     let eps = body.scale().eps();
-    let stopping = stops(body, edges[rank], wedge);
     let Some(ends) = body.edge(edges[rank]).ends else {
         return Vec::new();
     };
@@ -118,10 +110,6 @@ pub(super) fn runs(
             };
             Some((plane.normal, plane.normal.dot(body.vertex(end).point)))
         };
-        let carried = |neighbour: usize| {
-            beside.contains(&(end, [rank.min(neighbour), rank.max(neighbour)]))
-                && stopping.iter().any(|stop| stop.end == end)
-        };
         let gone_round = |others: [usize; 2]| {
             let [mine, one, other] = [rank, others[0], others[1]].map(|at| wedges[at].inwards);
             (one != other) && (mine == one || mine == other)
@@ -131,7 +119,7 @@ pub(super) fn runs(
                 let at = body.vertex(end).point;
                 Some(((wedge.along, wedge.along.dot(at)), true))
             }
-            [neighbour] if neighbour < later || carried(neighbour) => {
+            [neighbour] => {
                 let theirs = &wedges[neighbour];
                 let on = theirs
                     .faces

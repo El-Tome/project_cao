@@ -36,11 +36,12 @@ pub(super) struct Step {
 
 impl Exact {
     /// The step the names make on this body, each edge's reach read only
-    /// where its blend runs once it is laid, as [`runs`] holds it for the
-    /// kind's `set_back`, with [`reach_within`]. Declined `Lost` where a name
-    /// no longer finds its edge, and `Unsupported` where an edge is not a
-    /// wedge, two names find one edge, or the corners are declined as
-    /// [`corners::admit`] and [`corners::of_three`] decline them.
+    /// where its blend runs once every edge is laid, whatever the order, as
+    /// [`runs`] holds it for the kind's `set_back`, with [`reach_within`].
+    /// Declined `Lost` where a name no longer finds its edge, and
+    /// `Unsupported` where an edge is not a wedge, two names find one edge,
+    /// or the corners are declined as [`corners::admit`] and
+    /// [`corners::of_three`] decline them.
     pub(super) fn step(&self, names: &[EdgeName], kind: &Kind) -> Result<Step, Declined> {
         let found = names
             .iter()
@@ -55,14 +56,7 @@ impl Exact {
         let three = corners::of_three(&self.brep, &edges)?;
         let mut wedges: Vec<Wedge> = found.into_iter().map(|(_, wedge)| wedge).collect();
         let reached = |rank: usize, side: usize| {
-            let ends = runs(
-                &self.brep,
-                (&edges, &wedges),
-                &beside,
-                (rank, side),
-                rank,
-                &kind.set_back,
-            );
+            let ends = runs(&self.brep, (&edges, &wedges), (rank, side), &kind.set_back);
             let wedge = &wedges[rank];
             let from = (wedge.into[side], wedge.point);
             reach_within(&self.brep, wedge.faces[side], from, &ends)
@@ -115,13 +109,7 @@ impl Step {
         let set_back = kind.set_back;
         alone
             .min(pairs::bound(&self.wedges, &self.facing, set_back))
-            .min(set_backs::bound(
-                body,
-                &self.edges,
-                &self.wedges,
-                &self.beside,
-                set_back,
-            ))
+            .min(set_backs::bound(body, &self.edges, &self.wedges, set_back))
     }
 }
 
@@ -190,17 +178,21 @@ impl Exact {
                         .filter(|&earlier| corners::meet(&self.brep, [edges[earlier], edges[rank]]))
                         .map(|earlier| start + earlier as u32)
                         .collect();
-                    let mut open = flush::open(&self.brep, rank, &given, &beside);
-                    open.extend(flush::completing(&self.brep, rank, &given, &crossing));
+                    let open = flush::open(&self.brep, rank, &given, &beside);
+                    let met = (
+                        &mitred[..],
+                        &open[..],
+                        &completing(rank, &given, &crossing)[..],
+                    );
                     let value = ends.get(&rank).copied().unwrap_or(taken);
                     if mitred.is_empty() {
-                        cut.laid(&names[rank], value, &tool, (&mitred, &open), &held)?
+                        cut.laid(&names[rank], value, &tool, met, &held)?
                     } else {
                         let flush = Flush::beside(
                             &self.brep, rank, &given, &beside, value, &set_back, &tool,
                         )?
                         .holding(&held);
-                        cut.laid_as(&flush, &wedges[rank], value, &tool, &mitred, &open)?
+                        cut.laid_as(&flush, &wedges[rank], value, &tool, met)?
                     }
                 }
             };
@@ -209,4 +201,19 @@ impl Exact {
         cut.next = start + names.len() as u32;
         Ok((cut.closed(&closes, start)?, taken, pairs))
     }
+}
+
+/// The wedges of the listed edges laid after the edge of rank `rank` in
+/// `edges` on whose faces its set-back and another's cross, as `crossing`
+/// holds them (#822): the crossing ends on that edge's wall, which its own
+/// cut takes away once it is laid — whole, where this one takes it whole.
+fn completing<'a>(
+    rank: usize,
+    edges: &[(EdgeId, &'a Wedge)],
+    crossing: &[(usize, [usize; 2])],
+) -> Vec<&'a Wedge> {
+    (crossing.iter())
+        .filter(|&&(between, pair)| pair.contains(&rank) && between > rank)
+        .map(|&(between, _)| edges[between].1)
+        .collect()
 }

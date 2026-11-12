@@ -194,8 +194,7 @@ impl PartTree {
                     let Some(drawing) = document.sketches().get(sketch) else {
                         continue;
                     };
-                    let rank = tree.sketches.len() + 1;
-                    let mut shown = drawn(lang, document, drawing, sketch, step, rank);
+                    let mut shown = drawn(lang, document, drawing, sketch, step);
                     shown.badge = document.is_adrift(sketch).then_some(Problem::FaceLost);
                     shown.plane = laid_on(document, sketch, drawing, lang, plane::short);
                     tree.sketches.push(shown);
@@ -243,12 +242,6 @@ impl PartTree {
     }
 }
 
-/// The name of the `rank`th sketch, the one its row and its line in the
-/// history both go by.
-fn sketch_name(lang: &Catalogue, rank: usize) -> String {
-    numbered(lang, "part_tree.sketch", rank)
-}
-
 fn numbered(lang: &Catalogue, key: &str, rank: usize) -> String {
     lang.t_with(key, &[("rank", &rank.to_string())])
 }
@@ -259,7 +252,6 @@ fn drawn(
     sketch: &Sketch,
     index: usize,
     step: usize,
-    rank: usize,
 ) -> Drawn {
     let measured = |target| document.measured(index, target);
     let mut strokes: Vec<Row> = sketch
@@ -303,7 +295,7 @@ fn drawn(
         sketch: index,
         badge: None,
         step,
-        name: sketch_name(lang, rank),
+        name: wording::sketch::name(lang, document, index),
         plane: String::new(),
         open: false,
         dimmed: false,

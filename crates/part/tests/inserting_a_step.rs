@@ -10,8 +10,9 @@
 //!
 //! Closes #737 — this file holds the part's half of each criterion. The
 //! reader's half — where the reading point goes, the boxes dashed, the names
-//! the panel shows — belongs to `cao_app`, and is transcribed under a block of
-//! its own in `crates/app/tests/the_step_reader.rs`.
+//! the panel shows — belongs to `cao_app`, and is transcribed under blocks of
+//! its own in `crates/app/tests/the_step_reader.rs` and
+//! `crates/app/tests/a_sketch_keeps_its_number.rs`.
 //! - The reading point is at step 3 of 6; the user creates a sketch, an
 //!   extrusion…: the new step is inserted after step 3 —
 //!   `a_sketch_and_its_extrusion_made_while_read_through_step_three_go_in_after_it`
@@ -32,7 +33,8 @@
 //!   the next number, « Esquisse 4 ». The others are not renumbered — the
 //!   number, which the part keeps:
 //!   `a_sketch_inserted_between_the_second_and_the_third_takes_the_next_number`;
-//!   the name the panel writes out of it is the reader's half
+//!   the name every panel writes out of it is in
+//!   `crates/app/tests/a_sketch_keeps_its_number.rs`
 //! - Undo takes back the last action in time, even one inserted in the middle;
 //!   the reading point does not move unless its box disappears. The history
 //!   lists actions in the order they were done; the reader shows steps in the

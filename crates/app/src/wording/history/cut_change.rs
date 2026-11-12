@@ -29,8 +29,13 @@ pub(super) fn label(lang: &Catalogue, change: &CutChange) -> String {
 }
 
 /// The line shown when the entry is unfolded.
-pub(super) fn detail(lang: &Catalogue, variables: &Variables, change: &CutChange) -> String {
-    let sketch = (change.sketch() + 1).to_string();
+pub(super) fn detail(
+    lang: &Catalogue,
+    variables: &Variables,
+    change: &CutChange,
+    number: &dyn Fn(usize) -> u32,
+) -> String {
+    let sketch = number(change.sketch()).to_string();
     match change {
         CutChange::Reshape {
             value: CutAsked::Fillet(radius),

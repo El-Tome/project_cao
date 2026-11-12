@@ -1,5 +1,5 @@
 use cao_part::history::Operation;
-use cao_part::{VariableChange, Variables};
+use cao_part::{PartDocument, VariableChange, Variables};
 
 use crate::lang::Catalogue;
 use crate::wording::history::moved::moved;
@@ -9,15 +9,32 @@ use crate::wording::history::values::{
 };
 use crate::wording::{constraints, dimension};
 
-/// The line shown when a history entry is unfolded.
+/// The line shown when a history entry of that part is unfolded, a sketch
+/// named by the number the part gave it.
 ///
 /// Every value is rounded here, before it reaches a key: a language file that
 /// carried `{:.1}` would be a language file only a developer could write.
+pub fn detail_in(lang: &Catalogue, document: &PartDocument, operation: &Operation) -> String {
+    let number = |sketch| crate::wording::sketch::number(document, sketch);
+    unfolded(lang, document.variables(), operation, &number)
+}
+
+/// The same with no part to ask, a sketch named by its rank from one.
+#[cfg_attr(not(test), expect(dead_code))]
 pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) -> String {
+    unfolded(lang, variables, operation, &crate::wording::sketch::by_rank)
+}
+
+fn unfolded(
+    lang: &Catalogue,
+    variables: &Variables,
+    operation: &Operation,
+    number: &dyn Fn(usize) -> u32,
+) -> String {
     match operation {
         Operation::Gesture(done) => done
             .first()
-            .map(|first| detail(lang, variables, first))
+            .map(|first| unfolded(lang, variables, first, number))
             .unwrap_or_default(),
         Operation::Variable(
             VariableChange::Added { name, formula } | VariableChange::Edited { name, formula, .. },
@@ -48,14 +65,14 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         } => lang.t_with(
             "history.detail.point",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("x", &dimension::short(position.x)),
                 ("y", &dimension::short(position.y)),
             ],
         ),
         Operation::AddSegment {
             sketch, start, end, ..
-        } => between(lang, *sketch, start, end),
+        } => between(lang, number(*sketch), start, end),
         Operation::AddSymmetricSegment {
             sketch,
             middle,
@@ -64,7 +81,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         } => lang.t_with(
             "history.detail.symmetric_segment",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("middle", &point_label(lang, middle)),
                 ("end", &point_label(lang, end)),
             ],
@@ -74,11 +91,11 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
             corner,
             opposite,
             ..
-        } => between(lang, *sketch, corner, opposite),
+        } => between(lang, number(*sketch), corner, opposite),
         Operation::AddCircle { sketch, radius, .. } => lang.t_with(
             "history.detail.circle",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("radius", &dimension::short(*radius)),
             ],
         ),
@@ -91,7 +108,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         } => lang.t_with(
             "history.detail.arc",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("center", &point_label(lang, center)),
                 ("start", &point_label(lang, start)),
                 ("end", &point_label(lang, end)),
@@ -104,7 +121,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         | Operation::MoveMany { .. }
         | Operation::MoveSegment { .. }
         | Operation::TurnShape { .. }
-        | Operation::MoveDimension { .. } => moved(lang, operation),
+        | Operation::MoveDimension { .. } => moved(lang, operation, number),
         Operation::AddEllipse {
             sketch,
             center,
@@ -113,7 +130,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         } => lang.t_with(
             "history.detail.ellipse",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("center", &point_label(lang, center)),
                 ("end", &point_label(lang, &first[1])),
             ],
@@ -121,14 +138,14 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         Operation::Extrude { sketch, areas, .. } => lang.t_with(
             "history.detail.extrusion",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("count", &areas.len().to_string()),
             ],
         ),
         Operation::Constrain { sketch, constraint } => lang.t_with(
             "history.detail.rule",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("rule", &constraints::label(lang, *constraint)),
             ],
         ),
@@ -140,7 +157,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         } => lang.t_with(
             "history.detail.erased",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("elements", &elements.len().to_string()),
                 ("dimensions", &dimensions.len().to_string()),
                 ("constraints", &constraints.len().to_string()),
@@ -154,7 +171,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         } => lang.t_with(
             "history.detail.trimmed",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("segment", &segment.0.to_string()),
                 ("from", &from.0.to_string()),
                 ("to", &to.0.to_string()),
@@ -165,14 +182,14 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
             corners,
             mode,
             ..
-        } => sized::chamfer(lang, variables, *sketch, corners.len(), mode),
+        } => sized::chamfer(lang, variables, number(*sketch), corners.len(), mode),
         Operation::Fillet {
             sketch,
             corners,
             radius,
             ..
-        } => sized::fillet(lang, variables, *sketch, corners.len(), radius),
-        Operation::CutChange(change) => super::cut_change::detail(lang, variables, change),
+        } => sized::fillet(lang, variables, number(*sketch), corners.len(), radius),
+        Operation::CutChange(change) => super::cut_change::detail(lang, variables, change, number),
         Operation::EditMatter { to, .. } => super::label(lang, variables, to),
         Operation::SaveSection(_)
         | Operation::EditSection { .. }
@@ -184,7 +201,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         } => lang.t_with(
             "history.detail.mirrored",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("elements", &elements.len().to_string()),
                 ("axis", &chosen_axis(lang, *axis)),
             ],
@@ -198,7 +215,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         } => sized::circular_pattern(
             lang,
             variables,
-            (*sketch, elements.len()),
+            (number(*sketch), elements.len()),
             *centre,
             degrees,
             count,
@@ -212,7 +229,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         } => sized::rectangular_pattern(
             lang,
             variables,
-            (*sketch, elements.len()),
+            (number(*sketch), elements.len()),
             *direction,
             along,
             across,
@@ -225,7 +242,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         } => lang.t_with(
             "history.detail.arc_trimmed",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("arc", &arc.0.to_string()),
                 ("from", &from.0.to_string()),
                 ("to", &to.0.to_string()),
@@ -238,7 +255,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         } => lang.t_with(
             "history.detail.ellipse_trimmed",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("ellipse", &ellipse.0.to_string()),
                 ("from", &from.0.to_string()),
                 ("to", &to.0.to_string()),
@@ -251,7 +268,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         } => lang.t_with(
             "history.detail.ellipse_taken_whole",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("ellipse", &ellipse.0.to_string()),
             ],
         ),
@@ -262,7 +279,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         } => lang.t_with(
             "history.detail.circle_trimmed",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("circle", &circle.0.to_string()),
                 ("from", &from.0.to_string()),
                 ("to", &to.0.to_string()),
@@ -275,7 +292,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         } => lang.t_with(
             "history.detail.circle_taken_whole",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("circle", &circle.0.to_string()),
             ],
         ),
@@ -287,7 +304,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         } => lang.t_with(
             "history.detail.split",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("count", &(segments.len() + arcs.len()).to_string()),
                 ("x", &dimension::short(at.x)),
                 ("y", &dimension::short(at.y)),
@@ -300,7 +317,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         } => lang.t_with(
             "history.detail.points_merged",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("kept", &kept.0.to_string()),
                 ("dropped", &dropped.0.to_string()),
             ],
@@ -313,7 +330,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         } => lang.t_with(
             "history.detail.revolution",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("count", &areas.len().to_string()),
                 ("axis", &revolution_axis(lang, *axis)),
             ],
@@ -321,7 +338,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         Operation::SetDimension { sketch, target, .. } => lang.t_with(
             "history.detail.dimension",
             &[
-                ("sketch", &(sketch + 1).to_string()),
+                ("sketch", &number(*sketch).to_string()),
                 ("spans", &dimension::spans(lang, target)),
             ],
         ),

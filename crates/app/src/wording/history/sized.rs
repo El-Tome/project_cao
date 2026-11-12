@@ -13,14 +13,14 @@ use crate::wording::history::values::{chamfer as chamfer_mode, chosen_axis};
 pub(super) fn chamfer(
     lang: &Catalogue,
     variables: &Variables,
-    sketch: usize,
+    sketch: u32,
     corners: usize,
     mode: &ChamferAsked,
 ) -> String {
     lang.t_with(
         "history.detail.chamfer",
         &[
-            ("sketch", &(sketch + 1).to_string()),
+            ("sketch", &sketch.to_string()),
             ("corners", &corners.to_string()),
             ("mode", &chamfer_mode(lang, variables, mode)),
         ],
@@ -30,14 +30,14 @@ pub(super) fn chamfer(
 pub(super) fn fillet(
     lang: &Catalogue,
     variables: &Variables,
-    sketch: usize,
+    sketch: u32,
     corners: usize,
     radius: &Formula,
 ) -> String {
     lang.t_with(
         "history.detail.fillet",
         &[
-            ("sketch", &(sketch + 1).to_string()),
+            ("sketch", &sketch.to_string()),
             ("corners", &corners.to_string()),
             ("radius", &sized(lang, variables, radius, short)),
         ],
@@ -49,7 +49,7 @@ pub(super) fn fillet(
 pub(super) fn circular_pattern(
     lang: &Catalogue,
     variables: &Variables,
-    (sketch, elements): (usize, usize),
+    (sketch, elements): (u32, usize),
     centre: PointId,
     degrees: &Formula,
     count: &Formula,
@@ -57,7 +57,7 @@ pub(super) fn circular_pattern(
     lang.t_with(
         "history.detail.circular_pattern",
         &[
-            ("sketch", &(sketch + 1).to_string()),
+            ("sketch", &sketch.to_string()),
             ("elements", &elements.to_string()),
             ("centre", &centre.0.to_string()),
             ("degrees", &sized(lang, variables, degrees, short)),
@@ -69,7 +69,7 @@ pub(super) fn circular_pattern(
 pub(super) fn rectangular_pattern(
     lang: &Catalogue,
     variables: &Variables,
-    (sketch, elements): (usize, usize),
+    (sketch, elements): (u32, usize),
     direction: ChosenAxis,
     along: &RepeatsAsked,
     across: &RepeatsAsked,
@@ -78,7 +78,7 @@ pub(super) fn rectangular_pattern(
     lang.t_with(
         "history.detail.rectangular_pattern",
         &[
-            ("sketch", &(sketch + 1).to_string()),
+            ("sketch", &sketch.to_string()),
             ("elements", &elements.to_string()),
             ("direction", &chosen_axis(lang, direction)),
             ("along", &sized(lang, variables, &along.count, whole)),

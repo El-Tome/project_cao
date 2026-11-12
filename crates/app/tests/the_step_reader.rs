@@ -25,7 +25,8 @@
 //!
 //! Closes #737 — the reader's half of each criterion that has one; the part's
 //! half, and the criteria that have no other, are in
-//! `crates/part/tests/inserting_a_step.rs`.
+//! `crates/part/tests/inserting_a_step.rs`, and the names every panel shows in
+//! `crates/app/tests/a_sketch_keeps_its_number.rs`.
 //! - The reading point is at step 3 of 6; the user creates a sketch, an
 //!   extrusion…: the new step is inserted after step 3 — the tools, which put
 //!   the step in at the reading point rather than at the end —
@@ -33,10 +34,6 @@
 //! - The reading point stays on the new step, the rest still dashed. More steps
 //!   can be inserted after it; ▶ (or a click on the last box) plays the rest —
 //!   `the_reading_point_stays_on_each_step_inserted_and_the_rest_plays_after_them`
-//! - Names: a sketch inserted between « Esquisse 2 » and « Esquisse 3 » takes
-//!   the next number, « Esquisse 4 ». The others are not renumbered — the names
-//!   the panel shows —
-//!   `a_sketch_inserted_after_the_second_takes_the_next_number_and_the_others_keep_theirs`
 //! - Undo takes back the last action in time, even one inserted in the middle;
 //!   the reading point does not move unless its box disappears. The history
 //!   lists actions in the order they were done; the reader shows steps in the

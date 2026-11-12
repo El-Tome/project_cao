@@ -10,11 +10,11 @@ use crate::wording::{constraints, dimension, formula};
 
 /// A shape drawn from one point to another: a segment, or a rectangle by its
 /// opposite corners.
-pub(super) fn between(lang: &Catalogue, sketch: usize, start: &PointRef, end: &PointRef) -> String {
+pub(super) fn between(lang: &Catalogue, sketch: u32, start: &PointRef, end: &PointRef) -> String {
     lang.t_with(
         "history.detail.between",
         &[
-            ("sketch", &(sketch + 1).to_string()),
+            ("sketch", &sketch.to_string()),
             ("start", &point_label(lang, start)),
             ("end", &point_label(lang, end)),
         ],

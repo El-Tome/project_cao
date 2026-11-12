@@ -7,7 +7,9 @@ mod moved;
 mod sized;
 mod values;
 
+#[cfg_attr(not(test), expect(unused_imports))]
 pub use detail::detail;
+pub use detail::detail_in;
 
 use cao_part::history::{ExtrusionMode, FaceAnchor, Operation};
 use cao_part::{VariableChange, Variables};

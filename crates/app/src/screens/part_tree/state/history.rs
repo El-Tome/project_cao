@@ -2,16 +2,17 @@
 //! numbered as the list reads. A section is a way of looking at the part, not
 //! an action on it, and takes no line.
 //!
-//! A sketch and a volume go by the names their rows above give them, ranked
-//! over every step, undone ones included; any other action keeps the name the
-//! history has always given it.
+//! A sketch and a volume go by the names their rows above give them — a
+//! sketch by the number the part gave it, a volume ranked over every step,
+//! undone ones included; any other action keeps the name the history has
+//! always given it.
 
 use cao_part::feature::Feature;
 use cao_part::history::{Operation, PointRef};
 use cao_part::{PartDocument, Variables};
 
+use super::numbered;
 use super::volumes::{mode_key, volume_name};
-use super::{numbered, sketch_name};
 use crate::lang::Catalogue;
 use crate::wording::{self, dimension, formula};
 
@@ -61,19 +62,19 @@ impl History {
                 Operation::CreateSketch { plane, on } => {
                     sketches += 1;
                     let laid = wording::history::laid_on(lang, plane, on);
-                    (sketch_name(lang, sketches), laid)
+                    (wording::sketch::name(lang, document, sketches - 1), laid)
                 }
                 Operation::CreateSketchOnSection { section, .. } => {
                     sketches += 1;
                     let cut = numbered(lang, "part_tree.section", section + 1);
-                    (sketch_name(lang, sketches), cut)
+                    (wording::sketch::name(lang, document, sketches - 1), cut)
                 }
                 Operation::Extrude { .. } | Operation::Revolve { .. } => {
                     volumes += 1;
                     let name = volume_name(lang, operation, volumes).unwrap_or_default();
                     (name, matter(lang, variables, operation))
                 }
-                _ => drawn(lang, variables, operation),
+                _ => drawn(lang, document, operation),
             };
             let ends = Feature::line_ends(&document.history, step);
             lines.push(HistoryLine {
@@ -132,8 +133,8 @@ fn matter(lang: &Catalogue, variables: &Variables, operation: &Operation) -> Str
 
 /// The name and the detail of an action inside a sketch: its size, for a
 /// rectangle or a circle, and what the history has always said otherwise.
-fn drawn(lang: &Catalogue, variables: &Variables, operation: &Operation) -> (String, String) {
-    let name = wording::history::label(lang, variables, operation);
+fn drawn(lang: &Catalogue, document: &PartDocument, operation: &Operation) -> (String, String) {
+    let name = wording::history::label(lang, document.variables(), operation);
     let size = match operation {
         Operation::AddRectangle {
             corner: PointRef::New(corner),
@@ -155,6 +156,6 @@ fn drawn(lang: &Catalogue, variables: &Variables, operation: &Operation) -> (Str
         )),
         _ => None,
     };
-    let detail = size.unwrap_or_else(|| wording::history::detail(lang, variables, operation));
+    let detail = size.unwrap_or_else(|| wording::history::detail_in(lang, document, operation));
     (name, detail)
 }

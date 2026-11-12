@@ -5,7 +5,7 @@ use cao_part::{Broken, NameProblem, PartDocument, Refused, Use, VariableId};
 use cao_sketch::DimensionTarget;
 
 use crate::lang::Catalogue;
-use crate::wording::{dimension, history};
+use crate::wording::{self, dimension, history};
 
 /// Why the part refused a change to its variables.
 pub fn refused(lang: &Catalogue, document: &PartDocument, refused: &Refused) -> String {
@@ -78,9 +78,13 @@ fn breaking(lang: &Catalogue, document: &PartDocument, broken: &Broken) -> Strin
                 ("followed_by", &step(lang, document, *followed_by)),
             ],
         ),
-        Broken::Adrift(sketch) => {
-            lang.t_with("variables.adrift", &[("sketch", &(sketch + 1).to_string())])
-        }
+        Broken::Adrift(sketch) => lang.t_with(
+            "variables.adrift",
+            &[(
+                "sketch",
+                &wording::sketch::number(document, *sketch).to_string(),
+            )],
+        ),
     }
 }
 
@@ -93,7 +97,7 @@ fn named(document: &PartDocument, variable: VariableId) -> String {
 }
 
 /// A value on a drawing, by what it measures now and the sketch it is on,
-/// counted from one the way the panels count sketches.
+/// by the number the panels name that sketch by.
 fn value_on(
     lang: &Catalogue,
     document: &PartDocument,
@@ -108,7 +112,10 @@ fn value_on(
         "variables.use_dimension",
         &[
             ("dimension", &dimension::label(lang, target, &measured)),
-            ("sketch", &(sketch + 1).to_string()),
+            (
+                "sketch",
+                &wording::sketch::number(document, sketch).to_string(),
+            ),
         ],
     )
 }

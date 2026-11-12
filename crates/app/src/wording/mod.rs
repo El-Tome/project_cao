@@ -32,6 +32,7 @@ pub mod plane;
 pub mod section;
 pub mod settings;
 pub mod shortcuts;
+pub mod sketch;
 pub mod storage;
 pub mod toolbar;
 pub mod unstable;

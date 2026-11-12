@@ -110,7 +110,7 @@
 //! The mutants of #807's trim no criterion's test reaches, one line each.
 //! `leaving`'s growth of the radius along an edge: killed by the rib up a
 //! steep ramp. `past_the_end`'s cylinder guard turned `true`: killed by the
-//! pillar decline #908 lifts. `outside_cone`'s `height` from `at + origin`:
+//! pillar decline, which #908 has since turned round. `outside_cone`'s `height` from `at + origin`:
 //! equivalent, `Cone::through` keeps `origin · axis` nought.
 //! `past_the_end`'s plane guard turned `true`: equivalent, #835's argument.
 //! `leaving`'s `at > 0`, `at < 1` and radius `> 0` admitting equality:
@@ -120,6 +120,24 @@
 //! past the prism's ends or beyond the apex. `past_the_end`'s cylinder `>`
 //! turned `>=`: unkilled, only at exact tangency, #698's chain, still
 //! declined further on.
+//!
+//! Closes #908.
+//! - A chamfer and a fillet at the foot of a wall running into a round
+//!   pillar, with the matter inside the cylinder, are trimmed flush on the
+//!   pillar. The body is closed, sound and of the right volume —
+//!   `a_chamfer_and_a_fillet_at_the_foot_of_a_wall_running_into_a_round_pillar_are_trimmed_flush_on_the_pillar`.
+//!   Flush as the rib's round end is: the pillar stays one face on its
+//!   cylinder, cut back over the fill, its foot one edge with no corner left
+//!   where only it and the plate's top meet, and nothing of the fill inside
+//!   it
+//! - The pinned decline that #807 adds for this case is turned around —
+//!   `a_chamfer_and_a_fillet_at_the_foot_of_a_wall_running_into_a_round_pillar_are_trimmed_flush_on_the_pillar`
+//!   is that decline, renamed for what it now builds
+//! - #788's and #807's other tests still pass, including the declines of an
+//!   edge running into a cone (#807's comment) — no test: they are the tests
+//!   above in this file, left as they were, and running them is the answer.
+//!   A round the edge runs into whose matter lies outside it stays declined
+//!   by them too: the slot's front running into its round end
 
 mod step_reader;
 
@@ -5047,45 +5065,230 @@ fn wall_into_a_pillar_volume() -> f64 {
     4800.0 + PI * 9.0 * 10.0 + (40.0 - in_the_pillar) * 8.0
 }
 
-/// A round the edge runs into is declined, as #788 rules: here a pillar
-/// holding its matter inside its cylinder, which the cylinder's trim would
-/// fill flush. #908 lifts it, and turns this test round.
+/// The numbers the [`wall_into_a_pillar`]'s faces past its wall's front
+/// answer to: the wall's top and its back and left end; the pillar's round,
+/// one face answering to both halves of its outline; and where the steps
+/// that built it stopped numbering, past the pillar's floor, top and two
+/// halves.
+const WALL_TOP: usize = 7;
+const WALL_BACK: usize = 10;
+const WALL_LEFT: usize = 11;
+const PILLAR_ROUND: usize = 15;
+const PILLAR_SIDE: [u32; 2] = [14, 15];
+const PILLAR_STEPS_END: usize = 16;
+
+/// The upright line the [`wall_into_a_pillar`]'s pillar stands about, read
+/// in plan, and its radius.
+const PILLAR: (DVec2, f64) = (DVec2::new(25.0, 13.0), 3.0);
+
+/// Where the [`wall_into_a_pillar`]'s pillar stands at `y`, read in plan:
+/// the x of its point there on the wall's side of its axis.
+fn on_the_pillar(y: f64) -> f64 {
+    let (axis, radius) = PILLAR;
+    axis.x - (radius * radius - (y - axis.y).powi(2)).sqrt()
+}
+
+/// How far a point stands from the pillar's axis, read in plan.
+fn off_the_pillar_s_axis(point: DVec3) -> f64 {
+    point.truncate().distance(PILLAR.0)
+}
+
+/// How long a fill at the foot of the wall's front runs, `out` from it: from
+/// the wall's left end to the pillar.
+fn along_the_wall(out: f64) -> f64 {
+    on_the_pillar(12.0 - out) - 5.0
+}
+
+/// The matter a chamfer of `value` at the foot of the wall's front holds,
+/// in closed form: over its section, `value − out` high, the length
+/// [`along_the_wall`] gives, 20 less the root of 9 − t² at t = 1 + out from
+/// the pillar's axis. With a = 1 + `value`, ∫₁ᵃ (a − t) √(9 − t²) dt is
+/// a [F] − [G], F the area under the circle and G = −(9 − t²)^{3/2} / 3.
+fn chamfer_into_the_pillar(value: f64) -> f64 {
+    let under = |t: f64| (t * (9.0 - t * t).sqrt() + 9.0 * (t / 3.0).asin()) / 2.0;
+    let moment = |t: f64| -(9.0 - t * t).powf(1.5) / 3.0;
+    let a = 1.0 + value;
+    10.0 * value * value - (a * (under(a) - under(1.0)) - (moment(a) - moment(1.0)))
+}
+
+fn side(face: usize) -> Vec<u32> {
+    vec![face as u32]
+}
+
+/// Holds that the [`wall_into_a_pillar`] is what the steps are given: its
+/// faces numbered up to [`PILLAR_STEPS_END`]; the pillar's front half on its
+/// cylinder; the foot of the wall's front one edge, from the wall's left end
+/// to the pillar; and its matter the plate's, the pillar's and the wall's.
+fn the_wall_runs_into_a_pillar(part: &Body) {
+    let what = "the wall running into a round pillar, before any step";
+    assert_eq!(
+        part.faces_end(),
+        PILLAR_STEPS_END,
+        "{what}: its steps numbered their faces up to {PILLAR_STEPS_END}"
+    );
+    drawn_on_the_cylinder(part, PILLAR_ROUND, PILLAR, what);
+    one_edge_of(
+        part,
+        [side(TOP), side(WALL_FRONT)],
+        [vec![side(WALL_LEFT)], vec![PILLAR_SIDE.to_vec()]],
+        &format!("{what}: the foot of the wall's front"),
+    );
+    sound_drawn_within(
+        part,
+        wall_into_a_pillar_volume(),
+        drawn_within(part, 2.0 * PI * 3.0 * 10.0),
+        what,
+    );
+}
+
+/// A round the edge runs into, its matter inside its cylinder, trims the
+/// fill flush as a round the edge runs out of does: the pillar stays one
+/// face, on its cylinder, cut back over the fill, and nothing of the fill
+/// stands inside it.
 #[test]
-fn a_chamfer_and_a_fillet_at_the_foot_of_a_wall_running_into_a_round_pillar_are_declined_as_unsupported()
+fn a_chamfer_and_a_fillet_at_the_foot_of_a_wall_running_into_a_round_pillar_are_trimmed_flush_on_the_pillar()
  {
+    let value = 1.0;
     let part = wall_into_a_pillar();
-    let what = "the wall running into a round pillar";
-    sound_drawn_within(
-        &part,
-        wall_into_a_pillar_volume(),
-        drawn_within(&part, 2.0 * PI * 3.0 * 10.0),
-        &format!("{what}, before any step"),
-    );
+    the_wall_runs_into_a_pillar(&part);
     let foot = edge_between(&part, TOP, WALL_FRONT);
-    assert!(
-        foot.ends.iter().flatten().flatten().any(|&face| {
-            let face = face as usize;
-            part.has_face(face) && !part.is_flat(face)
-        }),
-        "{what}: the foot of the wall's front ends on the pillar's round: {foot:?}"
-    );
 
-    let declined = [
-        ("the chamfer", part.chamfer(&foot, 1.0).err()),
-        ("the fillet", part.fillet(&foot, 1.0).err()),
-    ];
+    for fill in [Fill::Chamfer, Fill::Fillet] {
+        let what = format!("the {fill:?} at the foot of a wall running into a round pillar");
+        let laid = match fill {
+            Fill::Chamfer => part
+                .chamfer(&foot, value)
+                .map(|chamfered| (chamfered.body, chamfered.asked, chamfered.taken)),
+            Fill::Fillet => part
+                .fillet(&foot, value)
+                .map(|filleted| (filleted.body, filleted.asked, filleted.taken)),
+        };
+        let (body, asked, taken) =
+            laid.unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
 
-    for (step, declined) in declined {
-        assert_eq!(
-            declined,
-            Some(Declined::Unsupported),
-            "{step} of 1 at the foot of a wall running into a round pillar"
+        taken_whole(asked, taken, value, &what);
+        let height = |out: f64| match fill {
+            Fill::Chamfer => chamfer_height(value, out),
+            Fill::Fillet => fillet_height(value, out),
+        };
+        let (matter, laid_area) = match fill {
+            Fill::Chamfer => (chamfer_into_the_pillar(value), 0.0),
+            Fill::Fillet => (
+                fill_matter(value, height, |out, _| along_the_wall(out)),
+                PI / 2.0 * value * along_the_wall(0.0),
+            ),
+        };
+        sound_drawn_within(
+            &body,
+            wall_into_a_pillar_volume() + matter,
+            drawn_within(&part, 2.0 * PI * 3.0 * 10.0 + value * value + laid_area),
+            &what,
         );
+        let made = match fill {
+            Fill::Chamfer => one_flat_face_more(&part, &body, &what),
+            Fill::Fillet => one_round_more(&part, &body, &what),
+        };
+        numbered_after_the_steps_last(&part, &body, made, &what);
+
+        let mut sides = vec![
+            side(TOP),
+            side(WALL_FRONT),
+            side(WALL_LEFT),
+            PILLAR_SIDE.to_vec(),
+        ];
+        sides.sort();
+        assert_eq!(
+            sides_met(&body, made),
+            sides,
+            "{what}: the fill meets the plate's top and the wall's front along its sides, and \
+             the wall's left end and the pillar at its ends, by one edge each"
+        );
+        let (front, up) = (12.0 - value, PLATE + value);
+        let (near, far) = (on_the_pillar(12.0), on_the_pillar(front));
+        no_corner_of(
+            &body,
+            vec![side(TOP), PILLAR_SIDE.to_vec()],
+            &format!("{what}: the pillar's foot, where the fill's side crosses its line"),
+        );
+        one_edge_of(
+            &body,
+            [side(TOP), PILLAR_SIDE.to_vec()],
+            [vec![side(WALL_BACK)], vec![side(made)]],
+            &format!("{what}: the pillar's foot, run short to the fill"),
+        );
+        one_edge_of(
+            &body,
+            [side(WALL_FRONT), PILLAR_SIDE.to_vec()],
+            [vec![side(made)], vec![side(WALL_TOP)]],
+            &format!("{what}: the pillar's edge with the wall's front, run short to the fill"),
+        );
+        no_corner_of(
+            &body,
+            vec![side(TOP), side(WALL_FRONT), PILLAR_SIDE.to_vec()],
+            &format!("{what}: the corner the foot of the wall's front ended at"),
+        );
+        corners_are(
+            &body,
+            WALL_FRONT,
+            &[
+                DVec3::new(5.0, 12.0, up),
+                DVec3::new(near, 12.0, up),
+                DVec3::new(near, 12.0, PLATE + 8.0),
+                DVec3::new(5.0, 12.0, PLATE + 8.0),
+            ],
+            &format!("{what}: what is left of the wall's front"),
+        );
+        drawn_on_the_cylinder(&body, PILLAR_ROUND, PILLAR, &what);
+        let round: Vec<DVec3> = body.triangles_of(PILLAR_ROUND).flatten().collect();
+        for corner in &round {
+            let off_the_wall = 12.0 - corner.y;
+            let under = if corner.x < PILLAR.0.x && (0.0..value).contains(&off_the_wall) {
+                PLATE + height(off_the_wall)
+            } else {
+                PLATE
+            };
+            assert!(
+                corner.z >= under - PLACE,
+                "{what}: the pillar is drawn through {corner}, under the fill's surface at \
+                 {under}: it still stands where the fill covers it"
+            );
+        }
+        for corner in [DVec3::new(near, 12.0, up), DVec3::new(far, front, PLATE)] {
+            assert!(
+                round.iter().any(|drawn| drawn.distance(corner) < PLACE),
+                "{what}: the pillar has no corner at {corner}, where a side of the fill reaches it"
+            );
+        }
+        let furthest = furthest_along_x(&body, made);
+        assert!(
+            (furthest - far).abs() < PLACE,
+            "{what}: the fill runs on to {furthest}, where its side on the plate meets the \
+             pillar at {far}"
+        );
+        for share_out in [0.2, 0.5] {
+            let out = value * share_out;
+            let y = 12.0 - out;
+            let from = DVec3::new(on_the_pillar(y) - SHORT_OF_THE_END, y, PLATE + 10.0);
+            let hit = body.ray_hit(from, -DVec3::Z).unwrap_or_else(|| {
+                panic!("{what}: a ray down from {from}, short of the pillar, meets nothing")
+            });
+            let at = from - DVec3::Z * hit.distance;
+            let off = off_the_surface(height, out, at.z - PLATE);
+            assert!(
+                hit.face == made && off.abs() <= MET,
+                "{what}: a ray down from {from}, short of the pillar, meets face {} at {at}, \
+                 {off} off the fill's surface",
+                hit.face
+            );
+        }
+        for corner in body.triangles_of(made).flatten() {
+            assert!(
+                off_the_pillar_s_axis(corner) >= PILLAR.1 - PLACE,
+                "{what}: the fill is drawn through {corner}, {} from the pillar's axis: inside \
+                 the pillar, whose radius is {}",
+                off_the_pillar_s_axis(corner),
+                PILLAR.1
+            );
+        }
     }
-    sound_drawn_within(
-        &part,
-        wall_into_a_pillar_volume(),
-        drawn_within(&part, 2.0 * PI * 3.0 * 10.0),
-        &format!("{what}, after the steps declined"),
-    );
 }

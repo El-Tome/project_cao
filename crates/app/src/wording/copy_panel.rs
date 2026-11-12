@@ -1,6 +1,10 @@
-//! What the rows of the copy tools' panel say.
+//! What the rows of the copy tools' panel say, and what the drawing says the
+//! panel's current step asks for.
+
+use cao_prefs::Command;
 
 use crate::lang::Catalogue;
+use crate::wording::command;
 
 /// What the target slot of the panel names, depending on the tool.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -8,6 +12,35 @@ pub enum Target {
     Axis,
     Centre,
     Direction,
+}
+
+/// What a numbered step of the circular pattern asks for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Asked {
+    Elements,
+    Centre,
+    Count,
+    Rotation,
+}
+
+/// The message over the drawing while a step of the circular pattern is
+/// current: the tool, the step's number, and what it asks for.
+pub fn circular_step(lang: &Catalogue, number: usize, asked: Asked) -> String {
+    let asked = lang.t(match asked {
+        Asked::Elements => "copy_panel.asks_elements",
+        Asked::Centre => "copy_panel.asks_centre",
+        Asked::Count => "copy_panel.asks_count",
+        Asked::Rotation => "copy_panel.asks_rotation",
+    });
+    let tool = command::label(lang, Command::ToolCircularPattern);
+    lang.t_with(
+        "copy_panel.step_asks",
+        &[
+            ("tool", &tool),
+            ("number", &number.to_string()),
+            ("asked", &asked),
+        ],
+    )
 }
 
 /// The elements row: how many are held.

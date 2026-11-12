@@ -126,7 +126,7 @@ fn enter_in_a_field_of_another_panel_leaves_the_copy_panel_alone() {
     );
     driver::click_the_button(&mut app, "Variables");
     driver::click(&mut app, "Réseau circulaire");
-    let waiting = "ce qui doit être répété";
+    let waiting = "Réseau circulaire — étape 1 : éléments à copier";
     assert!(driver::says(&app, waiting), "{:?}", driver::said(&app));
 
     driver::type_into(&mut app, "nom", "w");

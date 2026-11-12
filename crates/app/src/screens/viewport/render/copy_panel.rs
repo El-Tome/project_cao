@@ -3,7 +3,7 @@
 
 use cao_prefs::Command;
 
-use super::super::input::copying::enter_in_the_panel;
+use super::super::input::copying::{activate_in_the_panel, enter_in_the_panel};
 use super::super::input::count_brought_down;
 use super::live_fields::value_field;
 use crate::screens::SketchContext;
@@ -54,8 +54,8 @@ pub(crate) fn paint_copy_panel(
         context.editor.cancel_the_copy();
         return (false, let_go_at);
     }
-    if let (Some(slot), Some(panel)) = (asked.activate, context.editor.copy_panel_mut()) {
-        panel.activate(slot);
+    if let Some(slot) = asked.activate {
+        activate_in_the_panel(context, slot);
     }
     let bare_enter = ui.input(|input| input.key_pressed(egui::Key::Enter));
     let laid = (asked.enter || bare_enter) && enter_in_the_panel(context);

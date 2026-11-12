@@ -140,10 +140,8 @@ impl CopyPanel {
     #[cfg_attr(not(test), expect(dead_code))]
     pub fn steps(&self, live: &LiveInput) -> Vec<(CopyStep, StepState)> {
         let current = self
-            .steps
-            .iter()
-            .position(|step| step_of(self.active) == Some(*step))
-            .unwrap_or(self.steps.len());
+            .current_step()
+            .map_or(self.steps.len(), |(rank, _)| rank);
         let holds = |step: CopyStep| {
             self.slots()
                 .filter(|slot| step_of(*slot) == Some(step))
@@ -161,6 +159,16 @@ impl CopyPanel {
                 (*step, state)
             })
             .collect()
+    }
+
+    /// The step holding the active slot, with its rank from the top — none on
+    /// Validate, nor for a tool laid out in no steps.
+    pub(crate) fn current_step(&self) -> Option<(usize, CopyStep)> {
+        self.steps
+            .iter()
+            .copied()
+            .enumerate()
+            .find(|(_, step)| step_of(self.active) == Some(*step))
     }
 
     /// The slots that hold something to fill, top to bottom.

@@ -25,7 +25,17 @@
 //! - The message pill follows the step
 //!   (« Réseau circulaire — étape 3 : nombre de copies »);
 //!   a test on the wording checks it —
-//!   `the_message_pill_follows_the_step_of_the_circular_pattern`
+//!   `the_message_pill_follows_the_step_of_the_circular_pattern`, as ↵ and the
+//!   clicks in the drawing move it, and as a step clicked in the panel does —
+//!   `a_step_clicked_in_the_panel_takes_the_message_pill_with_it`. Decided on
+//!   the way: the number and the step are one step, and say one thing on both
+//!   their fields, the issue's « nombre de copies »; the other three are
+//!   « éléments à copier », « centre de rotation » and « sens de rotation ».
+//!   The mirror and the rectangular pattern, which the next issue moves, still
+//!   ask what they asked —
+//!   `the_mirror_and_the_rectangular_pattern_still_ask_what_they_asked`, and a
+//!   row clicked in their panel still leaves the message as it was —
+//!   `a_row_clicked_in_the_mirror_s_or_the_rectangular_pattern_s_panel_leaves_the_message_as_it_was`
 //! - « Horaire » applies the same pattern with the step of opposite sign;
 //!   « Anti-horaire », the default, gives exactly today's result. A test
 //!   compares the two —
@@ -75,7 +85,7 @@ use cao_prefs::Command;
 use cao_sketch::{Element, SegmentId};
 use glam::DVec2;
 
-use super::super::previewed;
+use super::super::{activate_in_the_panel, previewed};
 use super::bench::Bench;
 use crate::screens::sketch::{CopySlot, CopyStep, Rotation, StepState};
 
@@ -403,4 +413,126 @@ fn enter_on_the_last_step_with_a_step_left_empty_brings_that_step_back_marked() 
         "the first step still empty is the one asked for again"
     );
     assert_eq!(bench.panel().marked(), Some(CopySlot::Target));
+}
+
+/// What the message pill at the top of the screen reads.
+fn said(bench: &Bench) -> Option<&str> {
+    bench.editor.message.as_deref()
+}
+
+const STEP_1: &str = "Réseau circulaire — étape 1 : éléments à copier";
+const STEP_2: &str = "Réseau circulaire — étape 2 : centre de rotation";
+const STEP_3: &str = "Réseau circulaire — étape 3 : nombre de copies";
+const STEP_4: &str = "Réseau circulaire — étape 4 : sens de rotation";
+
+#[test]
+fn the_message_pill_follows_the_step_of_the_circular_pattern() {
+    let mut bench = a_trait_and_a_centre();
+
+    bench.take(Command::ToolCircularPattern);
+    assert_eq!(said(&bench), Some(STEP_1));
+    bench.click(ON_THE_TRAIT_TO_COPY);
+    bench.enter();
+    assert_eq!(said(&bench), Some(STEP_2));
+    bench.click(THE_CENTRE);
+    assert_eq!(said(&bench), Some(STEP_3));
+    bench.enter();
+    assert_eq!(
+        said(&bench),
+        Some(STEP_3),
+        "the number and the step are one step: its second field says what its \
+         first said"
+    );
+    bench.enter();
+    assert_eq!(said(&bench), Some(STEP_4));
+    bench.enter();
+    assert_eq!(
+        said(&bench),
+        Some(STEP_1),
+        "the pattern laid, the panel is back on its elements"
+    );
+}
+
+#[test]
+fn a_step_clicked_in_the_panel_takes_the_message_pill_with_it() {
+    let mut bench = a_trait_and_a_centre();
+    bench.take(Command::ToolCircularPattern);
+    bench.click(ON_THE_TRAIT_TO_COPY);
+    bench.enter();
+    bench.click(THE_CENTRE);
+
+    activate_in_the_panel(&mut bench.context(), CopySlot::Rotation);
+    assert_eq!(said(&bench), Some(STEP_4));
+    activate_in_the_panel(&mut bench.context(), CopySlot::Target);
+    assert_eq!(
+        said(&bench),
+        Some(STEP_2),
+        "the centre clicked again to change it"
+    );
+    assert_eq!(
+        bench.active(),
+        CopySlot::Target,
+        "the click makes that step current"
+    );
+}
+
+#[test]
+fn the_mirror_and_the_rectangular_pattern_still_ask_what_they_asked() {
+    for (command, elements, target) in [
+        (
+            Command::ToolMirror,
+            "Cliquez ou encadrez ce qui doit être miroité, puis Entrée",
+            "Cliquez le trait ou l'axe de symétrie",
+        ),
+        (
+            Command::ToolRectangularPattern,
+            "Cliquez ou encadrez ce qui doit être répété, puis Entrée",
+            "Cliquez le trait ou l'axe le long duquel répéter",
+        ),
+    ] {
+        let mut bench = a_trait_and_a_centre();
+
+        bench.take(command);
+        assert_eq!(said(&bench), Some(elements), "{command:?}");
+        bench.click(ON_THE_TRAIT_TO_COPY);
+        bench.enter();
+        assert_eq!(said(&bench), Some(target), "{command:?}");
+        bench.click(THE_CENTRE + DVec2::new(0.0, 5.0));
+        assert_eq!(
+            said(&bench),
+            None,
+            "{command:?}: past its target, the panel says nothing above it"
+        );
+    }
+}
+
+#[test]
+fn a_row_clicked_in_the_mirror_s_or_the_rectangular_pattern_s_panel_leaves_the_message_as_it_was() {
+    for (command, rows) in [
+        (Command::ToolMirror, vec![CopySlot::Target]),
+        (
+            Command::ToolRectangularPattern,
+            vec![CopySlot::Target, CopySlot::Value(0)],
+        ),
+    ] {
+        let mut bench = a_trait_and_a_centre();
+        bench.take(command);
+        bench.click(ON_THE_TRAIT_TO_COPY);
+        let before = said(&bench).map(str::to_owned);
+
+        for row in rows {
+            activate_in_the_panel(&mut bench.context(), row);
+
+            assert_eq!(
+                said(&bench),
+                before.as_deref(),
+                "{command:?}: the row {row:?} clicked"
+            );
+            assert_eq!(
+                bench.active(),
+                row,
+                "{command:?}: the row clicked is active"
+            );
+        }
+    }
 }

@@ -11,8 +11,11 @@ use crate::screens::sketch::{CopySlot, CopyTarget, LiveInput, Tool};
 use super::super::values::refused_for_what_is_typed;
 use super::{ViewScale, ViewportState, pick};
 
+mod asking;
 mod opening;
 mod preview;
+pub(crate) use asking::activate_in_the_panel;
+use asking::say_what_is_asked;
 pub(crate) use preview::previewed;
 
 /// One click of a tool that lays a copy down — the mirror, or either pattern.
@@ -135,25 +138,6 @@ pub(crate) fn take_up(context: &mut SketchContext<'_>, held: Vec<cao_sketch::Ele
         opening::fields_open_on(context);
     }
     say_what_is_asked(context);
-}
-
-/// What the drawing says while the panel waits on its active slot.
-fn say_what_is_asked(context: &mut SketchContext<'_>) {
-    let Some(active) = context.editor.copy_panel().map(|panel| panel.active()) else {
-        return;
-    };
-    let said = match (active, context.editor.tool) {
-        (CopySlot::Elements, Tool::Mirror) => "sketch.mirror_take_elements",
-        (CopySlot::Elements, _) => "sketch.pattern_take_elements",
-        (CopySlot::Target, Tool::CircularPattern) => "sketch.pattern_click_the_centre",
-        (CopySlot::Target, Tool::RectangularPattern) => "sketch.pattern_click_the_direction",
-        (CopySlot::Target, _) => "sketch.mirror_click_the_axis",
-        _ => {
-            context.editor.message = None;
-            return;
-        }
-    };
-    context.editor.message = Some(context.lang.t(said));
 }
 
 fn gather(

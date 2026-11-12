@@ -33,9 +33,9 @@ pub(in crate::body::exact) enum Together {
     /// fill is laid edge by edge.
     Raised(Raise),
     /// A cut beside a fill, as [`Exact::sloped`] lays them at the value
-    /// their set-backs meet at: one slope where their flats lie in one
-    /// plane, two flats meeting in a crease where they lie at an angle. Two
-    /// whose faces meet the same way are laid edge by edge.
+    /// their set-backs meet at: one slope where their flats lie at an angle
+    /// the kernel tells from none, two flats meeting in a crease where it
+    /// tells it. Two whose faces meet the same way are laid edge by edge.
     Sloped,
 }
 

@@ -435,6 +435,28 @@
 //!   every order of the top edges, each followed at once by the upright at its
 //!   end; and every order of the uprights, the top edges after them —
 //!   `a_chamfer_on_the_four_top_edges_and_the_four_uprights_of_a_post_6_by_6_is_declined_as_unsupported_in_each_order_tried`
+//! - Decided on the way, after slice 2's mutants (2026-11-12): a corner's
+//!   triangle takes a flat whole only where that flat's edge runs to another
+//!   corner the step closes, as the end edge's flat between the tongue's two
+//!   corners; any other flat it would take whole is declined `Unsupported`. A
+//!   block 30 by 30 and 10 high, the column 3 by 3 under its front-right
+//!   upright notched away from the floor up to a ceiling through (30, 0, 6),
+//!   (27, 0, 7) and (30, 3, 7) — the upright 4 long, ending on that ceiling,
+//!   which meets the upright's flat at 3 exactly where the corner's triangle
+//!   does — chamfered at 3 on the top's front edge, the top's edge across the
+//!   end and that upright: the triangle takes the upright's flat whole, the
+//!   upright runs to no other corner the step closes, and the step is
+//!   declined `Unsupported` in each of the six orders. A tenth under, the
+//!   flat left standing below the triangle, the same list is built exact in
+//!   each, the value taken whole, closed and uncrossed —
+//!   `a_chamfer_whose_corner_triangle_takes_whole_the_flat_of_an_upright_running_to_no_other_closed_corner_is_declined_as_unsupported_whatever_the_order`.
+//!   In the three orders naming the upright after the top's front edge, the
+//!   step is declined before the corner is closed: those two edges alone at 3
+//!   are declined in that order and built in the other, on `main` too, #912.
+//!   The fillet at 3 on
+//!   the same list is declined `Unsupported` in every order whether or not
+//!   its corner may take the upright's round whole, so it holds nothing of
+//!   this rule — no test
 //!
 //! The campaign is run by hand, out of the gate, compiled only under the
 //! `campaigns` feature: the tongue at both ends in 264 orders, where the gate
@@ -4669,6 +4691,102 @@ fn a_chamfer_on_the_four_top_edges_and_the_four_uprights_of_a_post_6_by_6_is_dec
          {WIDTH} is a broken step and its reason, `Unsupported`, in each order tried; not \
          so:\n{}",
         not_declined.join("\n")
+    );
+}
+
+/// The block [`LENGTH`] long and as wide, [`HEIGHT`] high, its corner under
+/// the upright where the front meets the end notched from the floor: the
+/// column 3 by 3 there taken away up to the ceiling through (30, 0, 6), where
+/// the upright now ends, (27, 0, 7) and (30, 3, 7), where the set-backs at 3
+/// of the top's front edge and of the top's edge across the end cross the
+/// upright's on the front and on the end, and (27, 3, 8). The notch's walls
+/// stand at x = 27 and y = 3.
+fn notched_under_its_front_upright() -> Body {
+    let part = block(LENGTH);
+    let tool = part
+        .tool_raised(
+            &profile(Contour::rectangle(
+                DVec2::new(LENGTH - 3.0, -1.0),
+                DVec2::new(LENGTH + 1.0, 3.0),
+            )),
+            Frame {
+                origin: -DVec3::Z,
+                ..ground()
+            },
+            DVec3::Z * (HEIGHT + 2.0),
+        )
+        .expect("the column raises");
+    let column = Body::default().union(&tool).expect("the column is built");
+    let ceiling = DVec3::new(LENGTH, 0.0, 6.0);
+    let notch = column
+        .difference(&beyond(&column, ceiling, DVec3::new(1.0, -1.0, 3.0), 40.0))
+        .expect("the notch is built");
+    part.difference(&notch).expect("the notched block is built")
+}
+
+#[test]
+fn a_chamfer_whose_corner_triangle_takes_whole_the_flat_of_an_upright_running_to_no_other_closed_corner_is_declined_as_unsupported_whatever_the_order()
+ {
+    let part = notched_under_its_front_upright();
+    let listed = [
+        (TOP_FRONT, "the top's front edge"),
+        (TOP_END, "the top's edge across the end"),
+        (
+            FRONT_UPRIGHT,
+            "the upright at the end's front corner, ending on the notch",
+        ),
+    ];
+    let a_tenth_under = RADIUS - 0.1;
+    let mut not_as_held: Vec<String> = Vec::new();
+    for order in every_order(listed.len()) {
+        let names: Vec<EdgeName> = order
+            .iter()
+            .map(|&edge| {
+                let [one, other] = listed[edge].0;
+                edge_between(&part, one, other)
+            })
+            .collect();
+        let called: Vec<&str> = order.iter().map(|&edge| listed[edge].1).collect();
+        let called = called.join(", then ");
+        match part.chamfer_edges(&names, RADIUS) {
+            Err(Declined::Unsupported) => {}
+            Ok(chamfered) => not_as_held.push(format!(
+                "at {RADIUS}, the chamfer on {called}: a body of {}, taken {}",
+                chamfered.body.volume(),
+                chamfered.taken
+            )),
+            Err(declined) => not_as_held.push(format!(
+                "at {RADIUS}, the chamfer on {called}: declined, {declined:?}"
+            )),
+        }
+        match part.chamfer_edges(&names, a_tenth_under) {
+            Ok(chamfered)
+                if chamfered.body.is_exact()
+                    && (chamfered.taken - a_tenth_under).abs() < PLACE
+                    && closed(&chamfered.body.triangles()).is_ok()
+                    && uncrossed(&chamfered.body.triangles()).is_ok() => {}
+            Ok(chamfered) => not_as_held.push(format!(
+                "at {a_tenth_under}, the chamfer on {called}: taken {}, exact {}, closed {:?}, \
+                 uncrossed {:?}",
+                chamfered.taken,
+                chamfered.body.is_exact(),
+                closed(&chamfered.body.triangles()),
+                uncrossed(&chamfered.body.triangles())
+            )),
+            Err(declined) => not_as_held.push(format!(
+                "at {a_tenth_under}, the chamfer on {called}: declined, {declined:?}"
+            )),
+        }
+    }
+    assert!(
+        not_as_held.is_empty(),
+        "on the block notched under its front upright, the chamfer at {RADIUS} on the top's \
+         front edge, the top's edge across the end and that upright, whose corner's triangle \
+         takes the upright's flat whole though the upright runs to no other corner the step \
+         closes, is a broken step and its reason, `Unsupported`, whatever the order — while at \
+         {a_tenth_under}, the flat left standing under the triangle, it is built exact, the value \
+         taken whole, closed and uncrossed; not so:\n{}",
+        not_as_held.join("\n")
     );
 }
 

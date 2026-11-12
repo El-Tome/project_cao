@@ -135,6 +135,17 @@
 //!   it is, exact, closed and uncrossed —
 //!   `a_fillet_on_a_full_round_and_one_edge_of_its_point_alone_stops_short_of_the_full_round_whatever_the_order`,
 //!   `a_fillet_on_a_full_round_one_edge_of_its_point_alone_and_its_square_far_end_s_edge_stops_short_of_the_full_round_whatever_the_order`
+//! - Decided on the way, after slice 2's mutants (2026-11-12): an upright
+//!   meeting one edge of a full round's pair at a convex corner is admitted
+//!   only where every third edge of the list there is the edge at the pair's
+//!   end, bounding the face that is gone and meeting both edges of the pair.
+//!   The pointed end, tip (33,3), its four top edges named with the upright
+//!   at one of its shoulders, (30,0) or (30,6) — where the third edge is the
+//!   point's, meeting one edge of the pair alone — is declined `Unsupported`
+//!   in each of the 120 orders of the five, at either shoulder, as one body
+//!   in every order or a decline in every order is the rule (#822); building
+//!   it is #911 —
+//!   `a_fillet_on_a_full_round_the_two_edges_of_its_pointed_end_and_the_upright_at_either_shoulder_is_declined_as_unsupported_whatever_the_order`
 //!
 //! The campaign is run by hand, out of the gate, compiled only under the
 //! `campaigns` feature: every one of the 720 orders of the plate pointed at
@@ -1940,6 +1951,40 @@ fn a_fillet_on_a_full_round_the_two_edges_of_a_pointed_or_v_notched_end_and_the_
                 "a full round, the two edges of the end and the upright where they meet, on {}, \
                  until #837 builds it",
                 plate.called
+            ),
+        );
+    }
+}
+
+#[test]
+fn a_fillet_on_a_full_round_the_two_edges_of_its_pointed_end_and_the_upright_at_either_shoulder_is_declined_as_unsupported_whatever_the_order()
+ {
+    let plate = Plate::pointed(33.0, DVec3::ZERO);
+    let top_edges = [
+        ([TOP, FRONT], "the top's front edge"),
+        ([TOP, POINT_FRONT], "the point's front edge"),
+        ([TOP, POINT_BACK], "the point's back edge"),
+        ([TOP, BACK], "the top's back edge"),
+    ];
+    let shoulders = [
+        (
+            [FRONT, POINT_FRONT],
+            "the upright at the front shoulder, (30, 0)",
+        ),
+        (
+            [POINT_BACK, BACK],
+            "the upright at the back shoulder, (30, 6)",
+        ),
+    ];
+    for shoulder in shoulders {
+        let listed: Vec<([usize; 2], &str)> = top_edges.into_iter().chain([shoulder]).collect();
+        declined_in_every_order(
+            &plate.part,
+            &listed,
+            &format!(
+                "a full round, the two edges of the point and {}, whose third edge is the \
+                 point's and meets one edge of the pair alone, on {}",
+                shoulder.1, plate.called
             ),
         );
     }

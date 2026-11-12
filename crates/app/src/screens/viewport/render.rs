@@ -27,6 +27,7 @@ mod grid;
 mod live_fields;
 mod marks;
 mod overlays;
+mod pattern;
 mod planes;
 mod preview;
 mod reading;
@@ -45,6 +46,7 @@ pub(crate) use overlays::{
     mark_under, paint_band, paint_face_labels, paint_rule_marks, paint_ruler, placed_marks,
     to_screen,
 };
+pub(crate) use pattern::{Guides, paint_pattern_labels, turning_guides};
 use planes::{push_choosable_planes, push_hovered_face};
 use preview::pending_annotation;
 use reading::push_measure;
@@ -65,6 +67,12 @@ fn tint(color: cao_prefs::theme::Rgba) -> [f32; 4] {
 /// The same, with the opacity replaced.
 fn tint_at(color: cao_prefs::theme::Rgba, alpha: f32) -> [f32; 4] {
     tint(color.with_alpha(alpha))
+}
+
+/// A token of the chrome, turned into the space the shader blends in.
+fn token(color: egui::Color32) -> [f32; 4] {
+    let [r, g, b, a] = color.to_normalized_gamma_f32();
+    srgb(r, g, b, a)
 }
 
 fn axis_style(theme: &Theme) -> AxisStyle {
@@ -89,7 +97,8 @@ pub(crate) fn build_frame(
     measuring: Option<&Measuring>,
 ) -> SceneFrame {
     let drawn = super::matter::seen(state, context.editor, context.document);
-    let shown = (going, measuring, drawn.as_ref());
+    let turning = turning_guides(context);
+    let shown = (going, measuring, drawn.as_ref(), turning.as_ref());
     frame_of(state, (rect, cube_rect), scale, context, shown)
 }
 
@@ -100,7 +109,12 @@ pub(crate) fn frame_of(
     (rect, cube_rect): (egui::Rect, egui::Rect),
     scale: ViewScale,
     context: &SketchContext<'_>,
-    (going, measuring, drawn): (Option<&Going>, Option<&Measuring>, Option<&Drawn<'_>>),
+    (going, measuring, drawn, turning): (
+        Option<&Going>,
+        Option<&Measuring>,
+        Option<&Drawn<'_>>,
+        Option<&Guides>,
+    ),
 ) -> SceneFrame {
     let camera = &state.camera;
     let pixels_per_point = scale.height_px / rect.height();
@@ -172,6 +186,9 @@ pub(crate) fn frame_of(
     if let Some(index) = context.editor.active_sketch()
         && let Some(sketch) = context.document.sketches().get(index)
     {
+        if let Some(turning) = turning {
+            pattern::push_guides(&mut lines, sketch, turning, theme, scale);
+        }
         push_measure(
             &mut lines,
             &mut surfaces,
@@ -222,10 +239,9 @@ pub(crate) fn frame_of(
 fn lit_cube_face(context: &SketchContext<'_>) -> Option<(CubeFace, [f32; 4])> {
     context.editor.active_sketch()?;
     let plane = context.editor.plane?;
-    let [r, g, b, a] = tokens::ACCENT_AMBER.to_normalized_gamma_f32();
     Some((
         CubeFace::closest_to(plane.normal().as_vec3()),
-        srgb(r, g, b, a),
+        token(tokens::ACCENT_AMBER),
     ))
 }
 

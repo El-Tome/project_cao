@@ -22,7 +22,6 @@ fn the_target_row_says_whether_it_is_still_to_click() {
         "Axe : à cliquer dans le dessin"
     );
     assert_eq!(target(&lang, Target::Axis, true), "Axe : choisi");
-    assert_eq!(target(&lang, Target::Centre, true), "Centre : choisi");
     assert_eq!(
         target(&lang, Target::Direction, false),
         "Direction : à cliquer dans le dessin"

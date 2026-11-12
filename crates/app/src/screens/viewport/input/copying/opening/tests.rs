@@ -44,7 +44,8 @@ fn a_grid_opens_on_a_step_the_hold_fits_in_and_one_copy_each_way() {
 fn a_circular_pattern_opens_on_a_quarter_turn_four_times_round() {
     assert_eq!(
         fields_opened_by(Command::ToolCircularPattern, a_circle_four_units_across()),
-        vec![Some(90.0), Some(4.0), None, None]
+        vec![Some(4.0), Some(90.0), None, None],
+        "four times round first, then the quarter turn"
     );
 }
 

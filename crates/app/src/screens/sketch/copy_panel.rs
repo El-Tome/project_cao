@@ -1,3 +1,6 @@
+use std::cmp::Ordering;
+
+use cao_part::Formula;
 use cao_sketch::{ChosenAxis, Element, PointId, Selection, Sketch, ToolState};
 use glam::DVec2;
 
@@ -13,7 +16,57 @@ pub enum CopySlot {
     Target,
     /// The field of that rank among the tool's values.
     Value(usize),
+    /// The circular pattern's direction, its last step: ↵ there lays the copy
+    /// as on Validate.
+    Rotation,
     Validate,
+}
+
+/// A numbered step of the panel, top to bottom: the slots that belong to it
+/// are what it asks for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CopyStep {
+    Elements,
+    Centre,
+    CountAndStep,
+    Rotation,
+}
+
+/// How a step's dot reads.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StepState {
+    Done,
+    Current,
+    ToCome,
+}
+
+/// Which way round the circular pattern turns. Counter-clockwise is the way a
+/// positive step turns, and the way a pattern turned before it had a
+/// direction.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Rotation {
+    #[default]
+    CounterClockwise,
+    Clockwise,
+}
+
+impl Rotation {
+    /// The step the pattern turns by, from the one typed: as it is
+    /// counter-clockwise, the other way round clockwise.
+    pub(crate) fn step(self, typed: f64) -> f64 {
+        match self {
+            Self::CounterClockwise => typed,
+            Self::Clockwise => -typed,
+        }
+    }
+
+    /// The same step as it is written down, a formula staying a formula.
+    pub(crate) fn step_written(self, typed: Formula) -> Formula {
+        match self {
+            Self::CounterClockwise => typed,
+            Self::Clockwise => typed.negated(),
+        }
+    }
 }
 
 /// What one of a tool's values is: the view names it and gives it its unit.
@@ -40,14 +93,25 @@ pub struct CopyPanel {
     brought_in: Vec<PointId>,
     target: Option<CopyTarget>,
     values: &'static [CopyValue],
+    steps: &'static [CopyStep],
+    rotation: Rotation,
     /// The box being pulled across the drawing while Elements is active.
     pub(crate) band: Option<(DVec2, DVec2)>,
 }
 
 impl CopyPanel {
     fn opened(tool: Tool, elements: Vec<Element>) -> Self {
+        let steps: &[CopyStep] = match tool {
+            Tool::CircularPattern => &[
+                CopyStep::Elements,
+                CopyStep::Centre,
+                CopyStep::CountAndStep,
+                CopyStep::Rotation,
+            ],
+            _ => &[],
+        };
         let values: &[CopyValue] = match tool {
-            Tool::CircularPattern => &[CopyValue::StepInDegrees, CopyValue::Count],
+            Tool::CircularPattern => &[CopyValue::Count, CopyValue::StepInDegrees],
             Tool::RectangularPattern => &[
                 CopyValue::StepInMillimetres,
                 CopyValue::Count,
@@ -64,8 +128,52 @@ impl CopyPanel {
             active,
             elements,
             values,
+            steps,
             ..Self::default()
         }
+    }
+
+    /// Each numbered step, top to bottom, with how its dot reads: current
+    /// where the active slot is, done above it once it holds what it asks
+    /// for, to come otherwise. A tool laid out in no steps has none.
+    pub fn steps(&self, live: &LiveInput) -> Vec<(CopyStep, StepState)> {
+        let current = self
+            .current_step()
+            .map_or(self.steps.len(), |(rank, _)| rank);
+        let holds = |step: CopyStep| {
+            self.slots()
+                .filter(|slot| step_of(*slot) == Some(step))
+                .all(|slot| self.is_filled(slot, live))
+        };
+        self.steps
+            .iter()
+            .enumerate()
+            .map(|(rank, step)| {
+                let state = match rank.cmp(&current) {
+                    Ordering::Equal => StepState::Current,
+                    Ordering::Less if holds(*step) => StepState::Done,
+                    _ => StepState::ToCome,
+                };
+                (*step, state)
+            })
+            .collect()
+    }
+
+    /// The step holding the active slot, with its rank from the top — none on
+    /// Validate, nor for a tool laid out in no steps.
+    pub(crate) fn current_step(&self) -> Option<(usize, CopyStep)> {
+        self.steps
+            .iter()
+            .copied()
+            .enumerate()
+            .find(|(_, step)| step_of(self.active) == Some(*step))
+    }
+
+    /// The slots that hold something to fill, top to bottom.
+    fn slots(&self) -> impl Iterator<Item = CopySlot> {
+        [CopySlot::Elements, CopySlot::Target]
+            .into_iter()
+            .chain((0..self.values.len()).map(CopySlot::Value))
     }
 
     pub fn active(&self) -> CopySlot {
@@ -80,6 +188,14 @@ impl CopyPanel {
         &self.elements
     }
 
+    /// What was picked, leaving out the ends a trait brought in with it.
+    pub fn picked(&self) -> impl Iterator<Item = Element> {
+        self.elements
+            .iter()
+            .copied()
+            .filter(|held| !matches!(held, Element::Point(end) if self.brought_in.contains(end)))
+    }
+
     /// The slot `Entrée` on Validate found empty, until it is filled.
     pub fn marked(&self) -> Option<CopySlot> {
         self.marked
@@ -91,6 +207,14 @@ impl CopyPanel {
 
     pub fn value_kinds(&self) -> &'static [CopyValue] {
         self.values
+    }
+
+    pub fn rotation(&self) -> Rotation {
+        self.rotation
+    }
+
+    pub fn choose_rotation(&mut self, rotation: Rotation) {
+        self.rotation = rotation;
     }
 
     /// Takes or lets go of one element, a trait with its two ends. An end a
@@ -148,6 +272,7 @@ impl CopyPanel {
             CopySlot::Elements => CopySlot::Target,
             CopySlot::Target if !self.values.is_empty() => CopySlot::Value(0),
             CopySlot::Value(rank) if rank + 1 < self.values.len() => CopySlot::Value(rank + 1),
+            CopySlot::Value(_) if self.steps.contains(&CopyStep::Rotation) => CopySlot::Rotation,
             _ => CopySlot::Validate,
         };
     }
@@ -157,17 +282,14 @@ impl CopyPanel {
             CopySlot::Elements => !self.elements.is_empty(),
             CopySlot::Target => self.target.is_some(),
             CopySlot::Value(rank) => live.typed(rank).is_some(),
-            CopySlot::Validate => true,
+            CopySlot::Rotation | CopySlot::Validate => true,
         }
     }
 
     /// Activates and marks the first slot still empty, top to bottom. False
     /// when every slot is filled.
     pub(crate) fn mark_the_first_empty(&mut self, live: &LiveInput) -> bool {
-        let slots = [CopySlot::Elements, CopySlot::Target]
-            .into_iter()
-            .chain((0..self.values.len()).map(CopySlot::Value));
-        let Some(empty) = slots.into_iter().find(|slot| !self.is_filled(*slot, live)) else {
+        let Some(empty) = self.slots().find(|slot| !self.is_filled(*slot, live)) else {
             return false;
         };
         self.active = empty;
@@ -211,14 +333,18 @@ impl SketchEditor {
         let Some(panel) = self.copy_panel.take() else {
             return Vec::new();
         };
-        let picked =
-            |held: &Element| !matches!(held, Element::Point(end) if panel.brought_in.contains(end));
-        panel
-            .elements
-            .iter()
-            .filter(|held| picked(held))
-            .map(|held| Selection::Element(*held))
-            .collect()
+        panel.picked().map(Selection::Element).collect()
+    }
+}
+
+/// The step a slot belongs to; Validate stands below them all.
+fn step_of(slot: CopySlot) -> Option<CopyStep> {
+    match slot {
+        CopySlot::Elements => Some(CopyStep::Elements),
+        CopySlot::Target => Some(CopyStep::Centre),
+        CopySlot::Value(_) => Some(CopyStep::CountAndStep),
+        CopySlot::Rotation => Some(CopyStep::Rotation),
+        CopySlot::Validate => None,
     }
 }
 

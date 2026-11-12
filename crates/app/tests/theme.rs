@@ -380,6 +380,7 @@ fn every_token_the_chrome_holds_is_the_design_file_s() {
             tokens::STATE_ERROR_BACKGROUND,
             "state.error_background",
         ),
+        ("STATE_SUCCESS", tokens::STATE_SUCCESS, "state.success"),
         (
             "STATE_SUCCESS_TEXT",
             tokens::STATE_SUCCESS_TEXT,

@@ -964,6 +964,17 @@ pub fn in_the_tree(app: &App, name: &str) -> bool {
     the_row(app, name).is_some()
 }
 
+/// What every button standing over the view reads — the chips of a floating
+/// panel among them, and never a row of the tree, which reads the same names
+/// beside the view.
+pub fn buttons_over_the_view(app: &App) -> Vec<String> {
+    let view = canvas(app);
+    app.query_all_by_role(egui::accesskit::Role::Button)
+        .filter(|node| view.contains_rect(node.rect()))
+        .filter_map(|node| node.accesskit_node().label())
+        .collect()
+}
+
 /// Two presses and releases close enough in time for egui to read one
 /// double-click: each frame of the harness otherwise moves the clock a quarter
 /// of a second, past what a double-click allows.

@@ -21,6 +21,19 @@
 //!   `undoing_past_the_sketch_keeps_the_place_the_panel_was_left_at`
 //! - with nowhere to keep the settings, letting the panel go raises no error —
 //!   `a_panel_let_go_with_nowhere_to_keep_settings_says_nothing`
+//!
+//! Closes #738 — the whole transcription is in
+//! `crates/app/src/screens/viewport/input/copying/tests/steps.rs`; these are
+//! the halves only the whole application holds, the keyboard's Escape, where
+//! the keyboard lands, and the pointer that drags.
+//! - ↵ validates the current step and moves on; on the last step it applies
+//!   the pattern; Escape cancels. One test per case — Escape's case,
+//!   `escape_on_a_step_of_the_circular_pattern_closes_its_panel_and_lays_nothing`;
+//!   and, found in review, the field the centre's click hands the keyboard to
+//!   is the number of copies the message asks for —
+//!   `once_the_centre_is_clicked_what_is_typed_goes_to_the_number_of_copies`
+//! - The panel can still be dragged and keeps its place —
+//!   `the_circular_pattern_s_panel_follows_its_title_and_reopens_where_it_was_let_go`
 
 mod driver;
 
@@ -108,6 +121,77 @@ fn escape_hands_what_the_panel_held_to_the_selection_tool() {
     );
 }
 
+/// Whether a panel titled with this tool's name stands on screen.
+fn a_panel_is_open(app: &driver::App, tool: &str) -> bool {
+    app.query_all_by_role(egui::accesskit::Role::Label)
+        .any(|node| node.accesskit_node().value().as_deref() == Some(tool))
+}
+
+#[test]
+fn once_the_centre_is_clicked_what_is_typed_goes_to_the_number_of_copies() {
+    let mut app = a_trait_drawn(
+        "once_the_centre_is_clicked_what_is_typed",
+        cao_prefs::Settings::default(),
+    );
+    driver::click(&mut app, "Réseau circulaire");
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
+    driver::press(&mut app, egui::Key::Enter);
+    driver::click_at_sketch_point(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
+    assert!(
+        driver::says(&app, "étape 3 : nombre de copies"),
+        "{:?}",
+        driver::said(&app)
+    );
+    let opened = driver::fields(&app);
+    assert!(
+        opened.contains(&"4".to_string()) && opened.contains(&"90".to_string()),
+        "the fields open on four copies a quarter turn apart: {opened:?}"
+    );
+
+    driver::key(&mut app, egui::Key::Num3, "3");
+
+    let fields = driver::fields(&app);
+    assert!(
+        fields.contains(&"3".to_string()) && fields.contains(&"90".to_string()),
+        "the 3 typed went over the number of copies, and the step stands: {fields:?}"
+    );
+}
+
+#[test]
+fn escape_on_a_step_of_the_circular_pattern_closes_its_panel_and_lays_nothing() {
+    let mut app = a_trait_drawn(
+        "escape_on_a_step_of_the_circular_pattern",
+        cao_prefs::Settings::default(),
+    );
+    driver::open_the_history(&mut app);
+    let history = driver::steps(&app);
+    driver::click(&mut app, "Réseau circulaire");
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
+    driver::press(&mut app, egui::Key::Enter);
+    driver::click_at_sketch_point(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
+    driver::press(&mut app, egui::Key::Enter);
+    driver::press(&mut app, egui::Key::Enter);
+    assert!(
+        driver::says(&app, "étape 4 : sens de rotation"),
+        "every step filled, the panel waits on its last, the direction: {:?}",
+        driver::said(&app)
+    );
+
+    driver::press(&mut app, egui::Key::Escape);
+
+    assert!(
+        !a_panel_is_open(&app, "Réseau circulaire"),
+        "the panel is closed: {:?}",
+        driver::on_screen(&app)
+    );
+    assert_eq!(
+        driver::steps(&app),
+        history,
+        "nothing is laid, though every step was filled"
+    );
+    assert!(driver::a_sketch_is_open(&app), "the sketch stays open");
+}
+
 #[test]
 fn enter_in_a_field_of_another_panel_leaves_the_copy_panel_alone() {
     let mut app = a_trait_drawn(
@@ -116,7 +200,7 @@ fn enter_in_a_field_of_another_panel_leaves_the_copy_panel_alone() {
     );
     driver::click_the_button(&mut app, "Variables");
     driver::click(&mut app, "Réseau circulaire");
-    let waiting = "ce qui doit être répété";
+    let waiting = "Réseau circulaire — étape 1 : éléments à copier";
     assert!(driver::says(&app, waiting), "{:?}", driver::said(&app));
 
     driver::type_into(&mut app, "nom", "w");
@@ -137,39 +221,62 @@ fn a_broken_value_refuses_validate_and_nothing_else() {
         "a_broken_value_refuses_validate",
         cao_prefs::Settings::default(),
     );
+    driver::open_the_history(&mut app);
+    let history = driver::steps(&app);
     driver::click(&mut app, "Réseau circulaire");
     driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
     driver::press(&mut app, egui::Key::Enter);
     driver::type_over(&mut app, "90", "1+");
 
-    driver::click(&mut app, "Centre :");
+    click_the_step(&mut app, "Centre");
     driver::click_at_sketch_point(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
     assert!(
-        driver::shows(&app, "Centre : choisi"),
-        "a click in the target slot still stores the centre: {:?}",
-        driver::on_screen(&app)
+        driver::buttons_over_the_view(&app)
+            .iter()
+            .any(|chip| chip.starts_with("Point (")),
+        "a click in the target slot still stores the centre, its chip in the \
+         panel: {:?}",
+        driver::buttons_over_the_view(&app)
     );
-    driver::click(&mut app, "Éléments :");
+    click_the_step(&mut app, "Éléments à copier");
+    assert!(
+        driver::buttons_over_the_view(&app).contains(&"Trait 1".to_string()),
+        "the trait first picked stands in the panel as a chip: {:?}",
+        driver::buttons_over_the_view(&app)
+    );
     driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
     assert!(
-        driver::shows(&app, "Éléments : 0"),
+        !driver::buttons_over_the_view(&app).contains(&"Trait 1".to_string()),
         "a click in Elements still takes the trait back out: {:?}",
-        driver::on_screen(&app)
+        driver::buttons_over_the_view(&app)
     );
     driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
 
     driver::click(&mut app, "Valider");
 
     assert!(
-        driver::shows(&app, "Éléments : 3"),
-        "Validate refused, so the panel still holds the trait and its two ends: {:?}",
-        driver::on_screen(&app)
+        driver::buttons_over_the_view(&app).contains(&"Trait 1".to_string()),
+        "Validate refused, so the panel still holds the trait: {:?}",
+        driver::buttons_over_the_view(&app)
     );
+    assert_eq!(driver::steps(&app), history, "and nothing is laid");
     assert!(
         driver::says(&app, "La formule s'arrête avant sa dernière valeur"),
         "and says why: {:?}",
         driver::said(&app)
     );
+}
+
+/// Clicks the title of a step of the circular pattern's panel: a text that
+/// reads exactly `title`, not a button.
+fn click_the_step(app: &mut driver::App, title: &str) {
+    let at = app
+        .query_all_by_role(egui::accesskit::Role::Label)
+        .find(|node| node.accesskit_node().value().as_deref() == Some(title))
+        .unwrap_or_else(|| panic!("a step titled {title}: {:?}", driver::said(app)))
+        .rect()
+        .center();
+    driver::click_at(app, at);
 }
 
 #[test]
@@ -278,6 +385,35 @@ fn a_panel_let_go_somewhere_is_saved_there() {
     assert!(
         (saved - now).length() <= 40.0,
         "what is saved is where the panel now stands: {saved:?}, its title at {now:?}"
+    );
+}
+
+#[test]
+fn the_circular_pattern_s_panel_follows_its_title_and_reopens_where_it_was_let_go() {
+    let mut app = a_trait_drawn(
+        "the_circular_pattern_s_panel_follows_its_title",
+        cao_prefs::Settings::default(),
+    );
+    driver::click(&mut app, "Réseau circulaire");
+    let title = title_of_the_panel(&app, "Réseau circulaire");
+    let moved = egui::vec2(150.0, 80.0);
+
+    driver::drag_and_drop(&mut app, title.center(), title.center() + moved);
+
+    let let_go_at = title_of_the_panel(&app, "Réseau circulaire").min;
+    assert!(
+        (let_go_at - (title.min + moved)).length() <= 2.0,
+        "the panel follows its title to {:?}, and stands at {let_go_at:?}",
+        title.min + moved
+    );
+    driver::press(&mut app, egui::Key::Escape);
+    assert!(!a_panel_is_open(&app, "Réseau circulaire"));
+    driver::click(&mut app, "Réseau circulaire");
+    let reopened = title_of_the_panel(&app, "Réseau circulaire").min;
+    assert!(
+        (reopened - let_go_at).length() <= 1.0,
+        "the panel opens again where it was let go, {let_go_at:?}, and stands at \
+         {reopened:?}"
     );
 }
 

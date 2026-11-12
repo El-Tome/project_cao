@@ -421,7 +421,7 @@ fn on_validate(command: Command, clicked: bool) -> Bench {
         _ => bench.click(ON_THE_TARGET),
     }
     let values: &[&str] = match command {
-        Command::ToolCircularPattern => &["90", "4"],
+        Command::ToolCircularPattern => &["4", "90"],
         Command::ToolRectangularPattern => &["10", "2", "10", "2"],
         _ => &[],
     };

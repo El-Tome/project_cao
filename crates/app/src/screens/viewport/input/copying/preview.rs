@@ -19,6 +19,7 @@ pub(crate) fn previewed(sketch: &Sketch, editor: &SketchEditor, scale: f64) -> O
         (Tool::Mirror, CopyTarget::Axis(axis)) => sketch.preview(|trial| trial.mirror(held, axis)),
         (Tool::CircularPattern, CopyTarget::Centre(centre)) => {
             let (degrees, count) = turned(editor.live.locked())?;
+            let degrees = panel.rotation().step(degrees);
             sketch.preview(|trial| trial.pattern_around(held, centre, degrees, count))
         }
         (Tool::RectangularPattern, CopyTarget::Axis(direction)) => {

@@ -93,12 +93,12 @@ impl Exact {
     /// laid before it is — cut off where their faces meet outwards and filled
     /// in where they meet inwards, each two facing each other across a face
     /// they share in a chain, their set-backs meeting there at `value` — on
-    /// this body, whatever the list laid before them, the cuts first, then the fills on what the cuts
-    /// left, each in the order of the numbers its faces answer to, whatever
-    /// order the names give, so that the body is one whatever it is — a
-    /// cut's prism runs on a margin past its set-back, which would lie flush
-    /// on, or cut into, a fill laid before it — each cut by the prism `tool`
-    /// raises over it, the flats numbered from where the steps' numbers
+    /// this body, whatever the list laid before them, the cuts first, then
+    /// the fills on what the cuts left, each in the order of the numbers its
+    /// faces answer to, whatever order the names give, so that the body is
+    /// one whatever it is — a cut's prism runs on a margin past its set-back,
+    /// which would lie flush on, or cut into, a fill laid before it — each cut
+    /// by the prism `tool` raises over it, the flats numbered from where the steps' numbers
     /// ended in the order they are laid, then each by its own edge's number
     /// in `numbers`, as [`Exact::paired`] numbers them. Where every flat lies
     /// at an angle the kernel tells from none to the first cut's, within

@@ -23,7 +23,7 @@ use crate::brep::topology::Body;
 /// would meet along a curve the kernel does not build, and a bore of a
 /// pocket's radius moved onto it took its cone off the wall it widens onto
 /// (5361127255); a sphere or a torus is kept beside its axis the same way
-/// (#576). Two perpendicular walls touching at a point — the node of the
+/// (#576). Two walls, not parallel, touching at a point — the node of the
 /// curve they meet along, or the one point they share — touch there still:
 /// a round's plane moved onto a full round's edge a rounding off carried
 /// the round's wall off the node its axis crossed the full round's at, and

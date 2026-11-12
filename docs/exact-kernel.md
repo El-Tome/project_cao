@@ -1257,7 +1257,7 @@ The decisions, in the order taken, once per operation:
    It is not made where it would part a surface it carries from one of the
    first operand's it was one with or touched — a slot's side flush with
    the body's, the body's wall a hair across from its cap, a wall at the
-   node of the curve it meets a perpendicular wall along or at the one
+   node of the curve it meets another wall, not parallel to it, along or at the one
    point the two share — nor where it
    would move the curve two perpendicular cylinders meet along, nor where
    it would lay a surface it carries on one of the second operand's own it
@@ -2636,7 +2636,7 @@ pointed cone's flank waits on #711.
   floor round a hole touching the pocket's wall inside is bounded by both.
   Not two walls crossing or all but one: a union keeps both circles on its
   caps all round. A place two rays put at one vertex is taken once. Two
-  perpendicular walls decided to touch at a point, side by side, leave no
+  walls not parallel decided to touch at a point, side by side, leave no
   curve and no vertex, and may overlap there by up to `EPS`; the point
   stands on a step of both grids, and each wall's ruling through it would
   pass through the other's triangles. Where both hold a face there, the

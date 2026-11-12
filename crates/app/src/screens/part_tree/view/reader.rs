@@ -71,7 +71,7 @@ pub(super) fn reader(
 
 fn icon_of(step: &KeyStep) -> Icon {
     match (step.kind, step.mode) {
-        (StepKind::Sketch | StepKind::Section, _) => icon::ITEM_SKETCH,
+        (StepKind::Sketch | StepKind::Section | StepKind::Blend, _) => icon::ITEM_SKETCH,
         (StepKind::Revolution, _) => icon::REVOLUTION,
         (StepKind::Extrusion, Some(ExtrusionMode::Cut)) => icon::EXTRUSION_CUT,
         (StepKind::Extrusion, _) => icon::EXTRUSION_ADD,

@@ -2,12 +2,13 @@ use cao_sketch::{
     ArcId, Area, ChosenAxis, CircleId, Constraint, Corner, DimensionTarget, Element, EllipseId,
     PointId, SegmentId, Support, WorkPlane,
 };
+use cao_solid::EdgeName;
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChamferAsked, CutChange, ExtrusionMode, FaceAnchor, PointRef, RepeatsAsked, RevolutionAxis,
-    SectionAsked,
+    BlendShape, ChamferAsked, CutChange, ExtrusionMode, FaceAnchor, PointRef, RepeatsAsked,
+    RevolutionAxis, SectionAsked,
 };
 use crate::{formula::Formula, variables::VariableChange};
 
@@ -215,14 +216,7 @@ pub enum Operation {
     /// Turns closed areas of a sketch into matter, or takes matter away.
     Extrude {
         sketch: usize,
-        /// Each chosen area, named by the curves that bounded it at the
-        /// moment it was clicked.
-        ///
-        /// Not by its rank, which would move the instant another shape is
-        /// drawn, and no longer by the place clicked alone: pull the drawing
-        /// far enough and no area passes under that place any more, and the
-        /// step would quietly raise nothing. The place is kept inside the
-        /// name, and read only to tell apart two areas the same curves bound.
+        /// Each chosen area, by the name [`Area`] gives it at the click.
         areas: Vec<Area>,
         /// Millimetres. Negative goes the other way along the plane.
         distance: Formula,
@@ -377,6 +371,12 @@ pub enum Operation {
         /// Degrees. Negative turns the other way.
         angle: Formula,
         mode: ExtrusionMode,
+    },
+    /// An edge of the part chamfered or rounded, named as the body before it.
+    Blend {
+        edge: EdgeName,
+        shape: BlendShape,
+        size: Formula,
     },
     /// A fillet or a chamfer changed after it was laid.
     CutChange(CutChange),

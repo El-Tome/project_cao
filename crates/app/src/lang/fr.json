@@ -20,6 +20,8 @@
   "history.split": "Croisement divisé",
   "history.chamfer": "Coin chanfreiné",
   "history.fillet": "Coin arrondi",
+  "history.edge_chamfered": "Arête chanfreinée",
+  "history.edge_rounded": "Arête arrondie",
   "history.fillet_changed": "Congé modifié",
   "history.chamfer_changed": "Chanfrein modifié",
   "history.extrusion_changed": "Extrusion modifiée",

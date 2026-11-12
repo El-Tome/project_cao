@@ -48,6 +48,11 @@ pub type Became = Vec<(CurveId, Vec<CurveId>)>;
 /// or the first of two copies of a trait. `inside` is the place pointed at,
 /// and is read to tell apart areas the same curves bound — the two halves of
 /// a circle a chord cuts are both bounded by that circle and that chord.
+///
+/// Not a rank, which would move the instant another shape is drawn, and no
+/// longer the place pointed at alone: pull the drawing far enough and no area
+/// passes under that place any more, and a step standing on it would quietly
+/// raise nothing.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Area {
     pub bounds: Vec<Vec<CurveId>>,

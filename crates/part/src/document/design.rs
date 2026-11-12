@@ -274,6 +274,7 @@ struct Ranks {
     extrusions: usize,
     revolutions: usize,
     sections: usize,
+    blends: usize,
 }
 
 impl Ranks {
@@ -283,6 +284,7 @@ impl Ranks {
             StepKind::Extrusion => &mut self.extrusions,
             StepKind::Revolution => &mut self.revolutions,
             StepKind::Section => &mut self.sections,
+            StepKind::Blend => &mut self.blends,
         };
         *seen += 1;
         format!("design/{}-{}/steps.json", kind.folder(), *seen - 1)

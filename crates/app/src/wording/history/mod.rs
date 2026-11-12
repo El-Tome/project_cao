@@ -9,7 +9,7 @@ mod values;
 
 pub use detail::detail_in;
 
-use cao_part::history::{ExtrusionMode, FaceAnchor, Operation};
+use cao_part::history::{BlendShape, ExtrusionMode, FaceAnchor, Operation};
 use cao_part::{VariableChange, Variables};
 use cao_sketch::{Constraint, DimensionTarget, Element, WorkPlane};
 
@@ -86,6 +86,10 @@ pub fn label(lang: &Catalogue, variables: &Variables, operation: &Operation) -> 
         Operation::Split { .. } => lang.t("history.split"),
         Operation::Chamfer { .. } => lang.t("history.chamfer"),
         Operation::Fillet { .. } => lang.t("history.fillet"),
+        Operation::Blend { shape, .. } => lang.t(match shape {
+            BlendShape::Chamfer => "history.edge_chamfered",
+            BlendShape::Fillet => "history.edge_rounded",
+        }),
         Operation::CutChange(change) => cut_change::label(lang, change),
         Operation::EditMatter { to, .. } => lang.t(match **to {
             Operation::Revolve { .. } => "history.revolution_changed",

@@ -5,6 +5,7 @@
 
 mod adapters;
 pub mod anchoring;
+mod blending;
 mod broken;
 mod compaction;
 mod copying;
@@ -38,6 +39,7 @@ pub mod variables;
 
 #[cfg(any(test, feature = "test-support"))]
 pub use adapters::InMemoryFiles;
+pub use blending::Reduced;
 pub use broken::Broken;
 pub use compaction::compact;
 pub use copying::Capped;

@@ -19,6 +19,7 @@ impl Operation {
             Self::Gesture(done) => done.iter().flat_map(Self::sizes).collect(),
             Self::Extrude { distance, .. } => vec![distance],
             Self::Revolve { angle, .. } => vec![angle],
+            Self::Blend { size, .. } => vec![size],
             Self::Fillet { radius, .. } => vec![radius],
             Self::Chamfer { mode, .. } => mode.formulas(),
             Self::CutChange(super::CutChange::Reshape { value, .. }) => value.formulas(),

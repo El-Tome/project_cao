@@ -70,6 +70,9 @@ pub struct PartState {
     /// The circular patterns laying a full turn short of their count, by number.
     #[serde(default)]
     pub(crate) capped: BTreeMap<u32, crate::copying::Capped>,
+    /// The edges blended at less than they asked, by number.
+    #[serde(default)]
+    pub(crate) reduced: BTreeMap<u32, crate::blending::Reduced>,
     /// What the replay noted on the way: what a change to the variables is
     /// held to, and the values it froze.
     #[serde(skip)]
@@ -159,29 +162,7 @@ impl PartState {
                 merged_into,
                 on,
                 let_go,
-            } => {
-                let scale = self.scale();
-                let sketch = self.sketches.get_mut(*sketch)?;
-                if *let_go {
-                    sketch.let_go(*point);
-                }
-                // Moving a point by hand must not break the values already
-                // given, so the drawing settles again around it, as the pull
-                // allows: stretching first, turning only when it cannot. It is
-                // the drawing the gesture was shown on, read and settled the
-                // same way; the drop's holds come after, already met at the
-                // place the point landed — laid before, they would pull on a
-                // shape still turning towards it.
-                let pull = sketch.pull(*point, scale);
-                sketch.settle_pulled(&pull, *position, scale);
-                hold(sketch, *point, on);
-                // A drop the drawing cannot take joins nothing, as one that
-                // stopped short of the hand does.
-                if let Some(kept) = merged_into {
-                    sketch.join_points(*kept, *point, scale);
-                }
-                None
-            }
+            } => self.move_point(*sketch, *point, *position, *merged_into, on, *let_go),
             Operation::ResizeCircle {
                 sketch,
                 circle,
@@ -333,6 +314,10 @@ impl PartState {
                 radius,
                 construction,
             } => self.fillet(*sketch, corners, radius, *construction),
+            Operation::Blend { edge, shape, size } => {
+                self.blend(edge, *shape, size);
+                None
+            }
             Operation::CutChange(change) => self.change_cut(change),
             // The history replays the step it changes as it now stands.
             Operation::EditMatter { .. } => None,

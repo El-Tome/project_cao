@@ -1,5 +1,6 @@
 //! The panel of the mirror and the two patterns: its slots top to bottom, the
-//! active one shown as such, and the one `Entrée` found empty marked.
+//! active one shown as such, and the one `Entrée` found empty marked. The
+//! circular pattern's is laid out in numbered steps, in `circular`.
 
 use cao_prefs::Command;
 
@@ -7,9 +8,12 @@ use super::super::input::copying::{activate_in_the_panel, enter_in_the_panel};
 use super::super::input::count_brought_down;
 use super::live_fields::value_field;
 use crate::screens::SketchContext;
-use crate::screens::sketch::{CopySlot, CopyValue, Tool};
-use crate::ui::floating_panel::{floating_panel, panel_row};
+use crate::screens::sketch::{CopySlot, CopyValue, Rotation, Tool};
+use crate::ui::floating_panel::{floating_panel, panel_row, tool_panel};
+use crate::ui::theme::tokens::SPACING_XXL;
 use crate::wording::copy_panel::{self as said, Target};
+
+mod circular;
 
 /// What a gesture in the panel asked for this frame.
 #[derive(Default)]
@@ -17,6 +21,7 @@ struct Asked {
     activate: Option<CopySlot>,
     enter: bool,
     cancel: bool,
+    rotation: Option<Rotation>,
 }
 
 /// Draws the panel while a copy tool is in hand, and carries out what was done
@@ -36,7 +41,8 @@ pub(crate) fn paint_copy_panel(
         _ => Command::ToolMirror,
     };
     let title = crate::wording::command::label(context.lang, command);
-    let left_at = left_at.map_or(view.min + egui::vec2(16.0, 16.0), |[x, y]| egui::pos2(x, y));
+    let fallback = view.min + egui::vec2(SPACING_XXL, SPACING_XXL);
+    let left_at = left_at.map_or(fallback, |[x, y]| egui::pos2(x, y));
     let id = egui::Id::new("copy_panel");
     let arrived = ui.ctx().data_mut(|data| {
         let before = data.get_temp::<CopySlot>(id.with("active"));
@@ -44,15 +50,28 @@ pub(crate) fn paint_copy_panel(
         before != Some(active)
     });
     let close = context.lang.t("panel.close");
-    let floated = floating_panel(ui.ctx(), id, (&title, &close), (left_at, view), |ui| {
-        slots(ui, context, arrived)
-    });
+    let floated = match context.editor.tool {
+        Tool::CircularPattern => {
+            let sketch = context.editor.active_sketch().unwrap_or_default();
+            let named = crate::wording::sketch::name(context.lang, context.document, sketch);
+            let heading = (title.as_str(), named.as_str(), close.as_str());
+            tool_panel(ui.ctx(), id, heading, (left_at, view), |ui| {
+                circular::steps(ui, context, arrived)
+            })
+        }
+        _ => floating_panel(ui.ctx(), id, (&title, &close), (left_at, view), |ui| {
+            slots(ui, context, arrived)
+        }),
+    };
     let let_go_at = floated.let_go_at.map(|at| [at.x, at.y]);
 
     let asked = floated.inner;
     if asked.cancel || floated.closed {
         context.editor.cancel_the_copy();
         return (false, let_go_at);
+    }
+    if let (Some(rotation), Some(panel)) = (asked.rotation, context.editor.copy_panel_mut()) {
+        panel.choose_rotation(rotation);
     }
     if let Some(slot) = asked.activate {
         activate_in_the_panel(context, slot);

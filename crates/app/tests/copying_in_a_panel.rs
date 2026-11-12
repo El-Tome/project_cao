@@ -188,39 +188,73 @@ fn a_broken_value_refuses_validate_and_nothing_else() {
         "a_broken_value_refuses_validate",
         cao_prefs::Settings::default(),
     );
+    driver::open_the_history(&mut app);
+    let history = driver::steps(&app);
     driver::click(&mut app, "Réseau circulaire");
     driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
     driver::press(&mut app, egui::Key::Enter);
     driver::type_over(&mut app, "90", "1+");
 
-    driver::click(&mut app, "Centre :");
+    click_the_step(&mut app, "Centre");
     driver::click_at_sketch_point(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
     assert!(
-        driver::shows(&app, "Centre : choisi"),
-        "a click in the target slot still stores the centre: {:?}",
-        driver::on_screen(&app)
+        buttons_over_the_view(&app)
+            .iter()
+            .any(|chip| chip.starts_with("Point (")),
+        "a click in the target slot still stores the centre, its chip in the \
+         panel: {:?}",
+        buttons_over_the_view(&app)
     );
-    driver::click(&mut app, "Éléments :");
+    click_the_step(&mut app, "Éléments à copier");
+    assert!(
+        buttons_over_the_view(&app).contains(&"Trait 1".to_string()),
+        "the trait first picked stands in the panel as a chip: {:?}",
+        buttons_over_the_view(&app)
+    );
     driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
     assert!(
-        driver::shows(&app, "Éléments : 0"),
+        !buttons_over_the_view(&app).contains(&"Trait 1".to_string()),
         "a click in Elements still takes the trait back out: {:?}",
-        driver::on_screen(&app)
+        buttons_over_the_view(&app)
     );
     driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
 
     driver::click(&mut app, "Valider");
 
     assert!(
-        driver::shows(&app, "Éléments : 3"),
-        "Validate refused, so the panel still holds the trait and its two ends: {:?}",
-        driver::on_screen(&app)
+        buttons_over_the_view(&app).contains(&"Trait 1".to_string()),
+        "Validate refused, so the panel still holds the trait: {:?}",
+        buttons_over_the_view(&app)
     );
+    assert_eq!(driver::steps(&app), history, "and nothing is laid");
     assert!(
         driver::says(&app, "La formule s'arrête avant sa dernière valeur"),
         "and says why: {:?}",
         driver::said(&app)
     );
+}
+
+/// Clicks the title of a step of the circular pattern's panel: a text that
+/// reads exactly `title`, not a button.
+fn click_the_step(app: &mut driver::App, title: &str) {
+    let at = app
+        .query_all_by_role(egui::accesskit::Role::Label)
+        .find(|node| node.accesskit_node().value().as_deref() == Some(title))
+        .unwrap_or_else(|| panic!("a step titled {title}: {:?}", driver::said(app)))
+        .rect()
+        .center();
+    driver::click_at(app, at);
+}
+
+/// What every button standing over the view reads — the chips of the copy
+/// panel among them, and never a row of the tree, which reads the same names
+/// beside the view.
+fn buttons_over_the_view(app: &driver::App) -> Vec<String> {
+    let view = driver::canvas(app);
+    app.query_all_by_role(egui::accesskit::Role::Button)
+        .filter(|node| view.contains_rect(node.rect()))
+        .filter_map(|node| node.accesskit_node().label())
+        .collect()
 }
 
 #[test]

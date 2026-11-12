@@ -7,9 +7,7 @@ mod matter_in_front;
 mod typed_dimension;
 
 pub use cao_sketch::{ArcMode, ChamferMode, CircleMode, DimensionMode, EllipseMode};
-pub use copy_panel::{CopyPanel, CopySlot, CopyTarget, CopyValue};
-#[cfg_attr(not(test), expect(unused_imports))]
-pub use copy_panel::{CopyStep, Rotation, StepState};
+pub use copy_panel::{CopyPanel, CopySlot, CopyStep, CopyTarget, CopyValue, Rotation, StepState};
 pub use live_input::LiveInput;
 pub use typed_dimension::DimensionEdit;
 pub(crate) use typed_dimension::apply_dimension_value;

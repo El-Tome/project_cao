@@ -48,7 +48,6 @@ pub fn nudged(text: &str, nudge: Nudge, least: f64) -> Option<String> {
 /// while it is the current step's or holds the keyboard. The response is the
 /// field's, stretched over the whole control, and says it changed whether the
 /// number was typed or nudged.
-#[cfg_attr(not(test), expect(dead_code))]
 pub fn number_field(ui: &mut Ui, text: &mut String, current: bool, least: f64) -> Response {
     let (rect, whole) = ui.allocate_exact_size(vec2(WIDTH, HEIGHT), Sense::hover());
     let frame = ui.painter().add(Shape::Noop);

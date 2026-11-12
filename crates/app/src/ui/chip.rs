@@ -3,7 +3,8 @@
 use std::f32::consts::{FRAC_PI_2, PI};
 
 use egui::{
-    Align2, Color32, FontId, Pos2, Rect, Response, Sense, Shape, Stroke, StrokeKind, Ui, pos2, vec2,
+    Align2, Color32, FontId, Pos2, Rect, Response, Sense, Shape, Stroke, StrokeKind, Ui,
+    WidgetInfo, WidgetType, pos2, vec2,
 };
 
 use crate::ui::theme::tokens::{
@@ -31,10 +32,10 @@ const GAP: f32 = 3.0;
 const ARC_PIECES: usize = 12;
 
 /// What a chip stands for: C14's three variants.
-#[cfg_attr(not(test), expect(dead_code))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ChipKind {
     /// An element that adds matter.
+    #[cfg_attr(not(test), expect(dead_code))]
     Addition,
     /// An element chosen.
     Selection,
@@ -77,7 +78,6 @@ impl ChipKind {
 }
 
 /// `label` on a pill in the look of its kind. A click on it is handed back.
-#[cfg_attr(not(test), expect(dead_code))]
 pub fn chip(ui: &mut Ui, label: &str, kind: ChipKind) -> Response {
     let look = kind.look();
     let font = FontId::proportional(TYPOGRAPHY_SIZES_DETAIL);
@@ -86,6 +86,7 @@ pub fn chip(ui: &mut Ui, label: &str, kind: ChipKind) -> Response {
         .layout_no_wrap(label.to_owned(), font, look.ink);
     let size = vec2(written.size().x + 2.0 * PADDING, HEIGHT);
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+    response.widget_info(|| WidgetInfo::labeled(WidgetType::Button, ui.is_enabled(), label));
 
     let painter = ui.painter();
     let border = Stroke::new(1.0, look.border);

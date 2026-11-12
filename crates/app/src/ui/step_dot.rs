@@ -18,7 +18,6 @@ const TEXT_SIZE: f32 = 11.0;
 const DONE_OPACITY: f32 = 0.18;
 
 /// Where a step stands in the order of its panel.
-#[cfg_attr(not(test), expect(dead_code))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Progress {
     Done,
@@ -56,7 +55,6 @@ pub fn face(progress: Progress, number: usize) -> Face {
 }
 
 /// The round dot of step `number`, in the face [`face`] gives it.
-#[cfg_attr(not(test), expect(dead_code))]
 pub fn step_dot(ui: &mut Ui, number: usize, progress: Progress) -> Response {
     let face = face(progress, number);
     let (rect, response) = ui.allocate_exact_size(vec2(SIDE, SIDE), Sense::click());

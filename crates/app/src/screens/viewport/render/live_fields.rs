@@ -153,23 +153,32 @@ pub(super) fn value_field(
         &offers,
         crate::screens::variables::NAMING,
     );
-    let response = output.response.response.clone();
-    let reached_by_keyboard =
-        focus || (response.gained_focus() && !response.is_pointer_button_down_on());
+    taken_whole_when_reached(ui.ctx(), &output.response.response, text, focus);
+    output
+}
+
+/// Gives a field the keyboard when `focus`, and selects what it holds
+/// whenever the keyboard reaches it, so that what is typed next replaces it.
+pub(super) fn taken_whole_when_reached(
+    ctx: &egui::Context,
+    field: &egui::Response,
+    text: &str,
+    focus: bool,
+) {
+    let reached_by_keyboard = focus || (field.gained_focus() && !field.is_pointer_button_down_on());
     if focus {
-        response.request_focus();
+        field.request_focus();
     }
     if reached_by_keyboard {
-        let mut state = output.state.clone();
+        let mut state = egui::text_edit::TextEditState::load(ctx, field.id).unwrap_or_default();
         state
             .cursor
             .set_char_range(Some(egui::text::CCursorRange::two(
                 egui::text::CCursor::new(0),
                 egui::text::CCursor::new(text.chars().count()),
             )));
-        state.store(ui.ctx(), response.id);
+        state.store(ctx, field.id);
     }
-    output
 }
 
 /// One of the two fields. Returns true when Enter was pressed in it.

@@ -47,7 +47,6 @@ pub enum StepState {
 pub enum Rotation {
     #[default]
     CounterClockwise,
-    #[cfg_attr(not(test), expect(dead_code))]
     Clockwise,
 }
 
@@ -137,7 +136,6 @@ impl CopyPanel {
     /// Each numbered step, top to bottom, with how its dot reads: current
     /// where the active slot is, done above it once it holds what it asks
     /// for, to come otherwise. A tool laid out in no steps has none.
-    #[cfg_attr(not(test), expect(dead_code))]
     pub fn steps(&self, live: &LiveInput) -> Vec<(CopyStep, StepState)> {
         let current = self
             .current_step()
@@ -190,6 +188,14 @@ impl CopyPanel {
         &self.elements
     }
 
+    /// What was picked, leaving out the ends a trait brought in with it.
+    pub fn picked(&self) -> impl Iterator<Item = Element> {
+        self.elements
+            .iter()
+            .copied()
+            .filter(|held| !matches!(held, Element::Point(end) if self.brought_in.contains(end)))
+    }
+
     /// The slot `Entrée` on Validate found empty, until it is filled.
     pub fn marked(&self) -> Option<CopySlot> {
         self.marked
@@ -207,7 +213,6 @@ impl CopyPanel {
         self.rotation
     }
 
-    #[cfg_attr(not(test), expect(dead_code))]
     pub fn choose_rotation(&mut self, rotation: Rotation) {
         self.rotation = rotation;
     }
@@ -328,14 +333,7 @@ impl SketchEditor {
         let Some(panel) = self.copy_panel.take() else {
             return Vec::new();
         };
-        let picked =
-            |held: &Element| !matches!(held, Element::Point(end) if panel.brought_in.contains(end));
-        panel
-            .elements
-            .iter()
-            .filter(|held| picked(held))
-            .map(|held| Selection::Element(*held))
-            .collect()
+        panel.picked().map(Selection::Element).collect()
     }
 }
 

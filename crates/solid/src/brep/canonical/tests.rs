@@ -199,6 +199,149 @@ fn a_slot_slid_away_from_a_block_s_side_is_not_carried_further_off_the_block_s_o
     assert!(moved.is_none(), "the near side was carried off the block's");
 }
 
+/// The ways the two bars of [`two_bars_at_a_slant`] run along, X and 50°
+/// from it in the plane z = 0.
+fn bars_ways() -> [DVec3; 2] {
+    let slant = 50f64.to_radians();
+    [DVec3::X, DVec3::new(slant.cos(), slant.sin(), 0.0)]
+}
+
+/// The wall of a bar of radius 3 along the second of [`bars_ways`], its axis
+/// through `through`.
+fn bar_wall(through: DVec3) -> Surface {
+    Surface::Cylinder(Cylinder::about(through, bars_ways()[1], 3.0))
+}
+
+/// Two bars of radius 3 at a slant: the first's wall along X through the
+/// origin, all of the first operand a move reads; and the second a bar 20
+/// long about `through` along the second of [`bars_ways`]; with the rank in
+/// the bar of its cap at the near end. Through the origin, their axes cross
+/// and the walls meet along two ellipses crossing at two nodes, (0, 0, ±3);
+/// through (0, 0, 6), they touch at (0, 0, 3).
+fn two_bars_at_a_slant(through: DVec3) -> (Body, Body, usize) {
+    let [first_way, along] = bars_ways();
+    let first = with_surfaces(vec![Surface::Cylinder(Cylinder::about(
+        DVec3::ZERO,
+        first_way,
+        3.0,
+    ))]);
+    let near = through - along * 10.0;
+    let bar = Body::raised(
+        &Contour::circle(DVec2::ZERO, 3.0),
+        &[],
+        Frame {
+            origin: near,
+            u: DVec3::Z.cross(along),
+            v: DVec3::Z,
+        },
+        along * 20.0,
+    )
+    .expect("a bar raises");
+    let cap = bar
+        .surfaces
+        .iter()
+        .position(
+            |surface| matches!(surface, Surface::Plane(plane) if plane.distance(near).abs() < 1e-9),
+        )
+        .expect("the bar has a cap at its near end");
+    (first, bar, cap)
+}
+
+/// What the first's wall and the bar's make together, as the kernel reads
+/// them.
+fn with_the_bar(first: &Body, bar: &Body) -> Relation {
+    let wall = bar
+        .surfaces
+        .iter()
+        .find(|surface| matches!(surface, Surface::Cylinder(_)))
+        .expect("the bar has a wall");
+    relation(&first.surfaces[0], wall, scale())
+}
+
+/// #837: a round's plane moved a hair onto a full round's edge carried the
+/// round's wall off the node its axis crossed the full round's at, and the
+/// line where the round touches the top crossed the full round twice.
+#[test]
+fn a_bar_crossing_a_wall_of_its_radius_at_a_slant_is_not_carried_off_the_nodes_their_walls_cross_at()
+ {
+    let (first, bar, cap) = two_bars_at_a_slant(DVec3::ZERO);
+    assert_eq!(
+        with_the_bar(&first, &bar).points().len(),
+        2,
+        "the two walls cross at two nodes"
+    );
+    for off in [1e-9, 0.5] {
+        let by = DVec3::X + DVec3::Z * off;
+        let parted = relation(&first.surfaces[0], &bar_wall(by), scale());
+        assert!(
+            matches!(parted, Relation::Meet(_)) && parted.points().is_empty(),
+            "the bar's wall moved {off} off the plane of the axes meets the first's along a curve \
+             with no node: {parted:?}"
+        );
+        let moved = carried_along(&first, &bar, scale(), |_, rank| (rank == cap).then_some(by));
+        assert!(
+            moved.is_none(),
+            "the bar was carried {off} off the plane of the two axes, its wall off the nodes"
+        );
+    }
+}
+
+#[test]
+fn a_bar_crossing_a_wall_of_its_radius_at_a_slant_is_carried_along_the_plane_of_their_axes() {
+    let (first, bar, cap) = two_bars_at_a_slant(DVec3::ZERO);
+    let by = DVec3::X;
+    let moved = carried_along(&first, &bar, scale(), |_, rank| (rank == cap).then_some(by))
+        .expect("the bar is carried along the plane of the two axes, its wall on the nodes still");
+    let carried = moved.surfaces.iter().any(|surface| match surface {
+        Surface::Cylinder(wall) => {
+            let off = by - wall.origin;
+            (off - wall.axis * wall.axis.dot(off)).length() < 1e-9
+        }
+        _ => false,
+    });
+    assert!(
+        carried,
+        "the bar's wall is carried with its cap, its axis through {by}: {:?}",
+        moved.surfaces
+    );
+    assert_eq!(
+        with_the_bar(&first, &moved).points().len(),
+        2,
+        "the two walls cross at two nodes still"
+    );
+}
+
+#[test]
+fn a_bar_touching_a_wall_of_its_radius_at_a_point_at_a_slant_is_not_carried_off_it_but_along_it() {
+    let through = DVec3::Z * 6.0;
+    let (first, bar, cap) = two_bars_at_a_slant(through);
+    let touch = with_the_bar(&first, &bar).points();
+    assert!(
+        touch.len() == 1 && touch[0].distance(DVec3::Z * 3.0) < 1e-9,
+        "the two walls touch at (0, 0, 3): {touch:?}"
+    );
+    let away = DVec3::Z * 1e-3;
+    assert_eq!(
+        relation(&first.surfaces[0], &bar_wall(through + away), scale()),
+        Relation::Apart,
+        "the bar's wall moved off the touch is apart from the first's"
+    );
+    let parted = carried_along(&first, &bar, scale(), |_, rank| {
+        (rank == cap).then_some(away)
+    });
+    assert!(parted.is_none(), "the bar was carried off the touch");
+    let along = DVec3::X;
+    let moved = carried_along(&first, &bar, scale(), |_, rank| {
+        (rank == cap).then_some(along)
+    })
+    .expect("the bar is carried along the touch");
+    assert_eq!(
+        with_the_bar(&first, &moved).points().len(),
+        1,
+        "the two walls touch at a point still"
+    );
+}
+
 #[test]
 fn a_ruling_through_the_apex_only_touches_the_other_surface() {
     let tip = Surface::Cone(Cone::through(

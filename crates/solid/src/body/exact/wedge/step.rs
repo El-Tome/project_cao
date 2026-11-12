@@ -163,7 +163,7 @@ impl Exact {
             return Ok((self.closed_round(&ring, &wedges)?, taken, pairs));
         }
         pairs::apart(&pairs)?;
-        let ends = pairs::at_their_ends(&self.brep, &edges, &wedges, &pairs, &three)?;
+        let ends = pairs::at_their_ends(&self.brep, &edges, &wedges, &pairs, &three, &beside)?;
         let closes = closing::closings(
             three,
             &wedges,

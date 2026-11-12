@@ -11,6 +11,7 @@ pub(super) fn kind_of(stands_on: &Stands) -> StepKind {
         Stands::Extrusion { .. } => StepKind::Extrusion,
         Stands::Revolution { .. } => StepKind::Revolution,
         Stands::Section { .. } => StepKind::Section,
+        Stands::Blend { .. } => StepKind::Blend,
     }
 }
 
@@ -78,6 +79,13 @@ pub(super) fn taken_apart(opening: &Operation) -> Result<(Stands, Option<Opening
             Some(Opening::Revolution {
                 angle: angle.clone(),
                 mode: *mode,
+            }),
+        ),
+        Operation::Blend { edge, shape, size } => (
+            Stands::Blend { edge: edge.clone() },
+            Some(Opening::Blend {
+                shape: *shape,
+                size: size.clone(),
             }),
         ),
         _ => return Err(PartFileError::BrokenDesign),
@@ -148,6 +156,9 @@ pub(super) fn put_together(
             angle,
             mode,
         },
+        (Stands::Blend { edge }, Some(Opening::Blend { shape, size })) => {
+            Operation::Blend { edge, shape, size }
+        }
         _ => return Err(PartFileError::BrokenDesign),
     })
 }

@@ -159,7 +159,7 @@ impl Exact {
         } = step;
         let scale = self.brep.scale();
         let pairs = pairs::meeting(&wedges, &facing, taken, set_back, meeting.together, scale)?;
-        let ends = pairs::at_their_ends(&self.brep, &edges, &wedges, &pairs)?;
+        let ends = pairs::at_their_ends(&self.brep, &edges, &wedges, &pairs, &three)?;
         let closes = closing::closings(
             three,
             &wedges,

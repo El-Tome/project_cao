@@ -3,14 +3,14 @@
 //! not cross on it, the pairs whose set-backs meet across it, which are laid
 //! as one, and the edges of the list such a pair is mitred against at a
 //! corner (#803): each edge at its end, bounding the face that is gone, one
-//! across it or the two of a pointed end (#843).
+//! across it or the two of a pointed or a V-notched end (#843).
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use glam::DVec3;
 
 use super::chain::TANGENT;
-use super::corners;
+use super::corners::{self, Three};
 use super::slope::one_plane;
 use super::{MADE, Prism, Wedge, too_short};
 use crate::body::exact::Exact;
@@ -122,20 +122,23 @@ pub(super) fn meeting(
 /// Each edge of `edges` bounding the face a pair of `pairs` whose faces meet
 /// outwards meet across, of no pair itself, that meets both of the pair at a
 /// corner — the edge at their end — or one of them and another such edge
-/// that meets the other — each edge of a pointed or a notched end (#843) —
-/// whose cut is laid in turn against the one prism they are taken off with
-/// and against its neighbours, by its rank, with the pair's value, the radius
-/// that prism is raised at, so that its cut meets theirs where they meet
-/// across the face even where the value taken stands a hair short of it.
-/// Declined `Unsupported` where an edge of a pair meets another of `edges` at
-/// a corner any other way: a full round meeting an upright (#837), or one of
-/// its edges alone, a round bottom meeting any edge (#838), a slope meeting
-/// any.
+/// that meets the other where no third edge of the list ends, as `three`
+/// holds the corners three of them meet at — each edge of a pointed or a
+/// notched end (#843) — whose cut is laid in turn against the one prism they
+/// are taken off with and against its neighbours, by its rank, with the
+/// pair's value, the radius that prism is raised at, so that its cut meets
+/// theirs where they meet across the face even where the value taken stands
+/// a hair short of it. Declined `Unsupported` where an edge of a pair meets
+/// another of `edges` at a corner any other way: a full round meeting an
+/// upright (#837), or one of its edges alone, a pointed or notched end with
+/// the upright at its tip (#837), a round bottom meeting any edge (#838), a
+/// slope meeting any.
 pub(super) fn at_their_ends(
     body: &brep::Body,
     edges: &[EdgeId],
     wedges: &[Wedge],
     pairs: &[Pair],
+    three: &[Three],
 ) -> Result<BTreeMap<usize, f64>, Declined> {
     let members: BTreeSet<usize> = pairs
         .iter()
@@ -152,9 +155,14 @@ pub(super) fn at_their_ends(
         let bounding = |rank: usize| {
             !members.contains(&rank) && across.is_some_and(|face| wedges[rank].faces.contains(face))
         };
+        let with_a_third = |rank: usize, tip: usize| {
+            (three.iter()).any(|(_, at, _)| at.contains(&rank) && at.contains(&tip))
+        };
         let reaching = |rank: usize, far: usize| {
             meets(far, rank)
-                || (0..edges.len()).any(|tip| bounding(tip) && meets(rank, tip) && meets(far, tip))
+                || (0..edges.len()).any(|tip| {
+                    bounding(tip) && meets(rank, tip) && meets(far, tip) && !with_a_third(rank, tip)
+                })
         };
         for rank in (0..edges.len()).filter(|&rank| meets(one, rank) || meets(other, rank)) {
             let at_their_end =

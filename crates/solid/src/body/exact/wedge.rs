@@ -141,7 +141,8 @@ impl Exact {
     /// sense, more than three edges meeting at a corner, or three where
     /// another edge ends too, where `meeting` lays two together an edge
     /// meeting two others, or one of two laid together that meets another
-    /// edge of the list at a corner any other way, a cut or a fill that left
+    /// edge of the list at a corner any other way — a pointed end's two edges
+    /// among them where a third ends at the tip — a cut or a fill that left
     /// something else than its one face, as
     /// [`Exact::cut_along`] reads it, a face of an overlap no edge covered, and
     /// a corner gone round its odd edge as [`Exact::round_the_odd`] declines

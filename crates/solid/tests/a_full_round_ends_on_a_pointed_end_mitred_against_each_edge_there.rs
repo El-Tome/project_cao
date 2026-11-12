@@ -74,12 +74,62 @@
 //!   3, one body, closed, uncrossed, its volume what arithmetic gives, its
 //!   rounds and mitres held as the point's are —
 //!   `a_fillet_on_a_full_round_and_the_two_edges_of_a_v_notched_end_mitres_each_notch_edge_s_round_against_its_neighbours_down_to_the_notch_whatever_the_order`
-//! - Decided on the way (2026-11-12): a point whose tip's upright is named
-//!   too, closed by a piece of sphere, builds in some orders and not others —
-//!   no test: the issue pins it only if the order's fix makes every order lay
-//!   one body, and once that fix landed it still lays one body in 88 of the
-//!   120 orders of its five edges and is declined in the other 32, so it is
-//!   left to #837, the rounded tongue
+//! - Decided on the way, after the review (2026-11-12): a pointed or V-notched
+//!   end whose shared corner — the tip, or the notch's bottom — has a third
+//!   edge of the list, its upright, is declined `Unsupported` in every order,
+//!   until #837 builds it. It built one body in 88 of its 120 orders and was
+//!   declined in the other 32, and one body in every order or a decline in
+//!   every order is the rule (#822). Held on the tip (33,3) and on the notch
+//!   (27,3), the upright named with the four top edges, in each of the 120
+//!   orders —
+//!   `a_fillet_on_a_full_round_the_two_edges_of_a_pointed_or_v_notched_end_and_the_upright_at_its_tip_is_declined_as_unsupported_whatever_the_order`
+//! - Decided on the way, after the review (2026-11-12): what the branch lets
+//!   through beside the issue's end is held as the issue's end is — the value
+//!   taken whole, every round over its share of the top on its own cylinder,
+//!   each mitre in the vertical plane through its corner and its crown, each
+//!   crown one vertex, the body exact, closed, uncrossed, its volume what
+//!   arithmetic gives, one body in every order. A plate pointed at both ends,
+//!   top (0,3), (3,0), (30,0), (33,3), (30,6), (3,6), filleted on its two long
+//!   edges and its four point edges, the crowns at (3√2, 3, 10) and
+//!   (33 − 3√2, 3, 10). Read as: in 48 of the 720 orders of the six, every
+//!   order of each end's four edges — the front, the back and that end's two
+//!   point edges — the two ends' point edges named side by side, in both
+//!   pairings of the right end's with the left's. All 720 took some twelve
+//!   minutes when run once, and laid one body —
+//!   `a_fillet_on_a_full_round_pointed_at_both_ends_mitres_each_point_round_up_to_its_end_s_crown_whatever_the_order`
+//! - Decided on the way, after the review (2026-11-12): a plate pointed at one
+//!   end, tip (33,3), and square at the other with that end's top edge named
+//!   too, as #803 mitres it against the full round, the crowns at (3, 3, 10)
+//!   and (33 − 3√2, 3, 10), in each of the 120 orders of the five —
+//!   `a_fillet_on_a_full_round_pointed_at_one_end_and_square_at_the_other_mitres_each_end_s_rounds_up_to_its_crown_whatever_the_order`
+//! - Decided on the way, after the review (2026-11-12): a lopsided point that
+//!   keeps the full round, its long edges 30 and 31 long, top (0,0), (30,0),
+//!   (98/3, 2), (31,6), (0,6): both point walls tangent to the circle of
+//!   radius 3 about (29, 3), so that every round reaches the one crown,
+//!   (29, 3, 10), the two point rounds meeting in the vertical plane through
+//!   the tip and the crown. Its value depends on the order, which is #895's:
+//!   the 12 orders naming the point's front edge before the top's front edge
+//!   take 3, the 12 others take 2 and keep the top. Read as: every order
+//!   taking the value whole lays the mitred body, all of them one body, the
+//!   first such order's, and there is at least one; none is declined; the
+//!   others' value is #895's and not asserted —
+//!   `a_fillet_on_a_full_round_and_the_two_edges_of_a_lopsided_point_tangent_to_one_circle_mitres_them_up_to_the_crown_whatever_the_order`
+//! - Decided on the way, after the mutation run (2026-11-12): admitting an
+//!   edge at a full round's end holds only an edge of the top meeting both
+//!   edges of the pair, or one of them and another such edge meeting the
+//!   other; the lists it must keep declined are held, each `Unsupported` in
+//!   every order. A full round, the edge across its square end and the
+//!   upright at one corner of that end — a full round meeting an upright,
+//!   #837's: the upright lies off the face the pair meets across —
+//!   `a_fillet_on_a_full_round_its_square_end_s_edge_and_the_upright_at_one_corner_of_that_end_is_declined_as_unsupported_whatever_the_order`
+//! - Found on the way, after the mutation run (2026-11-12): a full round and
+//!   one edge of its point alone, tip (33,3), is not declined but stops short
+//!   of the full round, at 6 − 3√2 with the top kept, in every order — and
+//!   likewise with the edge across the square far end named too: the value is
+//!   bounded before any pair forms, so no full round's end is read. Pinned as
+//!   it is, exact, closed and uncrossed —
+//!   `a_fillet_on_a_full_round_and_one_edge_of_its_point_alone_stops_short_of_the_full_round_whatever_the_order`,
+//!   `a_fillet_on_a_full_round_one_edge_of_its_point_alone_and_its_square_far_end_s_edge_stops_short_of_the_full_round_whatever_the_order`
 //!
 //! The volume is arithmetic. Seen from above, the top is shared among the four
 //! rounds, each share bounded by its wall, the mitres at the wall's two ends
@@ -104,9 +154,26 @@
 //! `1215 + 36√2 + (54 − 6√2)·9π/4`, 1587.64, and on (28, 3), 1618.14. At
 //! `a = 0` the point is a square end, and the sum is #803's,
 //! `(H − r)·2rL + πr²(L − r)/2 + 4r³/3`. The booleans give it too: the full
-//! round's prism cut from the plate whole, then each point edge's, raised
-//! along its wall's line past both its ends and kept on its own side of the
-//! tip's mitre, `y = 3`.
+//! round's prism cut from the plate whole, then each other round's, raised
+//! along its wall's line past both its ends and kept on its own side of each
+//! mitre it shares with another such round — the tip's, `y = 3` on the point.
+//!
+//! The same holds on any outline whose named walls' shares close one radius
+//! in from every wall they bound: each named wall's share runs along it,
+//! shrinking by `t·(c₁ + c₂)` at `t` from it, `c` at each of its ends the
+//! cotangent of half the angle there where the wall beside is named too, and
+//! of the whole angle where it is not — nought at a square one. Pointed at
+//! both ends, the area 180, `ℓ(0) = 54 + 12√2` and `ℓ(r) = 66 − 12√2`:
+//! `1224 + 72√2 + (66 − 12√2)·9π/4`, 1672.39. Pointed at one end and square
+//! at the other with its edge named: `1341 + 36√2 + (60 − 6√2)·9π/4`,
+//! 1756.05, #803's square end taking `πr³/2 − 4r³/3` off the pointed plate's.
+//! The lopsided point: the area 190, `ℓ(0) = 61 + 23/3` and `ℓ(r) = 58`,
+//! twice the crown's 29; `1362 + 261π/2`, 1771.98. Its tip is where the
+//! second tangents from (30, 0) and (31, 6) to the circle about (29, 3) meet:
+//! from (30, 0) the wall climbs at twice the angle whose tangent is 1/3, along
+//! (4, 3)/5, and from (31, 6) it falls at twice the angle whose tangent is
+//! 2/3, along (5, −12)/13; they cross 10/3 and 13/3 from their corners, at
+//! (98/3, 2).
 //!
 //! Chamfered at `r`, a flat lays the top at `H − r + t` over its share, the
 //! shares and the lines across them as for the rounds, and the matter over
@@ -138,16 +205,18 @@ const DRAWN: f64 = 2e-4;
 /// over the drawing's tolerance on the plate, [`DRAWN`] times its reach.
 const CLEAR_OF_THE_MITRE: f64 = 0.1;
 
-/// The numbers the plate's faces answer to: its floor nought, its top one,
-/// then its walls in the order its outline runs — the front, the point's
-/// front, the point's back, the back and the left end.
+/// The numbers a raised plate's floor and top answer to: nought and one, its
+/// walls following, one for each run of its outline, from two.
 const FLOOR: usize = 0;
 const TOP: usize = 1;
+
+/// The numbers of a pointed plate's walls, as [`Plate::pointed`] raises it:
+/// its front, the point's two walls, front then back, whose upright stands at
+/// the tip, and its back.
 const FRONT: usize = 2;
 const POINT_FRONT: usize = 3;
 const POINT_BACK: usize = 4;
 const BACK: usize = 5;
-const LEFT_END: usize = 6;
 
 /// The plate: its front and back 30 long, from the left end to the point, 6
 /// wide and 10 high.
@@ -158,11 +227,6 @@ const HEIGHT: f64 = 10.0;
 /// The value asked, half the width: the radius at which the rounds of the
 /// top's front and back edges meet across the top in one full round.
 const RADIUS: f64 = WIDTH / 2.0;
-
-/// The four rounded walls' top edges in the order the issue names them: the
-/// front, the point's front, the point's back and the back, as indices into
-/// [`PointedPlate::walls`].
-const AS_THE_ISSUE_NAMES_THEM: [usize; 4] = [0, 1, 2, 3];
 
 /// The ground's plane, which a part is drawn on.
 fn ground() -> Frame {
@@ -458,11 +522,18 @@ impl Share {
             .map(|(&from, &to)| (to - from).normalize().perp_dot(point - from))
             .fold(f64::INFINITY, f64::min)
     }
+
+    /// Whether one of the share's corners stands at `point`, seen from above.
+    fn reaches(&self, point: DVec3) -> bool {
+        self.corners
+            .iter()
+            .any(|corner| corner.distance(point.truncate()) < PLACE)
+    }
 }
 
-/// A wall of the plate whose top edge the list names: its number, what its
-/// top edge is called, and where it runs from and to, seen from above, the
-/// way the outline runs round the plate.
+/// A wall of the plate: its number, what its top edge is called, and where it
+/// runs from and to, seen from above, the way the outline runs round the
+/// plate.
 struct Wall {
     number: usize,
     called: String,
@@ -548,214 +619,335 @@ impl Wall {
     }
 }
 
-/// Where two neighbouring rounds meet: their walls, as indices into
-/// [`PointedPlate::walls`], and the corner of the outline those walls share,
-/// seen from above, and what it is called.
+/// Where two neighbouring rounds meet: their edges, as indices into
+/// [`Plate::edges`], the corner of the outline their walls share, seen from
+/// above, the crown the mitre runs up to, and what the corner is called.
 struct Mitre {
-    walls: [usize; 2],
+    edges: [usize; 2],
     corner: DVec2,
-    called: &'static str,
+    crown: DVec3,
+    called: String,
 }
 
 impl Mitre {
     /// How far a point stands from the vertical plane through the corner and
-    /// `crown`.
-    fn off(&self, crown: DVec3, point: DVec3) -> f64 {
-        let across = (crown.truncate() - self.corner).perp().normalize();
+    /// the crown.
+    fn off(&self, point: DVec3) -> f64 {
+        let across = (self.crown.truncate() - self.corner).perp().normalize();
         (point.truncate() - self.corner).dot(across).abs()
+    }
+
+    /// The half-space bounded by the mitre's plane that holds `wall`'s share
+    /// of the top: its normal, level, and its offset, as [`Body::behind`]
+    /// takes them.
+    fn kept_side_of(&self, wall: &Wall) -> (DVec3, f64) {
+        let mut across = (self.crown.truncate() - self.corner).perp().normalize();
+        let far_end = if wall.from.distance(self.corner) < PLACE {
+            wall.to
+        } else {
+            wall.from
+        };
+        if (far_end - self.corner).dot(across) > 0.0 {
+            across = -across;
+        }
+        (across.extend(0.0), across.dot(self.corner))
     }
 }
 
-/// A plate [`LENGTH`] long, [`WIDTH`] wide and [`HEIGHT`] high whose right end
-/// comes to a point seen from above, from the ends of its front and back to
-/// its tip on the middle line, `reach` past them — or, `reach` negative, is
-/// notched back to it: the part, raised as `cao_part` builds a step.
-struct PointedPlate {
-    reach: f64,
+/// A plate [`HEIGHT`] high raised from an outline, anticlockwise seen from
+/// above, as `cao_part` builds a step — its run `k` from corner `k` to the
+/// next raising wall `2 + k` — some of whose walls' top edges a list names,
+/// filleted at [`RADIUS`]: what the plate is called; its outline; the runs
+/// whose top edges are named, each with what it is called, in the order the
+/// plate lists them, the issue's where it names one; the two runs, along the
+/// front and the back, whose rounds meet across the top in one full round;
+/// the crowns its mitres run up to, as the issue or the arithmetic puts them;
+/// and the part.
+struct Plate {
+    called: String,
+    outline: Vec<DVec2>,
+    edges: Vec<(usize, String)>,
+    full_round: [usize; 2],
+    crowns: Vec<DVec3>,
     part: Body,
 }
 
-impl PointedPlate {
-    /// The plate whose tip stands at `x` along, on the middle line.
-    fn with_tip_at(x: f64) -> PointedPlate {
-        let tip = DVec2::new(x, RADIUS);
-        PointedPlate {
-            reach: x - LENGTH,
-            part: raised(
-                Contour::straight(vec![
-                    DVec2::ZERO,
-                    DVec2::new(LENGTH, 0.0),
-                    tip,
-                    DVec2::new(LENGTH, WIDTH),
-                    DVec2::new(0.0, WIDTH),
-                ]),
-                HEIGHT,
-            ),
+impl Plate {
+    /// The plate raised from `outline`, the top edges of the runs `edges`
+    /// names listed in that order.
+    fn raised(
+        called: &str,
+        outline: Vec<DVec2>,
+        edges: &[(usize, &str)],
+        full_round: [usize; 2],
+        crowns: Vec<DVec3>,
+    ) -> Plate {
+        Plate {
+            called: called.to_string(),
+            part: raised(Contour::straight(outline.clone()), HEIGHT),
+            outline,
+            edges: edges
+                .iter()
+                .map(|&(run, called)| (run, called.to_string()))
+                .collect(),
+            full_round,
+            crowns,
         }
     }
 
-    /// The tip, seen from above.
-    fn tip(&self) -> DVec2 {
-        DVec2::new(LENGTH + self.reach, RADIUS)
-    }
-
-    /// The four walls whose top edges are rounded, in the order the outline
-    /// runs: the front, the point's front, the point's back and the back.
-    fn walls(&self) -> [Wall; 4] {
-        let end = if self.reach < 0.0 { "notch" } else { "point" };
-        let front_end = DVec2::new(LENGTH, 0.0);
-        let back_end = DVec2::new(LENGTH, WIDTH);
-        [
-            Wall {
-                number: FRONT,
-                called: "the top's front edge".to_string(),
-                from: DVec2::ZERO,
-                to: front_end,
-            },
-            Wall {
-                number: POINT_FRONT,
-                called: format!("the {end}'s front edge"),
-                from: front_end,
-                to: self.tip(),
-            },
-            Wall {
-                number: POINT_BACK,
-                called: format!("the {end}'s back edge"),
-                from: self.tip(),
-                to: back_end,
-            },
-            Wall {
-                number: BACK,
-                called: "the top's back edge".to_string(),
-                from: back_end,
-                to: DVec2::new(0.0, WIDTH),
-            },
-        ]
-    }
-
-    /// The four rounds' shares of the top, as [`PointedPlate::walls`] lists
-    /// their walls, the mitres meeting at `crown`: the front's and the back's
-    /// from the left end, up to its middle, to the mitre at their corner, and
-    /// each point edge's the triangle its wall makes with the crown.
-    fn shares(&self, crown: DVec3) -> [Share; 4] {
-        let crown = crown.truncate();
-        let middle_of_the_left_end = DVec2::new(0.0, RADIUS);
-        let [front, point_front, point_back, back] = self.walls();
-        [
-            vec![front.from, front.to, crown, middle_of_the_left_end],
-            vec![point_front.from, point_front.to, crown],
-            vec![point_back.from, point_back.to, crown],
-            vec![back.from, back.to, middle_of_the_left_end, crown],
-        ]
-        .map(|corners| Share { corners })
-    }
-
-    /// The three mitres: the full round against the point's front edge's
-    /// round at the front corner, the two point rounds against each other at
-    /// the tip, and the full round against the point's back edge's round at
-    /// the back corner.
-    fn mitres(&self) -> [Mitre; 3] {
-        [
-            Mitre {
-                walls: [0, 1],
-                corner: DVec2::new(LENGTH, 0.0),
-                called: "the front corner",
-            },
-            Mitre {
-                walls: [1, 2],
-                corner: self.tip(),
-                called: "the tip",
-            },
-            Mitre {
-                walls: [2, 3],
-                corner: DVec2::new(LENGTH, WIDTH),
-                called: "the back corner",
-            },
-        ]
-    }
-
-    /// The names of the four rounded walls' top edges, in `order`, as
-    /// indices into [`PointedPlate::walls`].
-    fn names(&self, order: [usize; 4]) -> Vec<EdgeName> {
-        let walls = self.walls();
-        order
-            .iter()
-            .map(|&wall| walls[wall].name(&self.part))
-            .collect()
-    }
-
-    /// The fillet at [`RADIUS`] on the four rounded walls' top edges, named
-    /// in `order`.
-    fn filleted(&self, order: [usize; 4]) -> Result<Filleted, Declined> {
-        self.part.fillet_edges(&self.names(order), RADIUS)
-    }
-
-    /// The chamfer at [`RADIUS`] on the four rounded walls' top edges, named
-    /// in `order`.
-    fn chamfered(&self, order: [usize; 4]) -> Result<Chamfered, Declined> {
-        self.part.chamfer_edges(&self.names(order), RADIUS)
-    }
-
-    /// What the `cut` — a fillet or a chamfer — on the edges named in `order`
-    /// is called.
-    fn called(&self, cut: &str, order: [usize; 4]) -> String {
-        let walls = self.walls();
-        let called: Vec<&str> = order
-            .iter()
-            .map(|&wall| walls[wall].called.as_str())
-            .collect();
-        format!(
-            "the {cut} at {RADIUS} on {}, the tip at {}",
-            called.join(", then "),
-            self.tip()
+    /// The plate [`LENGTH`] long and [`WIDTH`] wide whose right end comes to a
+    /// point seen from above, its tip at `x` along on the middle line — or,
+    /// `x` short of [`LENGTH`], is notched back to it —, the four top edges
+    /// named as the issue names them: the front's, the end's from front to
+    /// back, the back's; its mitres meeting at `crown`.
+    fn pointed(x: f64, crown: DVec3) -> Plate {
+        let end = if x < LENGTH { "notch" } else { "point" };
+        let [front, back] = ["front", "back"].map(|side| format!("the {end}'s {side} edge"));
+        Plate::raised(
+            &format!("the plate whose {end}'s tip stands at ({x}, {RADIUS})"),
+            vec![
+                DVec2::ZERO,
+                DVec2::new(LENGTH, 0.0),
+                DVec2::new(x, RADIUS),
+                DVec2::new(LENGTH, WIDTH),
+                DVec2::new(0.0, WIDTH),
+            ],
+            &[
+                (0, "the top's front edge"),
+                (1, front.as_str()),
+                (2, back.as_str()),
+                (3, "the top's back edge"),
+            ],
+            [0, 3],
+            vec![crown],
         )
     }
 
-    /// How long each edge of the point, or of the notch, is.
-    fn point_edge(&self) -> f64 {
-        self.reach.hypot(RADIUS)
+    /// The corner `corner` of the outline, counted round it.
+    fn corner(&self, corner: usize) -> DVec2 {
+        self.outline[corner % self.outline.len()]
     }
 
-    /// How far back along the front, or the back, the mitre at its corner
-    /// stands for each unit in from it: the cotangent of half the corner's
-    /// angle.
-    fn corner_drift(&self) -> f64 {
-        (self.point_edge() - self.reach) / RADIUS
+    /// Where the list names the top edge of run `run`, if it does.
+    fn edge_of(&self, run: usize) -> Option<usize> {
+        self.edges.iter().position(|&(named, _)| named == run)
     }
 
-    /// The area of the outline: the plate up to the ends of its front and
-    /// back, and the point's triangle — or less the notch's, its reach
-    /// negative.
+    /// The wall run `run` raises.
+    fn wall(&self, run: usize) -> Wall {
+        Wall {
+            number: 2 + run,
+            called: self.edge_of(run).map_or_else(
+                || format!("the top edge of wall {}", 2 + run),
+                |edge| self.edges[edge].1.clone(),
+            ),
+            from: self.corner(run),
+            to: self.corner(run + 1),
+        }
+    }
+
+    /// The walls whose top edges the list names, in the order the plate lists
+    /// them.
+    fn walls(&self) -> Vec<Wall> {
+        self.edges.iter().map(|&(run, _)| self.wall(run)).collect()
+    }
+
+    /// The runs on either side of run `run`, before it and after it.
+    fn runs_beside(&self, run: usize) -> [usize; 2] {
+        let count = self.outline.len();
+        [(run + count - 1) % count, (run + 1) % count]
+    }
+
+    /// The angle the outline makes inside the plate at corner `corner`: less
+    /// than a half turn where it turns left, more where it turns back in.
+    fn angle_at(&self, corner: usize) -> f64 {
+        let count = self.outline.len();
+        let here = self.corner(corner);
+        let coming = here - self.corner(corner + count - 1);
+        let going = self.corner(corner + 1) - here;
+        PI - coming.perp_dot(going).atan2(coming.dot(going))
+    }
+
+    /// The cotangent the side of a share leans at, at the start or the end of
+    /// run `run`: of half the angle there where the run beside is named too,
+    /// the mitre bisecting the corner; of the whole angle where it is not, the
+    /// share running along the wall beside.
+    fn lean(&self, run: usize, at_its_end: bool) -> f64 {
+        let [before, after] = self.runs_beside(run);
+        let (corner, beside) = if at_its_end {
+            (run + 1, after)
+        } else {
+            (run, before)
+        };
+        let angle = self.angle_at(corner);
+        if self.edge_of(beside).is_some() {
+            1.0 / (angle / 2.0).tan()
+        } else {
+            1.0 / angle.tan()
+        }
+    }
+
+    /// Where the share of run `run` closes at its start or its end, seen from
+    /// above: one radius in from its wall, along the side that leans from
+    /// that corner.
+    fn closing(&self, run: usize, at_its_end: bool) -> DVec2 {
+        let wall = self.wall(run);
+        let along = (wall.to - wall.from).normalize();
+        let inward = along.perp() * RADIUS;
+        let lean = along * (RADIUS * self.lean(run, at_its_end));
+        if at_its_end {
+            wall.to - lean + inward
+        } else {
+            wall.from + lean + inward
+        }
+    }
+
+    /// The share of the top the round of the list's edge `edge` is laid over:
+    /// its wall, then where it closes at the wall's end and at its start, one
+    /// corner where the two meet.
+    fn share(&self, edge: usize) -> Share {
+        let run = self.edges[edge].0;
+        let wall = self.wall(run);
+        let [at_the_start, at_the_end] = [false, true].map(|end| self.closing(run, end));
+        let mut corners = vec![wall.from, wall.to, at_the_end];
+        if at_the_start.distance(at_the_end) > PLACE {
+            corners.push(at_the_start);
+        }
+        Share { corners }
+    }
+
+    /// The shares of every edge the list names, in the order the plate lists
+    /// them.
+    fn shares(&self) -> Vec<Share> {
+        (0..self.edges.len()).map(|edge| self.share(edge)).collect()
+    }
+
+    /// The mitres: one at each corner of the outline between two walls whose
+    /// top edges are named, running up to where both their shares close.
+    fn mitres(&self) -> Vec<Mitre> {
+        (0..self.outline.len())
+            .filter_map(|corner| {
+                let [before, _] = self.runs_beside(corner);
+                let edges = [self.edge_of(before)?, self.edge_of(corner)?];
+                Some(Mitre {
+                    edges,
+                    corner: self.corner(corner),
+                    crown: self.closing(corner, false).extend(HEIGHT),
+                    called: format!("the corner at {}", self.corner(corner)),
+                })
+            })
+            .collect()
+    }
+
+    /// The faces the rounds make, as the list's edges each answers to: the
+    /// full round, both its edges, then every other edge alone.
+    fn faces(&self) -> Vec<Vec<usize>> {
+        let full: Vec<usize> = self
+            .full_round
+            .iter()
+            .map(|&run| self.edge_of(run).expect("the full round's edges are named"))
+            .collect();
+        let mut faces = vec![full.clone()];
+        faces.extend(
+            (0..self.edges.len())
+                .filter(|edge| !full.contains(edge))
+                .map(|edge| vec![edge]),
+        );
+        faces
+    }
+
+    /// The walls beside the list's edge `edge` whose top edges it does not
+    /// name, by their numbers.
+    fn unnamed_beside(&self, edge: usize) -> Vec<usize> {
+        self.runs_beside(self.edges[edge].0)
+            .into_iter()
+            .filter(|&run| self.edge_of(run).is_none())
+            .map(|run| 2 + run)
+            .collect()
+    }
+
+    /// The area of the outline.
     fn outline_area(&self) -> f64 {
-        WIDTH * LENGTH + self.reach * RADIUS
+        (0..self.outline.len())
+            .map(|corner| self.corner(corner).perp_dot(self.corner(corner + 1)))
+            .sum::<f64>()
+            / 2.0
     }
 
-    /// The length of the lines at `t` from their walls across the four
-    /// rounds' shares, seen from above: along the front and the back from the
-    /// left end to the mitre at its corner, and along each point edge between
-    /// its two mitres, shrinking evenly to nothing at the crown.
+    /// The length of the lines at `t` from their walls across the shares,
+    /// seen from above: along each named wall, its length less `t` times the
+    /// leans at its two ends.
     fn shares_at(&self, t: f64) -> f64 {
-        let r = RADIUS;
-        2.0 * (LENGTH - self.corner_drift() * t) + 2.0 * self.point_edge() * (r - t) / r
+        self.edges
+            .iter()
+            .map(|&(run, _)| {
+                let wall = self.wall(run);
+                wall.from.distance(wall.to) - t * (self.lean(run, false) + self.lean(run, true))
+            })
+            .sum()
     }
 
-    /// What the plate keeps once its four rounds are laid at [`RADIUS`] and
-    /// mitred, as the module's documentation derives it: the whole outline
-    /// up to the rounds' axes, and over them a quarter round swept along the
-    /// shares, from the walls up to the axes.
+    /// What the plate keeps once its named edges are rounded at [`RADIUS`]
+    /// and mitred, as the module's documentation derives it: the whole
+    /// outline up to the rounds' axes, and over them a quarter round swept
+    /// along the shares, from the walls up to the axes.
     fn rounded(&self) -> f64 {
         (HEIGHT - RADIUS) * self.outline_area()
             + quarter_round_swept_along(self.shares_at(0.0), self.shares_at(RADIUS))
     }
 
-    /// What the plate keeps once its four top edges are chamfered at
-    /// [`RADIUS`] into a hip, as the module's documentation derives it: the
-    /// whole outline up to the flats' feet, and over them a flat swept along
-    /// the shares, from the walls up to the ridge.
+    /// What the plate keeps once its named edges are chamfered at [`RADIUS`]
+    /// into a hip, as the module's documentation derives it: the whole outline
+    /// up to the flats' feet, and over them a flat swept along the shares,
+    /// from the walls up to the ridge.
     fn hipped(&self) -> f64 {
         (HEIGHT - RADIUS) * self.outline_area()
             + flat_swept_along(self.shares_at(0.0), self.shares_at(RADIUS))
     }
+
+    /// The names of the list's edges, in `order`, as indices into
+    /// [`Plate::edges`].
+    fn names(&self, order: &[usize]) -> Vec<EdgeName> {
+        order
+            .iter()
+            .map(|&edge| self.wall(self.edges[edge].0).name(&self.part))
+            .collect()
+    }
+
+    /// The fillet at [`RADIUS`] on the list's edges, named in `order`.
+    fn filleted(&self, order: &[usize]) -> Result<Filleted, Declined> {
+        self.part.fillet_edges(&self.names(order), RADIUS)
+    }
+
+    /// The chamfer at [`RADIUS`] on the list's edges, named in `order`.
+    fn chamfered(&self, order: &[usize]) -> Result<Chamfered, Declined> {
+        self.part.chamfer_edges(&self.names(order), RADIUS)
+    }
+
+    /// What the `cut` — a fillet or a chamfer — on the edges named in `order`
+    /// is called.
+    fn called(&self, cut: &str, order: &[usize]) -> String {
+        let called: Vec<&str> = order
+            .iter()
+            .map(|&edge| self.edges[edge].1.as_str())
+            .collect();
+        format!(
+            "the {cut} at {RADIUS} on {}, on {}",
+            called.join(", then "),
+            self.called
+        )
+    }
+}
+
+/// Holds that the arithmetic of the shares gives the plate's rounded body the
+/// volume the module's documentation writes out for it.
+fn the_shares_give(plate: &Plate, volume: f64) {
+    assert!(
+        (plate.rounded() - volume).abs() <= EXACT * volume,
+        "{}: the shares give {}, where the documentation writes {volume}",
+        plate.called,
+        plate.rounded()
+    );
 }
 
 /// What a right-angled triangle whose legs are [`RADIUS`] holds swept along
@@ -777,10 +969,10 @@ fn quarter_round_swept_along(at_the_walls: f64, at_the_axes: f64) -> f64 {
 }
 
 /// The prism the full round takes away, raised whole along X past both ends
-/// of the plate, the point included: all that stands over the front and the
-/// back outside the half-cylinder about the line [`RADIUS`] under the middle
-/// of the top.
-fn full_round_tool(plate: &PointedPlate) -> Body {
+/// of the plate: all that stands over the front and the back, along y = 0 and
+/// y = [`WIDTH`], outside the half-cylinder about the line [`RADIUS`] under
+/// the middle of the top.
+fn full_round_tool(plate: &Plate) -> Body {
     let far = 2.0 * RADIUS + 2.0;
     let foot = HEIGHT - RADIUS;
     let corners = vec![
@@ -796,81 +988,129 @@ fn full_round_tool(plate: &PointedPlate) -> Body {
         center: DVec2::new(RADIUS, foot),
         turn: -PI,
     };
+    let [left, right] = [f64::min, f64::max].map(|bound| {
+        plate
+            .outline
+            .iter()
+            .map(|corner| corner.x)
+            .fold(plate.outline[0].x, bound)
+    });
     plate
         .part
         .tool_raised(
             &profile(Contour { corners, runs }),
             Frame {
-                origin: DVec3::new(-2.0, 0.0, 0.0),
+                origin: DVec3::new(left - 2.0, 0.0, 0.0),
                 u: DVec3::Y,
                 v: DVec3::Z,
             },
-            DVec3::X * (LENGTH + plate.reach.max(0.0) + 4.0),
+            DVec3::X * (right - left + 4.0),
         )
         .expect("the tool raises")
 }
 
-/// What the plate keeps once the full round and the point rounds are laid at
-/// [`RADIUS`], computed apart from the step: the full round's prism, then
-/// each point edge's, raised whole along its line and kept on its own side of
-/// the tip's mitre, taken away by the booleans.
-fn rounded_by_booleans(plate: &PointedPlate) -> f64 {
-    let [_, point_front, point_back, _] = plate.walls();
+/// What the plate keeps once its named edges are rounded at [`RADIUS`],
+/// computed apart from the step: the full round's prism, then each other
+/// round's, raised whole along its wall's line and kept on its own side of
+/// each mitre it shares with another such round, taken away by the booleans.
+fn rounded_by_booleans(plate: &Plate) -> f64 {
+    let walls = plate.walls();
+    let faces = plate.faces();
+    let full = &faces[0];
+    let mitres = plate.mitres();
     let rounded = plate
         .part
         .difference(&full_round_tool(plate))
         .expect("the full round's prism cuts the plate");
-    [(point_front, DVec3::Y), (point_back, -DVec3::Y)]
-        .iter()
-        .fold(rounded, |cut, (wall, toward_its_side)| {
-            let prism = wall
-                .tool(&cut)
-                .behind(*toward_its_side, toward_its_side.y * RADIUS);
+    (0..walls.len())
+        .filter(|edge| !full.contains(edge))
+        .fold(rounded, |cut, edge| {
+            let prism = mitres
+                .iter()
+                .filter(|mitre| {
+                    mitre.edges.contains(&edge) && mitre.edges.iter().all(|one| !full.contains(one))
+                })
+                .fold(walls[edge].tool(&cut), |prism, mitre| {
+                    let (normal, offset) = mitre.kept_side_of(&walls[edge]);
+                    prism.behind(normal, offset)
+                });
             cut.difference(&prism)
-                .expect("a point edge's round's prism cuts the plate")
+                .expect("a round's prism cuts the plate")
         })
         .volume()
 }
 
-/// Every order the four rounded walls' top edges can be named in, as indices
-/// into [`PointedPlate::walls`].
-fn every_order() -> Vec<[usize; 4]> {
-    let mut orders = Vec::new();
-    for first in 0..4 {
-        for second in 0..4 {
-            for third in 0..4 {
-                for fourth in 0..4 {
-                    let order = [first, second, third, fourth];
-                    if (0..4).all(|wall| order.contains(&wall)) {
-                        orders.push(order);
-                    }
-                }
-            }
-        }
+/// Every order `count` things can be named in.
+fn every_order(count: usize) -> Vec<Vec<usize>> {
+    if count == 0 {
+        return vec![Vec::new()];
     }
-    orders
+    every_order(count - 1)
+        .into_iter()
+        .flat_map(|shorter| {
+            (0..count).map(move |at| {
+                let mut order = shorter.clone();
+                order.insert(at, count - 1);
+                order
+            })
+        })
+        .collect()
+}
+
+/// The orders of a plate pointed at both ends whose six edges are listed as
+/// the front, the right point's front and back, the back, the left point's
+/// back and front: every order of each end's four edges — the front, the
+/// back and that end's two point edges — the two ends' point edges named side
+/// by side, the right's first, in both pairings of the right's with the
+/// left's. All 720 orders take minutes; these hold every order the four
+/// edges at either end can be named in, twice.
+fn each_end_in_every_order(count: usize) -> Vec<Vec<usize>> {
+    assert_eq!(count, 6, "a plate pointed at both ends lists six edges");
+    let [front, right_front, right_back, back, left_back, left_front] = [0, 1, 2, 3, 4, 5];
+    let pairings = [
+        [[right_front, left_front], [right_back, left_back]],
+        [[right_front, left_back], [right_back, left_front]],
+    ];
+    pairings
+        .into_iter()
+        .flat_map(|[first, second]| {
+            every_order(4).into_iter().map(move |at_one_end| {
+                at_one_end
+                    .into_iter()
+                    .flat_map(|place| match place {
+                        0 => vec![front],
+                        1 => first.to_vec(),
+                        2 => second.to_vec(),
+                        _ => vec![back],
+                    })
+                    .collect()
+            })
+        })
+        .collect()
+}
+
+/// The one order the plate lists its `count` edges in, the issue's where it
+/// names one.
+fn the_listed_order(count: usize) -> Vec<Vec<usize>> {
+    vec![(0..count).collect()]
 }
 
 /// Each face of a body and the sides of the faces it meets, one for each edge
-/// it has, every face laid on the edges named in `order` read by the wall it
-/// was laid on, as the rank the issue's order gives that wall: what tells two
-/// bodies the same face for face, whatever the order their edges were named
-/// in.
-fn meetings(body: &Body, start: usize, order: [usize; 4]) -> BTreeMap<Vec<u32>, Vec<Vec<u32>>> {
-    let as_the_issue_names_them = |side: Vec<u32>| -> Vec<u32> {
+/// it has, every face laid on the edges named in `order` read by the edge it
+/// was laid on, as the rank the plate's listed order gives that edge: what
+/// tells two bodies the same face for face, whatever the order their edges
+/// were named in.
+fn meetings(body: &Body, start: usize, order: &[usize]) -> BTreeMap<Vec<u32>, Vec<Vec<u32>>> {
+    let as_listed = |side: Vec<u32>| -> Vec<u32> {
         let mut read: Vec<u32> = side
             .into_iter()
             .map(|number| {
                 let number = number as usize;
                 if number < start {
-                    return number as u32;
+                    number as u32
+                } else {
+                    (start + order[number - start]) as u32
                 }
-                let wall = order[number - start];
-                let rank = AS_THE_ISSUE_NAMES_THEM
-                    .iter()
-                    .position(|&named| named == wall)
-                    .expect("the issue names every wall");
-                (start + rank) as u32
             })
             .collect();
         read.sort();
@@ -878,7 +1118,7 @@ fn meetings(body: &Body, start: usize, order: [usize; 4]) -> BTreeMap<Vec<u32>, 
     };
     let mut met: BTreeMap<Vec<u32>, Vec<Vec<u32>>> = BTreeMap::new();
     for name in body.edge_names() {
-        let [first, second] = name.between.map(as_the_issue_names_them);
+        let [first, second] = name.between.map(as_listed);
         met.entry(first.clone()).or_default().push(second.clone());
         met.entry(second).or_default().push(first);
     }
@@ -888,13 +1128,41 @@ fn meetings(body: &Body, start: usize, order: [usize; 4]) -> BTreeMap<Vec<u32>, 
     met
 }
 
+/// What the faces of `body`, laid on the edges named in `order`, meet
+/// otherwise than those of `reference`, laid on them named in
+/// `reference_order`, each laid face read by the edge it was laid on: one
+/// line for each face that does.
+fn met_otherwise(
+    start: usize,
+    order: &[usize],
+    body: &Body,
+    reference_order: &[usize],
+    reference: &Body,
+) -> Vec<String> {
+    let own = meetings(body, start, order);
+    let theirs = meetings(reference, start, reference_order);
+    let faces: BTreeSet<&Vec<u32>> = own.keys().chain(theirs.keys()).collect();
+    faces
+        .into_iter()
+        .filter(|face| own.get(*face) != theirs.get(*face))
+        .map(|face| {
+            format!(
+                "face {face:?} meets {:?}, where the order it is read against lays it \
+                 meeting {:?}",
+                own.get(face),
+                theirs.get(face)
+            )
+        })
+        .collect()
+}
+
 /// Holds that a body whose faces meet as those of `reference`, the one laid
-/// with the edges named as the issue names them, is that body: the same
+/// with the edges named in the plate's listed order, is that body: the same
 /// matter, and the plate's flat faces at the same corners.
-fn same_body_as(plate: &PointedPlate, body: &Body, reference: &Body, what: &str) {
+fn same_body_as(plate: &Plate, body: &Body, reference: &Body, what: &str) {
     assert!(
         (body.volume() - reference.volume()).abs() <= EXACT * reference.volume(),
-        "{what}: the body holds {}, where the issue's order lays one of {}",
+        "{what}: the body holds {}, where the listed order lays one of {}",
         body.volume(),
         reference.volume()
     );
@@ -908,28 +1176,29 @@ fn same_body_as(plate: &PointedPlate, body: &Body, reference: &Body, what: &str)
         };
         assert!(
             alike,
-            "{what}: face {face} has its corners at {own:?}, where the issue's order leaves them \
+            "{what}: face {face} has its corners at {own:?}, where the listed order leaves them \
              at {theirs:?}"
         );
     }
 }
 
-/// Holds that the fillet at [`RADIUS`] on the top edges of the plate's four
-/// rounded walls, named in `order` and laid as `filleted`, takes the value
-/// whole and lays the full round and each point round at that radius, each
-/// mitred against its neighbours up to `crown`: the body exact, closed,
-/// uncrossed and drawn, holding what the arithmetic promises; the full round
-/// answering to both its edges' numbers and each point round to its own, the
-/// top gone and nothing laid at the crown; each round drawn on its own
-/// cylinder over its own share of the top, and met there from outside; each
-/// two neighbours drawn up to both ends of their mitre, from the corner their
-/// walls share up to the crown, and meeting nowhere off the vertical plane
-/// through the two; the three meeting at one vertex, the crown; and the walls
-/// set back by the radius under them.
-fn mitres_each_point_round_against_its_neighbours(
-    plate: &PointedPlate,
-    crown: DVec3,
-    order: [usize; 4],
+/// Holds that the fillet at [`RADIUS`] on the plate's listed edges, named in
+/// `order` and laid as `filleted`, takes the value whole and lays every round
+/// at that radius, each mitred against its neighbours up to its crown: the
+/// body exact, closed, uncrossed and drawn, holding what the arithmetic
+/// promises; the full round answering to both its edges' numbers and every
+/// other round to its own, the top gone and nothing laid at a crown; each
+/// round drawn on its own cylinder over its own share of the top, and met
+/// there from outside; each mitre running up to one of the plate's crowns,
+/// its two rounds drawn up to both its ends, from the corner their walls share
+/// up to the crown, and meeting nowhere off the vertical plane through the
+/// two; the rounds whose shares reach a crown meeting at one vertex there;
+/// each round meeting its walls, its neighbours across its mitres and the
+/// walls not named it runs into, by one edge each; and the walls set back by
+/// the radius under them.
+fn mitres_each_round_against_its_neighbours(
+    plate: &Plate,
+    order: &[usize],
     filleted: &Filleted,
     what: &str,
 ) {
@@ -937,7 +1206,10 @@ fn mitres_each_point_round_against_its_neighbours(
     let part = &plate.part;
     let start = part.faces_end();
     let walls = plate.walls();
-    let shares = plate.shares(crown);
+    let count = walls.len();
+    let shares = plate.shares();
+    let mitres = plate.mitres();
+    let faces = plate.faces();
     let rounds: Vec<Round> = walls
         .iter()
         .zip(&shares)
@@ -949,25 +1221,35 @@ fn mitres_each_point_round_against_its_neighbours(
     let area: f64 = rounds.iter().map(Round::area).sum();
     sound_drawn_within(body, plate.rounded(), DRAWN * reach_of(part) * area, what);
 
-    let rank_of = |wall: usize| {
+    let rank_of = |edge: usize| {
         start
             + order
                 .iter()
-                .position(|&named| named == wall)
-                .expect("every wall's top edge is named")
+                .position(|&named| named == edge)
+                .expect("every edge is named")
     };
-    let mut full = [rank_of(0), rank_of(3)];
-    full.sort();
-    let side_of = |wall: usize| match wall {
-        0 | 3 => full.to_vec(),
-        other => vec![rank_of(other)],
+    let face_holding = |edge: usize| {
+        faces
+            .iter()
+            .find(|face| face.contains(&edge))
+            .expect("every edge's round is one face")
     };
-    let face_of = |wall: usize| side_of(wall)[0];
-    let round_called = |wall: usize| match wall {
-        0 | 3 => "the full round".to_string(),
-        other => format!("the round of {}", walls[other].called),
+    let side_of = |edge: usize| -> Vec<usize> {
+        let mut side: Vec<usize> = face_holding(edge)
+            .iter()
+            .map(|&each| rank_of(each))
+            .collect();
+        side.sort();
+        side
     };
-    let [point_front, point_back] = [rank_of(1), rank_of(2)];
+    let number_of = |edge: usize| side_of(edge)[0];
+    let round_called = |edge: usize| {
+        if face_holding(edge).len() > 1 {
+            "the full round".to_string()
+        } else {
+            format!("the round of {}", walls[edge].called)
+        }
+    };
 
     assert!(
         !body.has_face(TOP),
@@ -975,62 +1257,76 @@ fn mitres_each_point_round_against_its_neighbours(
     );
     let mut kept_and_laid = numbers(part);
     kept_and_laid.remove(&TOP);
-    kept_and_laid.extend(start..start + 4);
+    kept_and_laid.extend(start..start + count);
     assert_eq!(
         numbers(body),
         kept_and_laid,
-        "{what}: every face of the plate but its top, the full round answering to {full:?}, \
-         each point edge's round to its own rank, {point_front} and {point_back}, and no face \
-         laid at the crown"
+        "{what}: every face of the plate but its top, the full round answering to both its \
+         edges' ranks and every other round to its own, and no face laid at a crown"
     );
     assert_eq!(
         body.faces_end(),
-        start + 4,
-        "{what}: the next step numbers its faces past the four the list gave its edges"
+        start + count,
+        "{what}: the next step numbers its faces past the {count} the list gave its edges"
     );
-    one_curved_face_answers_to(body, &full, &format!("{what}: the full round"));
-    for number in [point_front, point_back] {
-        assert!(
-            !body.is_flat(number) && body.plane_of(number).is_none(),
-            "{what}: the point edge's round, face {number}, is curved, and offers no plane to \
-             draw on"
-        );
+    for face in &faces {
+        let laid = side_of(face[0]);
+        if face.len() > 1 {
+            one_curved_face_answers_to(body, &laid, &format!("{what}: the full round"));
+        } else {
+            assert!(
+                !body.is_flat(laid[0]) && body.plane_of(laid[0]).is_none(),
+                "{what}: {}, face {}, is curved, and offers no plane to draw on",
+                round_called(face[0]),
+                laid[0]
+            );
+        }
     }
 
     let drawn_of =
-        |wall: usize| -> Vec<DVec3> { body.triangles_of(face_of(wall)).flatten().collect() };
-    for own in [&[0, 3][..], &[1][..], &[2][..]] {
-        let which = round_called(own[0]);
-        let drawn = drawn_of(own[0]);
+        |edge: usize| -> Vec<DVec3> { body.triangles_of(number_of(edge)).flatten().collect() };
+    for face in &faces {
+        let which = round_called(face[0]);
+        let drawn = drawn_of(face[0]);
         assert!(!drawn.is_empty(), "{what}: {which} is drawn");
         for &point in &drawn {
             assert!(
-                own.iter()
-                    .any(|&wall| rounds[wall].holds(point)
-                        && shares[wall].inside_by(point) >= -PLACE),
+                face.iter()
+                    .any(|&edge| rounds[edge].holds(point)
+                        && shares[edge].inside_by(point) >= -PLACE),
                 "{what}: {which} is drawn through {point}, off the quarter round of {r} over \
                  the share of the top of each of its walls"
             );
         }
-        for &wall in own {
+        for &edge in face {
             met_from_outside_where(
                 body,
-                face_of(wall),
-                &rounds[wall],
-                |aim| shares[wall].inside_by(aim) > CLEAR_OF_THE_MITRE,
+                number_of(edge),
+                &rounds[edge],
+                |aim| shares[edge].inside_by(aim) > CLEAR_OF_THE_MITRE,
                 &format!(
                     "{what}: {which}, over the wall under {}, clear of its mitres",
-                    walls[wall].called
+                    walls[edge].called
                 ),
             );
         }
     }
 
-    for mitre in plate.mitres() {
-        let [one, other] = mitre.walls;
+    for mitre in &mitres {
+        assert!(
+            plate
+                .crowns
+                .iter()
+                .any(|crown| crown.distance(mitre.crown) < PLACE),
+            "{what}: the arithmetic runs the mitre at {} up to {}, none of the crowns {:?}",
+            mitre.called,
+            mitre.crown,
+            plate.crowns
+        );
+        let [one, other] = mitre.edges;
         let [one_drawn, other_drawn] = [drawn_of(one), drawn_of(other)];
         let foot = mitre.corner.extend(HEIGHT - r);
-        for (point, at) in [(foot, mitre.called), (crown, "the crown")] {
+        for (point, at) in [(foot, mitre.called.as_str()), (mitre.crown, "the crown")] {
             for (drawn, which) in [
                 (&one_drawn, round_called(one)),
                 (&other_drawn, round_called(other)),
@@ -1042,14 +1338,22 @@ fn mitres_each_point_round_against_its_neighbours(
                 );
             }
         }
+        let between_the_two: Vec<&Mitre> = mitres
+            .iter()
+            .filter(|each| {
+                let [first, second] = each.edges.map(face_holding);
+                (first, second) == (face_holding(one), face_holding(other))
+                    || (second, first) == (face_holding(one), face_holding(other))
+            })
+            .collect();
         for &point in one_drawn
             .iter()
             .filter(|&&point| drawn_through(&other_drawn, point))
         {
             assert!(
-                mitre.off(crown, point) < PLACE,
-                "{what}: {} and {} meet at {point}, off the vertical plane through {} and the \
-                 crown, {crown}",
+                between_the_two.iter().any(|each| each.off(point) < PLACE),
+                "{what}: {} and {} meet at {point}, off the vertical plane through the corner \
+                 and the crown of every mitre between them, the one at {} among them",
                 round_called(one),
                 round_called(other),
                 mitre.called
@@ -1057,50 +1361,55 @@ fn mitres_each_point_round_against_its_neighbours(
         }
     }
 
-    let mut at_the_crown: Vec<Vec<u32>> = [0, 1, 2]
-        .map(|wall| {
-            side_of(wall)
-                .into_iter()
-                .map(|number| number as u32)
-                .collect()
-        })
-        .to_vec();
-    at_the_crown.sort();
-    let crowns = body
-        .vertex_names()
-        .into_iter()
-        .filter(|vertex| vertex.faces == at_the_crown)
-        .count();
-    assert_eq!(
-        crowns, 1,
-        "{what}: the full round and the two point rounds meet at one vertex, the crown"
-    );
-
-    let full_side: &[usize] = &full;
-    assert_eq!(
-        sides_met_by(body, full_side),
-        sides_answering(&[
-            &[FRONT],
-            &[BACK],
-            &[LEFT_END],
-            &[point_front],
-            &[point_back]
-        ]),
-        "{what}: the full round meets the front and the back along its sides, the left end \
-         across it, and each point edge's round along its mitre, by one edge each"
-    );
-    for (number, wall, beside) in [
-        (point_front, POINT_FRONT, point_back),
-        (point_back, POINT_BACK, point_front),
-    ] {
+    for &crown in &plate.crowns {
+        let mut at_the_crown: Vec<Vec<u32>> = faces
+            .iter()
+            .filter(|face| face.iter().any(|&edge| shares[edge].reaches(crown)))
+            .map(|face| {
+                side_of(face[0])
+                    .into_iter()
+                    .map(|number| number as u32)
+                    .collect()
+            })
+            .collect();
+        at_the_crown.sort();
+        let vertices = body
+            .vertex_names()
+            .into_iter()
+            .filter(|vertex| vertex.faces == at_the_crown)
+            .count();
         assert_eq!(
-            sides_met_by(body, &[number]),
-            sides_answering(&[&[wall], full_side, &[beside]]),
-            "{what}: the round of face {number} meets its wall along its foot, the full round \
-             along one mitre and the other point round along the other, by one edge each"
+            vertices, 1,
+            "{what}: the rounds whose shares reach the crown {crown} meet at one vertex there"
         );
     }
-    for (at, wall) in walls.iter().enumerate() {
+
+    for face in &faces {
+        let mut met: Vec<Vec<usize>> = face.iter().map(|&edge| vec![walls[edge].number]).collect();
+        for mitre in &mitres {
+            let [one, other] = mitre.edges;
+            for (own, beside) in [(one, other), (other, one)] {
+                if face.contains(&own) {
+                    met.push(side_of(beside));
+                }
+            }
+        }
+        let unnamed: BTreeSet<usize> = face
+            .iter()
+            .flat_map(|&edge| plate.unnamed_beside(edge))
+            .collect();
+        met.extend(unnamed.into_iter().map(|number| vec![number]));
+        let met: Vec<&[usize]> = met.iter().map(Vec::as_slice).collect();
+        assert_eq!(
+            sides_met_by(body, &side_of(face[0])),
+            sides_answering(&met),
+            "{what}: {} meets its walls along their feet, each round beside it along their \
+             mitre, and each wall not named it runs into, by one edge each",
+            round_called(face[0])
+        );
+    }
+
+    for (edge, wall) in walls.iter().enumerate() {
         let [from, to] = [wall.from, wall.to];
         corners_are(
             body,
@@ -1116,19 +1425,10 @@ fn mitres_each_point_round_against_its_neighbours(
                 wall.called
             ),
         );
-        let before = if at == 0 {
-            LEFT_END
-        } else {
-            walls[at - 1].number
-        };
-        let after = if at == 3 {
-            LEFT_END
-        } else {
-            walls[at + 1].number
-        };
+        let [before, after] = plate.runs_beside(plate.edges[edge].0).map(|run| 2 + run);
         assert_eq!(
             sides_met_by(body, &[wall.number]),
-            sides_answering(&[&[FLOOR], &[before], &[after], &side_of(at)]),
+            sides_answering(&[&[FLOOR], &[before], &[after], &side_of(edge)]),
             "{what}: the wall under {} meets the floor, the walls on either side along its \
              uprights, and its round along its top",
             wall.called
@@ -1136,115 +1436,168 @@ fn mitres_each_point_round_against_its_neighbours(
     }
 }
 
-/// What the faces of `body`, laid on the edges named in `order`, meet
-/// otherwise than those of `reference`, laid on them named as the issue names
-/// them, each laid face read by the wall it was laid on: one line for each
-/// face that does.
-fn met_otherwise(start: usize, order: [usize; 4], body: &Body, reference: &Body) -> Vec<String> {
-    let own = meetings(body, start, order);
-    let theirs = meetings(reference, start, AS_THE_ISSUE_NAMES_THEM);
-    let faces: BTreeSet<&Vec<u32>> = own.keys().chain(theirs.keys()).collect();
-    faces
-        .into_iter()
-        .filter(|face| own.get(*face) != theirs.get(*face))
-        .map(|face| {
-            format!(
-                "face {face:?} meets {:?}, where in the issue's order it meets {:?}",
-                own.get(face),
-                theirs.get(face)
-            )
-        })
-        .collect()
+/// What the fillet at [`RADIUS`] laid on plates' listed edges, order by
+/// order: the orders declined, those taking less than the value asked, those
+/// whose faces meet otherwise than the first order that took it whole, and
+/// how many took it whole and were held whole.
+struct Laid {
+    declined: Vec<String>,
+    short: Vec<String>,
+    laid_otherwise: Vec<String>,
+    whole: usize,
 }
 
-/// Holds, for each plate `cases` names by its tip and the crown its mitres
-/// meet at, that the fillet at [`RADIUS`] on its four rounded walls' top
-/// edges lays in each of `orders` the one body the issue's order lays, the
-/// mitred rounds: every body whose faces meet as that order's do held whole
-/// first, then every order declined, and every one whose faces meet
-/// otherwise, listed together.
-fn lays_one_mitred_body_in_each_order(cases: &[(f64, DVec3)], orders: &[[usize; 4]]) {
-    let mut declined = Vec::new();
-    let mut laid_otherwise = Vec::new();
-    for &(tip, crown) in cases {
-        let plate = PointedPlate::with_tip_at(tip);
+/// The fillet at [`RADIUS`] on each of `plates`' listed edges, in each order
+/// `orders` gives for that many edges, after the booleans have been held to
+/// give the matter the arithmetic does: every order taking the value whole
+/// whose faces meet as the first such order's do held whole — the mitred
+/// rounds, and the same body as that order's — and every other order read
+/// into [`Laid`].
+fn laid_in_each_order(plates: &[Plate], orders: fn(usize) -> Vec<Vec<usize>>) -> Laid {
+    let mut laid = Laid {
+        declined: Vec::new(),
+        short: Vec::new(),
+        laid_otherwise: Vec::new(),
+        whole: 0,
+    };
+    for plate in plates {
+        let count = plate.edges.len();
         let start = plate.part.faces_end();
         let promised = plate.rounded();
-        let by_booleans = rounded_by_booleans(&plate);
+        let by_booleans = rounded_by_booleans(plate);
         assert!(
             (by_booleans - promised).abs() <= EXACT * promised,
-            "the tip at {}: the full round's prism and the point rounds', cut from the plate by \
-             the booleans, leave {by_booleans}, where arithmetic promises {promised}",
-            plate.tip()
+            "{}: each round's prism, cut from the plate by the booleans, leaves {by_booleans}, \
+             where arithmetic promises {promised}",
+            plate.called
         );
-        let reference = plate.filleted(AS_THE_ISSUE_NAMES_THEM);
-        for &order in orders {
-            let what = plate.called("fillet", order);
-            let filleted = match plate.filleted(order) {
+        let mut reference: Option<(Vec<usize>, Filleted)> = None;
+        for order in orders(count) {
+            let what = plate.called("fillet", &order);
+            let filleted = match plate.filleted(&order) {
                 Ok(filleted) => filleted,
                 Err(reason) => {
-                    declined.push(format!("{what}: declined, {reason:?}"));
+                    laid.declined.push(format!("{what}: declined, {reason:?}"));
                     continue;
                 }
             };
-            if let Ok(reference) = &reference {
-                let otherwise = met_otherwise(start, order, &filleted.body, &reference.body);
+            if (filleted.taken - RADIUS).abs() >= PLACE {
+                laid.short.push(format!("{what}: took {}", filleted.taken));
+                continue;
+            }
+            if let Some((reference_order, reference)) = &reference {
+                let otherwise = met_otherwise(
+                    start,
+                    &order,
+                    &filleted.body,
+                    reference_order,
+                    &reference.body,
+                );
                 if !otherwise.is_empty() {
-                    laid_otherwise.push(format!("{what}:\n  {}", otherwise.join("\n  ")));
+                    laid.laid_otherwise
+                        .push(format!("{what}:\n  {}", otherwise.join("\n  ")));
                     continue;
                 }
             }
-            mitres_each_point_round_against_its_neighbours(&plate, crown, order, &filleted, &what);
-            if let Ok(reference) = &reference {
-                same_body_as(&plate, &filleted.body, &reference.body, &what);
+            mitres_each_round_against_its_neighbours(plate, &order, &filleted, &what);
+            laid.whole += 1;
+            match &reference {
+                Some((_, reference)) => {
+                    same_body_as(plate, &filleted.body, &reference.body, &what);
+                }
+                None => reference = Some((order, filleted)),
             }
         }
     }
+    laid
+}
+
+/// Holds, for each of `plates`, that the fillet at [`RADIUS`] on its listed
+/// edges lays in each order `orders` gives for that many edges one body, the
+/// mitred rounds, as [`laid_in_each_order`] holds it: no order declined, none
+/// taking less than the value asked, none whose faces meet otherwise.
+fn lays_one_mitred_body_in_each_order(plates: &[Plate], orders: fn(usize) -> Vec<Vec<usize>>) {
+    let laid = laid_in_each_order(plates, orders);
     assert!(
-        declined.is_empty() && laid_otherwise.is_empty(),
-        "the fillet at {RADIUS} on the top's front and back edges, a full round, and on the two \
-         edges of the plate's end, each meeting one of them, lays one body whichever edge the \
-         list names first, the one the issue's order lays; declined:\n{}\nits faces meeting \
-         otherwise than in the issue's order:\n{}",
-        declined.join("\n"),
-        laid_otherwise.join("\n")
+        laid.declined.is_empty() && laid.short.is_empty() && laid.laid_otherwise.is_empty(),
+        "the fillet at {RADIUS} on a full round and on the edges of the plate's ends, each \
+         mitred against its neighbours, lays one body whichever edge the list names first; \
+         declined:\n{}\ntaking less than the value asked:\n{}\nits faces meeting otherwise \
+         than in the first order taking the value whole:\n{}",
+        laid.declined.join("\n"),
+        laid.short.join("\n"),
+        laid.laid_otherwise.join("\n")
     );
 }
 
-/// Holds that the chamfer at [`RADIUS`] on the top edges of the plate's four
-/// rounded walls, named in `order` and laid as `chamfered`, takes the value
-/// whole and lays a hip meeting at `crown`: the body exact, closed and
-/// uncrossed, holding what the arithmetic promises; one flat for each edge,
-/// numbered in the order the list names them, the top gone; each flat over its
-/// own share of the top, from its wall's two ends one radius under the top to
-/// the crown, and facing halfway between the top's way and its wall's; the
-/// front's and the back's flats meeting in a ridge along the middle line, each
-/// flat meeting its neighbours by one edge, the four meeting at one vertex,
-/// the crown; and the walls set back by the radius under them.
-fn flattens_into_a_hip(
-    plate: &PointedPlate,
-    crown: DVec3,
-    order: [usize; 4],
-    chamfered: &Chamfered,
-    what: &str,
-) {
+/// Holds that every order of `listed`'s edges, each the edge between the two
+/// faces numbered, named in a fillet at [`RADIUS`] on `part`, is a broken
+/// step and its reason, `Unsupported`; `what` says what the list is.
+fn declined_in_every_order(part: &Body, listed: &[([usize; 2], &str)], what: &str) {
+    let not_declined: Vec<String> = every_order(listed.len())
+        .into_iter()
+        .filter_map(|order| {
+            let names: Vec<EdgeName> = order
+                .iter()
+                .map(|&edge| {
+                    let [one, other] = listed[edge].0;
+                    edge_between(part, one, other)
+                })
+                .collect();
+            let called: Vec<&str> = order.iter().map(|&edge| listed[edge].1).collect();
+            let called = called.join(", then ");
+            match part.fillet_edges(&names, RADIUS) {
+                Err(Declined::Unsupported) => None,
+                Ok(filleted) => Some(format!(
+                    "the fillet on {called}: a body of {}, taken {}",
+                    filleted.body.volume(),
+                    filleted.taken
+                )),
+                Err(declined) => Some(format!("the fillet on {called}: declined, {declined:?}")),
+            }
+        })
+        .collect();
+    assert!(
+        not_declined.is_empty(),
+        "the fillet at {RADIUS} on {what} is a broken step and its reason, `Unsupported`, \
+         whatever the order; not so:\n{}",
+        not_declined.join("\n")
+    );
+}
+
+/// Holds that the chamfer at [`RADIUS`] on the plate's listed edges, named in
+/// `order` and laid as `chamfered`, takes the value whole and lays a hip: the
+/// body exact, closed and uncrossed, holding what the arithmetic promises;
+/// one flat for each edge, numbered in the order the list names them, the top
+/// gone; each flat over its own share of the top, from its wall's two ends one
+/// radius under the top up to where its share closes, and facing halfway
+/// between the top's way and its wall's; each flat meeting its wall, its
+/// neighbours across their mitres, the other flat of the front and back
+/// across the ridge, and the walls not named it runs into, by one edge each;
+/// the flats whose shares reach a crown meeting at one vertex there; and the
+/// walls set back by the distance under them.
+fn flattens_into_a_hip(plate: &Plate, order: &[usize], chamfered: &Chamfered, what: &str) {
     let r = RADIUS;
     let part = &plate.part;
     let start = part.faces_end();
     let walls = plate.walls();
-    let shares = plate.shares(crown);
+    let count = walls.len();
+    let shares = plate.shares();
+    let mitres = plate.mitres();
+    let faces = plate.faces();
+    let ridge = &faces[0];
 
     taken_as_asked(chamfered.asked, chamfered.taken, r, what);
     let body = &chamfered.body;
     let promised = plate.hipped();
     sound_drawn_within(body, promised, EXACT * promised, what);
 
-    let flat_of = |wall: usize| {
+    let flat_of = |edge: usize| {
         start
             + order
                 .iter()
-                .position(|&named| named == wall)
-                .expect("every wall's top edge is named")
+                .position(|&named| named == edge)
+                .expect("every edge is named")
     };
     assert!(
         !body.has_face(TOP),
@@ -1252,29 +1605,24 @@ fn flattens_into_a_hip(
     );
     let mut kept_and_laid = numbers(part);
     kept_and_laid.remove(&TOP);
-    kept_and_laid.extend(start..start + 4);
+    kept_and_laid.extend(start..start + count);
     assert_eq!(
         numbers(body),
         kept_and_laid,
         "{what}: every face of the plate but its top, one flat for each edge, numbered in the \
-         order the list names them, and no face laid at the crown"
+         order the list names them, and no face laid at a crown"
     );
     assert_eq!(
         body.faces_end(),
-        start + 4,
-        "{what}: the next step numbers its faces past the four the list gave its edges"
+        start + count,
+        "{what}: the next step numbers its faces past the {count} the list gave its edges"
     );
 
-    let neighbours = |wall: usize| match wall {
-        0 => vec![vec![LEFT_END], vec![flat_of(1)], vec![flat_of(3)]],
-        3 => vec![vec![LEFT_END], vec![flat_of(2)], vec![flat_of(0)]],
-        other => vec![vec![flat_of(other - 1)], vec![flat_of(other + 1)]],
-    };
-    for (at, wall) in walls.iter().enumerate() {
-        let flat = flat_of(at);
+    for (edge, wall) in walls.iter().enumerate() {
+        let flat = flat_of(edge);
         let which = format!("{what}: the flat of {}", wall.called);
         let inward = -wall.outward().truncate();
-        let lifted: Vec<DVec3> = shares[at]
+        let lifted: Vec<DVec3> = shares[edge]
             .corners
             .iter()
             .map(|&corner| corner.extend(HEIGHT - r + (corner - wall.from).dot(inward)))
@@ -1286,15 +1634,36 @@ fn flattens_into_a_hip(
             &format!("{which}, over its share of the top"),
         );
         faces_toward(body, flat, (wall.outward() + DVec3::Z).normalize(), &which);
-        let mut met = neighbours(at);
-        met.push(vec![wall.number]);
+        let mut met: Vec<Vec<usize>> = vec![vec![wall.number]];
+        for mitre in &mitres {
+            let [one, other] = mitre.edges;
+            for (own, beside) in [(one, other), (other, one)] {
+                if own == edge {
+                    met.push(vec![flat_of(beside)]);
+                }
+            }
+        }
+        if ridge.contains(&edge) {
+            met.extend(
+                ridge
+                    .iter()
+                    .filter(|&&other| other != edge)
+                    .map(|&other| vec![flat_of(other)]),
+            );
+        }
+        met.extend(
+            plate
+                .unnamed_beside(edge)
+                .into_iter()
+                .map(|number| vec![number]),
+        );
         let met: Vec<&[usize]> = met.iter().map(Vec::as_slice).collect();
         assert_eq!(
             sides_met_by(body, &[flat]),
             sides_answering(&met),
-            "{which} meets its wall along its foot, and the flats beside it — the ridge \
-             across the middle line, the hips at the corners and the tip — and the left end, by \
-             one edge each"
+            "{which} meets its wall along its foot, the flats beside it — across the ridge \
+             along the middle line and the hips at the corners — and the walls not named it runs \
+             into, by one edge each"
         );
 
         let [from, to] = [wall.from, wall.to];
@@ -1312,16 +1681,7 @@ fn flattens_into_a_hip(
                 wall.called
             ),
         );
-        let before = if at == 0 {
-            LEFT_END
-        } else {
-            walls[at - 1].number
-        };
-        let after = if at == 3 {
-            LEFT_END
-        } else {
-            walls[at + 1].number
-        };
+        let [before, after] = plate.runs_beside(plate.edges[edge].0).map(|run| 2 + run);
         assert_eq!(
             sides_met_by(body, &[wall.number]),
             sides_answering(&[&[FLOOR], &[before], &[after], &[flat]]),
@@ -1331,35 +1691,41 @@ fn flattens_into_a_hip(
         );
     }
 
-    let mut at_the_crown: Vec<Vec<u32>> = (0..4).map(|wall| vec![flat_of(wall) as u32]).collect();
-    at_the_crown.sort();
-    let crowns = body
-        .vertex_names()
-        .into_iter()
-        .filter(|vertex| vertex.faces == at_the_crown)
-        .count();
-    assert_eq!(
-        crowns, 1,
-        "{what}: the four flats meet at one vertex, the crown, {crown}"
-    );
+    for &crown in &plate.crowns {
+        let mut at_the_crown: Vec<Vec<u32>> = (0..count)
+            .filter(|&edge| shares[edge].reaches(crown))
+            .map(|edge| vec![flat_of(edge) as u32])
+            .collect();
+        at_the_crown.sort();
+        let vertices = body
+            .vertex_names()
+            .into_iter()
+            .filter(|vertex| vertex.faces == at_the_crown)
+            .count();
+        assert_eq!(
+            vertices, 1,
+            "{what}: the flats whose shares reach the crown {crown} meet at one vertex there"
+        );
+    }
 }
 
-/// Holds, for each plate `cases` names by its tip and the crown its hip meets
-/// at, that the chamfer at [`RADIUS`] on its four rounded walls' top edges
-/// lays in each of `orders` the one hip the issue's order lays: every body
-/// whose faces meet as that order's do held whole, and its flats at the
-/// corners of that order's, each read by the wall it was laid on; then every
-/// order declined, and every one whose faces meet otherwise, listed together.
-fn chamfers_into_one_hip_in_each_order(cases: &[(f64, DVec3)], orders: &[[usize; 4]]) {
+/// Holds, for each of `plates`, that the chamfer at [`RADIUS`] on its listed
+/// edges lays in each order `orders` gives for that many edges the one hip
+/// the listed order lays: every body whose faces meet as that order's do held
+/// whole, and its flats at the corners of that order's, each read by the edge
+/// it was laid on; then every order declined, and every one whose faces meet
+/// otherwise, listed together.
+fn chamfers_into_one_hip_in_each_order(plates: &[Plate], orders: fn(usize) -> Vec<Vec<usize>>) {
     let mut declined = Vec::new();
     let mut laid_otherwise = Vec::new();
-    for &(tip, crown) in cases {
-        let plate = PointedPlate::with_tip_at(tip);
+    for plate in plates {
+        let count = plate.edges.len();
         let start = plate.part.faces_end();
-        let reference = plate.chamfered(AS_THE_ISSUE_NAMES_THEM);
-        for &order in orders {
-            let what = plate.called("chamfer", order);
-            let chamfered = match plate.chamfered(order) {
+        let listed: Vec<usize> = (0..count).collect();
+        let reference = plate.chamfered(&listed);
+        for order in orders(count) {
+            let what = plate.called("chamfer", &order);
+            let chamfered = match plate.chamfered(&order) {
                 Ok(chamfered) => chamfered,
                 Err(reason) => {
                     declined.push(format!("{what}: declined, {reason:?}"));
@@ -1367,27 +1733,29 @@ fn chamfers_into_one_hip_in_each_order(cases: &[(f64, DVec3)], orders: &[[usize;
                 }
             };
             if let Ok(reference) = &reference {
-                let otherwise = met_otherwise(start, order, &chamfered.body, &reference.body);
+                let otherwise =
+                    met_otherwise(start, &order, &chamfered.body, &listed, &reference.body);
                 if !otherwise.is_empty() {
                     laid_otherwise.push(format!("{what}:\n  {}", otherwise.join("\n  ")));
                     continue;
                 }
             }
-            flattens_into_a_hip(&plate, crown, order, &chamfered, &what);
+            flattens_into_a_hip(plate, &order, &chamfered, &what);
             if let Ok(reference) = &reference {
-                same_body_as(&plate, &chamfered.body, &reference.body, &what);
-                for wall in 0..4 {
+                same_body_as(plate, &chamfered.body, &reference.body, &what);
+                for edge in 0..count {
                     let laid = start
                         + order
                             .iter()
-                            .position(|&named| named == wall)
-                            .expect("named");
-                    let [own, theirs] = [(&chamfered.body, laid), (&reference.body, start + wall)]
+                            .position(|&named| named == edge)
+                            .expect("every edge is named");
+                    let [own, theirs] = [(&chamfered.body, laid), (&reference.body, start + edge)]
                         .map(|(body, flat)| body.plane_of(flat).map(|plane| plane.corners));
                     assert!(
                         matches!((&own, &theirs), (Some(own), Some(theirs)) if same_points(own, theirs)),
-                        "{what}: the flat of wall {wall} has its corners at {own:?}, where the \
-                         issue's order lays them at {theirs:?}"
+                        "{what}: the flat of {} has its corners at {own:?}, where the listed \
+                         order lays them at {theirs:?}",
+                        plate.edges[edge].1
                     );
                 }
             }
@@ -1396,8 +1764,8 @@ fn chamfers_into_one_hip_in_each_order(cases: &[(f64, DVec3)], orders: &[[usize;
     assert!(
         declined.is_empty() && laid_otherwise.is_empty(),
         "the chamfer at {RADIUS} on the top's front and back edges and on the two edges of the \
-         point lays one hip whichever edge the list names first, the one the issue's order \
-         lays; declined:\n{}\nits faces meeting otherwise than in the issue's order:\n{}",
+         point lays one hip whichever edge the list names first, the one the listed order \
+         lays; declined:\n{}\nits faces meeting otherwise than in the listed order:\n{}",
         declined.join("\n"),
         laid_otherwise.join("\n")
     );
@@ -1406,30 +1774,40 @@ fn chamfers_into_one_hip_in_each_order(cases: &[(f64, DVec3)], orders: &[[usize;
 #[test]
 fn a_fillet_on_a_full_round_and_the_two_edges_of_its_pointed_end_mitres_each_point_round_against_its_neighbours_up_to_the_crown()
  {
-    lays_one_mitred_body_in_each_order(
-        &[(33.0, DVec3::new(33.0 - 3.0 * SQRT_2, 3.0, 10.0))],
-        &[AS_THE_ISSUE_NAMES_THEM],
+    let plate = Plate::pointed(33.0, DVec3::new(33.0 - 3.0 * SQRT_2, 3.0, 10.0));
+    the_shares_give(
+        &plate,
+        1305.0 + 36.0 * SQRT_2 + (66.0 - 6.0 * SQRT_2) * 9.0 * PI / 4.0,
     );
+    lays_one_mitred_body_in_each_order(&[plate], the_listed_order);
 }
 
 #[test]
 fn a_fillet_on_a_full_round_and_the_two_edges_of_its_pointed_end_lays_the_same_body_whatever_the_order()
  {
     lays_one_mitred_body_in_each_order(
-        &[(33.0, DVec3::new(33.0 - 3.0 * SQRT_2, 3.0, 10.0))],
-        &every_order(),
+        &[Plate::pointed(
+            33.0,
+            DVec3::new(33.0 - 3.0 * SQRT_2, 3.0, 10.0),
+        )],
+        every_order,
     );
 }
 
 #[test]
 fn a_fillet_on_a_full_round_and_the_two_edges_of_a_v_notched_end_mitres_each_notch_edge_s_round_against_its_neighbours_down_to_the_notch_whatever_the_order()
  {
+    let notched = Plate::pointed(27.0, DVec3::new(27.0 - 3.0 * SQRT_2, 3.0, 10.0));
+    the_shares_give(
+        &notched,
+        1215.0 + 36.0 * SQRT_2 + (54.0 - 6.0 * SQRT_2) * 9.0 * PI / 4.0,
+    );
     lays_one_mitred_body_in_each_order(
         &[
-            (27.0, DVec3::new(27.0 - 3.0 * SQRT_2, 3.0, 10.0)),
-            (28.0, DVec3::new(28.0 - 13f64.sqrt(), 3.0, 10.0)),
+            notched,
+            Plate::pointed(28.0, DVec3::new(28.0 - 13f64.sqrt(), 3.0, 10.0)),
         ],
-        &every_order(),
+        every_order,
     );
 }
 
@@ -1438,10 +1816,10 @@ fn a_fillet_on_a_full_round_and_the_two_edges_of_a_sharper_or_a_blunter_point_mi
  {
     lays_one_mitred_body_in_each_order(
         &[
-            (39.0, DVec3::new(39.0 - 3.0 * 10f64.sqrt(), 3.0, 10.0)),
-            (32.0, DVec3::new(32.0 - 13f64.sqrt(), 3.0, 10.0)),
+            Plate::pointed(39.0, DVec3::new(39.0 - 3.0 * 10f64.sqrt(), 3.0, 10.0)),
+            Plate::pointed(32.0, DVec3::new(32.0 - 13f64.sqrt(), 3.0, 10.0)),
         ],
-        &every_order(),
+        every_order,
     );
 }
 
@@ -1450,11 +1828,11 @@ fn a_chamfer_on_a_full_round_pair_s_edges_and_the_two_edges_of_a_pointed_end_sta
  {
     chamfers_into_one_hip_in_each_order(
         &[
-            (33.0, DVec3::new(33.0 - 3.0 * SQRT_2, 3.0, 10.0)),
-            (39.0, DVec3::new(39.0 - 3.0 * 10f64.sqrt(), 3.0, 10.0)),
-            (32.0, DVec3::new(32.0 - 13f64.sqrt(), 3.0, 10.0)),
+            Plate::pointed(33.0, DVec3::new(33.0 - 3.0 * SQRT_2, 3.0, 10.0)),
+            Plate::pointed(39.0, DVec3::new(39.0 - 3.0 * 10f64.sqrt(), 3.0, 10.0)),
+            Plate::pointed(32.0, DVec3::new(32.0 - 13f64.sqrt(), 3.0, 10.0)),
         ],
-        &every_order(),
+        every_order,
     );
 }
 
@@ -1529,4 +1907,241 @@ fn the_blunt_the_lopsided_and_the_bevelled_ends_are_still_filleted_at_the_value_
         assert_eq!(closed(&triangles), Ok(()), "{what}");
         assert_eq!(uncrossed(&triangles), Ok(()), "{what}");
     }
+}
+
+#[test]
+fn a_fillet_on_a_full_round_the_two_edges_of_a_pointed_or_v_notched_end_and_the_upright_at_its_tip_is_declined_as_unsupported_whatever_the_order()
+ {
+    let listed = [
+        ([TOP, FRONT], "the top's front edge"),
+        ([TOP, POINT_FRONT], "the end's front edge"),
+        ([TOP, POINT_BACK], "the end's back edge"),
+        ([TOP, BACK], "the top's back edge"),
+        ([POINT_FRONT, POINT_BACK], "the upright at the tip"),
+    ];
+    for tip in [33.0, 27.0] {
+        let plate = Plate::pointed(tip, DVec3::ZERO);
+        declined_in_every_order(
+            &plate.part,
+            &listed,
+            &format!(
+                "a full round, the two edges of the end and the upright where they meet, on {}, \
+                 until #837 builds it",
+                plate.called
+            ),
+        );
+    }
+}
+
+#[test]
+fn a_fillet_on_a_full_round_pointed_at_both_ends_mitres_each_point_round_up_to_its_end_s_crown_whatever_the_order()
+ {
+    let plate = Plate::raised(
+        "the plate pointed at both ends, its tips at (0, 3) and (33, 3)",
+        vec![
+            DVec2::new(0.0, 3.0),
+            DVec2::new(3.0, 0.0),
+            DVec2::new(30.0, 0.0),
+            DVec2::new(33.0, 3.0),
+            DVec2::new(30.0, 6.0),
+            DVec2::new(3.0, 6.0),
+        ],
+        &[
+            (1, "the top's front edge"),
+            (2, "the right point's front edge"),
+            (3, "the right point's back edge"),
+            (4, "the top's back edge"),
+            (5, "the left point's back edge"),
+            (0, "the left point's front edge"),
+        ],
+        [1, 4],
+        vec![
+            DVec3::new(3.0 * SQRT_2, 3.0, 10.0),
+            DVec3::new(33.0 - 3.0 * SQRT_2, 3.0, 10.0),
+        ],
+    );
+    the_shares_give(
+        &plate,
+        1224.0 + 72.0 * SQRT_2 + (66.0 - 12.0 * SQRT_2) * 9.0 * PI / 4.0,
+    );
+    lays_one_mitred_body_in_each_order(&[plate], each_end_in_every_order);
+}
+
+#[test]
+fn a_fillet_on_a_full_round_pointed_at_one_end_and_square_at_the_other_mitres_each_end_s_rounds_up_to_its_crown_whatever_the_order()
+ {
+    let plate = Plate::raised(
+        "the plate pointed at (33, 3), its left end square",
+        vec![
+            DVec2::ZERO,
+            DVec2::new(LENGTH, 0.0),
+            DVec2::new(33.0, 3.0),
+            DVec2::new(LENGTH, WIDTH),
+            DVec2::new(0.0, WIDTH),
+        ],
+        &[
+            (0, "the top's front edge"),
+            (1, "the point's front edge"),
+            (2, "the point's back edge"),
+            (3, "the top's back edge"),
+            (4, "the top's left edge"),
+        ],
+        [0, 3],
+        vec![
+            DVec3::new(3.0, 3.0, 10.0),
+            DVec3::new(33.0 - 3.0 * SQRT_2, 3.0, 10.0),
+        ],
+    );
+    the_shares_give(
+        &plate,
+        1341.0 + 36.0 * SQRT_2 + (60.0 - 6.0 * SQRT_2) * 9.0 * PI / 4.0,
+    );
+    lays_one_mitred_body_in_each_order(&[plate], every_order);
+}
+
+#[test]
+fn a_fillet_on_a_full_round_and_the_two_edges_of_a_lopsided_point_tangent_to_one_circle_mitres_them_up_to_the_crown_whatever_the_order()
+ {
+    let plate = Plate::raised(
+        "the plate whose lopsided point's tip stands at (98/3, 2), its back 31 long",
+        vec![
+            DVec2::ZERO,
+            DVec2::new(LENGTH, 0.0),
+            DVec2::new(98.0 / 3.0, 2.0),
+            DVec2::new(31.0, WIDTH),
+            DVec2::new(0.0, WIDTH),
+        ],
+        &[
+            (0, "the top's front edge"),
+            (1, "the point's front edge"),
+            (2, "the point's back edge"),
+            (3, "the top's back edge"),
+        ],
+        [0, 3],
+        vec![DVec3::new(29.0, 3.0, 10.0)],
+    );
+    the_shares_give(&plate, 1362.0 + 261.0 * PI / 2.0);
+    let laid = laid_in_each_order(&[plate], every_order);
+    assert!(
+        laid.whole > 0 && laid.declined.is_empty() && laid.laid_otherwise.is_empty(),
+        "the fillet at {RADIUS} on a full round and the two edges of a lopsided point both \
+         tangent to the circle about the crown lays the mitred body, one body, in every order \
+         taking the value whole, and in one at least, the others' value being #895's: {} taken \
+         whole; declined:\n{}\nits faces meeting otherwise than in the first order taking the \
+         value whole:\n{}",
+        laid.whole,
+        laid.declined.join("\n"),
+        laid.laid_otherwise.join("\n")
+    );
+}
+
+/// A block [`LENGTH`] long, [`WIDTH`] wide and [`HEIGHT`] high, raised as
+/// `cao_part` builds a step: its floor nought, its top one, its front, right
+/// end, back and left end two to five.
+fn square_ended_plate() -> Body {
+    raised(
+        Contour::rectangle(DVec2::ZERO, DVec2::new(LENGTH, WIDTH)),
+        HEIGHT,
+    )
+}
+
+#[test]
+fn a_fillet_on_a_full_round_its_square_end_s_edge_and_the_upright_at_one_corner_of_that_end_is_declined_as_unsupported_whatever_the_order()
+ {
+    let [front, right_end, back] = [2, 3, 4];
+    declined_in_every_order(
+        &square_ended_plate(),
+        &[
+            ([TOP, front], "the top's front edge"),
+            ([TOP, back], "the top's back edge"),
+            ([TOP, right_end], "the top's right edge"),
+            ([front, right_end], "the upright at the front right corner"),
+        ],
+        "a full round, the edge across its square end and the upright at that end's front \
+         corner, a full round meeting an upright, until #837 builds it",
+    );
+}
+
+/// Holds that the fillet at [`RADIUS`] on `listed`'s edges of `part`, each
+/// the edge between the two faces numbered, takes `value` and keeps the top in
+/// every order, short of a full round, the body exact, closed and uncrossed;
+/// `what` says what the list is.
+fn stops_short_in_every_order(part: &Body, listed: &[([usize; 2], &str)], value: f64, what: &str) {
+    for order in every_order(listed.len()) {
+        let names: Vec<EdgeName> = order
+            .iter()
+            .map(|&edge| {
+                let [one, other] = listed[edge].0;
+                edge_between(part, one, other)
+            })
+            .collect();
+        let called: Vec<&str> = order.iter().map(|&edge| listed[edge].1).collect();
+        let what = format!(
+            "the fillet at {RADIUS} on {what}, {}",
+            called.join(", then ")
+        );
+        let filleted = part
+            .fillet_edges(&names, RADIUS)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+        assert!(
+            (filleted.asked - RADIUS).abs() < PLACE && (filleted.taken - value).abs() < PLACE,
+            "{what}: asked {} and took {}, where the list stops short of the full round at \
+             {value}",
+            filleted.asked,
+            filleted.taken
+        );
+        let body = &filleted.body;
+        assert!(
+            body.has_face(TOP),
+            "{what}: the top is kept, no full round laid over it"
+        );
+        assert!(
+            body.is_exact(),
+            "{what}: the exact kernel computed the body"
+        );
+        let triangles = body.triangles();
+        assert_eq!(closed(&triangles), Ok(()), "{what}");
+        assert_eq!(uncrossed(&triangles), Ok(()), "{what}");
+    }
+}
+
+#[test]
+fn a_fillet_on_a_full_round_and_one_edge_of_its_point_alone_stops_short_of_the_full_round_whatever_the_order()
+ {
+    let plate = Plate::pointed(33.0, DVec3::ZERO);
+    stops_short_in_every_order(
+        &plate.part,
+        &[
+            ([TOP, FRONT], "the top's front edge"),
+            ([TOP, BACK], "the top's back edge"),
+            ([TOP, POINT_FRONT], "the point's front edge"),
+        ],
+        6.0 - 3.0 * SQRT_2,
+        &format!(
+            "the full round's pair and the point's front edge alone, on {}",
+            plate.called
+        ),
+    );
+}
+
+#[test]
+fn a_fillet_on_a_full_round_one_edge_of_its_point_alone_and_its_square_far_end_s_edge_stops_short_of_the_full_round_whatever_the_order()
+ {
+    let plate = Plate::pointed(33.0, DVec3::ZERO);
+    let left_end = 6;
+    stops_short_in_every_order(
+        &plate.part,
+        &[
+            ([TOP, FRONT], "the top's front edge"),
+            ([TOP, BACK], "the top's back edge"),
+            ([TOP, POINT_FRONT], "the point's front edge"),
+            ([TOP, left_end], "the top's left edge"),
+        ],
+        6.0 - 3.0 * SQRT_2,
+        &format!(
+            "the full round's pair, the point's front edge alone and the edge across the square \
+             far end, on {}",
+            plate.called
+        ),
+    );
 }

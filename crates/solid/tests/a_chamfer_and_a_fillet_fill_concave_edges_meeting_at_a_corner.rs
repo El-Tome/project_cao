@@ -222,15 +222,6 @@
 //! the corner closed at a sharp corner is held by the booleans, chamfered
 //! and filleted at 1, a half and 0.3 at 26.6°.
 //!
-//! The narrower the corner, the farther the piece closing it reaches: at
-//! 26.6° the sphere's centre, and the triangle's plane where it crosses the
-//! edges, stand about four and a half values from the corner, two at most at
-//! a square one. The booleans' box, once a fixed four values each way, cut
-//! that piece short there, and they kept less than the step — `2.1e-5·d³`
-//! among flats, `0.24·r³` among rounds — which #892 found and first read as
-//! the step's fault. The box now stands the value past [`Closed::reach`], and the two
-//! agree within 1e-12 at every value; the step had been right.
-//!
 //! The mutants #835 names that no test kills are equivalent, with the
 //! reason. In `wedge/corners.rs`, `admit` turning `inwards && meeting(edge,
 //! true)` into `||` differs only where two edges meeting inwards are listed
@@ -255,7 +246,7 @@
 //! - `wedge/triangle.rs`, `joined_across`: the terms of `reach`, `+` → `-` and
 //!   `+` → `*`, are held by a case where a smaller reach leaves part of the
 //!   prism standing past a thin wall: a tray's bottom corners 45° and 26.6°
-//!   wide, walls of 0.5, chamfered at 1, a quarter and 0.3 —
+//!   wide, walls of 0.5, chamfered at 1, a half, a quarter and 0.3 —
 //!   `a_chamfer_and_a_fillet_at_a_sharp_bottom_corner_of_a_tray_with_walls_of_a_half_close_it_inside_its_walls`.
 //!   At a square corner, and at the 111.8° and 68.2° corners above, each of
 //!   the four still reaches far enough
@@ -286,13 +277,12 @@
 //! - At the 26.6° corner above, a chamfer of 1 and a fillet of 1 close it to
 //!   the booleans' volume within `EXACT`. Failing that, the booleans are
 //!   shown to be the wrong side, and the test compares against the right
-//!   volume — the booleans were the wrong side, their corner's box too small
-//!   for the piece at 26.6°; sized now by [`Closed::reach`], they agree with
-//!   the step —
+//!   volume — held against booleans whose corner box holds the whole piece,
+//!   [`Closed::reach`] —
 //!   `a_chamfer_and_a_fillet_at_a_sharp_bottom_corner_of_a_tray_with_walls_of_a_half_close_it_inside_its_walls`
 //! - The test of #835 at that corner covers those values, not only 0.3 — it
 //!   holds the 26.6° corner chamfered and filleted at 1, a half and 0.3, and
-//!   the 45° corner filleted as well as chamfered, renamed to say so —
+//!   the 45° corner chamfered and filleted at 1 and a quarter —
 //!   `a_chamfer_and_a_fillet_at_a_sharp_bottom_corner_of_a_tray_with_walls_of_a_half_close_it_inside_its_walls`
 
 use std::collections::BTreeSet;
@@ -2271,24 +2261,34 @@ impl Closed {
 
     /// How far from the corner the piece closing it reaches: among flats,
     /// where the triangle's plane crosses the three edges; among rounds, the
-    /// sphere's centre, the cell's far corner. The narrower the corner, the
-    /// farther both stand: at 26.6°, about four and a half times the value.
+    /// sphere's centre, the cell's far corner.
     fn reach(&self, edges: &[Concave], cut: Cut, value: f64) -> f64 {
         match cut {
             Cut::Flat => {
-                let crossings: Vec<DVec3> = self
-                    .faces(edges)
-                    .iter()
-                    .map(|&(face, _)| self.on(edges, face, cut, value))
-                    .collect();
-                let normal = (crossings[1] - crossings[0]).cross(crossings[2] - crossings[0]);
+                let (crossings, away) = self.triangle(edges, value);
                 self.ways(edges)
                     .into_iter()
-                    .map(|way| normal.dot(crossings[0] - self.at) / normal.dot(way))
+                    .map(|way| away.dot(crossings[0] - self.at) / away.dot(way))
                     .fold(0.0, f64::max)
             }
             Cut::Round => self.centre(edges, value).distance(self.at),
         }
+    }
+
+    /// The triangle closing the corner once chamfered at `value`: its three
+    /// crossings, in the order of [`Closed::faces`], each as [`Closed::on`]
+    /// places it, and the way its plane faces, away from the corner.
+    fn triangle(&self, edges: &[Concave], value: f64) -> (Vec<DVec3>, DVec3) {
+        let crossings: Vec<DVec3> = self
+            .faces(edges)
+            .iter()
+            .map(|&(face, _)| self.on(edges, face, Cut::Flat, value))
+            .collect();
+        let mut away = (crossings[1] - crossings[0]).cross(crossings[2] - crossings[0]);
+        if away.dot(crossings[0] - self.at) < 0.0 {
+            away = -away;
+        }
+        (crossings, away)
     }
 }
 
@@ -2415,15 +2415,7 @@ fn closed_by_booleans(
         }
         match cut {
             Cut::Flat => {
-                let crossings: Vec<DVec3> = corner
-                    .faces(edges)
-                    .iter()
-                    .map(|&(face, _)| corner.on(edges, face, cut, value))
-                    .collect();
-                let mut away = (crossings[1] - crossings[0]).cross(crossings[2] - crossings[0]);
-                if away.dot(crossings[0] - corner.at) < 0.0 {
-                    away = -away;
-                }
+                let (crossings, away) = corner.triangle(edges, value);
                 cut_off(&mut piece, crossings[0], away);
             }
             Cut::Round => {
@@ -2763,10 +2755,7 @@ fn corners_closed(part: &Body, edges: &[Concave], corners: &[Closed], case: &Cas
         let faces = corner.faces(edges);
         match cut {
             Cut::Flat => {
-                let crossings: Vec<DVec3> = faces
-                    .iter()
-                    .map(|&(face, _)| corner.on(edges, face, cut, value))
-                    .collect();
+                let (crossings, away) = corner.triangle(edges, value);
                 corners_are_or_on(
                     body,
                     patch,
@@ -2778,10 +2767,6 @@ fn corners_closed(part: &Body, edges: &[Concave], corners: &[Closed], case: &Cas
                         corner.at
                     ),
                 );
-                let mut away = (crossings[1] - crossings[0]).cross(crossings[2] - crossings[0]);
-                if away.dot(crossings[0] - corner.at) < 0.0 {
-                    away = -away;
-                }
                 faces_toward(
                     body,
                     patch,

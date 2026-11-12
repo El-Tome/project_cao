@@ -90,23 +90,26 @@ impl Exact {
     /// The body with the edges `names` find — cut off where their faces meet
     /// outwards and filled in where they meet inwards, each two facing each
     /// other across a face they share in a chain, their set-backs meeting
-    /// there at `value` — the cuts first, whichever the names give first,
-    /// each by the prism `tool` raises over it — a cut's prism runs on a
-    /// margin past its set-back, which would lie flush on, or cut into, a
-    /// fill laid before it — then the fills on what the cuts left, the flats
-    /// numbered from where the steps' numbers ended in the order they are
-    /// laid, then each by its own edge's number in `numbers`, as
-    /// [`Exact::paired`] numbers them. Where every flat lies at an angle the
-    /// kernel tells from none to the first cut's, within [`TANGENT`] — each
-    /// facing the way between the ways its edge's two faces face — they are
-    /// one slope, every fill raised on that cut's plane, as
-    /// [`Exact::filled_on_slope`] lays it. Flats at an angle the kernel
-    /// tells meet in a crease, each fill laid by the prism `tool` raises.
-    /// Declined as [`Exact::cut_off`] says, and `Unsupported` where the
-    /// kernel left the slope in more faces than one, or where a crease's
-    /// fill left something else than its one face, as [`Exact::cut_along`]
-    /// reads it — a fill between a crease and a slope, the foot of a flight
-    /// whose front leans, among them (#926).
+    /// there at `value` — the cuts first, then the fills on what the cuts
+    /// left, each in the order of the numbers its faces answer to, whatever
+    /// order the names give, so that the body is one whatever it is — a
+    /// cut's prism runs on a margin past its set-back, which would lie flush
+    /// on, or cut into, a fill laid before it — each cut by the prism `tool`
+    /// raises over it, the flats numbered from where the steps' numbers
+    /// ended in the order they are laid, then each by its own edge's number
+    /// in `numbers`, as [`Exact::paired`] numbers them. Where every flat lies
+    /// at an angle the kernel tells from none to the first cut's, within
+    /// [`TANGENT`] — each facing the way between the ways its edge's two
+    /// faces face — they are one slope, every fill raised on that cut's
+    /// plane, as [`Exact::filled_on_slope`] lays it. Two flats at an angle
+    /// the kernel tells meet in a crease, the fill laid by the prism `tool`
+    /// raises. Declined as [`Exact::cut_off`] says, and `Unsupported` before
+    /// anything is laid where a chain of more than two holds a crease — a
+    /// flight whose front leans, until #926 — where the kernel left the
+    /// slope in more faces than one — a chain a hair off one plane, a
+    /// flight's riser turned or tipped by a hair, until #929 — or where the
+    /// crease's fill left something else than its one face, as
+    /// [`Exact::cut_along`] reads it.
     pub(super) fn sloped(
         &self,
         names: &[&EdgeName],
@@ -117,11 +120,17 @@ impl Exact {
         let read = (names.iter())
             .map(|name| Ok(self.wedge(name, Wedge::read)?.1))
             .collect::<Result<Vec<Wedge>, Declined>>()?;
-        let (cuts, fills): (Vec<usize>, Vec<usize>) =
+        let (mut cuts, mut fills): (Vec<usize>, Vec<usize>) =
             (0..names.len()).partition(|&rank| !read[rank].inwards);
+        for laying in [&mut cuts, &mut fills] {
+            laying.sort_by_key(|&rank| read[rank].numbers.clone());
+        }
         let first = &read[*cuts.first().ok_or(Declined::Unsupported)?];
         let facing = first.square().1;
         let crease = (read.iter()).any(|wedge| wedge.square().1.cross(facing).length() > TANGENT);
+        if crease && names.len() > 2 {
+            return Err(Declined::Unsupported);
+        }
         let mut laid = self.clone();
         for &rank in &cuts {
             let (edge, wedge) = laid.wedge(names[rank], Wedge::read)?;

@@ -204,7 +204,10 @@ impl Exact {
                     let number = start + earlier as u32;
                     cut.laid_together(&self.brep, pair, number, raise, &mitred)?
                 }
-                (Some(&(_, _, value)), Together::Sloped) => {
+                (Some(_), Together::Sloped) => {
+                    let value = (pairs.iter())
+                        .filter(|&&(one, _, _)| joined.contains(&one))
+                        .fold(f64::INFINITY, |least, &(_, _, value)| least.min(value));
                     let chain: Vec<&EdgeName> = joined.iter().map(|&at| &names[at]).collect();
                     let numbers: Vec<u32> = joined.iter().map(|&at| start + at as u32).collect();
                     cut.sloped(&chain, &numbers, value, &tool)?

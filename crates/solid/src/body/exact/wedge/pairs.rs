@@ -1,8 +1,8 @@
 //! Two edges of one step facing each other across a face they share
 //! (#698): the bound they set on the one value, so that their set-backs do
 //! not cross on it, the pairs whose set-backs meet across it, which are laid
-//! as one — a chain of cuts beside fills as one slope (#813) — and the edges of the list such a pair is mitred against at a
-//! corner (#803): each edge at its end, bounding the face that is gone, one
+//! as one — a chain of cuts beside fills as one slope (#813) — and the edges
+//! of the list such a pair is mitred against at a corner (#803): each edge at its end, bounding the face that is gone, one
 //! across it or the two of a pointed or a V-notched end (#843), the upright
 //! at a point's tip with them, and any upright meeting one of the pair, at
 //! either end, alone or with the edge at their end (#837); and the edge at a
@@ -297,12 +297,13 @@ impl Exact {
         cut.paired(self, &[first, second], &[self.next, number], mitred)
     }
 
-    /// The body two edges of `before` were laid on as one, its faces left
-    /// alone as [`Exact::cut_along`] reads it of both their wedges and of the
-    /// faces laid before it that `mitred` numbers: what answered to the number
-    /// where the steps' numbers of `before` ended — the first wall laid —
-    /// answering to `numbers[0]` instead, and what answered to the one past it
-    /// to `numbers[1]`. Declined `Unsupported` where that reading fails.
+    /// The body the edges of `wedges`, read on `before`, were laid on as
+    /// one, each laying a wall, its faces left alone as [`Exact::cut_along`]
+    /// reads it of all their wedges and of the faces laid before it that
+    /// `mitred` numbers: what answered to each number from where the steps'
+    /// numbers of `before` ended, in the order the walls were laid, answering
+    /// to the number of `numbers` at that rank instead. Declined
+    /// `Unsupported` where that reading fails.
     pub(super) fn paired(
         self,
         before: &Exact,

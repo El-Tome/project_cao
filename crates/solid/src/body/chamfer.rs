@@ -41,7 +41,10 @@ impl Body {
     /// which are one slope, the face gone, answering to both their numbers.
     /// Where their flats lie at an angle — the tread's front leaning — they
     /// meet in a crease, the face gone, each answering to its own number,
-    /// whichever is named first. Such a slope or crease is laid at the
+    /// whichever is named first. A chain of such edges — a flight's noses and
+    /// feet, each tread as deep as each riser is high — is one slope across
+    /// it, the treads and risers gone, answering to every edge's number.
+    /// Such a slope or crease is laid at the
     /// distance whose set-backs meet across that face, which may stand a hair
     /// above the distance taken: its own distance is read off its faces,
     /// never from [`Chamfered::taken`]. Two edges meeting at a convex corner
@@ -62,8 +65,9 @@ impl Body {
     /// meet in a valley; at any other corner where an edge meets inwards they
     /// are declined `Unsupported`, as is an edge of a slope or a crease
     /// meeting another edge of the list at a corner, and an edge whose flat
-    /// would be one slope, or meet in a crease, with two others'. Flats that
-    /// would meet only on a curved edge are not measured, and declined
+    /// would meet one other's in a crease and another's in a slope — the foot
+    /// of a flight whose front leans. Flats that would meet only on a curved
+    /// edge are not measured, and declined
     /// `Unsupported` where they meet. The first edge declined declines the
     /// step.
     pub fn chamfer_edges(&self, edges: &[EdgeName], distance: f64) -> Result<Chamfered, Declined> {

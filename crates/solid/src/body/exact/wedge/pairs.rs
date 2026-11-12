@@ -1,7 +1,7 @@
 //! Two edges of one step facing each other across a face they share
 //! (#698): the bound they set on the one value, so that their set-backs do
 //! not cross on it, the pairs whose set-backs meet across it, which are laid
-//! as one, and the edges of the list such a pair is mitred against at a
+//! as one — a chain of cuts beside fills as one slope (#813) — and the edges of the list such a pair is mitred against at a
 //! corner (#803): each edge at its end, bounding the face that is gone, one
 //! across it or the two of a pointed or a V-notched end (#843), the upright
 //! at a point's tip with them, and any upright meeting one of the pair, at
@@ -111,10 +111,15 @@ pub(super) fn meeting(
     Ok(pairs)
 }
 
-/// Declined `Unsupported` where an edge of `pairs` would meet two others,
-/// every face round it gone, but where they close on themselves, as
-/// [`super::ring::closed`] reads them.
-pub(super) fn apart(pairs: &[Pair]) -> Result<(), Declined> {
+/// Declined `Unsupported` where an edge of `pairs` that `together` raises as
+/// one would meet two others, every face round it gone, but where they
+/// close on themselves, as [`super::ring::closed`] reads them. Cuts beside
+/// fills meeting in a chain — a flight's noses and feet — are laid as one
+/// slope across it, as [`Exact::sloped`] lays them.
+pub(super) fn apart(pairs: &[Pair], together: Together) -> Result<(), Declined> {
+    if matches!(together, Together::Sloped) {
+        return Ok(());
+    }
     let ranks: BTreeSet<usize> = pairs
         .iter()
         .flat_map(|&(one, other, _)| [one, other])
@@ -289,7 +294,7 @@ impl Exact {
         } else {
             self.cut_by(&Exact { next: 2, ..tool })?
         };
-        cut.paired(self, [first, second], [self.next, number], mitred)
+        cut.paired(self, &[first, second], &[self.next, number], mitred)
     }
 
     /// The body two edges of `before` were laid on as one, its faces left
@@ -301,11 +306,11 @@ impl Exact {
     pub(super) fn paired(
         self,
         before: &Exact,
-        wedges: [&Wedge; 2],
-        numbers: [u32; 2],
+        wedges: &[&Wedge],
+        numbers: &[u32],
         mitred: &[u32],
     ) -> Result<Exact, Declined> {
-        if !self.cut_along(&wedges, before, 2, mitred, &[], &[]) {
+        if !self.cut_along(wedges, before, numbers.len() as u32, mitred, &[], &[]) {
             return Err(Declined::Unsupported);
         }
         let Exact {
@@ -316,13 +321,15 @@ impl Exact {
             drawn,
             ..
         } = self;
-        let laid = [before.next, before.next + 1];
-        let faces = laid.map(|number| {
-            (brep.face_ids())
-                .filter(|&face| brep.numbers(face).contains(&number))
-                .collect::<Vec<FaceId>>()
-        });
-        for ((faces, from), to) in faces.iter().zip(laid).zip(numbers) {
+        let laid: Vec<u32> = (before.next..).take(numbers.len()).collect();
+        let faces: Vec<Vec<FaceId>> = (laid.iter())
+            .map(|&number| {
+                (brep.face_ids())
+                    .filter(|&face| brep.numbers(face).contains(&number))
+                    .collect()
+            })
+            .collect();
+        for ((faces, &from), &to) in faces.iter().zip(&laid).zip(numbers) {
             brep.rename(faces, from, to);
         }
         let renamed = Exact::of(brep, next, pieces, roots);

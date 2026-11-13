@@ -632,8 +632,8 @@
 //!   corner at (30, 0) cut to (25, 0) and (30, 5); the right end cut to the
 //!   slope from y = 5 back, the left end as #791 cuts it. The right end
 //!   loses the quadrilateral (0, 0), (5, 0), (5, 10), (0, 5) of its section,
-//!   and the floor the triangle. The body exact, closed, uncrossed, holding 9000 − 250/3,
-//!   8916.666667 — the slope keeping the stair's 9000, the nose's triangle
+//!   and the floor the triangle. The body exact, closed, uncrossed, holding
+//!   9000 − 250/3, 8916.666667 — the slope keeping the stair's 9000, the nose's triangle
 //!   and the foot's alike, and the upright's flat taking off, over the
 //!   floor's triangle (25, 0), (30, 0), (30, 5), the height under the slope,
 //!   y + 5: the triangle's 12.5 times that height at its centroid, 5/3 + 5 —
@@ -690,6 +690,74 @@
 //!   beyond the wording, the left, the nose, the foot and the tread's side
 //!   edge there declined `Unsupported` in each of their six orders, asked 5
 //!   and asked 8, the message naming #935
+//! - Decided on the way, after the review (2026-11-13): the front's upright
+//!   edge at the nose's right end, named with the nose and the foot of the
+//!   [`stair_with_its_riser_turned_by`] 1e-7, which `main` declined
+//!   `Unsupported`, is one body in every order, whether the step meets the
+//!   upright before the slope or after it —
+//!   `a_chamfer_on_a_tread_s_nose_and_foot_whose_riser_is_turned_or_tipped_back_by_a_hair_and_the_front_s_upright_edge_at_the_nose_s_right_end_lays_one_body_in_every_order`.
+//!   Read as: in each of the six orders, asked 5, 8 and 5 − 1e-6, the value
+//!   asked reported and taken within a hair of 5; the tread gone and no
+//!   other face of the stair, no face laid at the corner; the upright's flat
+//!   set back d, read where it meets the floor at the front, within a hair
+//!   of 5 and the same in every order to the place's tolerance — a probe
+//!   found 4.99999925 whatever was asked, the set-back the nose and the foot
+//!   alone take — its corners (30 − d, 0, 0), (30, d, 0), (30, d, 10) and
+//!   (30 − d, 0, 10 − d); the slope one face answering to the nose's and the
+//!   foot's numbers, on z = y + 10 − d, its corners (0, 0, 10 − d), the
+//!   turned riser's at either end, r + 10 − d up, and the mitre's two ends;
+//!   the front cut back to x = 30 − d below z = 10 − d; the two flats meeting
+//!   by one edge, from the front to the right end; the body exact, closed,
+//!   uncrossed, holding the turned stair's matter under that slope — each
+//!   section 400 − 10r with the riser at r, less the nose's triangle, d²/2,
+//!   more the fill from d to r, (r − d)²/2, r running straight along the
+//!   stair — less what the upright's flat takes off, 5d² − d³/3, 250/3 at 5:
+//!   8916.666910; and its triangles enclosing that
+//! - Decided on the way, after the review (2026-11-13): the same list on the
+//!   [`stair_with_its_riser_tipped_back`], which `main` declined
+//!   `Unsupported`, is one body in every order —
+//!   `a_chamfer_on_a_tread_s_nose_and_foot_whose_riser_is_turned_or_tipped_back_by_a_hair_and_the_front_s_upright_edge_at_the_nose_s_right_end_lays_one_body_in_every_order`.
+//!   Read as: asked 5 and 8, every check above, the slope on
+//!   z = y + 10 − d meeting the tipped riser where y = 10 + 2e-6·z/20, d
+//!   found 5.0000005; the body holding the section through the slope's
+//!   corners along the stair less 5d² − d³/3, 8916.666242
+//! - Decided on the way, after the review (2026-11-13): asked 5 − 1e-6, the
+//!   tipped stair keeps a strip of its tread, as the nose and the foot alone
+//!   keep it, and the upright changes nothing of that —
+//!   `a_chamfer_on_a_tread_s_nose_and_foot_whose_riser_is_turned_or_tipped_back_by_a_hair_and_the_front_s_upright_edge_at_the_nose_s_right_end_lays_one_body_in_every_order`.
+//!   The strip, 3e-6 wide, is wider than what the kernel reads as none,
+//!   2.4e-6, the tipped riser standing 1e-6 back at the foot. Read as: in
+//!   each of the six orders, the value asked reported and taken within a
+//!   hair of 5; every face of the stair kept, a flat for each edge; the
+//!   upright's flat set back d as above, d found 4.999999; the nose's flat
+//!   answering to its own number, mitred against the upright's as #699
+//!   mitres two flats, its corners (0, 0, 10 − d), (0, d, 10) and the
+//!   mitre's two ends, the mitre running from the front to where the
+//!   tread's side edge goes on sharp; the foot's flat answering to its own
+//!   number, d along the tread and d up the tipped riser from the foot; the
+//!   strip of tread from y = d to d short of the foot; the body exact,
+//!   closed, uncrossed, holding the stair's own, 30·(300 − 7.5·2e-6), less
+//!   the nose's triangle, d²/2, more the foot's, d²/2 times the sine of the
+//!   tipped riser's angle to the tread, less 5d² − d³/3: 8916.666242
+//! - Decided on the way, after the review (2026-11-13): the front's upright
+//!   edge at the first nose's right end, named with the first nose, the
+//!   foot and the second nose of the [`stair`] and of the [`flight_of`]
+//!   three steps, which `main` declined `Unsupported`, lays the slope across
+//!   the flight mitred against the upright's flat in every order —
+//!   `a_chamfer_on_a_flight_s_first_nose_the_foot_between_and_the_second_nose_and_the_front_s_upright_edge_at_the_first_nose_s_right_end_lays_the_slope_mitred_against_the_upright_s_flat_in_every_order`.
+//!   Read as: in each of the 24 orders, asked 5, 8 and 5 − 1e-6, the value
+//!   asked reported and taken within a hair of 5; the first tread and the
+//!   riser above it gone and no other face, no face laid at the corner; the
+//!   upright's flat set back 5 to the place's tolerance, its corners
+//!   (25, 0, 0), (30, 5, 0), (30, 5, 10) and (25, 0, 5); the slope one face
+//!   answering to the three edges' numbers, its corners (0, 0, 5),
+//!   (0, 15, 20), (30, 15, 20) and the mitre's two ends; the front cut back
+//!   to x = 25 below z = 5; the two flats meeting by one edge, from the
+//!   front to the right end; the body exact, closed, uncrossed, holding
+//!   30·(300 − 12.5) − 250/3, 8541.666667, on two steps and
+//!   30·(600 − 12.5) − 250/3, 17541.666667, on three — two noses' triangles
+//!   lost and one foot's gained, less what the upright's flat takes off —
+//!   and its triangles enclosing that
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -7442,6 +7510,507 @@ fn a_chamfer_on_a_tread_s_nose_and_foot_and_the_tread_s_side_edge_at_one_end_is_
                     end.called
                 );
             }
+        }
+    }
+}
+
+/// The corners of the front's upright edge's flat at the nose's right end,
+/// set back `distance`: from the floor up to the mitre, from the front to the
+/// end.
+fn upright_flat_set_back(distance: f64) -> Vec<DVec3> {
+    let [on_front, on_end] = mitre_set_back(distance);
+    vec![
+        DVec3::new(LENGTH - distance, 0.0, 0.0),
+        DVec3::new(LENGTH, distance, 0.0),
+        on_end,
+        on_front,
+    ]
+}
+
+/// The two ends of the mitre at the nose's right end, set back `distance`:
+/// on the front, `distance` short of the end and down from the tread, and on
+/// the end, `distance` back on the tread.
+fn mitre_set_back(distance: f64) -> [DVec3; 2] {
+    [
+        DVec3::new(LENGTH - distance, 0.0, TREAD_HEIGHT - distance),
+        DVec3::new(LENGTH, distance, TREAD_HEIGHT),
+    ]
+}
+
+/// The corners of what is left of the nose's front once its edge and the
+/// upright at its right end are set back `distance`.
+fn front_set_back(distance: f64) -> Vec<DVec3> {
+    let below = TREAD_HEIGHT - distance;
+    vec![
+        DVec3::ZERO,
+        DVec3::new(LENGTH - distance, 0.0, 0.0),
+        DVec3::new(LENGTH - distance, 0.0, below),
+        DVec3::new(0.0, 0.0, below),
+    ]
+}
+
+/// The matter the upright's flat set back `distance` takes off at the
+/// nose's right end, under the nose's flat or the slope through it, which
+/// lie on one plane there: over the floor's triangle it cuts, the height
+/// under that plane at the triangle's centroid times its area, 5d² − d³/3,
+/// 250/3 at 5.
+fn upright_takes(distance: f64) -> f64 {
+    distance * distance / 2.0 * (distance / 3.0 + TREAD_HEIGHT - distance)
+}
+
+/// The corners of the slope across the turned stair's tread, set back
+/// `distance`, mitred at its right end: from the nose's front at the left
+/// end, up to the turned riser at either end, and the mitre's two ends.
+fn turned_slope_set_back(distance: f64) -> Vec<DVec3> {
+    let above = TREAD_HEIGHT - distance;
+    let mut corners: Vec<DVec3> = [0.0, LENGTH]
+        .map(|x| {
+            let riser = riser_turned_by_at(RISER_TURN, x);
+            DVec3::new(x, riser, riser + above)
+        })
+        .to_vec();
+    corners.push(DVec3::new(0.0, 0.0, above));
+    corners.extend(mitre_set_back(distance));
+    corners
+}
+
+/// The matter of the turned stair under the slope set back `distance`, its
+/// upright's flat cut at the nose's right end: each section holds
+/// 400 − 10r with the riser at r, less the nose's triangle, d²/2, and more
+/// the fill between the tread and the slope from d to r, (r − d)²/2; r runs
+/// straight along the stair, so its mean and its mean square are those of
+/// its two ends; and the upright's flat takes [`upright_takes`] off.
+fn turned_matter(_: &Body, distance: f64) -> f64 {
+    let [left, right] = [0.0, LENGTH].map(|x| riser_turned_by_at(RISER_TURN, x) - distance);
+    let mean_riser = (left + right) / 2.0 + distance;
+    let mean_fill = (left * left + left * right + right * right) / 3.0 / 2.0;
+    LENGTH
+        * (2.0 * TREAD * HEIGHT - (HEIGHT - TREAD_HEIGHT) * mean_riser - distance * distance / 2.0
+            + mean_fill)
+        - upright_takes(distance)
+}
+
+/// Where the slope set back `distance`, on z = y + 10 − d, meets the tipped
+/// stair's riser, y = 10 + [`RISER_TIP`]·z/20, on its section.
+fn tipped_riser_meets_the_slope(distance: f64) -> DVec2 {
+    let above = TREAD_HEIGHT - distance;
+    let z = (TREAD + above) / (1.0 - RISER_TIP / HEIGHT);
+    DVec2::new(z - above, z)
+}
+
+/// The corners of the slope across the tipped stair's tread, set back
+/// `distance`, mitred at its right end.
+fn tipped_slope_set_back(distance: f64) -> Vec<DVec3> {
+    let riser = tipped_riser_meets_the_slope(distance);
+    let mut corners: Vec<DVec3> = [0.0, LENGTH]
+        .map(|x| DVec3::new(x, riser.x, riser.y))
+        .to_vec();
+    corners.push(DVec3::new(0.0, 0.0, TREAD_HEIGHT - distance));
+    corners.extend(mitre_set_back(distance));
+    corners
+}
+
+/// The matter of the tipped stair under the slope set back `distance`: its
+/// section through the slope's corners along the stair, less what the
+/// upright's flat takes off.
+fn tipped_slope_matter(_: &Body, distance: f64) -> f64 {
+    let riser = tipped_riser_meets_the_slope(distance);
+    LENGTH
+        * area_of(&[
+            DVec2::ZERO,
+            DVec2::new(2.0 * TREAD, 0.0),
+            DVec2::new(2.0 * TREAD, HEIGHT),
+            DVec2::new(TREAD + RISER_TIP, HEIGHT),
+            riser,
+            DVec2::new(0.0, TREAD_HEIGHT - distance),
+        ])
+        - upright_takes(distance)
+}
+
+/// The corners of the nose's flat on the tipped stair, set back `distance`
+/// short of the slope, mitred at its right end as #699 mitres two flats.
+fn tipped_nose_flat_set_back(distance: f64) -> Vec<DVec3> {
+    let mut corners = vec![
+        DVec3::new(0.0, 0.0, TREAD_HEIGHT - distance),
+        DVec3::new(0.0, distance, TREAD_HEIGHT),
+    ];
+    corners.extend(mitre_set_back(distance));
+    corners
+}
+
+/// Where the tipped stair's foot stands on its section, and the way up its
+/// riser from there.
+fn tipped_foot() -> [DVec2; 2] {
+    [
+        DVec2::new(tipped_riser_at(TREAD_HEIGHT), TREAD_HEIGHT),
+        DVec2::new(RISER_TIP / HEIGHT, 1.0).normalize(),
+    ]
+}
+
+/// The corners of the foot's flat on the tipped stair, set back `distance`
+/// along the tread and up the riser.
+fn tipped_foot_flat_set_back(distance: f64) -> Vec<DVec3> {
+    let [foot, up] = tipped_foot();
+    [foot - DVec2::X * distance, foot + up * distance]
+        .into_iter()
+        .flat_map(|at| [0.0, LENGTH].map(|x| DVec3::new(x, at.x, at.y)))
+        .collect()
+}
+
+/// The corners of the strip of tread the tipped stair keeps between the
+/// nose's flat and the foot's, each set back `distance`.
+fn tipped_tread_strip(distance: f64) -> Vec<DVec3> {
+    let [foot, _] = tipped_foot();
+    strip(
+        DVec3::new(0.0, distance, TREAD_HEIGHT),
+        DVec3::new(0.0, foot.x - distance, TREAD_HEIGHT),
+    )
+    .to_vec()
+}
+
+/// The matter of the tipped stair once its nose and foot are set back
+/// `distance` short of the slope: the stair's own, 30·(300 − 7.5·2e-6), less
+/// the nose's triangle, d²/2, more the foot's, whose two sides of d hold the
+/// tipped riser's angle to the tread, d²/2 times its sine, less what the
+/// upright's flat takes off.
+fn tipped_flats_matter(_: &Body, distance: f64) -> f64 {
+    let [_, up] = tipped_foot();
+    let whole = LENGTH
+        * (2.0 * TREAD * TREAD_HEIGHT + TREAD * (HEIGHT - TREAD_HEIGHT)
+            - RISER_TIP * (HEIGHT * HEIGHT - TREAD_HEIGHT * TREAD_HEIGHT) / (2.0 * HEIGHT));
+    whole - LENGTH * distance * distance / 2.0 + LENGTH * distance * distance / 2.0 * up.y
+        - upright_takes(distance)
+}
+
+/// The corners of the slope across a flight's first tread and the riser
+/// above it, set back `distance`, mitred at its right end: from the nose's
+/// front up to the second step's top, `distance` back on it.
+fn flight_slope_set_back(distance: f64) -> Vec<DVec3> {
+    let mut corners: Vec<DVec3> = [0.0, LENGTH]
+        .map(|x| DVec3::new(x, 2.0 * TREAD - distance, 2.0 * TREAD_HEIGHT))
+        .to_vec();
+    corners.push(DVec3::new(0.0, 0.0, TREAD_HEIGHT - distance));
+    corners.extend(mitre_set_back(distance));
+    corners
+}
+
+/// The matter of a flight of `steps` under the slope across its first nose,
+/// its foot and its second nose set back `distance`, its upright's flat cut
+/// at the first nose's right end: its section, less the two noses'
+/// triangles and more the foot's, d²/2 each, less what the upright's flat
+/// takes off — 30·(300 − 12.5) − 250/3 on two steps, 30·(600 − 12.5) − 250/3
+/// on three.
+fn flight_matter_with_the_upright(steps: usize, distance: f64) -> f64 {
+    let section: f64 = (1..=steps)
+        .map(|step| TREAD * TREAD_HEIGHT * step as f64)
+        .sum();
+    LENGTH * (section - distance * distance / 2.0) - upright_takes(distance)
+}
+
+/// The matter of the [`stair`], the flight of two, under that slope.
+fn two_steps_matter(_: &Body, distance: f64) -> f64 {
+    flight_matter_with_the_upright(2, distance)
+}
+
+/// The matter of the [`flight_of`] three under that slope.
+fn three_steps_matter(_: &Body, distance: f64) -> f64 {
+    flight_matter_with_the_upright(3, distance)
+}
+
+/// The corners of a face, for the set-back the body shows.
+type CornersFor = fn(f64) -> Vec<DVec3>;
+
+/// A list the review of #814 named, the front's upright edge at the nose's
+/// right end the last of its edges, and the body it is found to lay in
+/// every order: the faces of the part it takes away, each flat face it lays
+/// as the edges answering to it and its corners for the set-back the body
+/// shows, the faces left of the part it holds the corners of, the flat the
+/// upright's is mitred against and the sides met where the mitre reaches the
+/// end, the matter, and how near half the tread's depth the set-back is.
+struct UprightList {
+    called: &'static str,
+    part: Body,
+    edges: Vec<EdgeName>,
+    front: u32,
+    gone: Vec<usize>,
+    flats: Vec<(Vec<usize>, CornersFor)>,
+    left: Vec<(usize, CornersFor)>,
+    mitred: usize,
+    mitre_end: Vec<Vec<u32>>,
+    matter: fn(&Body, f64) -> f64,
+    within: f64,
+}
+
+/// Holds that a chamfer on `list`'s edges, asked `asked`, lays one body in
+/// every order the list may be named in: the value asked reported and taken
+/// within a hair of half the tread's depth; the faces the list takes away
+/// gone and no other face of the part, a face for each edge and none laid
+/// at the corner; the upright's flat set back `d` — read where it meets the
+/// floor at the front, within the list's reach of half and the same in
+/// every order to the place's tolerance — facing (1, −1, 0)/√2, its corners
+/// the mitre's; each flat the list lays one face answering to its edges'
+/// numbers, its corners where the arithmetic puts them for `d`; the faces
+/// left of the part cut back to them; the upright's flat meeting the flat
+/// it is mitred against by one edge, from the front to the end; the body
+/// exact, closed, uncrossed, holding the list's matter for `d`, and its
+/// triangles enclosing that.
+fn lays_one_body_in_every_order(list: &UprightList, asked: f64) {
+    let half = TREAD / 2.0;
+    let start = list.part.faces_end();
+    let upright = list.edges.len() - 1;
+    let indices: Vec<usize> = (0..list.edges.len()).collect();
+    let mut first: Option<f64> = None;
+
+    for order in every_order(&indices) {
+        let names: Vec<EdgeName> = order.iter().map(|&edge| list.edges[edge].clone()).collect();
+        let number_of = |edge: usize| {
+            start
+                + order
+                    .iter()
+                    .position(|&named| named == edge)
+                    .expect("each edge is named")
+        };
+        let what = format!(
+            "the chamfer on {}, named in the order {order:?}, asked {asked}",
+            list.called
+        );
+
+        let chamfered = list
+            .part
+            .chamfer_edges(&names, asked)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        assert!(
+            (chamfered.asked - asked).abs() < PLACE
+                && (chamfered.taken - half).abs() <= MEETING_HAIR,
+            "{what}: asked {} and took {}, where the list takes a hair from {half}",
+            chamfered.asked,
+            chamfered.taken
+        );
+        let body = &chamfered.body;
+        let mut kept_and_laid = numbers(&list.part);
+        for face in &list.gone {
+            assert!(!body.has_face(*face), "{what}: face {face} is gone");
+            kept_and_laid.remove(face);
+        }
+        kept_and_laid.extend(start..start + list.edges.len());
+        assert_eq!(
+            numbers(body),
+            kept_and_laid,
+            "{what}: every face of the part but {:?}, a face for each edge, and no face laid at \
+             the corner",
+            list.gone
+        );
+        assert_eq!(
+            body.faces_end(),
+            start + list.edges.len(),
+            "{what}: the next step numbers its faces past every edge's number"
+        );
+        let flat = number_of(upright);
+        let distance = LENGTH
+            - corners_of(body, flat, &what)
+                .iter()
+                .find(|corner| corner.y.abs() < PLACE && corner.z.abs() < PLACE)
+                .unwrap_or_else(|| {
+                    panic!("{what}: the upright's flat meets the floor at the front")
+                })
+                .x;
+        assert!(
+            (distance - half).abs() <= list.within,
+            "{what}: the upright's flat is set back {distance}, within {} of {half}",
+            list.within
+        );
+        match first {
+            None => first = Some(distance),
+            Some(seen) => assert!(
+                (distance - seen).abs() < PLACE,
+                "{what}: the upright's flat is set back {distance}, where the first order set it \
+                 back {seen}"
+            ),
+        }
+        let which = format!("{what}: face {flat}, the upright's flat, set back {distance}");
+        face_facing(body, &[flat], NOSE_RIGHT.flat_facing(), &which);
+        corners_are(body, flat, &upright_flat_set_back(distance), &which);
+        let answering: Vec<Vec<usize>> = list
+            .flats
+            .iter()
+            .map(|(edges, _)| {
+                let mut laid: Vec<usize> = edges.iter().map(|&edge| number_of(edge)).collect();
+                laid.sort();
+                laid
+            })
+            .collect();
+        for (laid, (_, corners)) in answering.iter().zip(&list.flats) {
+            let which = format!("{what}: the flat answering to {laid:?}, set back {distance}");
+            one_flat_face_answers_to(body, laid, &which);
+            corners_are(body, laid[0], &corners(distance), &which);
+        }
+        for (face, corners) in &list.left {
+            corners_are(
+                body,
+                *face,
+                &corners(distance),
+                &format!("{what}: what is left of face {face}, set back {distance}"),
+            );
+        }
+        let mitred: Vec<u32> = answering[list.mitred]
+            .iter()
+            .map(|&number| number as u32)
+            .collect();
+        meet_by_one_edge(
+            body,
+            [&mitred, &[flat as u32]],
+            [vec![vec![list.front]], list.mitre_end.clone()],
+            &format!("{what}: the mitre between {mitred:?} and the upright's flat"),
+        );
+        let promised = (list.matter)(&list.part, distance);
+        sound_drawn_within(
+            body,
+            promised,
+            EXACT * promised,
+            &format!("{what}: the matter under the flats set back {distance}"),
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_on_a_tread_s_nose_and_foot_whose_riser_is_turned_or_tipped_back_by_a_hair_and_the_front_s_upright_edge_at_the_nose_s_right_end_lays_one_body_in_every_order()
+ {
+    let half = TREAD / 2.0;
+    let turned = stair_with_its_riser_turned_by(RISER_TURN);
+    let turned_edges = vec![
+        edge_between(&turned, TREAD_TOP, NOSE),
+        edge_between(&turned, RISER, TREAD_TOP),
+        edge_on_sides(&turned, &STAIR_RIGHT, &[NOSE as u32]),
+    ];
+    let tipped = stair_with_its_riser_tipped_back();
+    let tipped_edges = vec![
+        edge_between(&tipped, TREAD_TOP, NOSE),
+        edge_between(&tipped, TIPPED_RISER, TREAD_TOP),
+        edge_on_sides(&tipped, &TIPPED_END, &[NOSE as u32]),
+    ];
+    let lists = [
+        (
+            UprightList {
+                called: "the nose and foot of the tread whose riser is turned by 1e-7, and the \
+                         front's upright edge at the nose's right end",
+                part: turned.clone(),
+                edges: turned_edges,
+                front: NOSE as u32,
+                gone: vec![TREAD_TOP],
+                flats: vec![(vec![0, 1], turned_slope_set_back)],
+                left: vec![(NOSE, front_set_back)],
+                mitred: 0,
+                mitre_end: vec![STAIR_RIGHT.to_vec()],
+                matter: turned_matter,
+                within: MEETING_HAIR,
+            },
+            vec![half, MORE_THAN_HALF, half - 1e-6],
+        ),
+        (
+            UprightList {
+                called: "the nose and foot of the tread whose riser tips back by 2e-6, and the \
+                         front's upright edge at the nose's right end",
+                part: tipped.clone(),
+                edges: tipped_edges.clone(),
+                front: NOSE as u32,
+                gone: vec![TREAD_TOP],
+                flats: vec![(vec![0, 1], tipped_slope_set_back)],
+                left: vec![(NOSE, front_set_back)],
+                mitred: 0,
+                mitre_end: vec![TIPPED_END.to_vec()],
+                matter: tipped_slope_matter,
+                within: MEETING_HAIR,
+            },
+            vec![half, MORE_THAN_HALF],
+        ),
+        (
+            UprightList {
+                called: "the nose and foot of the tread whose riser tips back by 2e-6, and the \
+                         front's upright edge at the nose's right end, a strip of the tread kept",
+                part: tipped,
+                edges: tipped_edges,
+                front: NOSE as u32,
+                gone: Vec::new(),
+                flats: vec![
+                    (vec![0], tipped_nose_flat_set_back),
+                    (vec![1], tipped_foot_flat_set_back),
+                ],
+                left: vec![(NOSE, front_set_back), (TREAD_TOP, tipped_tread_strip)],
+                mitred: 0,
+                mitre_end: vec![vec![TREAD_TOP as u32], TIPPED_END.to_vec()],
+                matter: tipped_flats_matter,
+                within: MEETING_HAIR,
+            },
+            vec![half - 1e-6],
+        ),
+    ];
+
+    for (list, asks) in &lists {
+        for &asked in asks {
+            lays_one_body_in_every_order(list, asked);
+        }
+    }
+}
+
+#[test]
+fn a_chamfer_on_a_flight_s_first_nose_the_foot_between_and_the_second_nose_and_the_front_s_upright_edge_at_the_first_nose_s_right_end_lays_the_slope_mitred_against_the_upright_s_flat_in_every_order()
+ {
+    let half = TREAD / 2.0;
+    let two = stair();
+    let three = flight_of(3);
+    let lists = [2, 3].map(|steps| {
+        let flight = if steps == 2 {
+            two.clone()
+        } else {
+            three.clone()
+        };
+        let [right, _] = flight_ends(steps);
+        let front = flight_front(steps, 1);
+        let edges = [
+            flight_edges(&flight, steps)[..3].to_vec(),
+            vec![edge_on_sides(&flight, &right, &[front as u32])],
+        ]
+        .concat();
+        UprightList {
+            called: if steps == 2 {
+                "the stair's first nose, foot and second nose, and the front's upright edge at \
+                 the first nose's right end"
+            } else {
+                "the first nose, foot and second nose of a flight of three steps, and the front's \
+                 upright edge at the first nose's right end"
+            },
+            edges,
+            front: front as u32,
+            gone: vec![flight_top(steps, 1), flight_front(steps, 2)],
+            flats: vec![(vec![0, 1, 2], flight_slope_set_back)],
+            left: vec![(front, front_set_back)],
+            mitred: 0,
+            mitre_end: vec![right],
+            matter: if steps == 2 {
+                two_steps_matter
+            } else {
+                three_steps_matter
+            },
+            within: PLACE,
+            part: flight,
+        }
+    });
+    for (list, promised) in lists.iter().zip([
+        30.0 * (300.0 - 12.5) - 250.0 / 3.0,
+        30.0 * (600.0 - 12.5) - 250.0 / 3.0,
+    ]) {
+        let matter = (list.matter)(&list.part, half);
+        assert!(
+            (matter - promised).abs() < PLACE,
+            "{}: arithmetic gives {matter}, where {promised} is promised",
+            list.called
+        );
+    }
+
+    for list in &lists {
+        for asked in [half, MORE_THAN_HALF, half - 1e-6] {
+            lays_one_body_in_every_order(list, asked);
         }
     }
 }
